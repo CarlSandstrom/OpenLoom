@@ -2,8 +2,9 @@
 add_library(Export INTERFACE)
 
 # Add source files when they exist
+# file(GLOB EXPORT_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 # target_sources(Export PRIVATE 
-#     export.cpp
+#     ${EXPORT_SOURCES}
 # )
 
 target_include_directories(Export INTERFACE 

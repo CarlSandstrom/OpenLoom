@@ -1,14 +1,15 @@
 # CMakeLists.txt for Topology module
-add_library(Topology INTERFACE)
+add_library(Topology STATIC)
 
-# Add source files when they exist
+# Add all source files automatically
+file(GLOB TOPOLOGY_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 target_sources(Topology PRIVATE 
-     TopoDS_ShapeConverter.h
+    ${TOPOLOGY_SOURCES}
 )
 
-target_include_directories(Topology INTERFACE 
+target_include_directories(Topology PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Link with Geometry module for topology operations
-target_link_libraries(Topology INTERFACE Geometry)
+target_link_libraries(Topology PUBLIC Geometry)

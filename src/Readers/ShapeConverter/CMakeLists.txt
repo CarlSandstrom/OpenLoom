@@ -2,8 +2,9 @@
 add_library(ShapeConverter INTERFACE)
 
 # Add source files when they exist
+# file(GLOB SHAPECONVERTER_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 # target_sources(ShapeConverter PRIVATE 
-#     shape_converter.cpp
+#     ${SHAPECONVERTER_SOURCES}
 # )
 
 target_include_directories(ShapeConverter INTERFACE 

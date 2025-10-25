@@ -2,8 +2,9 @@
 add_library(Meshing INTERFACE)
 
 # Add source files when they exist
+# file(GLOB MESHING_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
 # target_sources(Meshing PRIVATE 
-#     meshing.cpp
+#     ${MESHING_SOURCES}
 # )
 
 target_include_directories(Meshing INTERFACE 

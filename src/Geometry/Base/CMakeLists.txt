@@ -1,11 +1,12 @@
 # CMakeLists.txt for Geometry Base module
-add_library(GeometryBase INTERFACE)
+add_library(GeometryBase STATIC)
 
-# Add source files when they exist
-# target_sources(GeometryBase PRIVATE 
-#     geometry_base.cpp
-# )
+# Add all source files automatically
+file(GLOB GEOMETRY_BASE_SOURCES CONFIGURE_DEPENDS "*.cpp")
+target_sources(GeometryBase PRIVATE 
+    ${GEOMETRY_BASE_SOURCES}
+)
 
-target_include_directories(GeometryBase INTERFACE 
+target_include_directories(GeometryBase PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
