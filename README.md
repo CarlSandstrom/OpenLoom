@@ -11,6 +11,14 @@ Install development libraries
 
 sudo dnf install vtk-devel eigen3-devel spdlog-devel fmt-devel gtest-devel
 
+Compile command
+===============
+
+Debug
+-----
+
+cmake .. -DCMAKE_BUILD_TYPE=Debug 
+
 Build OpenCascade with STEP support
 ===================================
 

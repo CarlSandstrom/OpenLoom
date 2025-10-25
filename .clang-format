@@ -1,0 +1,10 @@
+BasedOnStyle: Microsoft
+AccessModifierOffset: '-4'
+AllowShortIfStatementsOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: All
+BreakBeforeTernaryOperators: 'false'
+BreakConstructorInitializers: AfterColon
+BreakInheritanceList: AfterColon
+ColumnLimit: '0'
+IndentWidth: '4'
+PointerAlignment: Left
