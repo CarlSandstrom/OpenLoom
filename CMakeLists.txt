@@ -6,53 +6,28 @@ project(cMesh)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find OpenCASCADE
-set(OpenCASCADE_DIR "$ENV{HOME}/lib/opencascade/lib/cmake/opencascade")
-find_package(OpenCASCADE REQUIRED)
+# Optimize CMake for faster builds
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY ON)
+set(CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY ON)
 
-message(STATUS "OpenCASCADE found: ${OpenCASCADE_INCLUDE_DIR}")
-message(STATUS "OpenCASCADE version: ${OpenCASCADE_MAJOR_VERSION}.${OpenCASCADE_MINOR_VERSION}.${OpenCASCADE_MAINTENANCE_VERSION}")
-
-# Use system packages
-find_package(VTK REQUIRED)
-find_package(Eigen3 REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(fmt REQUIRED)
-find_package(GTest REQUIRED)
+# Use system packages (only find if not already found)
+if(NOT VTK_FOUND)
+    find_package(VTK REQUIRED)
+endif()
+if(NOT Eigen3_FOUND)
+    find_package(Eigen3 REQUIRED)
+endif()
+if(NOT spdlog_FOUND)
+    find_package(spdlog REQUIRED)
+endif()
+if(NOT fmt_FOUND)
+    find_package(fmt REQUIRED)
+endif()
+if(NOT GTest_FOUND)
+    find_package(GTest REQUIRED)
+endif()
 
 # Add subdirectories
 add_subdirectory(src)
 add_subdirectory(tests)
-
-add_library(meshlib
-    # src/geometry_engine.cpp
-    # src/mesh_generator.cpp
-)
-
-target_include_directories(meshlib
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${OpenCASCADE_INCLUDE_DIR}
-)
-
-target_link_libraries(meshlib
-    PUBLIC
-        TKernel
-        TKMath
-        TKG3d
-        TKG2d
-        TKGeomBase
-        TKBRep
-        TKGeomAlgo
-        TKTopAlgo
-        TKSTEP
-        TKSTEPBase
-        TKSTEPAttr
-        TKSTEP209
-)
-
-# Test executable
-add_executable(mesh_test src/main.cpp)
-target_link_libraries(mesh_test PRIVATE meshlib)
