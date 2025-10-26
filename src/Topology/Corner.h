@@ -1,24 +1,26 @@
 #pragma once
 
+#include <set>
 #include <string>
-#include <vector>
 
-namespace Topology {
+namespace Topology
+{
 
-class Corner {
+class Corner
+{
 public:
     Corner(const std::string& id,
-           const std::vector<std::string>& connectedEdgeIds,
-           const std::vector<std::string>& connectedSurfaceIds);
+           const std::set<std::string>& connectedEdgeIds,
+           const std::set<std::string>& connectedSurfaceIds);
 
     std::string getId() const;
-    const std::vector<std::string>& getConnectedEdgeIds() const;
-    const std::vector<std::string>& getConnectedSurfaceIds() const;
-    
+    const std::set<std::string>& getConnectedEdgeIds() const;
+    const std::set<std::string>& getConnectedSurfaceIds() const;
+
 private:
     std::string id_;
-    std::vector<std::string> connectedEdgeIds_;
-    std::vector<std::string> connectedSurfaceIds_;  // Explicit storage for O(1) access
+    std::set<std::string> connectedEdgeIds_;
+    std::set<std::string> connectedSurfaceIds_;
 };
 
 } // namespace Topology

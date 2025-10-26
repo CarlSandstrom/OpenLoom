@@ -38,7 +38,6 @@ target_link_libraries(cMeshExample PRIVATE
     # TKDESTEPBase
     # TKDESTEPAttr
     # TKDESTEP209
-    Topology
 )
 
 # Include OpenCASCADE headers

@@ -231,7 +231,7 @@ meshing_library/
 **Geometry Backend:**
 ```cpp
 // Abstract base class
-class GeometrySurface {
+class Surface {
 public:
     virtual Point3D evaluatePoint(double u, double v) const = 0;
     virtual Vector3D evaluateNormal(double u, double v) const = 0;
@@ -240,7 +240,7 @@ public:
 };
 
 // OpenCascade implementation
-class OCCSurface : public GeometrySurface {
+class OCCSurface : public Surface {
     // OCC-specific implementation
 };
 ```
