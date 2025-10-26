@@ -1,21 +1,20 @@
 # CMakeLists.txt for Geometry OpenCascade module
-add_library(GeometryOpenCascade INTERFACE)
-
-# Add source files when they exist
-# target_sources(GeometryOpenCascade PRIVATE 
-#     opencascade_wrapper.cpp
-# )
+add_library(GeometryOpenCascade STATIC
+    OpenCascadeSurface.cpp
+    OpenCascadeEdge.cpp
+    OpenCascadeCorner.cpp
+)
 
 # Find OpenCASCADE
 set(OpenCASCADE_DIR "$ENV{HOME}/lib/opencascade/lib/cmake/opencascade")
 find_package(OpenCASCADE REQUIRED)
 
-target_include_directories(GeometryOpenCascade INTERFACE 
+target_include_directories(GeometryOpenCascade PUBLIC 
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${OpenCASCADE_INCLUDE_DIR}
 )
 
-target_link_libraries(GeometryOpenCascade INTERFACE
+target_link_libraries(GeometryOpenCascade PUBLIC
     TKernel
     TKMath
     TKG3d

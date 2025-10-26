@@ -18,10 +18,8 @@ public:
     std::array<double, 3> getPoint(double u, double v) const override;
     void getParameterBounds(double& uMin, double& uMax,
                             double& vMin, double& vMax) const override;
-    double getArea() const override;
-    void getCurvature(double u, double v,
-                      double& gaussianCurvature,
-                      double& meanCurvature) const override;
+    double getGap(const std::array<double, 3>& point) const override;
+    std::array<double, 2> projectPoint(const std::array<double, 3>& point) const override;
     std::string getId() const override;
 
 private:

@@ -1,0 +1,99 @@
+#include "OpenCascadeSurface.h"
+#include <BRepAdaptor_Surface.hxx>
+#include <BRepClass_FaceClassifier.hxx>
+#include <BRepTools.hxx>
+#include <BRep_Tool.hxx>
+#include <GeomAPI_ProjectPointOnSurf.hxx>
+#include <GeomLProp_SLProps.hxx>
+#include <Precision.hxx>
+#include <ShapeAnalysis.hxx>
+#include <gp_Pnt.hxx>
+#include <gp_Vec.hxx>
+#include <limits>
+#include <sstream>
+
+namespace Geometry
+{
+
+OpenCascadeSurface::OpenCascadeSurface(const TopoDS_Face& face) :
+    face_(face)
+{
+}
+
+std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
+{
+    BRepAdaptor_Surface surface(face_);
+    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+    GeomLProp_SLProps props(geomSurface, u, v, 1, Precision::Confusion());
+
+    if (props.IsNormalDefined())
+    {
+        const gp_Vec& normal = props.Normal();
+        return {normal.X(), normal.Y(), normal.Z()};
+    }
+
+    // Fallback: return a default normal if not defined
+    return {0.0, 0.0, 1.0};
+}
+
+std::array<double, 3> OpenCascadeSurface::getPoint(double u, double v) const
+{
+    BRepAdaptor_Surface surface(face_);
+    gp_Pnt point = surface.Value(u, v);
+    return {point.X(), point.Y(), point.Z()};
+}
+
+void OpenCascadeSurface::getParameterBounds(double& uMin, double& uMax,
+                                            double& vMin, double& vMax) const
+{
+    BRepAdaptor_Surface surface(face_);
+    uMin = surface.FirstUParameter();
+    uMax = surface.LastUParameter();
+    vMin = surface.FirstVParameter();
+    vMax = surface.LastVParameter();
+}
+
+double OpenCascadeSurface::getGap(const std::array<double, 3>& point) const
+{
+    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+
+    gp_Pnt queryPoint(point[0], point[1], point[2]);
+    GeomAPI_ProjectPointOnSurf projector(queryPoint, geomSurface);
+
+    if (projector.NbPoints() > 0)
+    {
+        return projector.LowerDistance();
+    }
+
+    // Return a large value if projection fails
+    return std::numeric_limits<double>::max();
+}
+
+std::array<double, 2> OpenCascadeSurface::projectPoint(const std::array<double, 3>& point) const
+{
+    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+
+    gp_Pnt queryPoint(point[0], point[1], point[2]);
+    GeomAPI_ProjectPointOnSurf projector(queryPoint, geomSurface);
+
+    if (projector.NbPoints() > 0)
+    {
+        double u, v;
+        projector.LowerDistanceParameters(u, v);
+        return {u, v};
+    }
+
+    // Return parameter bounds center if projection fails
+    double uMin, uMax, vMin, vMax;
+    getParameterBounds(uMin, uMax, vMin, vMax);
+    return {(uMin + uMax) / 2.0, (vMin + vMax) / 2.0};
+}
+
+std::string OpenCascadeSurface::getId() const
+{
+    std::ostringstream oss;
+    oss << "OpenCascadeSurface_" << std::hex << reinterpret_cast<uintptr_t>(&face_);
+    return oss.str();
+}
+
+} // namespace Geometry
