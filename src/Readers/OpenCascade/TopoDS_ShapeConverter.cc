@@ -24,6 +24,11 @@ const Topology::Topology& TopoDS_ShapeConverter::getTopology() const
     return *topology_;
 }
 
+const Geometry::GeometryCollection& TopoDS_ShapeConverter::getGeometryCollection() const
+{
+    return *geometryCollection_;
+}
+
 void TopoDS_ShapeConverter::buildTopology()
 {
     createSurfaces();

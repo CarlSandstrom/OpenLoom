@@ -19,6 +19,7 @@ public:
     TopoDS_ShapeConverter(const TopoDS_Shape& shape);
 
     const Topology::Topology& getTopology() const;
+    const Geometry::GeometryCollection& getGeometryCollection() const;
 
 private:
     void buildTopology();
