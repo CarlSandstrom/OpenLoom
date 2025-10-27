@@ -1,0 +1,37 @@
+#pragma once
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+namespace Meshing
+{
+
+enum class ElementType
+{
+    TETRAHEDRON,
+    HEXAHEDRON,
+    PRISM,
+    PYRAMID,
+    TRIANGLE, // For surface mesh
+    QUADRILATERAL
+};
+
+class Element
+{
+public:
+    virtual ~Element() = default;
+
+    virtual ElementType getType() const = 0;
+    virtual size_t getNodeCount() const = 0;
+    virtual const std::vector<size_t>& getNodeIds() const = 0;
+    virtual size_t getId() const = 0;
+
+    // For transaction support
+    virtual std::unique_ptr<Element> clone() const = 0;
+
+    // Quality metrics
+    virtual double computeVolume() const = 0;
+    virtual double computeQuality() const = 0;
+};
+
+} // namespace Meshing

@@ -1,11 +1,12 @@
 # CMakeLists.txt for Meshing module
 add_library(Meshing INTERFACE)
 
-# Add source files when they exist
-# file(GLOB MESHING_SOURCES CONFIGURE_DEPENDS "*.cpp" "*.cc")
-# target_sources(Meshing PRIVATE 
-#     ${MESHING_SOURCES}
-# )
+# Add subdirectories for meshing components
+add_subdirectory(Data)
+add_subdirectory(Operations)
+
+# Link meshing submodules to the main Meshing library
+target_link_libraries(Meshing INTERFACE MeshingData MeshingOperations)
 
 target_include_directories(Meshing INTERFACE 
     ${CMAKE_CURRENT_SOURCE_DIR}
