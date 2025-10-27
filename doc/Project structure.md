@@ -70,10 +70,6 @@ meshing_library/
 ├── examples/
 │   └── basic_tetrahedral_mesh/
 │
-├── tests/
-│   ├── unit/
-│   └── integration/
-│
 ├── cmake/
 │   └── modules/
 │
@@ -121,11 +117,13 @@ meshing_library/
     │   ├── Validation/
     │   └── Refinement/
     │
-    └── Exporters/
-        ├── Base
-        ├── VTK
-        ├── Gmsh
-        └── Native
+    ├── Exporters/
+    │   ├── Base
+    │   ├── VTK
+    │   ├── Gmsh
+    │   └── Native
+    │
+    └── Tests/
 ```
 
 ### Directory Descriptions
@@ -139,7 +137,8 @@ meshing_library/
 - Example usage and test cases
 - Demonstration of basic workflows
 
-**tests/**
+**Tests/**
+- Under this folder there is an identical structure as under src/ where each unit test is under the corresponding folder.
 - Unit tests for individual components
 - Integration tests for complete workflows
 

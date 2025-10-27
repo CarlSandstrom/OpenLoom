@@ -8,6 +8,7 @@ target_sources(ReaderOpenCascade PRIVATE
 )
 
 target_include_directories(ReaderOpenCascade INTERFACE 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

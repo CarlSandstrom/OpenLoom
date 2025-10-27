@@ -9,5 +9,6 @@ add_subdirectory(OpenCascade)
 target_link_libraries(Readers INTERFACE ShapeConverter ReaderOpenCascade)
 
 target_include_directories(Readers INTERFACE 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )

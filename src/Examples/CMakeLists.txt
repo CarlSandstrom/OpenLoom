@@ -42,5 +42,6 @@ target_link_libraries(cMeshExample PRIVATE
 
 # Include OpenCASCADE headers
 target_include_directories(cMeshExample PRIVATE 
+    ${CMAKE_SOURCE_DIR}/src
     ${OpenCASCADE_INCLUDE_DIR}
 )

@@ -8,6 +8,7 @@ target_sources(Topology PRIVATE
 )
 
 target_include_directories(Topology PUBLIC 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

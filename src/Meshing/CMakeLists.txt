@@ -9,6 +9,7 @@ add_subdirectory(Operations)
 target_link_libraries(Meshing INTERFACE MeshingData MeshingOperations)
 
 target_include_directories(Meshing INTERFACE 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

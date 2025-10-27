@@ -8,5 +8,6 @@ target_sources(MeshingData PRIVATE
 )
 
 target_include_directories(MeshingData PUBLIC 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )

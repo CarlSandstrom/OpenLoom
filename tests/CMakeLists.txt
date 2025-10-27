@@ -56,12 +56,6 @@ target_link_libraries(runTests PRIVATE
 # Include directories for accessing headers
 target_include_directories(runTests PRIVATE 
     ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/Geometry/Base
-    ${CMAKE_SOURCE_DIR}/src/Geometry/OpenCascade
-    ${CMAKE_SOURCE_DIR}/src/Meshing/Data
-    ${CMAKE_SOURCE_DIR}/src/Meshing/Operations
-    ${CMAKE_SOURCE_DIR}/src/Topology
-    ${CMAKE_SOURCE_DIR}/src/Readers/OpenCascade
 )
 
 add_test(NAME AllTests COMMAND runTests)

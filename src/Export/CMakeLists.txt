@@ -8,6 +8,7 @@ add_library(Export INTERFACE)
 # )
 
 target_include_directories(Export INTERFACE 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

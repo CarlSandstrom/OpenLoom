@@ -10,4 +10,5 @@ target_link_libraries(Geometry INTERFACE GeometryBase GeometryOpenCascade)
 
 target_include_directories(Geometry INTERFACE 
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
 )

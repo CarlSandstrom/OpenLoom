@@ -8,6 +8,7 @@ add_library(ShapeConverter INTERFACE)
 # )
 
 target_include_directories(ShapeConverter INTERFACE 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

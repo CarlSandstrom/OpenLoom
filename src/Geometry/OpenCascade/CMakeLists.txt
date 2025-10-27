@@ -10,6 +10,7 @@ set(OpenCASCADE_DIR "$ENV{HOME}/lib/opencascade/lib/cmake/opencascade")
 find_package(OpenCASCADE REQUIRED)
 
 target_include_directories(GeometryOpenCascade PUBLIC 
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${OpenCASCADE_INCLUDE_DIR}
 )

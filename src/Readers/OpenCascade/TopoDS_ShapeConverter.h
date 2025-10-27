@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../../Geometry/Base/GeometryCollection.h"
-#include "Corner.h"
-#include "Edge.h"
+#include "Geometry/Base/GeometryCollection.h"
 #include "OpenCascadeGeometryCollection.h"
-#include "Surface.h"
-#include "Topology.h"
+#include "Topology/Corner.h"
+#include "Topology/Edge.h"
+#include "Topology/Surface.h"
+#include "Topology/Topology.h"
 #include <TopoDS_Shape.hxx>
 #include <memory>
 #include <unordered_map>
