@@ -20,6 +20,7 @@ public:
     void moveNode(size_t id, const std::array<double, 3>& newCoords);
     void removeNode(size_t id);
     size_t getNodeCount() const;
+    const Node* getNode(size_t id) const;
 
     void removeElement(size_t id);
     size_t addElement(std::unique_ptr<Element> element);
@@ -39,8 +40,9 @@ public:
     void restoreNode(size_t id, const std::array<double, 3>& coordinates);
 
 private:
-    std::vector<std::unique_ptr<Node>> nodes_;
+    std::unordered_map<size_t, std::unique_ptr<Node>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<Element>> elements_;
+    size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
 
     std::unordered_map<size_t, std::vector<size_t>> nodeToElements_;

@@ -3,14 +3,9 @@
 namespace Meshing
 {
 
-Node::Node(size_t id, const std::array<double, 3>& coordinates) :
-    id_(id), coordinates_(coordinates), isBoundary_(false), geometryId_("")
+Node::Node(const std::array<double, 3>& coordinates) :
+    coordinates_(coordinates), isBoundary_(false), geometryId_("")
 {
-}
-
-size_t Node::getId() const
-{
-    return id_;
 }
 
 const std::array<double, 3>& Node::getCoordinates() const

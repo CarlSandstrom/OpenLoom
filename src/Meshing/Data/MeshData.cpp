@@ -14,10 +14,10 @@ MeshData::MeshData()
 
 size_t MeshData::addNode(const std::array<double, 3>& coordinates)
 {
-    size_t id = nodes_.size();
+    size_t id = nextNodeId_++;
 
-    auto node = std::make_unique<Node>(id, coordinates);
-    nodes_.push_back(std::move(node));
+    auto node = std::make_unique<Node>(coordinates);
+    nodes_[id] = std::move(node);
 
     // Initialize empty element list for this node
     nodeToElements_[id] = std::vector<size_t>{};
@@ -124,12 +124,13 @@ void MeshData::removeElement(size_t id)
 
 void MeshData::moveNode(size_t id, const std::array<double, 3>& newCoords)
 {
-    if (id >= nodes_.size() || !nodes_[id])
+    auto it = nodes_.find(id);
+    if (it == nodes_.end())
     {
         throw std::runtime_error("Node ID " + std::to_string(id) + " does not exist");
     }
 
-    Node* node = nodes_[id].get();
+    Node* node = it->second.get();
 
     // Notify transaction listener BEFORE modification
     if (transactionListener_)
@@ -144,24 +145,25 @@ void MeshData::moveNode(size_t id, const std::array<double, 3>& newCoords)
 
 void MeshData::removeNode(size_t id)
 {
-    if (id >= nodes_.size() || !nodes_[id])
+    auto nodeIt = nodes_.find(id);
+    if (nodeIt == nodes_.end())
     {
         throw std::runtime_error("Node ID " + std::to_string(id) + " does not exist");
     }
 
     // Check if node is still referenced by any elements
-    auto it = nodeToElements_.find(id);
-    if (it != nodeToElements_.end() && !it->second.empty())
+    auto elemIt = nodeToElements_.find(id);
+    if (elemIt != nodeToElements_.end() && !elemIt->second.empty())
     {
         throw std::runtime_error(
             "Cannot remove node " + std::to_string(id) +
-            ": still referenced by " + std::to_string(it->second.size()) + " element(s)");
+            ": still referenced by " + std::to_string(elemIt->second.size()) + " element(s)");
     }
 
     // Save node data if transaction is active
     if (transactionListener_)
     {
-        auto coords = nodes_[id]->getCoordinates();
+        auto coords = nodeIt->second->getCoordinates();
         transactionListener_->onNodeRemoved(id, coords);
     }
 
@@ -169,12 +171,18 @@ void MeshData::removeNode(size_t id)
     nodeToElements_.erase(id);
 
     // Remove node
-    nodes_[id].reset();
+    nodes_.erase(id);
 }
 
 size_t MeshData::getNodeCount() const
 {
     return nodes_.size();
+}
+
+const Node* MeshData::getNode(size_t id) const
+{
+    auto it = nodes_.find(id);
+    return (it != nodes_.end()) ? it->second.get() : nullptr;
 }
 
 void MeshData::restoreElement(size_t id, std::unique_ptr<Element> element)
@@ -192,7 +200,17 @@ void MeshData::restoreElement(size_t id, std::unique_ptr<Element> element)
 
 void MeshData::restoreNode(size_t id, const std::array<double, 3>& coordinates)
 {
-    nodes_[id]->setCoordinates(coordinates);
+    auto it = nodes_.find(id);
+    if (it != nodes_.end())
+    {
+        it->second->setCoordinates(coordinates);
+    }
+
+    // Ensure nextNodeId_ accounts for restored nodes
+    if (id >= nextNodeId_)
+    {
+        nextNodeId_ = id + 1;
+    }
 }
 
 void MeshData::addElementToConnectivity_(size_t elementId)
