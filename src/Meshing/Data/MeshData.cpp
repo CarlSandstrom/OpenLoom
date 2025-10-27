@@ -69,8 +69,9 @@ void MeshData::clearTransactionListener()
 
 size_t MeshData::addElement(std::unique_ptr<Element> element)
 {
-    size_t id = element->getId();
-    elements_.push_back(std::move(element));
+    size_t id = nextElementId_++;
+
+    elements_[id] = std::move(element);
     addElementToConnectivity_(id);
 
     // Notify listener if present
@@ -82,13 +83,30 @@ size_t MeshData::addElement(std::unique_ptr<Element> element)
     return id;
 }
 
+size_t MeshData::getElementCount() const
+{
+    return elements_.size();
+}
+
+const Element* MeshData::getElement(size_t id) const
+{
+    auto it = elements_.find(id);
+    return (it != elements_.end()) ? it->second.get() : nullptr;
+}
+
 void MeshData::removeElement(size_t id)
 {
+    auto it = elements_.find(id);
+    if (it == elements_.end())
+    {
+        throw std::runtime_error("Element ID " + std::to_string(id) + " does not exist");
+    }
+
     // Clone element before removing (if listener needs it)
     std::unique_ptr<Element> clone;
     if (transactionListener_)
     {
-        clone = elements_[id]->clone();
+        clone = it->second->clone();
     }
 
     // Remove from connectivity
@@ -101,7 +119,7 @@ void MeshData::removeElement(size_t id)
     }
 
     // Actually remove
-    elements_[id].reset();
+    elements_.erase(id);
 }
 
 void MeshData::moveNode(size_t id, const std::array<double, 3>& newCoords)
@@ -154,11 +172,22 @@ void MeshData::removeNode(size_t id)
     nodes_[id].reset();
 }
 
+size_t MeshData::getNodeCount() const
+{
+    return nodes_.size();
+}
+
 void MeshData::restoreElement(size_t id, std::unique_ptr<Element> element)
 {
     // Public method for transaction to restore elements
     elements_[id] = std::move(element);
     addElementToConnectivity_(id);
+
+    // Ensure nextElementId_ accounts for restored elements
+    if (id >= nextElementId_)
+    {
+        nextElementId_ = id + 1;
+    }
 }
 
 void MeshData::restoreNode(size_t id, const std::array<double, 3>& coordinates)
@@ -168,7 +197,10 @@ void MeshData::restoreNode(size_t id, const std::array<double, 3>& coordinates)
 
 void MeshData::addElementToConnectivity_(size_t elementId)
 {
-    const Element* elem = elements_[elementId].get();
+    auto it = elements_.find(elementId);
+    if (it == elements_.end()) return; // Element not found
+
+    const Element* elem = it->second.get();
     const auto& nodeIds = elem->getNodeIds();
 
     // Update node-to-element connectivity
@@ -206,7 +238,10 @@ void MeshData::addElementToConnectivity_(size_t elementId)
 
 void MeshData::removeElementFromConnectivity_(size_t elementId)
 {
-    const Element* elem = elements_[elementId].get();
+    auto it = elements_.find(elementId);
+    if (it == elements_.end()) return; // Element not found
+
+    const Element* elem = it->second.get();
     const auto& nodeIds = elem->getNodeIds();
 
     // Remove from node-to-element connectivity

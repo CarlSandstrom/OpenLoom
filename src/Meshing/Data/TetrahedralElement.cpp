@@ -5,8 +5,8 @@
 namespace Meshing
 {
 
-TetrahedralElement::TetrahedralElement(size_t id, const std::array<size_t, 4>& nodeIds) :
-    id_(id), nodeIds_(nodeIds)
+TetrahedralElement::TetrahedralElement(const std::array<size_t, 4>& nodeIds) :
+    nodeIds_(nodeIds)
 {
 }
 
@@ -83,6 +83,11 @@ std::array<size_t, 2> TetrahedralElement::getEdge(size_t edgeIndex) const
     default:
         return {nodeIds_[0], nodeIds_[1]}; // Default to first edge
     }
+}
+
+std::unique_ptr<Element> TetrahedralElement::clone() const
+{
+    return std::make_unique<TetrahedralElement>(nodeIds_);
 }
 
 } // namespace Meshing

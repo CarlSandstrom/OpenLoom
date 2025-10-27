@@ -8,12 +8,13 @@ namespace Meshing
 class TetrahedralElement : public Element
 {
 public:
-    TetrahedralElement(size_t id, const std::array<size_t, 4>& nodeIds);
+    TetrahedralElement(const std::array<size_t, 4>& nodeIds);
 
     ElementType getType() const override { return ElementType::TETRAHEDRON; }
     size_t getNodeCount() const override { return 4; }
     const std::vector<size_t>& getNodeIds() const override;
-    size_t getId() const override { return id_; }
+
+    std::unique_ptr<Element> clone() const override;
 
     double computeVolume() const override;
     double computeQuality() const override;
@@ -27,7 +28,6 @@ public:
     static constexpr size_t getEdgeCount() { return 6; }
 
 private:
-    size_t id_;
     std::array<size_t, 4> nodeIds_; // Ordered connectivity
 };
 

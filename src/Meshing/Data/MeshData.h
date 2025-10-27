@@ -19,9 +19,12 @@ public:
     size_t addNode(const std::array<double, 3>& coordinates);
     void moveNode(size_t id, const std::array<double, 3>& newCoords);
     void removeNode(size_t id);
+    size_t getNodeCount() const;
 
     void removeElement(size_t id);
     size_t addElement(std::unique_ptr<Element> element);
+    size_t getElementCount() const;
+    const Element* getElement(size_t id) const;
 
     // Connectivity queries
     const std::vector<size_t>& getNodeElements(size_t nodeId) const;
@@ -37,7 +40,8 @@ public:
 
 private:
     std::vector<std::unique_ptr<Node>> nodes_;
-    std::vector<std::unique_ptr<Element>> elements_;
+    std::unordered_map<size_t, std::unique_ptr<Element>> elements_;
+    size_t nextElementId_ = 0;
 
     std::unordered_map<size_t, std::vector<size_t>> nodeToElements_;
     std::unordered_map<FaceKey, std::pair<size_t, size_t>, FaceKeyHash> faceToElements_;
