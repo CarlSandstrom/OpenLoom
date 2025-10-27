@@ -38,3 +38,7 @@
 - Use `auto` for type deduction whenever practical
 - Wrap namespace usage in braces: `namespace X { ... }`
 - Apply code formatter consistently
+
+**Includes**
+- Use `#pragma once` in .h files
+- All includes are accessed by path relative to src/ directory
