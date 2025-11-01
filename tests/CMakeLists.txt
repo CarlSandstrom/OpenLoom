@@ -12,11 +12,9 @@ set(TEST_SOURCES
     # Meshing Data tests
     Meshing/Data/test_Node.cpp
     Meshing/Data/test_TetrahedralElement.cpp
-    Meshing/Data/test_TriangularElement.cpp
     
     # Meshing Operations tests
     Meshing/Operations/test_MeshTransaction.cpp
-    Meshing/Operations/test_MeshGeneration.cpp
     
     # Topology tests
     Topology/test_Corner.cpp

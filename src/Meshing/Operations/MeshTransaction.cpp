@@ -3,8 +3,8 @@
 namespace Meshing
 {
 
-MeshTransaction::MeshTransaction(MeshData* mesh) :
-    mesh_(mesh), isActive_(false), committed_(false)
+MeshTransaction::MeshTransaction(MeshOperations* operations) :
+    operations_(operations), isActive_(false), committed_(false)
 {
 }
 
@@ -28,7 +28,7 @@ void MeshTransaction::begin()
     removedElementIds_.clear();
 
     // Register as listener
-    mesh_->setTransactionListener(this);
+    operations_->setTransactionListener(this);
 }
 
 void MeshTransaction::commit()
@@ -39,7 +39,7 @@ void MeshTransaction::commit()
     committed_ = true;
 
     // Unregister as listener
-    mesh_->clearTransactionListener();
+    operations_->clearTransactionListener();
 
     // Clear saved data
     savedElements_.clear();
@@ -54,30 +54,30 @@ void MeshTransaction::rollback()
     if (!isActive_) return;
 
     // Unregister first to avoid recording rollback operations
-    mesh_->clearTransactionListener();
+    operations_->clearTransactionListener();
 
     // 1. Remove newly added elements
     for (size_t id : addedElementIds_)
     {
-        mesh_->removeElement(id);
+        operations_->removeElement(id);
     }
 
     // 2. Restore removed elements
     for (auto& saved : savedElements_)
     {
-        mesh_->restoreElement(saved.id, std::move(saved.element));
+        operations_->restoreElement(saved.id, std::move(saved.element));
     }
 
     // 3. Remove newly added nodes
     for (size_t id : addedNodeIds_)
     {
-        mesh_->removeNode(id);
+        operations_->removeNode(id);
     }
 
     // 4. Restore modified nodes
     for (const auto& saved : savedNodes_)
     {
-        mesh_->restoreNode(saved.id, saved.coordinates);
+        operations_->restoreNode(saved.id, saved.coordinates);
     }
 
     isActive_ = false;
@@ -112,8 +112,8 @@ void MeshTransaction::onNodeRemoved(size_t nodeId, const std::array<double, 3>& 
 }
 
 // ScopedTransaction implementation
-ScopedTransaction::ScopedTransaction(MeshData* mesh) :
-    transaction_(mesh)
+ScopedTransaction::ScopedTransaction(MeshOperations* operations) :
+    transaction_(operations)
 {
     transaction_.begin();
 }

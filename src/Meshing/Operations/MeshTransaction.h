@@ -1,5 +1,5 @@
 #pragma once
-#include "../Data/MeshData.h"
+#include "../Data/MeshOperations.h"
 #include "ITransactionListener.h"
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@ namespace Meshing
 class MeshTransaction : public ITransactionListener
 {
 public:
-    explicit MeshTransaction(MeshData* mesh);
+    explicit MeshTransaction(MeshOperations* operations);
     ~MeshTransaction();
 
     void begin();
@@ -38,7 +38,7 @@ private:
         std::array<double, 3> coordinates;
     };
 
-    MeshData* mesh_;
+    MeshOperations* operations_;
     bool isActive_;
     bool committed_;
 
@@ -52,7 +52,7 @@ private:
 class ScopedTransaction
 {
 public:
-    explicit ScopedTransaction(MeshData* mesh);
+    explicit ScopedTransaction(MeshOperations* operations);
     ~ScopedTransaction();
     void commit();
 
