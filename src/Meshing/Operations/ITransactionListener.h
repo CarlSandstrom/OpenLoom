@@ -5,7 +5,7 @@
 namespace Meshing
 {
 
-class Element;
+class IElement;
 
 /**
  * @brief Interface for objects that need to be notified of mesh changes
@@ -19,7 +19,7 @@ public:
 
     // Called by MeshData when operations occur
     virtual void onElementAdded(size_t elementId) = 0;
-    virtual void onElementRemoved(size_t elementId, std::unique_ptr<Element> clone) = 0;
+    virtual void onElementRemoved(size_t elementId, std::unique_ptr<IElement> clone) = 0;
     virtual void onNodeAdded(size_t nodeId) = 0;
     virtual void onNodeModified(size_t nodeId, const std::array<double, 3>& oldCoordinates) = 0;
     virtual void onNodeRemoved(size_t nodeId, const std::array<double, 3>& coordinates) = 0;

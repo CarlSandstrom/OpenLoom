@@ -90,7 +90,7 @@ void MeshTransaction::onElementAdded(size_t elementId)
     addedElementIds_.push_back(elementId);
 }
 
-void MeshTransaction::onElementRemoved(size_t elementId, std::unique_ptr<Element> clone)
+void MeshTransaction::onElementRemoved(size_t elementId, std::unique_ptr<IElement> clone)
 {
     savedElements_.push_back({elementId, std::move(clone)});
     removedElementIds_.push_back(elementId);

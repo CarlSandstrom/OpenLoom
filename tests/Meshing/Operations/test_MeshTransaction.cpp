@@ -19,7 +19,7 @@ public:
     MockTetrahedralElement(const std::array<size_t, 4>& nodeIds) :
         TetrahedralElement(nodeIds) {}
 
-    std::unique_ptr<Element> clone() const override
+    std::unique_ptr<IElement> clone() const override
     {
         return std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{getNodeIds()[0], getNodeIds()[1],

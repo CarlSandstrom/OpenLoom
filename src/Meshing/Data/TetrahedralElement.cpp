@@ -85,7 +85,7 @@ std::array<size_t, 2> TetrahedralElement::getEdge(size_t edgeIndex) const
     }
 }
 
-std::unique_ptr<Element> TetrahedralElement::clone() const
+std::unique_ptr<IElement> TetrahedralElement::clone() const
 {
     return std::make_unique<TetrahedralElement>(nodeIds_);
 }

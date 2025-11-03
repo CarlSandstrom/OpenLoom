@@ -1,6 +1,6 @@
 #pragma once
 #include "../Operations/ITransactionListener.h"
-#include "Element.h"
+#include "IElement.h"
 #include "MeshGeometry.h"
 #include <array>
 #include <memory>
@@ -24,7 +24,7 @@ public:
     void removeNode(size_t id);
 
     // Element operations
-    size_t addElement(std::unique_ptr<Element> element);
+    size_t addElement(std::unique_ptr<IElement> element);
     void removeElement(size_t id);
 
     // Transaction support
@@ -32,7 +32,7 @@ public:
     void clearTransactionListener();
 
     // Public methods for transaction to restore elements/nodes
-    void restoreElement(size_t id, std::unique_ptr<Element> element);
+    void restoreElement(size_t id, std::unique_ptr<IElement> element);
     void restoreNode(size_t id, const std::array<double, 3>& coordinates);
 
 private:

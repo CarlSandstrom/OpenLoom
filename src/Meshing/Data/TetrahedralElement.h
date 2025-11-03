@@ -1,11 +1,11 @@
 #pragma once
-#include "Element.h"
+#include "IElement.h"
 #include <array>
 
 namespace Meshing
 {
 
-class TetrahedralElement : public Element
+class TetrahedralElement : public IElement
 {
 public:
     TetrahedralElement(const std::array<size_t, 4>& nodeIds);
@@ -14,7 +14,7 @@ public:
     size_t getNodeCount() const override { return 4; }
     const std::vector<size_t>& getNodeIds() const override;
 
-    std::unique_ptr<Element> clone() const override;
+    std::unique_ptr<IElement> clone() const override;
 
     double computeVolume() const override;
     double computeQuality() const override;

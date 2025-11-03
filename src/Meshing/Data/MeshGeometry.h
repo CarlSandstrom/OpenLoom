@@ -1,5 +1,5 @@
 #pragma once
-#include "Element.h"
+#include "IElement.h"
 #include "Node.h"
 #include <memory>
 #include <unordered_map>
@@ -15,10 +15,10 @@ public:
 
     // Read-only access to mesh data
     const std::unordered_map<size_t, std::unique_ptr<Node>>& getNodes() const;
-    const std::unordered_map<size_t, std::unique_ptr<Element>>& getElements() const;
+    const std::unordered_map<size_t, std::unique_ptr<IElement>>& getElements() const;
 
     const Node* getNode(size_t id) const;
-    const Element* getElement(size_t id) const;
+    const IElement* getElement(size_t id) const;
 
     size_t getNodeCount() const;
     size_t getElementCount() const;
@@ -28,11 +28,11 @@ public:
 
 private:
     std::unordered_map<size_t, std::unique_ptr<Node>> nodes_;
-    std::unordered_map<size_t, std::unique_ptr<Element>> elements_;
+    std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
 
     // Private methods for friend classes
     void addNodeInternal_(size_t id, std::unique_ptr<Node> node);
-    void addElementInternal_(size_t id, std::unique_ptr<Element> element);
+    void addElementInternal_(size_t id, std::unique_ptr<IElement> element);
     void removeNodeInternal_(size_t id);
     void removeElementInternal_(size_t id);
     Node* getNodeMutable_(size_t id);

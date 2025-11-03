@@ -102,7 +102,7 @@ void MeshConnectivity::buildFaceToElementsMap_()
 
 void MeshConnectivity::addElementToConnectivity_(size_t elementId)
 {
-    const Element* elem = geometry_.getElement(elementId);
+    const IElement* elem = geometry_.getElement(elementId);
     if (!elem) return;
 
     const auto& nodeIds = elem->getNodeIds();
@@ -116,7 +116,7 @@ void MeshConnectivity::addElementToConnectivity_(size_t elementId)
 
 void MeshConnectivity::removeElementFromConnectivity_(size_t elementId)
 {
-    const Element* elem = geometry_.getElement(elementId);
+    const IElement* elem = geometry_.getElement(elementId);
     if (!elem) return;
 
     const auto& nodeIds = elem->getNodeIds();

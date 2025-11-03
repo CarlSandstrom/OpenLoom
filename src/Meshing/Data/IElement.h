@@ -16,17 +16,17 @@ enum class ElementType
     QUADRILATERAL
 };
 
-class Element
+class IElement
 {
 public:
-    virtual ~Element() = default;
+    virtual ~IElement() = default;
 
     virtual ElementType getType() const = 0;
     virtual size_t getNodeCount() const = 0;
     virtual const std::vector<size_t>& getNodeIds() const = 0;
 
     // For transaction support
-    virtual std::unique_ptr<Element> clone() const = 0;
+    virtual std::unique_ptr<IElement> clone() const = 0;
 
     // Quality metrics
     virtual double computeVolume() const = 0;

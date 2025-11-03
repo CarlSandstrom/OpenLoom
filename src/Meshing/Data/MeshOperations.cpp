@@ -73,7 +73,7 @@ void MeshOperations::removeNode(size_t id)
     geometry_.removeNodeInternal_(id);
 }
 
-size_t MeshOperations::addElement(std::unique_ptr<Element> element)
+size_t MeshOperations::addElement(std::unique_ptr<IElement> element)
 {
     size_t id = nextElementId_++;
 
@@ -90,14 +90,14 @@ size_t MeshOperations::addElement(std::unique_ptr<Element> element)
 
 void MeshOperations::removeElement(size_t id)
 {
-    const Element* element = geometry_.getElement(id);
+    const IElement* element = geometry_.getElement(id);
     if (!element)
     {
         throw std::runtime_error("Element ID " + std::to_string(id) + " does not exist");
     }
 
     // Clone element before removing (if listener needs it)
-    std::unique_ptr<Element> clone;
+    std::unique_ptr<IElement> clone;
     if (transactionListener_)
     {
         clone = element->clone();
@@ -123,7 +123,7 @@ void MeshOperations::clearTransactionListener()
     transactionListener_ = nullptr;
 }
 
-void MeshOperations::restoreElement(size_t id, std::unique_ptr<Element> element)
+void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element)
 {
     geometry_.addElementInternal_(id, std::move(element));
 

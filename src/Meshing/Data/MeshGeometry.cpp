@@ -13,7 +13,7 @@ const std::unordered_map<size_t, std::unique_ptr<Node>>& MeshGeometry::getNodes(
     return nodes_;
 }
 
-const std::unordered_map<size_t, std::unique_ptr<Element>>& MeshGeometry::getElements() const
+const std::unordered_map<size_t, std::unique_ptr<IElement>>& MeshGeometry::getElements() const
 {
     return elements_;
 }
@@ -24,7 +24,7 @@ const Node* MeshGeometry::getNode(size_t id) const
     return (it != nodes_.end()) ? it->second.get() : nullptr;
 }
 
-const Element* MeshGeometry::getElement(size_t id) const
+const IElement* MeshGeometry::getElement(size_t id) const
 {
     auto it = elements_.find(id);
     return (it != elements_.end()) ? it->second.get() : nullptr;
@@ -45,7 +45,7 @@ void MeshGeometry::addNodeInternal_(size_t id, std::unique_ptr<Node> node)
     nodes_[id] = std::move(node);
 }
 
-void MeshGeometry::addElementInternal_(size_t id, std::unique_ptr<Element> element)
+void MeshGeometry::addElementInternal_(size_t id, std::unique_ptr<IElement> element)
 {
     elements_[id] = std::move(element);
 }

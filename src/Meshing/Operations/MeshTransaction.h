@@ -20,7 +20,7 @@ public:
 
     // ITransactionListener implementation
     void onElementAdded(size_t elementId) override;
-    void onElementRemoved(size_t elementId, std::unique_ptr<Element> clone) override;
+    void onElementRemoved(size_t elementId, std::unique_ptr<IElement> clone) override;
     void onNodeAdded(size_t nodeId) override;
     void onNodeModified(size_t nodeId, const std::array<double, 3>& oldCoords) override;
     void onNodeRemoved(size_t nodeId, const std::array<double, 3>& coords) override;
@@ -29,7 +29,7 @@ private:
     struct SavedElement
     {
         size_t id;
-        std::unique_ptr<Element> element;
+        std::unique_ptr<IElement> element;
     };
 
     struct SavedNode
