@@ -9,6 +9,8 @@
 
 #pragma once
 #include "MeshGeometry.h"
+#include "Meshing/Data/MeshConnectivity.h"
+#include "Meshing/Data/MeshOperations.h"
 #include <fstream>
 #include <iostream>
 
@@ -90,9 +92,9 @@ inline void demonstrateSeparatedDesign()
     using namespace Meshing;
 
     // 1. Create the separated components
-    MeshGeometry geometry;                   // Pure data storage
-    MeshOperations operations(geometry);     // Operations on data
-    MeshConnectivity connectivity(geometry); // Connectivity queries
+    MeshGeometry geometry;                            // Pure data storage
+    Meshing::MeshOperations operations(geometry);     // Operations on data
+    Meshing::MeshConnectivity connectivity(geometry); // Connectivity queries
 
     // Wire up operations to use connectivity for validation
     operations.setConnectivity(&connectivity);
