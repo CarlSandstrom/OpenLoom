@@ -6,7 +6,7 @@
 namespace Meshing
 {
 
-MeshOperations::MeshOperations(MeshGeometry& geometry) :
+MeshOperations::MeshOperations(MeshData& geometry) :
     geometry_(geometry)
 {
 }

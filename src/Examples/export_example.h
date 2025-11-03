@@ -3,12 +3,12 @@
  * @brief Example showing how to use the separated mesh data classes for export
  *
  * This example demonstrates the benefit of separation of concerns:
- * - Export only needs MeshGeometry (lightweight data access)
+ * - Export only needs MeshData (lightweight data access)
  * - No heavy connectivity maps or operation infrastructure needed
  */
 
 #pragma once
-#include "MeshGeometry.h"
+#include "MeshData.h"
 #include "Meshing/Data/MeshConnectivity.h"
 #include "Meshing/Data/MeshOperations.h"
 #include <fstream>
@@ -21,13 +21,13 @@ namespace Examples
  * @brief Simple mesh exporter that only needs the pure data container
  *
  * This example shows how export operations can now work with just
- * the lightweight MeshGeometry class, without carrying the overhead
+ * the lightweight MeshData class, without carrying the overhead
  * of operations and connectivity.
  */
 class SimpleMeshExporter
 {
 public:
-    explicit SimpleMeshExporter(const Meshing::MeshGeometry& geometry) :
+    explicit SimpleMeshExporter(const Meshing::MeshData& geometry) :
         geometry_(geometry) {}
 
     void exportToVTK(const std::string& filename) const
@@ -81,7 +81,7 @@ public:
     }
 
 private:
-    const Meshing::MeshGeometry& geometry_;
+    const Meshing::MeshData& geometry_;
 };
 
 /**
@@ -92,7 +92,7 @@ inline void demonstrateSeparatedDesign()
     using namespace Meshing;
 
     // 1. Create the separated components
-    MeshGeometry geometry;                            // Pure data storage
+    MeshData geometry;                                // Pure data storage
     Meshing::MeshOperations operations(geometry);     // Operations on data
     Meshing::MeshConnectivity connectivity(geometry); // Connectivity queries
 
@@ -114,7 +114,7 @@ inline void demonstrateSeparatedDesign()
     SimpleMeshExporter exporter(geometry);
     exporter.exportToVTK("example_mesh.vtk");
 
-    std::cout << "Exported mesh - exporter only needed MeshGeometry!\n";
+    std::cout << "Exported mesh - exporter only needed MeshData!\n";
     std::cout << "No heavy connectivity maps or operations overhead in export.\n";
 
     // 4. Demonstrate connectivity queries (when needed)

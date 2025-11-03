@@ -1,5 +1,5 @@
 #include "Meshing/Data/MeshConnectivity.h"
-#include "Meshing/Data/MeshGeometry.h"
+#include "Meshing/Data/MeshData.h"
 #include "Meshing/Data/MeshOperations.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Meshing/Operations/MeshTransaction.h"
@@ -32,7 +32,7 @@ class MeshTransactionTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        geometry_ = std::make_unique<MeshGeometry>();
+        geometry_ = std::make_unique<MeshData>();
         operations_ = std::make_unique<MeshOperations>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
@@ -57,7 +57,7 @@ protected:
         geometry_.reset();
     }
 
-    std::unique_ptr<MeshGeometry> geometry_;
+    std::unique_ptr<MeshData> geometry_;
     std::unique_ptr<MeshOperations> operations_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_, node5Id_;
@@ -298,7 +298,7 @@ class ScopedTransactionTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        geometry_ = std::make_unique<MeshGeometry>();
+        geometry_ = std::make_unique<MeshData>();
         operations_ = std::make_unique<MeshOperations>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
@@ -322,7 +322,7 @@ protected:
         geometry_.reset();
     }
 
-    std::unique_ptr<MeshGeometry> geometry_;
+    std::unique_ptr<MeshData> geometry_;
     std::unique_ptr<MeshOperations> operations_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_;

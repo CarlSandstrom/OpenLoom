@@ -1,7 +1,7 @@
 #pragma once
 #include "../Operations/ITransactionListener.h"
 #include "IElement.h"
-#include "MeshGeometry.h"
+#include "MeshData.h"
 #include <array>
 #include <memory>
 
@@ -13,7 +13,7 @@ class MeshConnectivity; // Forward declaration
 class MeshOperations
 {
 public:
-    explicit MeshOperations(MeshGeometry& geometry);
+    explicit MeshOperations(MeshData& geometry);
 
     // Optional: Set connectivity for validation during operations
     void setConnectivity(MeshConnectivity* connectivity);
@@ -36,7 +36,7 @@ public:
     void restoreNode(size_t id, const std::array<double, 3>& coordinates);
 
 private:
-    MeshGeometry& geometry_;
+    MeshData& geometry_;
     MeshConnectivity* connectivity_ = nullptr; // Optional for validation
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;

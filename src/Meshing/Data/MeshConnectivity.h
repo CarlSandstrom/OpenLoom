@@ -1,6 +1,6 @@
 #pragma once
 #include "../Connectivity/FaceKey.h"
-#include "MeshGeometry.h"
+#include "MeshData.h"
 #include <unordered_map>
 #include <vector>
 
@@ -10,7 +10,7 @@ namespace Meshing
 class MeshConnectivity
 {
 public:
-    explicit MeshConnectivity(const MeshGeometry& geometry);
+    explicit MeshConnectivity(const MeshData& geometry);
 
     // Connectivity queries
     const std::vector<size_t>& getNodeElements(size_t nodeId) const;
@@ -23,7 +23,7 @@ public:
     bool canRemoveNode(size_t nodeId) const;
 
 private:
-    const MeshGeometry& geometry_;
+    const MeshData& geometry_;
 
     std::unordered_map<size_t, std::vector<size_t>> nodeToElements_;
     std::unordered_map<FaceKey, std::pair<size_t, size_t>, FaceKeyHash> faceToElements_;
