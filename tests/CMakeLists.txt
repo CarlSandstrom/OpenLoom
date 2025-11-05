@@ -24,6 +24,7 @@ set(TEST_SOURCES
     # Integration tests
     Integration/test_MeshWorkflow.cpp
     Integration/test_GeometryToMesh.cpp
+    Integration/test_SimpleMesher.cpp
 )
 
 add_executable(runTests ${TEST_SOURCES})
