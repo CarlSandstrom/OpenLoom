@@ -17,6 +17,7 @@ TopoDS_ShapeConverter::TopoDS_ShapeConverter(const TopoDS_Shape& shape) :
     openCascadeGeometryCollection_(std::make_unique<OpenCascadeGeometryCollection>(shape))
 {
     buildTopology();
+    buildGeometryCollection();
 }
 
 const Topology::Topology& TopoDS_ShapeConverter::getTopology() const
@@ -35,9 +36,9 @@ void TopoDS_ShapeConverter::buildTopology()
     createEdges();
     createCorners();
 
-    topology_ = std::make_unique<Topology::Topology>(std::unordered_map<std::string, Topology::Surface>{},
-                                                     std::unordered_map<std::string, Topology::Edge>{},
-                                                     std::unordered_map<std::string, Topology::Corner>{});
+    topology_ = std::make_unique<Topology::Topology>(std::unordered_map<std::string, Topology::Surface>(surfaces_),
+                                                     std::unordered_map<std::string, Topology::Edge>(edges_),
+                                                     std::unordered_map<std::string, Topology::Corner>(corners_));
 }
 
 void TopoDS_ShapeConverter::buildGeometryCollection()
