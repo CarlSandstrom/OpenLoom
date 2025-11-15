@@ -3,6 +3,7 @@
 #include "Meshing/Data/MeshOperations.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Meshing/Operations/MeshTransaction.h"
+#include "Meshing/Operations/ScopedTransaction.h"
 #include <array>
 #include <gtest/gtest.h>
 #include <memory>

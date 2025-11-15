@@ -49,15 +49,4 @@ private:
     std::vector<size_t> removedElementIds_;
 };
 
-class ScopedTransaction
-{
-public:
-    explicit ScopedTransaction(MeshOperations* operations);
-    ~ScopedTransaction();
-    void commit();
-
-private:
-    MeshTransaction transaction_;
-};
-
 } // namespace Meshing

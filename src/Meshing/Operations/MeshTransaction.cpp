@@ -111,24 +111,4 @@ void MeshTransaction::onNodeRemoved(size_t nodeId, const std::array<double, 3>& 
     // Could save node data if needed for restoration
 }
 
-// ScopedTransaction implementation
-ScopedTransaction::ScopedTransaction(MeshOperations* operations) :
-    transaction_(operations)
-{
-    transaction_.begin();
-}
-
-ScopedTransaction::~ScopedTransaction()
-{
-    if (transaction_.isActive())
-    {
-        transaction_.rollback();
-    }
-}
-
-void ScopedTransaction::commit()
-{
-    transaction_.commit();
-}
-
 } // namespace Meshing
