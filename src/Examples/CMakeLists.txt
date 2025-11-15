@@ -8,6 +8,7 @@ target_link_libraries(cMeshExample PRIVATE
     Readers
     Meshing
     Export
+    Common
 )
 
 # Link external libraries

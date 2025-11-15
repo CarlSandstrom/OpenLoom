@@ -51,6 +51,7 @@ target_link_libraries(runTests PRIVATE
     Export
     Readers
     ShapeConverter
+    Common
 )
 
 # Include directories for accessing headers
