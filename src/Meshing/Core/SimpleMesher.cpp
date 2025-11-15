@@ -25,7 +25,7 @@ void SimpleMesher::generate(MeshingContext& context)
     size_t n0 = ops.addNode({0.0, 0.0, 0.0});
     size_t n1 = ops.addNode({1.0, 0.0, 0.0});
     size_t n2 = ops.addNode({0.0, 1.0, 0.0});
-    siwwze_t n3 = ops.addNode({0.0, 0.0, 1.0});
+    size_t n3 = ops.addNode({0.0, 0.0, 1.0});
 
     // Create a single tetrahedral element
     std::array<size_t, 4> tetNodes{n0, n1, n2, n3};
