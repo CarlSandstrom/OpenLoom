@@ -1,9 +1,10 @@
 #include "SimpleMesher.h"
-#include "MeshingContext.h"
-
 #include "../Data/MeshOperations.h"
 #include "../Data/TetrahedralElement.h"
 #include "../Operations/ScopedTransaction.h"
+#include "Geometry/Base/GeometryCollection.h"
+#include "MeshingContext.h"
+#include "Topology/Topology.h"
 
 #include <array>
 #include <memory>
@@ -20,17 +21,13 @@ void SimpleMesher::generate(MeshingContext& context)
 
     // Begin transaction to ensure rollback on any failure
     Meshing::ScopedTransaction txn(&ops);
-
-    // Seed 4 nodes forming a unit tetrahedron
-    size_t n0 = ops.addNode({0.0, 0.0, 0.0});
-    size_t n1 = ops.addNode({1.0, 0.0, 0.0});
-    size_t n2 = ops.addNode({0.0, 1.0, 0.0});
-    size_t n3 = ops.addNode({0.0, 0.0, 1.0});
-
-    // Create a single tetrahedral element
-    std::array<size_t, 4> tetNodes{n0, n1, n2, n3};
-    auto tet = std::make_unique<TetrahedralElement>(tetNodes);
-    (void)ops.addElement(std::move(tet));
+    std::vector<size_t> cornerNodeIds;
+    for (auto cornerId : context.getTopology().getAllCornerIds())
+    {
+        auto geometryCorner = context.getGeometry().getCorner(cornerId);
+        auto point = geometryCorner->getPoint();
+        cornerNodeIds.push_back(ops.addNode(point));
+    }
 
     // Build connectivity
     context.rebuildConnectivity();
