@@ -13,4 +13,4 @@ target_include_directories(Topology PUBLIC
 )
 
 # Link with Geometry module for topology operations
-target_link_libraries(Topology PUBLIC Geometry)
+target_link_libraries(Topology PUBLIC Geometry Common)

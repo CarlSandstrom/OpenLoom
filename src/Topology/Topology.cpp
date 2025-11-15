@@ -1,4 +1,5 @@
 #include "Topology.h"
+#include "Common/Types.h"
 #include <algorithm>
 #include <stdexcept>
 

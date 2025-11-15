@@ -1,4 +1,5 @@
 # Main CMakeLists.txt for src
+add_subdirectory(Common)
 add_subdirectory(Geometry)
 add_subdirectory(Topology)
 add_subdirectory(Readers)
