@@ -1,6 +1,7 @@
 #pragma once
-#include <array>
 #include <string>
+
+#include "Common/Types.h"
 
 namespace Meshing
 {
@@ -8,10 +9,10 @@ namespace Meshing
 class Node
 {
 public:
-    Node(const std::array<double, 3>& coordinates);
+    explicit Node(const Point3D& coordinates);
 
-    const std::array<double, 3>& getCoordinates() const;
-    void setCoordinates(const std::array<double, 3>& coords);
+    const Point3D& getCoordinates() const;
+    void setCoordinates(const Point3D& coords);
 
     // Boundary marking
     bool isBoundary() const;
@@ -22,7 +23,7 @@ public:
     const std::string& getGeometryId() const;
 
 private:
-    std::array<double, 3> coordinates_;
+    Point3D coordinates_;
     bool isBoundary_;
     std::string geometryId_; // Links to topology entities
 };

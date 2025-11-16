@@ -2,8 +2,9 @@
 #include "../Operations/ITransactionListener.h"
 #include "IElement.h"
 #include "MeshData.h"
-#include <array>
 #include <memory>
+
+#include "Common/Types.h"
 
 namespace Meshing
 {
@@ -19,8 +20,8 @@ public:
     void setConnectivity(MeshConnectivity* connectivity);
 
     // Node operations
-    size_t addNode(const std::array<double, 3>& coordinates);
-    void moveNode(size_t id, const std::array<double, 3>& newCoords);
+    size_t addNode(const Point3D& coordinates);
+    void moveNode(size_t id, const Point3D& newCoords);
     void removeNode(size_t id);
 
     // Element operations
@@ -33,7 +34,7 @@ public:
 
     // Public methods for transaction to restore elements/nodes
     void restoreElement(size_t id, std::unique_ptr<IElement> element);
-    void restoreNode(size_t id, const std::array<double, 3>& coordinates);
+    void restoreNode(size_t id, const Point3D& coordinates);
 
 private:
     MeshData& geometry_;

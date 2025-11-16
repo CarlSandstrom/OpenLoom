@@ -11,10 +11,10 @@ OpenCascadeCorner::OpenCascadeCorner(const TopoDS_Vertex& vertex) :
 {
 }
 
-std::array<double, 3> OpenCascadeCorner::getPoint() const
+Meshing::Point3D OpenCascadeCorner::getPoint() const
 {
     gp_Pnt point = BRep_Tool::Pnt(vertex_);
-    return {point.X(), point.Y(), point.Z()};
+    return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
 std::string OpenCascadeCorner::getId() const

@@ -101,12 +101,12 @@ void MeshTransaction::onNodeAdded(size_t nodeId)
     addedNodeIds_.push_back(nodeId);
 }
 
-void MeshTransaction::onNodeModified(size_t nodeId, const std::array<double, 3>& oldCoords)
+void MeshTransaction::onNodeModified(size_t nodeId, const Point3D& oldCoords)
 {
     savedNodes_.push_back({nodeId, oldCoords});
 }
 
-void MeshTransaction::onNodeRemoved(size_t nodeId, const std::array<double, 3>& coords)
+void MeshTransaction::onNodeRemoved(size_t nodeId, const Point3D& coords)
 {
     // Could save node data if needed for restoration
 }

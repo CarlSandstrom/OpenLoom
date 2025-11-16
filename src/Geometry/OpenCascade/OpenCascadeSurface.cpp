@@ -36,11 +36,11 @@ std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
     return {0.0, 0.0, 1.0};
 }
 
-std::array<double, 3> OpenCascadeSurface::getPoint(double u, double v) const
+Meshing::Point3D OpenCascadeSurface::getPoint(double u, double v) const
 {
     BRepAdaptor_Surface surface(face_);
     gp_Pnt point = surface.Value(u, v);
-    return {point.X(), point.Y(), point.Z()};
+    return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
 void OpenCascadeSurface::getParameterBounds(double& uMin, double& uMax,
@@ -53,11 +53,11 @@ void OpenCascadeSurface::getParameterBounds(double& uMin, double& uMax,
     vMax = surface.LastVParameter();
 }
 
-double OpenCascadeSurface::getGap(const std::array<double, 3>& point) const
+double OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
 {
     Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
 
-    gp_Pnt queryPoint(point[0], point[1], point[2]);
+    gp_Pnt queryPoint(point.x(), point.y(), point.z());
     GeomAPI_ProjectPointOnSurf projector(queryPoint, geomSurface);
 
     if (projector.NbPoints() > 0)
@@ -69,24 +69,24 @@ double OpenCascadeSurface::getGap(const std::array<double, 3>& point) const
     return std::numeric_limits<double>::max();
 }
 
-std::array<double, 2> OpenCascadeSurface::projectPoint(const std::array<double, 3>& point) const
+Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point) const
 {
     Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
 
-    gp_Pnt queryPoint(point[0], point[1], point[2]);
+    gp_Pnt queryPoint(point.x(), point.y(), point.z());
     GeomAPI_ProjectPointOnSurf projector(queryPoint, geomSurface);
 
     if (projector.NbPoints() > 0)
     {
         double u, v;
         projector.LowerDistanceParameters(u, v);
-        return {u, v};
+        return Meshing::Point2D(u, v);
     }
 
     // Return parameter bounds center if projection fails
     double uMin, uMax, vMin, vMax;
     getParameterBounds(uMin, uMax, vMin, vMax);
-    return {(uMin + uMax) / 2.0, (vMin + vMax) / 2.0};
+    return Meshing::Point2D((uMin + uMax) / 2.0, (vMin + vMax) / 2.0);
 }
 
 std::string OpenCascadeSurface::getId() const

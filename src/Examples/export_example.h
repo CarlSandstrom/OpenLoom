@@ -8,6 +8,7 @@
  */
 
 #pragma once
+#include "Common/Types.h"
 #include "MeshData.h"
 #include "Meshing/Data/MeshConnectivity.h"
 #include "Meshing/Data/MeshOperations.h"
@@ -47,7 +48,7 @@ public:
         for (const auto& [id, node] : nodes)
         {
             const auto& coords = node->getCoordinates();
-            file << coords[0] << " " << coords[1] << " " << coords[2] << "\n";
+            file << coords.x() << " " << coords.y() << " " << coords.z() << "\n";
         }
 
         // Export elements (cells)
@@ -100,10 +101,10 @@ inline void demonstrateSeparatedDesign()
     operations.setConnectivity(&connectivity);
 
     // 2. Build some mesh data using operations
-    size_t n1 = operations.addNode({0.0, 0.0, 0.0});
-    size_t n2 = operations.addNode({1.0, 0.0, 0.0});
-    size_t n3 = operations.addNode({0.0, 1.0, 0.0});
-    size_t n4 = operations.addNode({0.0, 0.0, 1.0});
+    size_t n1 = operations.addNode(Point3D(0.0, 0.0, 0.0));
+    size_t n2 = operations.addNode(Point3D(1.0, 0.0, 0.0));
+    size_t n3 = operations.addNode(Point3D(0.0, 1.0, 0.0));
+    size_t n4 = operations.addNode(Point3D(0.0, 0.0, 1.0));
 
     // Rebuild connectivity after adding nodes
     connectivity.rebuildConnectivity();

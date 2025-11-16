@@ -11,3 +11,7 @@ target_include_directories(GeometryBase PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(GeometryBase PUBLIC
+    Common
+)

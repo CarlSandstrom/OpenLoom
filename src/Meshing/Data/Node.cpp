@@ -3,17 +3,17 @@
 namespace Meshing
 {
 
-Node::Node(const std::array<double, 3>& coordinates) :
+Node::Node(const Point3D& coordinates) :
     coordinates_(coordinates), isBoundary_(false), geometryId_("")
 {
 }
 
-const std::array<double, 3>& Node::getCoordinates() const
+const Point3D& Node::getCoordinates() const
 {
     return coordinates_;
 }
 
-void Node::setCoordinates(const std::array<double, 3>& coords)
+void Node::setCoordinates(const Point3D& coords)
 {
     coordinates_ = coords;
 }

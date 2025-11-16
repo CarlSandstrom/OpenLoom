@@ -14,7 +14,7 @@ class OpenCascadeCorner : public Corner
 public:
     explicit OpenCascadeCorner(const TopoDS_Vertex& vertex);
 
-    std::array<double, 3> getPoint() const override;
+    Meshing::Point3D getPoint() const override;
     std::string getId() const override;
 
 private:

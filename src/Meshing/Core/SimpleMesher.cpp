@@ -29,6 +29,14 @@ void SimpleMesher::generate(MeshingContext& context)
         cornerNodeIds.push_back(ops.addNode(point));
     }
 
+    if (cornerNodeIds.size() >= 4)
+    {
+        std::array<size_t, 4> tetraNodes = {cornerNodeIds[0], cornerNodeIds[1],
+                                            cornerNodeIds[2], cornerNodeIds[3]};
+        auto element = std::make_unique<TetrahedralElement>(tetraNodes);
+        ops.addElement(std::move(element));
+    }
+
     // Build connectivity
     context.rebuildConnectivity();
 

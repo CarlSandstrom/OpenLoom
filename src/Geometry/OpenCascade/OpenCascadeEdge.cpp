@@ -18,11 +18,11 @@ OpenCascadeEdge::OpenCascadeEdge(const TopoDS_Edge& edge) :
 {
 }
 
-std::array<double, 3> OpenCascadeEdge::getPoint(double t) const
+Meshing::Point3D OpenCascadeEdge::getPoint(double t) const
 {
     BRepAdaptor_Curve curve(edge_);
     gp_Pnt point = curve.Value(t);
-    return {point.X(), point.Y(), point.Z()};
+    return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
 std::array<double, 3> OpenCascadeEdge::getTangent(double t) const
@@ -50,14 +50,14 @@ std::array<double, 3> OpenCascadeEdge::getTangent(double t) const
     return {tangent.X(), tangent.Y(), tangent.Z()};
 }
 
-std::array<double, 3> OpenCascadeEdge::getStartPoint() const
+Meshing::Point3D OpenCascadeEdge::getStartPoint() const
 {
     double tMin, tMax;
     getParameterBounds(tMin, tMax);
     return getPoint(tMin);
 }
 
-std::array<double, 3> OpenCascadeEdge::getEndPoint() const
+Meshing::Point3D OpenCascadeEdge::getEndPoint() const
 {
     double tMin, tMax;
     getParameterBounds(tMin, tMax);

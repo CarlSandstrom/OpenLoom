@@ -1,7 +1,8 @@
 #pragma once
 
-#include <array>
 #include <string>
+
+#include "Common/Types.h"
 
 namespace Geometry
 {
@@ -14,7 +15,7 @@ class Corner
 public:
     virtual ~Corner() = default;
 
-    virtual std::array<double, 3> getPoint() const = 0;
+    virtual Meshing::Point3D getPoint() const = 0;
     virtual std::string getId() const = 0;
 };
 

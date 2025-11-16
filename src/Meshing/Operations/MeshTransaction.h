@@ -22,8 +22,8 @@ public:
     void onElementAdded(size_t elementId) override;
     void onElementRemoved(size_t elementId, std::unique_ptr<IElement> clone) override;
     void onNodeAdded(size_t nodeId) override;
-    void onNodeModified(size_t nodeId, const std::array<double, 3>& oldCoords) override;
-    void onNodeRemoved(size_t nodeId, const std::array<double, 3>& coords) override;
+    void onNodeModified(size_t nodeId, const Point3D& oldCoords) override;
+    void onNodeRemoved(size_t nodeId, const Point3D& coords) override;
 
 private:
     struct SavedElement
@@ -35,7 +35,7 @@ private:
     struct SavedNode
     {
         size_t id;
-        std::array<double, 3> coordinates;
+        Point3D coordinates;
     };
 
     MeshOperations* operations_;

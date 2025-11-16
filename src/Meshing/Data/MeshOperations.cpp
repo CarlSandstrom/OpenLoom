@@ -16,7 +16,7 @@ void MeshOperations::setConnectivity(MeshConnectivity* connectivity)
     connectivity_ = connectivity;
 }
 
-size_t MeshOperations::addNode(const std::array<double, 3>& coordinates)
+size_t MeshOperations::addNode(const Point3D& coordinates)
 {
     size_t id = nextNodeId_++;
 
@@ -32,7 +32,7 @@ size_t MeshOperations::addNode(const std::array<double, 3>& coordinates)
     return id;
 }
 
-void MeshOperations::moveNode(size_t id, const std::array<double, 3>& newCoords)
+void MeshOperations::moveNode(size_t id, const Point3D& newCoords)
 {
     Node* node = geometry_.getNodeMutable_(id);
     if (!node)
@@ -43,7 +43,7 @@ void MeshOperations::moveNode(size_t id, const std::array<double, 3>& newCoords)
     // Notify transaction listener BEFORE modification
     if (transactionListener_)
     {
-        auto oldCoords = node->getCoordinates();
+        Point3D oldCoords = node->getCoordinates();
         transactionListener_->onNodeModified(id, oldCoords);
     }
 
@@ -65,7 +65,7 @@ void MeshOperations::removeNode(size_t id)
     // Save node data if transaction is active
     if (transactionListener_)
     {
-        auto coords = node->getCoordinates();
+        Point3D coords = node->getCoordinates();
         transactionListener_->onNodeRemoved(id, coords);
     }
 
@@ -134,7 +134,7 @@ void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element
     }
 }
 
-void MeshOperations::restoreNode(size_t id, const std::array<double, 3>& coordinates)
+void MeshOperations::restoreNode(size_t id, const Point3D& coordinates)
 {
     Node* node = geometry_.getNodeMutable_(id);
     if (node)

@@ -16,6 +16,8 @@ target_include_directories(GeometryOpenCascade PUBLIC
 )
 
 target_link_libraries(GeometryOpenCascade PUBLIC
+    Common
+    GeometryBase
     TKernel
     TKMath
     TKG3d

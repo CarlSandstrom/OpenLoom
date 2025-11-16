@@ -1,3 +1,4 @@
+#include "Common/Types.h"
 #include "Meshing/Data/MeshConnectivity.h"
 #include "Meshing/Data/MeshData.h"
 #include "Meshing/Data/MeshOperations.h"
@@ -41,11 +42,11 @@ protected:
         operations_->setConnectivity(connectivity_.get());
 
         // Add some test nodes
-        node1Id_ = operations_->addNode({0.0, 0.0, 0.0});
-        node2Id_ = operations_->addNode({1.0, 0.0, 0.0});
-        node3Id_ = operations_->addNode({0.0, 1.0, 0.0});
-        node4Id_ = operations_->addNode({0.0, 0.0, 1.0});
-        node5Id_ = operations_->addNode({1.0, 1.0, 1.0});
+        node1Id_ = operations_->addNode(Point3D(0.0, 0.0, 0.0));
+        node2Id_ = operations_->addNode(Point3D(1.0, 0.0, 0.0));
+        node3Id_ = operations_->addNode(Point3D(0.0, 1.0, 0.0));
+        node4Id_ = operations_->addNode(Point3D(0.0, 0.0, 1.0));
+        node5Id_ = operations_->addNode(Point3D(1.0, 1.0, 1.0));
 
         // Rebuild connectivity after adding nodes
         connectivity_->rebuildConnectivity();
@@ -153,7 +154,7 @@ TEST_F(MeshTransactionTest, NodeAdditionAndRollbackTest)
     transaction.begin();
 
     // Add a node during transaction
-    size_t newNodeId = operations_->addNode({2.0, 2.0, 2.0});
+    size_t newNodeId = operations_->addNode(Point3D(2.0, 2.0, 2.0));
 
     EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount + 1);
     EXPECT_TRUE(transaction.isActive());
@@ -170,18 +171,19 @@ TEST_F(MeshTransactionTest, NodeModificationAndRollbackTest)
     // Get original coordinates
     const Node* node = geometry_->getNode(node1Id_);
     ASSERT_NE(node, nullptr);
-    auto originalCoords = node->getCoordinates();
+    Point3D originalCoords = node->getCoordinates();
 
     MeshTransaction transaction(operations_.get());
     transaction.begin();
 
     // Modify an existing node during transaction
-    std::array<double, 3> newCoords = {1.5, 1.5, 1.5};
+    Point3D newCoords(1.5, 1.5, 1.5);
     operations_->moveNode(node1Id_, newCoords);
 
     // Verify the node was modified
     node = geometry_->getNode(node1Id_);
-    EXPECT_EQ(node->getCoordinates(), newCoords);
+    ASSERT_NE(node, nullptr);
+    EXPECT_TRUE(node->getCoordinates().isApprox(newCoords));
     EXPECT_TRUE(transaction.isActive());
 
     transaction.rollback();
@@ -189,7 +191,8 @@ TEST_F(MeshTransactionTest, NodeModificationAndRollbackTest)
     EXPECT_FALSE(transaction.isActive());
     // Node coordinates should be restored after rollback
     node = geometry_->getNode(node1Id_);
-    EXPECT_EQ(node->getCoordinates(), originalCoords);
+    ASSERT_NE(node, nullptr);
+    EXPECT_TRUE(node->getCoordinates().isApprox(originalCoords));
 }
 
 TEST_F(MeshTransactionTest, ElementRemovalAndRollbackTest)
@@ -227,14 +230,15 @@ TEST_F(MeshTransactionTest, MultipleOperationsRollbackTest)
 
     // Get original coordinates of node2
     const Node* node2 = geometry_->getNode(node2Id_);
-    auto originalNode2Coords = node2->getCoordinates();
+    ASSERT_NE(node2, nullptr);
+    Point3D originalNode2Coords = node2->getCoordinates();
 
     MeshTransaction transaction(operations_.get());
     transaction.begin();
 
     // Perform multiple operations
-    size_t newNodeId = operations_->addNode({3.0, 3.0, 3.0});
-    operations_->moveNode(node2Id_, {2.5, 2.5, 2.5});
+    size_t newNodeId = operations_->addNode(Point3D(3.0, 3.0, 3.0));
+    operations_->moveNode(node2Id_, Point3D(2.5, 2.5, 2.5));
 
     auto element = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node1Id_, node3Id_, node4Id_, newNodeId});
@@ -244,7 +248,8 @@ TEST_F(MeshTransactionTest, MultipleOperationsRollbackTest)
     EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount + 1);
     EXPECT_EQ(geometry_->getElementCount(), initialElementCount + 1);
     node2 = geometry_->getNode(node2Id_);
-    EXPECT_NE(node2->getCoordinates(), originalNode2Coords);
+    ASSERT_NE(node2, nullptr);
+    EXPECT_FALSE(node2->getCoordinates().isApprox(originalNode2Coords));
     EXPECT_TRUE(transaction.isActive());
 
     transaction.rollback();
@@ -254,7 +259,8 @@ TEST_F(MeshTransactionTest, MultipleOperationsRollbackTest)
     EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount);
     EXPECT_EQ(geometry_->getElementCount(), initialElementCount);
     node2 = geometry_->getNode(node2Id_);
-    EXPECT_EQ(node2->getCoordinates(), originalNode2Coords);
+    ASSERT_NE(node2, nullptr);
+    EXPECT_TRUE(node2->getCoordinates().isApprox(originalNode2Coords));
     EXPECT_EQ(geometry_->getNode(newNodeId), nullptr);
     EXPECT_EQ(geometry_->getElement(elementId), nullptr);
 }
@@ -307,10 +313,10 @@ protected:
         operations_->setConnectivity(connectivity_.get());
 
         // Add some test nodes
-        node1Id_ = operations_->addNode({0.0, 0.0, 0.0});
-        node2Id_ = operations_->addNode({1.0, 0.0, 0.0});
-        node3Id_ = operations_->addNode({0.0, 1.0, 0.0});
-        node4Id_ = operations_->addNode({0.0, 0.0, 1.0});
+        node1Id_ = operations_->addNode(Point3D(0.0, 0.0, 0.0));
+        node2Id_ = operations_->addNode(Point3D(1.0, 0.0, 0.0));
+        node3Id_ = operations_->addNode(Point3D(0.0, 1.0, 0.0));
+        node4Id_ = operations_->addNode(Point3D(0.0, 0.0, 1.0));
 
         // Rebuild connectivity after adding nodes
         connectivity_->rebuildConnectivity();
@@ -385,8 +391,8 @@ TEST_F(ScopedTransactionTest, MultipleOperationsWithCommitTest)
         ScopedTransaction scopedTx(operations_.get());
 
         // Perform multiple operations
-        newNodeId = operations_->addNode({2.0, 2.0, 2.0});
-        operations_->moveNode(node1Id_, {1.5, 1.5, 1.5});
+        newNodeId = operations_->addNode(Point3D(2.0, 2.0, 2.0));
+        operations_->moveNode(node1Id_, Point3D(1.5, 1.5, 1.5));
 
         auto element = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, newNodeId});
@@ -407,8 +413,9 @@ TEST_F(ScopedTransactionTest, MultipleOperationsWithCommitTest)
 
     // Verify node coordinates were modified
     const Node* node1 = geometry_->getNode(node1Id_);
-    std::array<double, 3> expectedCoords = {1.5, 1.5, 1.5};
-    EXPECT_EQ(node1->getCoordinates(), expectedCoords);
+    ASSERT_NE(node1, nullptr);
+    Point3D expectedCoords(1.5, 1.5, 1.5);
+    EXPECT_TRUE(node1->getCoordinates().isApprox(expectedCoords));
 }
 
 TEST_F(ScopedTransactionTest, PartialWorkRollbackTest)
@@ -420,8 +427,8 @@ TEST_F(ScopedTransactionTest, PartialWorkRollbackTest)
         ScopedTransaction scopedTx(operations_.get());
 
         // Add some nodes and elements
-        size_t newNode1 = operations_->addNode({2.0, 0.0, 0.0});
-        size_t newNode2 = operations_->addNode({0.0, 2.0, 0.0});
+        size_t newNode1 = operations_->addNode(Point3D(2.0, 0.0, 0.0));
+        size_t newNode2 = operations_->addNode(Point3D(0.0, 2.0, 0.0));
 
         auto element1 = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, newNode1});

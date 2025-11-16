@@ -1,6 +1,7 @@
 #pragma once
-#include <array>
 #include <memory>
+
+#include "Common/Types.h"
 
 namespace Meshing
 {
@@ -21,8 +22,8 @@ public:
     virtual void onElementAdded(size_t elementId) = 0;
     virtual void onElementRemoved(size_t elementId, std::unique_ptr<IElement> clone) = 0;
     virtual void onNodeAdded(size_t nodeId) = 0;
-    virtual void onNodeModified(size_t nodeId, const std::array<double, 3>& oldCoordinates) = 0;
-    virtual void onNodeRemoved(size_t nodeId, const std::array<double, 3>& coordinates) = 0;
+    virtual void onNodeModified(size_t nodeId, const Point3D& oldCoordinates) = 0;
+    virtual void onNodeRemoved(size_t nodeId, const Point3D& coordinates) = 0;
 };
 
 } // namespace Meshing

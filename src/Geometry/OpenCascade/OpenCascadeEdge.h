@@ -14,10 +14,10 @@ class OpenCascadeEdge : public Edge
 public:
     explicit OpenCascadeEdge(const TopoDS_Edge& edge);
 
-    std::array<double, 3> getPoint(double t) const override;
+    Meshing::Point3D getPoint(double t) const override;
     std::array<double, 3> getTangent(double t) const override;
-    std::array<double, 3> getStartPoint() const override;
-    std::array<double, 3> getEndPoint() const override;
+    Meshing::Point3D getStartPoint() const override;
+    Meshing::Point3D getEndPoint() const override;
     void getParameterBounds(double& tMin, double& tMax) const override;
     double getLength() const override;
     double getCurvature(double t) const override;
