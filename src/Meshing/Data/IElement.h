@@ -27,10 +27,6 @@ public:
 
     // For transaction support
     virtual std::unique_ptr<IElement> clone() const = 0;
-
-    // Quality metrics
-    virtual double computeVolume() const = 0;
-    virtual double computeQuality() const = 0;
 };
 
 } // namespace Meshing

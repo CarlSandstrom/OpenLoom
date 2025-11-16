@@ -16,9 +16,6 @@ public:
 
     std::unique_ptr<IElement> clone() const override;
 
-    double computeVolume() const override;
-    double computeQuality() const override;
-
     // Tet-specific methods
     std::array<size_t, 3> getFace(size_t faceIndex) const;
     std::array<size_t, 2> getEdge(size_t edgeIndex) const;

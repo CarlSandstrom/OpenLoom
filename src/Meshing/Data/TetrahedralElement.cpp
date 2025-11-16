@@ -1,6 +1,4 @@
 #include "TetrahedralElement.h"
-#include <algorithm>
-#include <cmath>
 
 namespace Meshing
 {
@@ -15,34 +13,6 @@ const std::vector<size_t>& TetrahedralElement::getNodeIds() const
     static thread_local std::vector<size_t> nodeVector;
     nodeVector.assign(nodeIds_.begin(), nodeIds_.end());
     return nodeVector;
-}
-
-double TetrahedralElement::computeVolume() const
-{
-    // Note: This method requires access to actual node coordinates
-    // In a complete mesh system, this would be computed as:
-    // V = |det(v1-v0, v2-v0, v3-v0)| / 6
-    // where v0, v1, v2, v3 are the coordinates of the four nodes
-
-    // For now, returning zero since we don't have access to
-    // the mesh data structure containing node coordinates
-    return 0.0; // Requires mesh context for coordinate access
-}
-
-double TetrahedralElement::computeQuality() const
-{
-    // Quality metric for tetrahedron using radius ratio:
-    // Quality = (72 * sqrt(3) * V) / (sum of squared edge lengths)^(3/2)
-    // where V is volume and edge lengths are computed from node coordinates
-
-    // Alternative quality metrics include:
-    // - Aspect ratio: ratio of longest to shortest edge
-    // - Condition number: measures element distortion
-    // - Shape measure: compares to ideal tetrahedron
-
-    // For now, returning zero since we don't have access to
-    // the mesh data structure containing node coordinates
-    return 0.0; // Requires mesh context for coordinate access
 }
 
 std::array<size_t, 3> TetrahedralElement::getFace(size_t faceIndex) const
