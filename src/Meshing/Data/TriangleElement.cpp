@@ -1,4 +1,5 @@
 #include "TriangleElement.h"
+#include <algorithm>
 
 namespace Meshing
 {
@@ -28,6 +29,13 @@ std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
     default:
         return {nodeIds_[0], nodeIds_[1]};
     }
+}
+
+std::array<size_t, 3> TriangleElement::getSortedNodeIds() const
+{
+    auto sorted = nodeIds_;
+    std::sort(sorted.begin(), sorted.end());
+    return sorted;
 }
 
 std::unique_ptr<IElement> TriangleElement::clone() const

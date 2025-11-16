@@ -133,6 +133,13 @@ double Tetrahedron::volume(const std::vector<Point3D>& points) const
                                    points[vertices_[3]]);
 }
 
+Delaunay3D::Delaunay3D(Meshing::MeshingContext& context) :
+    context_(context),
+    meshData_(context.getMeshData()),
+    operations_(context.getOperations())
+{
+}
+
 void Delaunay3D::initialize(const std::vector<Point3D>& points)
 {
     vertices_.clear();

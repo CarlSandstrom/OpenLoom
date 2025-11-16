@@ -97,4 +97,19 @@ double Computer::computeQuality(const TriangleElement& element) const
     return 0.0;
 }
 
+double Computer::getShortestEdgeLength(const TetrahedralElement& element) const
+{
+    return ElementGeometry::computeShortestEdgeLength(mesh_, element);
+}
+
+double Computer::getCircumradiusToShortestEdgeRatio(const TetrahedralElement& element) const
+{
+    return ElementGeometry::computeCircumradiusToShortestEdgeRatio(mesh_, element);
+}
+
+bool Computer::isSkinny(const TetrahedralElement& element, double threshold) const
+{
+    return ElementGeometry::isSkinny(mesh_, element, threshold);
+}
+
 } // namespace Meshing

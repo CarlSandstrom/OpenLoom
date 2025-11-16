@@ -5,6 +5,9 @@
 #include <vector>
 
 #include "Common/Types.h"
+#include "Meshing/Core/MeshingContext.h"
+#include "Meshing/Data/MeshData.h"
+#include "Meshing/Data/MeshOperations.h"
 
 namespace Meshing
 {
@@ -42,7 +45,7 @@ struct Tetrahedron
 class Delaunay3D
 {
 public:
-    Delaunay3D() = default;
+    Delaunay3D(Meshing::MeshingContext& context);
     ~Delaunay3D() = default;
 
     void initialize(const std::vector<Point3D>& points);
@@ -66,6 +69,10 @@ private:
 
     std::vector<Point3D> vertices_;
     std::vector<Tetrahedron> tetrahedra_;
+
+    Meshing::MeshingContext& context_;
+    Meshing::MeshData& meshData_;
+    Meshing::MeshOperations& operations_;
 };
 
 } // namespace Meshing

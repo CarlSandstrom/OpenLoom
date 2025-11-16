@@ -1,4 +1,5 @@
 #include "TetrahedralElement.h"
+#include <algorithm>
 
 namespace Meshing
 {
@@ -53,6 +54,31 @@ std::array<size_t, 2> TetrahedralElement::getEdge(size_t edgeIndex) const
     default:
         return {nodeIds_[0], nodeIds_[1]}; // Default to first edge
     }
+}
+
+std::array<std::array<size_t, 3>, 4> TetrahedralElement::getFaces() const
+{
+    return {{{nodeIds_[1], nodeIds_[2], nodeIds_[3]},
+             {nodeIds_[0], nodeIds_[3], nodeIds_[2]},
+             {nodeIds_[0], nodeIds_[1], nodeIds_[3]},
+             {nodeIds_[0], nodeIds_[2], nodeIds_[1]}}};
+}
+
+bool TetrahedralElement::hasNode(size_t nodeId) const
+{
+    return std::find(nodeIds_.begin(), nodeIds_.end(), nodeId) != nodeIds_.end();
+}
+
+bool TetrahedralElement::containsAll(const std::array<size_t, 3>& nodes) const
+{
+    for (size_t id : nodes)
+    {
+        if (!hasNode(id))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 std::unique_ptr<IElement> TetrahedralElement::clone() const

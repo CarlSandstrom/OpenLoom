@@ -5,11 +5,39 @@
 #include <limits>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include <Eigen/LU>
 
 namespace Meshing::ElementGeometry
 {
+
+namespace
+{
+
+template <size_t N>
+bool gatherNodes(const MeshData& mesh,
+                 const std::vector<size_t>& nodeIds,
+                 std::array<const Node*, N>& nodes)
+{
+    if (nodeIds.size() != N)
+    {
+        return false;
+    }
+
+    for (size_t i = 0; i < N; ++i)
+    {
+        nodes[i] = mesh.getNode(nodeIds[i]);
+        if (nodes[i] == nullptr)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+} // namespace
 
 double computeVolume(const Point3DRef v0,
                      const Point3DRef v1,
@@ -26,20 +54,10 @@ double computeVolume(const Point3DRef v0,
 
 std::optional<double> computeVolume(const MeshData& mesh, const TetrahedralElement& element)
 {
-    const auto& nodeIds = element.getNodeIds();
-    if (nodeIds.size() != 4)
+    std::array<const Node*, 4> nodes;
+    if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
-    }
-
-    std::array<const Node*, 4> nodes;
-    for (size_t i = 0; i < 4; ++i)
-    {
-        nodes[i] = mesh.getNode(nodeIds[i]);
-        if (nodes[i] == nullptr)
-        {
-            return std::nullopt;
-        }
     }
 
     return computeVolume(nodes[0]->getCoordinates(),
@@ -59,20 +77,10 @@ double computeArea(const Point3DRef v0,
 
 std::optional<double> computeArea(const MeshData& mesh, const TriangleElement& element)
 {
-    const auto& nodeIds = element.getNodeIds();
-    if (nodeIds.size() != 3)
+    std::array<const Node*, 3> nodes;
+    if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
-    }
-
-    std::array<const Node*, 3> nodes;
-    for (size_t i = 0; i < 3; ++i)
-    {
-        nodes[i] = mesh.getNode(nodeIds[i]);
-        if (nodes[i] == nullptr)
-        {
-            return std::nullopt;
-        }
     }
 
     return computeArea(nodes[0]->getCoordinates(),
@@ -108,20 +116,10 @@ std::optional<CircumscribedSphere> computeCircumscribingSphere(const Point3DRef 
 
 std::optional<CircumscribedSphere> computeCircumscribingSphere(const MeshData& mesh, const TetrahedralElement& element)
 {
-    const auto& nodeIds = element.getNodeIds();
-    if (nodeIds.size() != 4)
+    std::array<const Node*, 4> nodes;
+    if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
-    }
-
-    std::array<const Node*, 4> nodes;
-    for (size_t i = 0; i < 4; ++i)
-    {
-        nodes[i] = mesh.getNode(nodeIds[i]);
-        if (nodes[i] == nullptr)
-        {
-            return std::nullopt;
-        }
     }
 
     return computeCircumscribingSphere(nodes[0]->getCoordinates(),
@@ -132,20 +130,10 @@ std::optional<CircumscribedSphere> computeCircumscribingSphere(const MeshData& m
 
 std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElement& element)
 {
-    const auto& nodeIds = element.getNodeIds();
-    if (nodeIds.size() != 4)
+    std::array<const Node*, 4> nodes;
+    if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
-    }
-
-    std::array<const Node*, 4> nodes;
-    for (size_t i = 0; i < 4; ++i)
-    {
-        nodes[i] = mesh.getNode(nodeIds[i]);
-        if (nodes[i] == nullptr)
-        {
-            return std::nullopt;
-        }
     }
 
     const double volume = computeVolume(nodes[0]->getCoordinates(),
@@ -184,20 +172,10 @@ std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElem
 
 std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement& element)
 {
-    const auto& nodeIds = element.getNodeIds();
-    if (nodeIds.size() != 3)
+    std::array<const Node*, 3> nodes;
+    if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
-    }
-
-    std::array<const Node*, 3> nodes;
-    for (size_t i = 0; i < 3; ++i)
-    {
-        nodes[i] = mesh.getNode(nodeIds[i]);
-        if (nodes[i] == nullptr)
-        {
-            return std::nullopt;
-        }
     }
 
     const double area = computeArea(nodes[0]->getCoordinates(),
@@ -222,6 +200,57 @@ std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement
 
     const double numerator = 4.0 * std::sqrt(3.0) * area;
     return numerator / sumSquaredLengths;
+}
+
+double computeShortestEdgeLength(const MeshData& mesh, const TetrahedralElement& element)
+{
+    std::array<const Node*, 4> nodes;
+    if (!gatherNodes(mesh, element.getNodeIds(), nodes))
+    {
+        return 0.0;
+    }
+
+    double minLen = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < 4; ++i)
+    {
+        for (size_t j = i + 1; j < 4; ++j)
+        {
+            const double len = (nodes[i]->getCoordinates() - nodes[j]->getCoordinates()).norm();
+            minLen = std::min(minLen, len);
+        }
+    }
+
+    return minLen;
+}
+
+double computeCircumradiusToShortestEdgeRatio(const MeshData& mesh, const TetrahedralElement& element)
+{
+    constexpr double MIN_EDGE = 1e-15;
+
+    const auto sphere = computeCircumscribingSphere(mesh, element);
+    if (!sphere)
+    {
+        return 0.0;
+    }
+
+    const double shortestEdge = computeShortestEdgeLength(mesh, element);
+    if (shortestEdge <= MIN_EDGE)
+    {
+        return std::numeric_limits<double>::infinity();
+    }
+
+    return sphere->radius / shortestEdge;
+}
+
+bool isSkinny(const MeshData& mesh, const TetrahedralElement& element, double threshold)
+{
+    const double ratio = computeCircumradiusToShortestEdgeRatio(mesh, element);
+    if (ratio == 0.0)
+    {
+        return false;
+    }
+
+    return ratio > threshold;
 }
 
 } // namespace Meshing::ElementGeometry

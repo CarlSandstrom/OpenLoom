@@ -37,6 +37,9 @@ public:
     double computeArea(const TriangleElement& element) const;
     double computeQuality(const TetrahedralElement& element) const;
     double computeQuality(const TriangleElement& element) const;
+    double getShortestEdgeLength(const TetrahedralElement& element) const;
+    double getCircumradiusToShortestEdgeRatio(const TetrahedralElement& element) const;
+    bool isSkinny(const TetrahedralElement& element, double threshold) const;
 
 private:
     const MeshData& mesh_;

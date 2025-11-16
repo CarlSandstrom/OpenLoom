@@ -41,4 +41,8 @@ std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElem
 
 std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement& element);
 
+double computeShortestEdgeLength(const MeshData& mesh, const TetrahedralElement& element);
+double computeCircumradiusToShortestEdgeRatio(const MeshData& mesh, const TetrahedralElement& element);
+bool isSkinny(const MeshData& mesh, const TetrahedralElement& element, double threshold);
+
 } // namespace Meshing::ElementGeometry
