@@ -1,5 +1,5 @@
 #include "ElementGeometry.h"
-
+#include <Eigen/Core>
 #include <array>
 #include <cmath>
 #include <optional>

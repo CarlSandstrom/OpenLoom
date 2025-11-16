@@ -2,7 +2,7 @@
 
 #include <optional>
 
-#include "Meshing/Data/ElementGeometry.h"
+#include "Meshing/Core/ElementGeometry.h"
 
 namespace Meshing
 {
