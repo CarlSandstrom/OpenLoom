@@ -1,139 +1,18 @@
 #include "Meshing/Core/Delaunay3D.h"
 
-#include "Meshing/Core/Computer.h"
-
 #include <algorithm>
 #include <limits>
 #include <map>
+#include <memory>
 #include <stdexcept>
+#include <unordered_set>
+
+#include "Meshing/Data/TetrahedralElement.h"
 
 namespace Meshing
 {
-
-Triangle::Triangle(int v0, int v1, int v2) :
-    vertices{v0, v1, v2}
-{
-}
-
-bool Triangle::operator==(const Triangle& other) const
-{
-    auto a = vertices;
-    auto b = other.vertices;
-    std::sort(a.begin(), a.end());
-    std::sort(b.begin(), b.end());
-    return a == b;
-}
-
-bool Triangle::operator<(const Triangle& other) const
-{
-    auto a = vertices;
-    auto b = other.vertices;
-    std::sort(a.begin(), a.end());
-    std::sort(b.begin(), b.end());
-    return a < b;
-}
-
-Tetrahedron::Tetrahedron() :
-    vertices_{-1, -1, -1, -1},
-    circumcenter_(Point3D::Zero()),
-    circumradius_(0.0),
-    isValid_(true)
-{
-}
-
-Tetrahedron::Tetrahedron(int v0, int v1, int v2, int v3) :
-    vertices_{v0, v1, v2, v3},
-    circumcenter_(Point3D::Zero()),
-    circumradius_(0.0),
-    isValid_(true)
-{
-}
-
-void Tetrahedron::computeCircumsphere(const std::vector<Point3D>& points)
-{
-    const Point3D& a = points[vertices_[0]];
-    const Point3D& b = points[vertices_[1]];
-    const Point3D& c = points[vertices_[2]];
-    const Point3D& d = points[vertices_[3]];
-
-    if (const auto sphere = Computer::getCircumscribingSphere(a, b, c, d))
-    {
-        circumcenter_ = sphere->center;
-        circumradius_ = sphere->radius;
-        isValid_ = true;
-    }
-    else
-    {
-        isValid_ = false;
-    }
-}
-
-bool Tetrahedron::isInCircumsphere(const Point3D& p) const
-{
-    if (!isValid_)
-    {
-        return false;
-    }
-
-    ElementGeometry::CircumscribedSphere sphere{circumcenter_, circumradius_};
-    return Computer::getIsPointInsideCircumscribingSphere(sphere, p);
-}
-
-std::array<Triangle, 4> Tetrahedron::getFaces() const
-{
-    return {
-        Triangle(vertices_[0], vertices_[1], vertices_[2]),
-        Triangle(vertices_[0], vertices_[1], vertices_[3]),
-        Triangle(vertices_[0], vertices_[2], vertices_[3]),
-        Triangle(vertices_[1], vertices_[2], vertices_[3])};
-}
-
-bool Tetrahedron::hasVertex(int vertexIndex) const
-{
-    return std::find(vertices_.begin(), vertices_.end(), vertexIndex) != vertices_.end();
-}
-
-double Tetrahedron::getShortestEdge(const std::vector<Point3D>& points) const
-{
-    double minLen = std::numeric_limits<double>::max();
-
-    for (int i = 0; i < 4; ++i)
-    {
-        for (int j = i + 1; j < 4; ++j)
-        {
-            const double len = (points[vertices_[i]] - points[vertices_[j]]).norm();
-            minLen = std::min(minLen, len);
-        }
-    }
-
-    return minLen;
-}
-
-double Tetrahedron::getCircumradiusToShortestEdgeRatio(const std::vector<Point3D>& points) const
-{
-    const double shortestEdge = getShortestEdge(points);
-    if (shortestEdge < 1e-15)
-    {
-        return std::numeric_limits<double>::max();
-    }
-
-    return circumradius_ / shortestEdge;
-}
-
-bool Tetrahedron::isSkinny(const std::vector<Point3D>& points, double threshold) const
-{
-    return getCircumradiusToShortestEdgeRatio(points) > threshold;
-}
-
-double Tetrahedron::volume(const std::vector<Point3D>& points) const
-{
-    return Computer::computeVolume(points[vertices_[0]],
-                                   points[vertices_[1]],
-                                   points[vertices_[2]],
-                                   points[vertices_[3]]);
-}
-
 Delaunay3D::Delaunay3D(Meshing::MeshingContext& context) :
+    computer_(context.getMeshData()),
     context_(context),
     meshData_(context.getMeshData()),
     operations_(context.getOperations())
@@ -142,8 +21,8 @@ Delaunay3D::Delaunay3D(Meshing::MeshingContext& context) :
 
 void Delaunay3D::initialize(const std::vector<Point3D>& points)
 {
-    vertices_.clear();
-    tetrahedra_.clear();
+    superNodeIds_.clear();
+    activeTetrahedra_.clear();
 
     if (points.size() < 4)
     {
@@ -158,6 +37,107 @@ void Delaunay3D::initialize(const std::vector<Point3D>& points)
     }
 
     removeSuperTetrahedron();
+}
+
+void Delaunay3D::insertVertex(const Point3D& point)
+{
+    const size_t nodeId = operations_.addNode(point);
+
+    const std::vector<size_t> conflicting = findConflictingTetrahedra(point);
+    if (conflicting.empty())
+    {
+        throw std::runtime_error("No conflicting tetrahedra found - point outside mesh?");
+    }
+
+    const std::vector<std::array<size_t, 3>> boundary = findCavityBoundary(conflicting);
+
+    for (size_t elementId : conflicting)
+    {
+        operations_.removeElement(elementId);
+        activeTetrahedra_.erase(elementId);
+    }
+
+    retriangulate(nodeId, boundary);
+}
+
+bool Delaunay3D::isElementActive(size_t elementId) const
+{
+    return activeTetrahedra_.find(elementId) != activeTetrahedra_.end();
+}
+
+const TetrahedralElement* Delaunay3D::getTetrahedralElement(size_t elementId) const
+{
+    const auto* element = meshData_.getElement(elementId);
+    return dynamic_cast<const TetrahedralElement*>(element);
+}
+
+std::vector<size_t> Delaunay3D::findConflictingTetrahedra(const Point3D& p) const
+{
+    std::vector<size_t> conflicting;
+    conflicting.reserve(activeTetrahedra_.size());
+
+    for (size_t elementId : activeTetrahedra_)
+    {
+        const auto* element = getTetrahedralElement(elementId);
+        if (element == nullptr)
+        {
+            continue;
+        }
+
+        if (computer_.getIsPointInsideCircumscribingSphere(*element, p))
+        {
+            conflicting.push_back(elementId);
+        }
+    }
+
+    return conflicting;
+}
+
+std::vector<std::array<size_t, 3>> Delaunay3D::findCavityBoundary(const std::vector<size_t>& conflicting) const
+{
+    std::map<std::array<size_t, 3>, int> faceCount;
+    std::map<std::array<size_t, 3>, std::array<size_t, 3>> faceLookup;
+
+    for (size_t elementId : conflicting)
+    {
+        const auto* element = getTetrahedralElement(elementId);
+        if (element == nullptr)
+        {
+            continue;
+        }
+
+        for (const auto& face : element->getFaces())
+        {
+            auto sortedFace = face;
+            std::sort(sortedFace.begin(), sortedFace.end());
+            faceCount[sortedFace]++;
+            faceLookup.emplace(sortedFace, face);
+        }
+    }
+
+    std::vector<std::array<size_t, 3>> boundary;
+    boundary.reserve(faceCount.size());
+
+    for (const auto& [face, count] : faceCount)
+    {
+        if (count == 1)
+        {
+            boundary.push_back(faceLookup.at(face));
+        }
+    }
+
+    return boundary;
+}
+
+void Delaunay3D::retriangulate(size_t vertexNodeId, const std::vector<std::array<size_t, 3>>& boundary)
+{
+    for (const auto& face : boundary)
+    {
+        std::array<size_t, 4> nodeIds = {vertexNodeId, face[0], face[1], face[2]};
+        auto element = std::make_unique<TetrahedralElement>(nodeIds);
+        const size_t elementId = operations_.addElement(std::move(element));
+        activeTetrahedra_.insert(elementId);
+    }
 }
 
 void Delaunay3D::createSuperTetrahedron(const std::vector<Point3D>& points)
@@ -190,163 +170,83 @@ void Delaunay3D::createSuperTetrahedron(const std::vector<Point3D>& points)
 
     const double scale = 10.0 * dmax;
 
-    vertices_.push_back(Point3D(midX - scale, midY - scale, midZ - scale));
-    vertices_.push_back(Point3D(midX + scale, midY - scale, midZ - scale));
-    vertices_.push_back(Point3D(midX, midY + scale, midZ - scale));
-    vertices_.push_back(Point3D(midX, midY, midZ + scale));
+    superNodeIds_.push_back(operations_.addNode(Point3D(midX - scale, midY - scale, midZ - scale)));
+    superNodeIds_.push_back(operations_.addNode(Point3D(midX + scale, midY - scale, midZ - scale)));
+    superNodeIds_.push_back(operations_.addNode(Point3D(midX, midY + scale, midZ - scale)));
+    superNodeIds_.push_back(operations_.addNode(Point3D(midX, midY, midZ + scale)));
 
-    Tetrahedron superTet(0, 1, 2, 3);
-    superTet.computeCircumsphere(vertices_);
-    tetrahedra_.push_back(superTet);
-}
-
-void Delaunay3D::insertVertex(const Point3D& point)
-{
-    const int vertexIndex = static_cast<int>(vertices_.size());
-    vertices_.push_back(point);
-
-    const std::vector<int> conflicting = findConflictingTetrahedra(point);
-    if (conflicting.empty())
-    {
-        throw std::runtime_error("No conflicting tetrahedra found - point outside mesh?");
-    }
-
-    const std::vector<Triangle> boundary = findCavityBoundary(conflicting);
-
-    for (int idx : conflicting)
-    {
-        tetrahedra_[idx].isValid_ = false;
-    }
-
-    retriangulate(vertexIndex, boundary);
-}
-
-std::vector<int> Delaunay3D::findConflictingTetrahedra(const Point3D& p) const
-{
-    std::vector<int> conflicting;
-
-    for (size_t i = 0; i < tetrahedra_.size(); ++i)
-    {
-        if (!tetrahedra_[i].isValid_)
-        {
-            continue;
-        }
-
-        if (tetrahedra_[i].isInCircumsphere(p))
-        {
-            conflicting.push_back(static_cast<int>(i));
-        }
-    }
-
-    return conflicting;
-}
-
-std::vector<Triangle> Delaunay3D::findCavityBoundary(const std::vector<int>& conflicting) const
-{
-    std::map<Triangle, int> faceCount;
-
-    for (int tetIdx : conflicting)
-    {
-        const auto faces = tetrahedra_[tetIdx].getFaces();
-        for (const auto& face : faces)
-        {
-            faceCount[face]++;
-        }
-    }
-
-    std::vector<Triangle> boundary;
-    boundary.reserve(faceCount.size());
-
-    for (const auto& [face, count] : faceCount)
-    {
-        if (count == 1)
-        {
-            boundary.push_back(face);
-        }
-    }
-
-    return boundary;
-}
-
-void Delaunay3D::retriangulate(int vertexIndex, const std::vector<Triangle>& boundary)
-{
-    for (const auto& face : boundary)
-    {
-        Tetrahedron newTet(vertexIndex, face.vertices[0], face.vertices[1], face.vertices[2]);
-        newTet.computeCircumsphere(vertices_);
-        tetrahedra_.push_back(newTet);
-    }
+    std::array<size_t, 4> nodeIds = {superNodeIds_[0], superNodeIds_[1], superNodeIds_[2], superNodeIds_[3]};
+    auto element = std::make_unique<TetrahedralElement>(nodeIds);
+    const size_t elementId = operations_.addElement(std::move(element));
+    activeTetrahedra_.insert(elementId);
 }
 
 void Delaunay3D::removeSuperTetrahedron()
 {
-    std::vector<Tetrahedron> validTets;
-    validTets.reserve(tetrahedra_.size());
-
-    for (auto tet : tetrahedra_)
+    if (superNodeIds_.empty())
     {
-        if (!tet.isValid_)
+        return;
+    }
+
+    const std::unordered_set<size_t> superNodeSet(superNodeIds_.begin(), superNodeIds_.end());
+
+    std::vector<size_t> elementsToRemove;
+    for (size_t elementId : activeTetrahedra_)
+    {
+        const auto* element = getTetrahedralElement(elementId);
+        if (element == nullptr)
         {
             continue;
         }
 
-        bool hasSuperVertex = false;
-        for (int i = 0; i < 4; ++i)
+        for (size_t nodeId : element->getNodeIds())
         {
-            if (tet.vertices_[i] < 4)
+            if (superNodeSet.count(nodeId) > 0)
             {
-                hasSuperVertex = true;
+                elementsToRemove.push_back(elementId);
                 break;
             }
         }
-
-        if (!hasSuperVertex)
-        {
-            for (int i = 0; i < 4; ++i)
-            {
-                tet.vertices_[i] -= 4;
-            }
-            validTets.push_back(tet);
-        }
     }
 
-    tetrahedra_ = std::move(validTets);
-
-    if (vertices_.size() >= 4)
+    for (size_t elementId : elementsToRemove)
     {
-        vertices_.erase(vertices_.begin(), vertices_.begin() + 4);
+        operations_.removeElement(elementId);
+        activeTetrahedra_.erase(elementId);
     }
-}
 
-double Delaunay3D::orient3D(const Point3D& a,
-                            const Point3D& b,
-                            const Point3D& c,
-                            const Point3D& d) const
-{
-    const Point3D ba = b - a;
-    const Point3D ca = c - a;
-    const Point3D da = d - a;
+    for (size_t nodeId : superNodeIds_)
+    {
+        operations_.removeNode(nodeId);
+    }
 
-    return ba.dot(ca.cross(da));
+    superNodeIds_.clear();
 }
 
 bool Delaunay3D::isDelaunay() const
 {
-    for (const auto& tet : tetrahedra_)
+    for (size_t elementId : activeTetrahedra_)
     {
-        if (!tet.isValid_)
+        const auto* element = getTetrahedralElement(elementId);
+        if (element == nullptr)
         {
             continue;
         }
 
-        for (size_t i = 0; i < vertices_.size(); ++i)
+        const auto sphere = computer_.getCircumscribingSphere(*element);
+        if (!sphere)
         {
-            if (tet.hasVertex(static_cast<int>(i)))
+            continue;
+        }
+
+        for (const auto& [nodeId, nodePtr] : meshData_.getNodes())
+        {
+            if (element->hasNode(nodeId))
             {
                 continue;
             }
 
-            if (tet.isInCircumsphere(vertices_[i]))
+            if (computer_.getIsPointInsideCircumscribingSphere(*sphere, nodePtr->getCoordinates()))
             {
                 return false;
             }
