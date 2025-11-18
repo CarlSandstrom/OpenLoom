@@ -2,6 +2,7 @@
 #include "../Data/MeshOperations.h"
 #include "../Data/TetrahedralElement.h"
 #include "../Operations/ScopedTransaction.h"
+#include "Delaunay3D.h"
 #include "Geometry/Base/GeometryCollection.h"
 #include "MeshingContext.h"
 #include "Topology/Topology.h"
@@ -20,28 +21,19 @@ void SimpleMesher::generate(MeshingContext& context)
     auto& ops = context.getOperations();
 
     // Begin transaction to ensure rollback on any failure
-    Meshing::ScopedTransaction txn(&ops);
-    std::vector<size_t> cornerNodeIds;
+    std::vector<Point3D> points;
     for (auto cornerId : context.getTopology().getAllCornerIds())
     {
         auto geometryCorner = context.getGeometry().getCorner(cornerId);
         auto point = geometryCorner->getPoint();
-        cornerNodeIds.push_back(ops.addNode(point));
+        points.push_back(point);
     }
 
-    if (cornerNodeIds.size() >= 4)
-    {
-        std::array<size_t, 4> tetraNodes = {cornerNodeIds[0], cornerNodeIds[1],
-                                            cornerNodeIds[2], cornerNodeIds[3]};
-        auto element = std::make_unique<TetrahedralElement>(tetraNodes);
-        ops.addElement(std::move(element));
-    }
+    Delaunay3D delaunay(context);
+    delaunay.initialize(points);
 
     // Build connectivity
     context.rebuildConnectivity();
-
-    // Commit on success
-    txn.commit();
 }
 
 } // namespace Meshing

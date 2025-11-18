@@ -1,4 +1,5 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "Export/VtkExporter.h"
 #include "Meshing/Core/MeshingContext.h"
 #include "Meshing/Core/SimpleMesher.h"
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -14,6 +15,9 @@ int main()
 
     Meshing::SimpleMesher mesher;
     mesher.generate(context);
+
+    Export::VtkExporter exporter;
+    exporter.writeVtu(context.getMeshData(), "box_mesh.vtu");
 
     return 0;
 }
