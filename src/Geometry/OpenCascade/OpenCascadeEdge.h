@@ -18,7 +18,7 @@ public:
     std::array<double, 3> getTangent(double t) const override;
     Meshing::Point3D getStartPoint() const override;
     Meshing::Point3D getEndPoint() const override;
-    void getParameterBounds(double& tMin, double& tMax) const override;
+    std::pair<double, double> getParameterBounds() const override;
     double getLength() const override;
     double getCurvature(double t) const override;
     std::string getId() const override;

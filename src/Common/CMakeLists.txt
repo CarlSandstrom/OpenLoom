@@ -1,6 +1,8 @@
 # CMake configuration for Common module
 add_library(Common STATIC
     MathConverter.cpp
+    BoundingBox2D.cpp
+    BoundingBox3D.cpp
 )
 
 target_include_directories(Common PUBLIC

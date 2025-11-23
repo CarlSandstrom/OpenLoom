@@ -52,30 +52,26 @@ std::array<double, 3> OpenCascadeEdge::getTangent(double t) const
 
 Meshing::Point3D OpenCascadeEdge::getStartPoint() const
 {
-    double tMin, tMax;
-    getParameterBounds(tMin, tMax);
+    const auto [tMin, tMax] = getParameterBounds();
     return getPoint(tMin);
 }
 
 Meshing::Point3D OpenCascadeEdge::getEndPoint() const
 {
-    double tMin, tMax;
-    getParameterBounds(tMin, tMax);
+    const auto [tMin, tMax] = getParameterBounds();
     return getPoint(tMax);
 }
 
-void OpenCascadeEdge::getParameterBounds(double& tMin, double& tMax) const
+std::pair<double, double> OpenCascadeEdge::getParameterBounds() const
 {
     BRepAdaptor_Curve curve(edge_);
-    tMin = curve.FirstParameter();
-    tMax = curve.LastParameter();
+    return {curve.FirstParameter(), curve.LastParameter()};
 }
 
 double OpenCascadeEdge::getLength() const
 {
     BRepAdaptor_Curve curve(edge_);
-    double tMin, tMax;
-    getParameterBounds(tMin, tMax);
+    const auto [tMin, tMax] = getParameterBounds();
 
     // Use GCPnts_AbscissaPoint to compute the actual arc length
     double length = GCPnts_AbscissaPoint::Length(curve, tMin, tMax);

@@ -29,6 +29,19 @@ void SimpleMesher::generate(MeshingContext& context)
         points.push_back(point);
     }
 
+    for (auto edgeId : context.getTopology().getAllEdgeIds())
+    {
+        auto geometryEdge = context.getGeometry().getEdge(edgeId);
+        auto parameterRange = geometryEdge->getParameterBounds();
+        const size_t numSamples = 10; // Simple uniform sampling
+        for (size_t i = 0; i <= numSamples; ++i)
+        {
+            double t = parameterRange.first + static_cast<double>(i) / static_cast<double>(numSamples) * (parameterRange.second - parameterRange.first);
+            auto point = geometryEdge->getPoint(t);
+            points.push_back(point);
+        }
+    }
+
     Delaunay3D delaunay(context);
     delaunay.initialize(points);
 

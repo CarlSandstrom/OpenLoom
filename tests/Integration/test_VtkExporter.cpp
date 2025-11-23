@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/MeshingContext.h"
@@ -21,12 +22,9 @@ public:
         id_(std::move(id)) {}
     std::array<double, 3> getNormal(double, double) const override { return {0.0, 0.0, 1.0}; }
     Meshing::Point3D getPoint(double, double) const override { return Meshing::Point3D(0.0, 0.0, 0.0); }
-    void getParameterBounds(double& uMin, double& uMax, double& vMin, double& vMax) const override
+    Common::BoundingBox2D getParameterBounds() const override
     {
-        uMin = 0.0;
-        uMax = 1.0;
-        vMin = 0.0;
-        vMax = 1.0;
+        return Common::BoundingBox2D(0.0, 1.0, 0.0, 1.0);
     }
     double getGap(const Meshing::Point3D&) const override { return 0.0; }
     Meshing::Point2D projectPoint(const Meshing::Point3D&) const override
@@ -47,11 +45,7 @@ public:
     std::array<double, 3> getTangent(double) const override { return {1.0, 0.0, 0.0}; }
     Meshing::Point3D getStartPoint() const override { return Meshing::Point3D(0.0, 0.0, 0.0); }
     Meshing::Point3D getEndPoint() const override { return Meshing::Point3D(1.0, 0.0, 0.0); }
-    void getParameterBounds(double& tMin, double& tMax) const override
-    {
-        tMin = 0.0;
-        tMax = 1.0;
-    }
+    std::pair<double, double> getParameterBounds() const override { return {0.0, 1.0}; }
     double getLength() const override { return 1.0; }
     double getCurvature(double) const override { return 0.0; }
     std::string getId() const override { return id_; }

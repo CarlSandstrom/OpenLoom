@@ -16,8 +16,7 @@ public:
 
     std::array<double, 3> getNormal(double u, double v) const override;
     Meshing::Point3D getPoint(double u, double v) const override;
-    void getParameterBounds(double& uMin, double& uMax,
-                            double& vMin, double& vMax) const override;
+    Common::BoundingBox2D getParameterBounds() const override;
     double getGap(const Meshing::Point3D& point) const override;
     Meshing::Point2D projectPoint(const Meshing::Point3D& point) const override;
     std::string getId() const override;

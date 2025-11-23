@@ -43,14 +43,11 @@ Meshing::Point3D OpenCascadeSurface::getPoint(double u, double v) const
     return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
-void OpenCascadeSurface::getParameterBounds(double& uMin, double& uMax,
-                                            double& vMin, double& vMax) const
+Common::BoundingBox2D OpenCascadeSurface::getParameterBounds() const
 {
     BRepAdaptor_Surface surface(face_);
-    uMin = surface.FirstUParameter();
-    uMax = surface.LastUParameter();
-    vMin = surface.FirstVParameter();
-    vMax = surface.LastVParameter();
+    return Common::BoundingBox2D(surface.FirstUParameter(), surface.LastUParameter(),
+                                 surface.FirstVParameter(), surface.LastVParameter());
 }
 
 double OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
@@ -84,9 +81,9 @@ Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point)
     }
 
     // Return parameter bounds center if projection fails
-    double uMin, uMax, vMin, vMax;
-    getParameterBounds(uMin, uMax, vMin, vMax);
-    return Meshing::Point2D((uMin + uMax) / 2.0, (vMin + vMax) / 2.0);
+    const Common::BoundingBox2D bounds = getParameterBounds();
+    return Meshing::Point2D((bounds.getUMin() + bounds.getUMax()) / 2.0,
+                            (bounds.getVMin() + bounds.getVMax()) / 2.0);
 }
 
 std::string OpenCascadeSurface::getId() const
