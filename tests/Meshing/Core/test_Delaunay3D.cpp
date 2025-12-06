@@ -5,7 +5,7 @@
 #include "Meshing/Core/MeshingContext.h"
 
 #define private public
-#include "Meshing/Core/Delaunay3D.h"
+#include "Meshing/Core/ConstrainedDelaunay3D.h"
 #undef private
 
 #include "Export/VtkExporter.h"
@@ -31,7 +31,7 @@ TEST(Delaunay3D, SplitsSuperTetrahedronAtCenterInsertion)
     Topology::Topology topology(topoSurfaces, topoEdges, topoCorners);
 
     Meshing::MeshingContext context(geometry, topology);
-    Meshing::Delaunay3D delaunay(context);
+    Meshing::ConstrainedDelaunay3D delaunay(context);
 
     const std::vector<Meshing::Point3D> referencePoints{
         Meshing::Point3D(-1.0, -1.0, -1.0),

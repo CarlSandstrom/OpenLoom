@@ -2,7 +2,7 @@
 #include "../Data/MeshOperations.h"
 #include "../Data/TetrahedralElement.h"
 #include "../Operations/ScopedTransaction.h"
-#include "Delaunay3D.h"
+#include "ConstrainedDelaunay3D.h"
 #include "Geometry/Base/GeometryCollection.h"
 #include "MeshingContext.h"
 #include "Topology/Topology.h"
@@ -42,7 +42,7 @@ void SimpleMesher::generate(MeshingContext& context)
         }
     }
 
-    Delaunay3D delaunay(context);
+    ConstrainedDelaunay3D delaunay(context);
     delaunay.initialize(points);
 
     // Build connectivity
