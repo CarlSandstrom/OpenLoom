@@ -24,4 +24,9 @@ target_link_libraries(MeshingCore PUBLIC
     MeshingOperations
     Geometry
     Topology
+    ExportCore
+    spdlog::spdlog
+    fmt::fmt
 )
+
+target_compile_definitions(MeshingCore PRIVATE SPDLOG_FMT_EXTERNAL)

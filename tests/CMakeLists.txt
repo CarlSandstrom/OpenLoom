@@ -13,6 +13,9 @@ set(TEST_SOURCES
     Meshing/Data/test_Node.cpp
     Meshing/Data/test_TetrahedralElement.cpp
     
+    # Meshing Core tests
+    Meshing/Core/test_Delaunay3D.cpp
+
     # Meshing Operations tests
     Meshing/Operations/test_MeshTransaction.cpp
     

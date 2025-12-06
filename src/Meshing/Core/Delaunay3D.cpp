@@ -1,13 +1,18 @@
 #include "Meshing/Core/Delaunay3D.h"
 
+#include "Export/VtkExporter.h"
+#include "Meshing/Data/TetrahedralElement.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/spdlog.h"
 #include <algorithm>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <unordered_set>
-
-#include "Meshing/Data/TetrahedralElement.h"
 
 namespace Meshing
 {
@@ -31,9 +36,17 @@ void Delaunay3D::initialize(const std::vector<Point3D>& points)
 
     createSuperTetrahedron(points);
 
+    Export::VtkExporter exporter;
+    size_t iteration = 0;
     for (const auto& p : points)
     {
         insertVertex(p);
+
+        std::ostringstream fileName;
+        // Dump incremental mesh snapshots to aid debugging of vertex insertions
+        fileName << "mesh_" << std::setw(3) << std::setfill('0') << iteration << ".vtu";
+        exporter.writeVtu(meshData_, fileName.str());
+        ++iteration;
     }
 
     removeSuperTetrahedron();
@@ -42,6 +55,9 @@ void Delaunay3D::initialize(const std::vector<Point3D>& points)
 void Delaunay3D::insertVertex(const Point3D& point)
 {
     const size_t nodeId = operations_.addNode(point);
+
+    SPDLOG_INFO("Inserting vertex at ({}, {}, {}) as node ID {}",
+                point.x(), point.y(), point.z(), nodeId);
 
     const std::vector<size_t> conflicting = findConflictingTetrahedra(point);
     if (conflicting.empty())
