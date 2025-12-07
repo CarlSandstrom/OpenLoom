@@ -413,8 +413,8 @@ void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology::Topology& topol
             }
         }
 
-        // Triangulate (simplified fan triangulation)
-        auto subfacets = triangulateSurface2D_(boundaryNodeIds, interiorNodeIds);
+        // Triangulate using constrained Delaunay 2D
+        auto subfacets = triangulateSurface2D_(boundaryNodeIds, interiorNodeIds, geomSurface);
 
         for (const auto& tri : subfacets)
         {
@@ -433,28 +433,56 @@ void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology::Topology& topol
 
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurface2D_(
     const std::vector<size_t>& boundaryNodeIds,
-    const std::vector<size_t>& interiorNodeIds)
+    const std::vector<size_t>& interiorNodeIds,
+    const Geometry::Surface* surface)
 {
     std::vector<std::array<size_t, 3>> triangles;
 
-    if (boundaryNodeIds.size() < 3) return triangles;
-
-    // Fan triangulation from first boundary node
-    for (size_t i = 1; i < boundaryNodeIds.size() - 1; ++i)
+    if (boundaryNodeIds.size() < 3)
     {
-        triangles.push_back({boundaryNodeIds[0],
-                             boundaryNodeIds[i],
-                             boundaryNodeIds[i + 1]});
+        return triangles;
     }
 
-    // Connect interior to boundary (simplified)
-    for (size_t interior : interiorNodeIds)
+    // Build map from node ID to 2D parametric coordinates
+    std::unordered_map<size_t, Point2D> nodeCoords2D;
+
+    // Project boundary nodes to 2D
+    for (size_t nodeId : boundaryNodeIds)
     {
-        if (boundaryNodeIds.size() >= 3)
+        const auto* node = meshData_.getNode(nodeId);
+        if (node != nullptr)
         {
-            triangles.push_back({interior, boundaryNodeIds[0], boundaryNodeIds[1]});
+            Point2D coord2D = surface->projectPoint(node->getCoordinates());
+            nodeCoords2D[nodeId] = coord2D;
         }
     }
+
+    // Project interior nodes to 2D
+    for (size_t nodeId : interiorNodeIds)
+    {
+        const auto* node = meshData_.getNode(nodeId);
+        if (node != nullptr)
+        {
+            Point2D coord2D = surface->projectPoint(node->getCoordinates());
+            nodeCoords2D[nodeId] = coord2D;
+        }
+    }
+
+    // Create constrained Delaunay triangulator
+    ConstrainedDelaunay2D delaunay2D(nodeCoords2D);
+
+    // Add constraint edges for the boundary (forming a closed loop)
+    for (size_t i = 0; i < boundaryNodeIds.size(); ++i)
+    {
+        size_t nextIdx = (i + 1) % boundaryNodeIds.size();
+        delaunay2D.addConstraintEdge(boundaryNodeIds[i], boundaryNodeIds[nextIdx]);
+    }
+
+    // Triangulate
+    triangles = delaunay2D.triangulate();
+
+    SPDLOG_DEBUG("Constrained Delaunay 2D: {} boundary nodes, {} interior nodes → {} triangles",
+                 boundaryNodeIds.size(), interiorNodeIds.size(), triangles.size());
 
     return triangles;
 }

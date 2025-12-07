@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Common/Types.h"
+#include "ConstrainedDelaunay2D.h"
 #include "ConstrainedDelaunayHelper.h"
 #include "ConstraintStructures.h"
 #include "Geometry/Base/GeometryCollection.h"
@@ -128,11 +129,12 @@ protected:
     void recoverFacets_();
 
     /**
-     * @brief Triangulate a surface in 2D parametric space
+     * @brief Triangulate a surface in 2D parametric space using constrained Delaunay
      */
     std::vector<std::array<size_t, 3>> triangulateSurface2D_(
         const std::vector<size_t>& boundaryNodeIds,
-        const std::vector<size_t>& interiorNodeIds);
+        const std::vector<size_t>& interiorNodeIds,
+        const Geometry::Surface* surface);
 
 private:
     void createSuperTetrahedron(const std::vector<Point3D>& points);
