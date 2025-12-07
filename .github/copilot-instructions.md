@@ -27,6 +27,7 @@
 - Functions: prefer `const` correctness everywhere, pass non-primitives by `const&`, one declaration per line.
 - Classes: no public/protected members or friends beyond the existing data/operations friendship, ownership via `std::unique_ptr`, only `static_cast`/`dynamic_cast`.
 - General: rely on `auto` when it improves clarity, wrap namespaces as `namespace Foo { ... }`, include headers via paths relative to `src/`.
+- Only declarations in headers, implementations in `.cpp` files. Structs should go into another header file for each library where the libraries structs are kept.
 
 ## Implementation Tips
 - Favor forward declarations in headers (`Coding standards`) and include the concrete headers inside `.cpp` files to keep compile units light—see `Meshing/Core/IMesher.h`.
