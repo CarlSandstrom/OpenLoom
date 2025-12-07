@@ -271,9 +271,7 @@ bool ConstrainedDelaunay3D::isDelaunay() const
     return true;
 }
 
-void ConstrainedDelaunay3D::generateConstrained(const Topology::Topology& topology,
-                                                const Geometry::GeometryCollection& geometry,
-                                                size_t samplesPerEdge,
+void ConstrainedDelaunay3D::generateConstrained(size_t samplesPerEdge,
                                                 size_t samplesPerSurface)
 {
     SPDLOG_INFO("========================================");
@@ -281,13 +279,13 @@ void ConstrainedDelaunay3D::generateConstrained(const Topology::Topology& topolo
     SPDLOG_INFO("========================================");
 
     // Step 1: Insert corner nodes
-    insertCornerNodes_(topology, geometry);
+    insertCornerNodes_(context_.getTopology(), context_.getGeometry());
 
     // Step 2: Insert edge nodes and build segment constraints
-    insertEdgeNodes_(topology, geometry, samplesPerEdge);
+    insertEdgeNodes_(context_.getTopology(), context_.getGeometry(), samplesPerEdge);
 
     // Step 3: Triangulate surfaces and build facet constraints
-    triangulateSurfaces_(topology, geometry, samplesPerSurface);
+    triangulateSurfaces_(context_.getTopology(), context_.getGeometry(), samplesPerSurface);
 
     // Step 4: Collect all points for initial triangulation
     std::vector<Point3D> allPoints;

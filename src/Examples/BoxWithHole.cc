@@ -1,7 +1,7 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
+#include "Meshing/Core/ConstrainedDelaunay3D.h"
 #include "Meshing/Core/MeshingContext.h"
-#include "Meshing/Core/SimpleMesher.h"
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
@@ -26,8 +26,8 @@ int main()
         converter.getGeometryCollection(),
         converter.getTopology());
 
-    Meshing::SimpleMesher mesher;
-    mesher.generate(context);
+    Meshing::ConstrainedDelaunay3D mesher(context);
+    mesher.generateConstrained(1, 5);
 
     Export::VtkExporter exporter;
     exporter.writeVtu(context.getMeshData(), "BoxWithHole_mesh.vtu");

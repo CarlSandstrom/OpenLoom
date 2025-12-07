@@ -65,9 +65,7 @@ public:
      * 5. Force each constraint segment into mesh
      * 6. Force each constraint subfacet into mesh
      */
-    void generateConstrained(const Topology::Topology& topology,
-                             const Geometry::GeometryCollection& geometry,
-                             size_t samplesPerEdge = 10,
+    void generateConstrained(size_t samplesPerEdge = 10,
                              size_t samplesPerSurface = 5);
 
     /**

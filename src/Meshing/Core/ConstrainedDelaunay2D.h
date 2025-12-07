@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -54,7 +55,8 @@ private:
     {
         std::array<size_t, 3> nodes;
 
-        Triangle(size_t n0, size_t n1, size_t n2) : nodes{n0, n1, n2} {}
+        Triangle(size_t n0, size_t n1, size_t n2) :
+            nodes{n0, n1, n2} {}
 
         bool hasNode(size_t nodeId) const
         {
@@ -70,10 +72,14 @@ private:
         {
             switch (edgeIndex)
             {
-            case 0: return {nodes[0], nodes[1]};
-            case 1: return {nodes[1], nodes[2]};
-            case 2: return {nodes[2], nodes[0]};
-            default: return {nodes[0], nodes[1]};
+            case 0:
+                return {nodes[0], nodes[1]};
+            case 1:
+                return {nodes[1], nodes[2]};
+            case 2:
+                return {nodes[2], nodes[0]};
+            default:
+                return {nodes[0], nodes[1]};
             }
         }
     };
