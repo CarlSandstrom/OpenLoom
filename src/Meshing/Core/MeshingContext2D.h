@@ -9,13 +9,14 @@
 namespace Geometry
 {
 class Surface;
-}
+class GeometryCollection;
+} // namespace Geometry
 
 namespace Topology
 {
 class Surface;
 class Topology;
-}
+} // namespace Topology
 
 namespace Meshing
 {
