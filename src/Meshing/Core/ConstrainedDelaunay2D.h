@@ -2,6 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Data/MeshData.h"
+#include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <array>
 #include <optional>
@@ -11,6 +12,9 @@
 
 namespace Meshing
 {
+
+class MeshingContext2D;
+class MeshOperations2D;
 
 /**
  * @brief Constrained 2D Delaunay triangulation
@@ -24,7 +28,11 @@ namespace Meshing
  * - Supports constrained edges (for surface boundaries)
  * - Returns triangulation as list of node ID triplets
  *
- * Usage:
+ * Usage (with MeshingContext2D):
+ * 1. Create instance with MeshingContext2D
+ * 2. Call generateConstrained() to create mesh from topology/geometry
+ *
+ * Usage (standalone):
  * 1. Create instance with node ID to Point2D mapping
  * 2. Optionally add constraint edges
  * 3. Call triangulate() to get triangles
@@ -33,7 +41,17 @@ class ConstrainedDelaunay2D
 {
 public:
     /**
-     * @brief Construct 2D Delaunay triangulator
+     * @brief Construct 2D Delaunay triangulator with MeshingContext2D
+     *
+     * This constructor enables the generateConstrained() workflow,
+     * similar to ConstrainedDelaunay3D.
+     *
+     * @param context The 2D meshing context containing geometry and topology
+     */
+    explicit ConstrainedDelaunay2D(MeshingContext2D& context);
+
+    /**
+     * @brief Construct 2D Delaunay triangulator with raw coordinates
      * @param nodeCoords Map from node ID to 2D parametric coordinates
      */
     explicit ConstrainedDelaunay2D(const std::unordered_map<size_t, Point2D>& nodeCoords);
@@ -51,6 +69,29 @@ public:
      */
     std::vector<std::array<size_t, 3>> triangulate();
 
+    /**
+     * @brief Generate constrained mesh from topology (requires MeshingContext2D)
+     *
+     * Process:
+     * 1. Insert corner nodes from topology
+     * 2. Sample and insert edge nodes
+     * 3. Create initial Delaunay triangulation
+     * 4. Force each constraint edge into mesh
+     *
+     * @param samplesPerEdge Number of sample points per boundary edge
+     */
+    void generateConstrained(size_t samplesPerEdge = 10);
+
+    /**
+     * @brief Get the 2D mesh data (requires MeshingContext2D constructor)
+     */
+    MeshData2D& getMeshData2D();
+    const MeshData2D& getMeshData2D() const;
+
+    /**
+     * @brief Get mesh data as 3D (for backward compatibility)
+     * @deprecated Use getMeshData2D() instead
+     */
     MeshData getMeshData() const;
 
 private:
@@ -59,6 +100,14 @@ private:
         Point2D center;
         double radiusSquared;
     };
+
+    // Context (optional - for generateConstrained workflow)
+    MeshingContext2D* context_ = nullptr;
+    MeshData2D* meshData2D_ = nullptr;
+    MeshOperations2D* operations_ = nullptr;
+
+    // Maps topology IDs to mesh node IDs (for generateConstrained)
+    std::unordered_map<std::string, size_t> topologyToNodeId_;
 
     // Node coordinates in 2D parametric space
     std::unordered_map<size_t, Point2D> nodeCoords_;
@@ -140,6 +189,13 @@ private:
     {
         return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
     }
+
+    // Helper methods for generateConstrained workflow
+    void insertCornerNodes_();
+    void insertEdgeNodes_(size_t samplesPerEdge);
+    void buildTriangulation_();
+    void recoverConstraintEdges_();
+    void storeResultsInMeshData_();
 };
 
 } // namespace Meshing

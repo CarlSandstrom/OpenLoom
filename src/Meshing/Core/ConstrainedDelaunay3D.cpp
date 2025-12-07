@@ -587,4 +587,52 @@ void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
         operations_, activeTetrahedra_, n0, n1, n2, boundary);
 }
 
+std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurfaceWithContext_(
+    const Geometry::Surface* surface,
+    const Topology::Surface& topoSurface,
+    size_t samplesPerEdge)
+{
+    std::vector<std::array<size_t, 3>> triangles;
+
+    if (surface == nullptr)
+    {
+        return triangles;
+    }
+
+    // Create a 2D meshing context from the 3D surface
+    auto context2D = MeshingContext2D::fromSurface(
+        *surface,
+        topoSurface,
+        context_.getTopology(),
+        context_.getGeometry());
+
+    // Create constrained Delaunay 2D with the context
+    ConstrainedDelaunay2D delaunay2D(context2D);
+
+    // Generate constrained triangulation
+    delaunay2D.generateConstrained(samplesPerEdge);
+
+    // Extract the triangulation results
+    // Note: The nodes are in 2D parametric space; we need to map them back
+    // to our 3D mesh node IDs. For now, we return the triangles directly
+    // as they use the context's node IDs which are separate from our 3D mesh.
+
+    const auto& meshData2D = delaunay2D.getMeshData2D();
+    for (const auto& [elemId, elemPtr] : meshData2D.getElements())
+    {
+        if (elemPtr != nullptr)
+        {
+            const auto& nodeIds = elemPtr->getNodeIds();
+            if (nodeIds.size() == 3)
+            {
+                triangles.push_back({nodeIds[0], nodeIds[1], nodeIds[2]});
+            }
+        }
+    }
+
+    SPDLOG_DEBUG("Surface triangulated with context: {} triangles", triangles.size());
+
+    return triangles;
+}
+
 } // namespace Meshing

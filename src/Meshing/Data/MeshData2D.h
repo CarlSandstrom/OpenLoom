@@ -1,0 +1,44 @@
+#pragma once
+
+#include "IElement.h"
+#include "Node2D.h"
+#include <memory>
+#include <unordered_map>
+
+namespace Meshing
+{
+
+/**
+ * @brief Storage for 2D mesh data (nodes and elements in parametric space)
+ */
+class MeshData2D
+{
+public:
+    MeshData2D() = default;
+
+    // Read-only access to mesh data
+    const std::unordered_map<size_t, std::unique_ptr<Node2D>>& getNodes() const { return nodes_; }
+    const std::unordered_map<size_t, std::unique_ptr<IElement>>& getElements() const { return elements_; }
+
+    const Node2D* getNode(size_t id) const;
+    const IElement* getElement(size_t id) const;
+
+    size_t getNodeCount() const { return nodes_.size(); }
+    size_t getElementCount() const { return elements_.size(); }
+
+    // Internal access for operations classes (friends)
+    friend class MeshOperations2D;
+
+private:
+    std::unordered_map<size_t, std::unique_ptr<Node2D>> nodes_;
+    std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
+
+    // Private methods for friend classes
+    void addNodeInternal_(size_t id, std::unique_ptr<Node2D> node);
+    void addElementInternal_(size_t id, std::unique_ptr<IElement> element);
+    void removeNodeInternal_(size_t id);
+    void removeElementInternal_(size_t id);
+    Node2D* getNodeMutable_(size_t id);
+};
+
+} // namespace Meshing
