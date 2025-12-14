@@ -12,23 +12,23 @@
 namespace Meshing
 {
 
-std::pair<size_t, size_t> ConstrainedDelaunayHelper::makeSegmentKey(size_t a, size_t b)
+std::pair<size_t, size_t> ConstrainedDelaunay3DHelper::makeSegmentKey(size_t a, size_t b)
 {
     return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
 }
 
-std::array<size_t, 3> ConstrainedDelaunayHelper::makeTriangleKey(size_t a, size_t b, size_t c)
+std::array<size_t, 3> ConstrainedDelaunay3DHelper::makeTriangleKey(size_t a, size_t b, size_t c)
 {
     std::array<size_t, 3> key = {a, b, c};
     std::sort(key.begin(), key.end());
     return key;
 }
 
-bool ConstrainedDelaunayHelper::segmentExists(const ConstrainedDelaunay3D& delaunay,
-                                              size_t nodeId1,
-                                              size_t nodeId2,
-                                              const std::unordered_set<size_t>& activeTetrahedra,
-                                              const std::unordered_set<std::pair<size_t, size_t>, PairHash>& satisfiedSegments)
+bool ConstrainedDelaunay3DHelper::segmentExists(const ConstrainedDelaunay3D& delaunay,
+                                                size_t nodeId1,
+                                                size_t nodeId2,
+                                                const std::unordered_set<size_t>& activeTetrahedra,
+                                                const std::unordered_set<std::pair<size_t, size_t>, PairHash>& satisfiedSegments)
 {
     const auto key = makeSegmentKey(nodeId1, nodeId2);
     if (satisfiedSegments.count(key) > 0)
@@ -57,12 +57,12 @@ bool ConstrainedDelaunayHelper::segmentExists(const ConstrainedDelaunay3D& delau
     return false;
 }
 
-bool ConstrainedDelaunayHelper::facetExists(const ConstrainedDelaunay3D& delaunay,
-                                            size_t n0,
-                                            size_t n1,
-                                            size_t n2,
-                                            const std::unordered_set<size_t>& activeTetrahedra,
-                                            const std::unordered_set<std::array<size_t, 3>, TriangleHash>& satisfiedFacets)
+bool ConstrainedDelaunay3DHelper::facetExists(const ConstrainedDelaunay3D& delaunay,
+                                              size_t n0,
+                                              size_t n1,
+                                              size_t n2,
+                                              const std::unordered_set<size_t>& activeTetrahedra,
+                                              const std::unordered_set<std::array<size_t, 3>, TriangleHash>& satisfiedFacets)
 {
     const auto key = makeTriangleKey(n0, n1, n2);
     if (satisfiedFacets.count(key) > 0)
@@ -91,7 +91,7 @@ bool ConstrainedDelaunayHelper::facetExists(const ConstrainedDelaunay3D& delauna
     return false;
 }
 
-std::vector<size_t> ConstrainedDelaunayHelper::findIntersectingTetrahedra(
+std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedra(
     const ConstrainedDelaunay3D& delaunay,
     const MeshData& meshData,
     size_t nodeId1,
@@ -119,7 +119,7 @@ std::vector<size_t> ConstrainedDelaunayHelper::findIntersectingTetrahedra(
     return result;
 }
 
-std::vector<size_t> ConstrainedDelaunayHelper::findIntersectingTetrahedraForFacet(
+std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedraForFacet(
     const ConstrainedDelaunay3D& delaunay,
     const MeshData& meshData,
     size_t n0,
@@ -149,7 +149,7 @@ std::vector<size_t> ConstrainedDelaunayHelper::findIntersectingTetrahedraForFace
     return result;
 }
 
-void ConstrainedDelaunayHelper::retriangulateCavityWithSegment(
+void ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
     MeshOperations& operations,
     std::unordered_set<size_t>& activeTetrahedra,
     size_t n1,
@@ -185,7 +185,7 @@ void ConstrainedDelaunayHelper::retriangulateCavityWithSegment(
     }
 }
 
-void ConstrainedDelaunayHelper::retriangulateCavityWithFacet(
+void ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
     MeshOperations& operations,
     std::unordered_set<size_t>& activeTetrahedra,
     size_t n0,
@@ -218,10 +218,10 @@ void ConstrainedDelaunayHelper::retriangulateCavityWithFacet(
     }
 }
 
-bool ConstrainedDelaunayHelper::segmentIntersectsTet(const MeshData& meshData,
-                                                     const Point3D& p1,
-                                                     const Point3D& p2,
-                                                     const TetrahedralElement& tet)
+bool ConstrainedDelaunay3DHelper::segmentIntersectsTet(const MeshData& meshData,
+                                                       const Point3D& p1,
+                                                       const Point3D& p2,
+                                                       const TetrahedralElement& tet)
 {
     const auto& ids = tet.getNodeIds();
     const Point3D& v0 = meshData.getNode(ids[0])->getCoordinates();
@@ -244,11 +244,11 @@ bool ConstrainedDelaunayHelper::segmentIntersectsTet(const MeshData& meshData,
     return pointInTet(p1) || pointInTet(p2);
 }
 
-bool ConstrainedDelaunayHelper::triangleIntersectsTet(const MeshData& meshData,
-                                                      const Point3D& t0,
-                                                      const Point3D& t1,
-                                                      const Point3D& t2,
-                                                      const TetrahedralElement& tet)
+bool ConstrainedDelaunay3DHelper::triangleIntersectsTet(const MeshData& meshData,
+                                                        const Point3D& t0,
+                                                        const Point3D& t1,
+                                                        const Point3D& t2,
+                                                        const TetrahedralElement& tet)
 {
     const auto& ids = tet.getNodeIds();
     const Point3D& v0 = meshData.getNode(ids[0])->getCoordinates();

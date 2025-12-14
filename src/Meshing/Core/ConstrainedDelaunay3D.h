@@ -36,7 +36,7 @@ namespace Meshing
 class ConstrainedDelaunay3D
 {
 public:
-    explicit ConstrainedDelaunay3D(MeshingContext& context);
+    explicit ConstrainedDelaunay3D(MeshingContext3D& context);
     ~ConstrainedDelaunay3D() = default;
 
     void initialize(const std::vector<Point3D>& points);
@@ -162,7 +162,7 @@ private:
     std::vector<size_t> superNodeIds_;
     std::unordered_set<size_t> activeTetrahedra_;
 
-    MeshingContext& context_;
+    MeshingContext3D& context_;
     MeshData& meshData_;
     MeshOperations& operations_;
 };

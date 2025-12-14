@@ -91,7 +91,7 @@ TEST(VtkExporter, WritesBasicVtu)
     topoCorners.emplace("C4", Topology3D::Corner3D("C4", std::set<std::string>{}, std::set<std::string>{}));
     Topology3D::Topology3D topology(topoSurfaces, topoEdges, topoCorners);
 
-    Meshing::MeshingContext context(geom, topology);
+    Meshing::MeshingContext3D context(geom, topology);
     Meshing::SimpleMesher mesher; // generates a single tetra
     mesher.generate(context);
 

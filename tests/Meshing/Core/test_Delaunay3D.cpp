@@ -30,7 +30,7 @@ TEST(Delaunay3D, SplitsSuperTetrahedronAtCenterInsertion)
     std::unordered_map<std::string, Topology3D::Corner3D> topoCorners;
     Topology3D::Topology3D topology(topoSurfaces, topoEdges, topoCorners);
 
-    Meshing::MeshingContext context(geometry, topology);
+    Meshing::MeshingContext3D context(geometry, topology);
     Meshing::ConstrainedDelaunay3D delaunay(context);
 
     const std::vector<Meshing::Point3D> referencePoints{

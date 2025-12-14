@@ -13,7 +13,7 @@
 namespace Meshing
 {
 
-void SimpleMesher::generate(MeshingContext& context)
+void SimpleMesher::generate(MeshingContext3D& context)
 {
     // Start with a clean mesh for this simple example
     context.clearMesh();

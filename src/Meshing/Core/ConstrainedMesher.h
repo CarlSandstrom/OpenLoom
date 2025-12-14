@@ -8,10 +8,10 @@ namespace Meshing
 
 /**
  * @brief Mesher that generates constrained Delaunay meshes
- * 
+ *
  * Respects geometric constraints (edges AND faces) from the input CAD geometry.
  * Uses classical CDT approach to force segments and facets into the mesh.
- * 
+ *
  * This mesher:
  * - Inserts corner nodes from topology
  * - Samples edges from topology/geometry
@@ -24,21 +24,21 @@ class ConstrainedMesher : public IMesher
 {
 public:
     explicit ConstrainedMesher(const IQualityController* qualityController = nullptr,
-                              size_t samplesPerEdge = 10,
-                              size_t samplesPerSurface = 5)
-        : IMesher(qualityController), 
-          samplesPerEdge_(samplesPerEdge),
-          samplesPerSurface_(samplesPerSurface) {}
-    
+                               size_t samplesPerEdge = 10,
+                               size_t samplesPerSurface = 5) :
+        IMesher(qualityController),
+        samplesPerEdge_(samplesPerEdge),
+        samplesPerSurface_(samplesPerSurface) {}
+
     ~ConstrainedMesher() override = default;
-    
-    void generate(MeshingContext& context) override;
+
+    void generate(MeshingContext3D& context) override;
     std::string getName() const override { return "ConstrainedMesher"; }
-    
+
     // Configuration
     void setSamplesPerEdge(size_t samples) { samplesPerEdge_ = samples; }
     size_t getSamplesPerEdge() const { return samplesPerEdge_; }
-    
+
     void setSamplesPerSurface(size_t samples) { samplesPerSurface_ = samples; }
     size_t getSamplesPerSurface() const { return samplesPerSurface_; }
 

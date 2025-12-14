@@ -15,7 +15,7 @@ class MeshOperations;
 class MeshData;
 class TetrahedralElement;
 
-class ConstrainedDelaunayHelper
+class ConstrainedDelaunay3DHelper
 {
 public:
     static std::pair<size_t, size_t> makeSegmentKey(size_t a, size_t b);

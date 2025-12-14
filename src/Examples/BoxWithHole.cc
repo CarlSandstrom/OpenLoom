@@ -22,7 +22,7 @@ int main()
     TopoDS_Shape boxWithHole = BRepAlgoAPI_Cut(box, cylinder).Shape();
 
     Readers::TopoDS_ShapeConverter converter(boxWithHole);
-    Meshing::MeshingContext context(
+    Meshing::MeshingContext3D context(
         converter.getGeometryCollection(),
         converter.getTopology());
 

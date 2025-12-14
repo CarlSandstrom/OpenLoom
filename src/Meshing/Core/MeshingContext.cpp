@@ -9,40 +9,40 @@
 namespace Meshing
 {
 
-MeshingContext::MeshingContext(const Geometry3D::GeometryCollection3D& geometry,
-                               const Topology3D::Topology3D& topology) :
+MeshingContext3D::MeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
+                                   const Topology3D::Topology3D& topology) :
     geometry_(geometry), topology_(topology)
 {
     ensureInitialized_();
 }
 
-MeshingContext::~MeshingContext() = default;
+MeshingContext3D::~MeshingContext3D() = default;
 
-MeshData& MeshingContext::getMeshData()
+MeshData& MeshingContext3D::getMeshData()
 {
     ensureInitialized_();
     return *meshData_;
 }
 
-MeshConnectivity& MeshingContext::getConnectivity()
+MeshConnectivity& MeshingContext3D::getConnectivity()
 {
     ensureInitialized_();
     return *connectivity_;
 }
 
-MeshOperations& MeshingContext::getOperations()
+MeshOperations& MeshingContext3D::getOperations()
 {
     ensureInitialized_();
     return *operations_;
 }
 
-void MeshingContext::rebuildConnectivity()
+void MeshingContext3D::rebuildConnectivity()
 {
     ensureInitialized_();
     connectivity_->rebuildConnectivity();
 }
 
-void MeshingContext::clearMesh()
+void MeshingContext3D::clearMesh()
 {
     // Recreate fresh containers
     meshData_ = std::make_unique<MeshData>();
@@ -51,7 +51,7 @@ void MeshingContext::clearMesh()
     operations_->setConnectivity(connectivity_.get());
 }
 
-void MeshingContext::ensureInitialized_()
+void MeshingContext3D::ensureInitialized_()
 {
     if (!meshData_)
     {

@@ -8,7 +8,7 @@
 namespace Meshing
 {
 
-void ConstrainedMesher::generate(MeshingContext& context)
+void ConstrainedMesher::generate(MeshingContext3D& context)
 {
     SPDLOG_INFO("ConstrainedMesher: Starting mesh generation");
     SPDLOG_INFO("  Edge samples: {}", samplesPerEdge_);

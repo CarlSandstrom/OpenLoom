@@ -14,7 +14,7 @@
 namespace Meshing
 {
 
-ConstrainedDelaunay3D::ConstrainedDelaunay3D(MeshingContext& context) :
+ConstrainedDelaunay3D::ConstrainedDelaunay3D(MeshingContext3D& context) :
     computer_(context.getMeshData()),
     context_(context),
     meshData_(context.getMeshData()),
@@ -492,21 +492,21 @@ void ConstrainedDelaunay3D::recoverSegments_()
 
     for (const auto& seg : constraints_.segments)
     {
-        if (ConstrainedDelaunayHelper::segmentExists(*this,
-                                                     seg.startNodeId,
-                                                     seg.endNodeId,
-                                                     activeTetrahedra_,
-                                                     satisfiedSegments_))
+        if (ConstrainedDelaunay3DHelper::segmentExists(*this,
+                                                       seg.startNodeId,
+                                                       seg.endNodeId,
+                                                       activeTetrahedra_,
+                                                       satisfiedSegments_))
         {
             satisfiedSegments_.insert(
-                ConstrainedDelaunayHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
+                ConstrainedDelaunay3DHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
             alreadyPresent++;
         }
         else
         {
             forceSegment(seg.startNodeId, seg.endNodeId);
             satisfiedSegments_.insert(
-                ConstrainedDelaunayHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
+                ConstrainedDelaunay3DHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
             recovered++;
         }
     }
@@ -525,22 +525,22 @@ void ConstrainedDelaunay3D::recoverFacets_()
         {
             const auto& n = subfacet.nodeIds;
 
-            if (ConstrainedDelaunayHelper::facetExists(*this,
-                                                       n[0],
-                                                       n[1],
-                                                       n[2],
-                                                       activeTetrahedra_,
-                                                       satisfiedFacets_))
+            if (ConstrainedDelaunay3DHelper::facetExists(*this,
+                                                         n[0],
+                                                         n[1],
+                                                         n[2],
+                                                         activeTetrahedra_,
+                                                         satisfiedFacets_))
             {
                 satisfiedFacets_.insert(
-                    ConstrainedDelaunayHelper::makeTriangleKey(n[0], n[1], n[2]));
+                    ConstrainedDelaunay3DHelper::makeTriangleKey(n[0], n[1], n[2]));
                 alreadyPresent++;
             }
             else
             {
                 forceFacet(n[0], n[1], n[2]);
                 satisfiedFacets_.insert(
-                    ConstrainedDelaunayHelper::makeTriangleKey(n[0], n[1], n[2]));
+                    ConstrainedDelaunay3DHelper::makeTriangleKey(n[0], n[1], n[2]));
                 recovered++;
             }
         }
@@ -551,7 +551,7 @@ void ConstrainedDelaunay3D::recoverFacets_()
 
 void ConstrainedDelaunay3D::forceSegment(size_t n1, size_t n2)
 {
-    auto intersecting = ConstrainedDelaunayHelper::findIntersectingTetrahedra(
+    auto intersecting = ConstrainedDelaunay3DHelper::findIntersectingTetrahedra(
         *this, meshData_, n1, n2, activeTetrahedra_);
     if (intersecting.empty()) return;
 
@@ -563,13 +563,13 @@ void ConstrainedDelaunay3D::forceSegment(size_t n1, size_t n2)
         activeTetrahedra_.erase(tetId);
     }
 
-    ConstrainedDelaunayHelper::retriangulateCavityWithSegment(
+    ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
         operations_, activeTetrahedra_, n1, n2, boundary);
 }
 
 void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
 {
-    auto intersecting = ConstrainedDelaunayHelper::findIntersectingTetrahedraForFacet(
+    auto intersecting = ConstrainedDelaunay3DHelper::findIntersectingTetrahedraForFacet(
         *this, meshData_, n0, n1, n2, activeTetrahedra_);
     if (intersecting.empty()) return;
 
@@ -583,7 +583,7 @@ void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
         activeTetrahedra_.erase(tetId);
     }
 
-    ConstrainedDelaunayHelper::retriangulateCavityWithFacet(
+    ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
         operations_, activeTetrahedra_, n0, n1, n2, boundary);
 }
 

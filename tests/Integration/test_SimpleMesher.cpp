@@ -102,7 +102,7 @@ TEST(SimpleMesher, GeneratesBasicTet)
 
     Topology3D::Topology3D topology(topoSurfaces, topoEdges, topoCorners);
 
-    Meshing::MeshingContext context(geom, topology);
+    Meshing::MeshingContext3D context(geom, topology);
     Meshing::SimpleMesher mesher;
 
     mesher.generate(context);

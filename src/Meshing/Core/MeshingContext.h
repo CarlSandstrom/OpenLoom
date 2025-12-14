@@ -19,12 +19,12 @@ class MeshOperations;
 
 // Central orchestrator holding references to geometry and topology and
 // owning mesh-specific mutable data structures.
-class MeshingContext
+class MeshingContext3D
 {
 public:
-    MeshingContext(const Geometry3D::GeometryCollection3D& geometry,
-                   const Topology3D::Topology3D& topology);
-    ~MeshingContext();
+    MeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
+                     const Topology3D::Topology3D& topology);
+    ~MeshingContext3D();
 
     // Non-owning references to input domains
     const Geometry3D::GeometryCollection3D& getGeometry() const { return geometry_; }
