@@ -316,8 +316,8 @@ void ConstrainedDelaunay3D::generateConstrained(size_t samplesPerEdge,
     SPDLOG_INFO("========================================");
 }
 
-void ConstrainedDelaunay3D::insertCornerNodes_(const Topology::Topology& topology,
-                                               const Geometry::GeometryCollection& geometry)
+void ConstrainedDelaunay3D::insertCornerNodes_(const Topology3D::Topology3D& topology,
+                                               const Geometry3D::GeometryCollection3D& geometry)
 {
     for (const auto& cornerId : topology.getAllCornerIds())
     {
@@ -334,8 +334,8 @@ void ConstrainedDelaunay3D::insertCornerNodes_(const Topology::Topology& topolog
     SPDLOG_INFO("✓ Inserted {} corner nodes", topology.getAllCornerIds().size());
 }
 
-void ConstrainedDelaunay3D::insertEdgeNodes_(const Topology::Topology& topology,
-                                             const Geometry::GeometryCollection& geometry,
+void ConstrainedDelaunay3D::insertEdgeNodes_(const Topology3D::Topology3D& topology,
+                                             const Geometry3D::GeometryCollection3D& geometry,
                                              size_t samplesPerEdge)
 {
     for (const auto& edgeId : topology.getAllEdgeIds())
@@ -372,8 +372,8 @@ void ConstrainedDelaunay3D::insertEdgeNodes_(const Topology::Topology& topology,
                 constraints_.getSegmentCount(), topology.getAllEdgeIds().size());
 }
 
-void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology::Topology& topology,
-                                                 const Geometry::GeometryCollection& geometry,
+void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology3D::Topology3D& topology,
+                                                 const Geometry3D::GeometryCollection3D& geometry,
                                                  size_t samplesPerSurface)
 {
     for (const auto& surfaceId : topology.getAllSurfaceIds())
@@ -432,7 +432,7 @@ void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology::Topology& topol
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurface2D_(
     const std::vector<size_t>& boundaryNodeIds,
     const std::vector<size_t>& interiorNodeIds,
-    const Geometry::Surface* surface)
+    const Geometry3D::Surface3D* surface)
 {
     std::vector<std::array<size_t, 3>> triangles;
 
@@ -588,8 +588,8 @@ void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
 }
 
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurfaceWithContext_(
-    const Geometry::Surface* surface,
-    const Topology::Surface& topoSurface,
+    const Geometry3D::Surface3D* surface,
+    const Topology3D::Surface3D& topoSurface,
     size_t samplesPerEdge)
 {
     std::vector<std::array<size_t, 3>> triangles;

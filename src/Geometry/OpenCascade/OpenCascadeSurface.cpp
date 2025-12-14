@@ -12,7 +12,7 @@
 #include <limits>
 #include <sstream>
 
-namespace Geometry
+namespace Geometry3D
 {
 
 OpenCascadeSurface::OpenCascadeSurface(const TopoDS_Face& face) :
@@ -93,4 +93,4 @@ std::string OpenCascadeSurface::getId() const
     return oss.str();
 }
 
-} // namespace Geometry
+} // namespace Geometry3D

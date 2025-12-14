@@ -1,7 +1,7 @@
 #include "TopoDS_ShapeConverter.h"
-#include "../../Geometry/Base/Corner.h"
-#include "../../Geometry/Base/Edge.h"
-#include "../../Geometry/Base/Surface.h"
+#include "../../Geometry/Base/Corner3D.h"
+#include "../../Geometry/Base/Edge3D.h"
+#include "../../Geometry/Base/Surface3D.h"
 #include "../../Geometry/OpenCascade/OpenCascadeCorner.h"
 #include "../../Geometry/OpenCascade/OpenCascadeEdge.h"
 #include "../../Geometry/OpenCascade/OpenCascadeSurface.h"
@@ -20,12 +20,12 @@ TopoDS_ShapeConverter::TopoDS_ShapeConverter(const TopoDS_Shape& shape) :
     buildGeometryCollection();
 }
 
-const Topology::Topology& TopoDS_ShapeConverter::getTopology() const
+const Topology3D::Topology3D& TopoDS_ShapeConverter::getTopology() const
 {
     return *topology_;
 }
 
-const Geometry::GeometryCollection& TopoDS_ShapeConverter::getGeometryCollection() const
+const Geometry3D::GeometryCollection3D& TopoDS_ShapeConverter::getGeometryCollection() const
 {
     return *geometryCollection_;
 }
@@ -36,9 +36,9 @@ void TopoDS_ShapeConverter::buildTopology()
     createEdges();
     createCorners();
 
-    topology_ = std::make_unique<Topology::Topology>(std::unordered_map<std::string, Topology::Surface>(surfaces_),
-                                                     std::unordered_map<std::string, Topology::Edge>(edges_),
-                                                     std::unordered_map<std::string, Topology::Corner>(corners_));
+    topology_ = std::make_unique<Topology3D::Topology3D>(std::unordered_map<std::string, Topology3D::Surface3D>(surfaces_),
+                                                     std::unordered_map<std::string, Topology3D::Edge3D>(edges_),
+                                                     std::unordered_map<std::string, Topology3D::Corner3D>(corners_));
 }
 
 void TopoDS_ShapeConverter::buildGeometryCollection()
@@ -47,29 +47,29 @@ void TopoDS_ShapeConverter::buildGeometryCollection()
     auto edgeMap = openCascadeGeometryCollection_->getEdgeMap();
     auto faceMap = openCascadeGeometryCollection_->getFaceMap();
 
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Surface>> surfaces;
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Edge>> edges;
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Corner>> corners;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Surface3D>> surfaces;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Edge3D>> edges;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Corner3D>> corners;
 
     for (const auto& [id, vertex] : vertexMap)
     {
-        std::unique_ptr<Geometry::OpenCascadeCorner> corner = std::make_unique<Geometry::OpenCascadeCorner>(vertex);
+        std::unique_ptr<Geometry3D::OpenCascadeCorner> corner = std::make_unique<Geometry3D::OpenCascadeCorner>(vertex);
         corners.emplace(id, std::move(corner));
     }
 
     for (const auto& [id, edge] : edgeMap)
     {
-        std::unique_ptr<Geometry::OpenCascadeEdge> edgePtr = std::make_unique<Geometry::OpenCascadeEdge>(edge);
+        std::unique_ptr<Geometry3D::OpenCascadeEdge> edgePtr = std::make_unique<Geometry3D::OpenCascadeEdge>(edge);
         edges.emplace(id, std::move(edgePtr));
     }
 
     for (const auto& [id, face] : faceMap)
     {
-        std::unique_ptr<Geometry::OpenCascadeSurface> surface = std::make_unique<Geometry::OpenCascadeSurface>(face);
+        std::unique_ptr<Geometry3D::OpenCascadeSurface> surface = std::make_unique<Geometry3D::OpenCascadeSurface>(face);
         surfaces.emplace(id, std::move(surface));
     }
 
-    geometryCollection_ = std::make_unique<Geometry::GeometryCollection>(std::move(surfaces),
+    geometryCollection_ = std::make_unique<Geometry3D::GeometryCollection3D>(std::move(surfaces),
                                                                          std::move(edges),
                                                                          std::move(corners));
 }
@@ -145,7 +145,7 @@ void TopoDS_ShapeConverter::createSurfaces()
             }
         }
 
-        surfaces_.emplace(id, Topology::Surface(id, boundaryEdgeIds, cornerIds, adjacentSurfaceIds, {}));
+        surfaces_.emplace(id, Topology3D::Surface3D(id, boundaryEdgeIds, cornerIds, adjacentSurfaceIds, {}));
     }
 }
 
@@ -182,7 +182,7 @@ void TopoDS_ShapeConverter::createEdges()
             }
         }
 
-        edges_.emplace(id, Topology::Edge(id, startCornerId, endCornerId, adjacentSurfaceIds));
+        edges_.emplace(id, Topology3D::Edge3D(id, startCornerId, endCornerId, adjacentSurfaceIds));
     }
 }
 
@@ -228,6 +228,6 @@ void TopoDS_ShapeConverter::createCorners()
             }
         }
 
-        corners_.emplace(id, Topology::Corner(id, connectedEdgeIds, connectedSurfaceIds));
+        corners_.emplace(id, Topology3D::Corner3D(id, connectedEdgeIds, connectedSurfaceIds));
     }
 }

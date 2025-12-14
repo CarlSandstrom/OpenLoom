@@ -1,9 +1,9 @@
-#include "Edge.h"
+#include "../../Topology/Edge3D.h"
 #include <gtest/gtest.h>
 
 namespace cMesh
 {
-namespace Topology
+namespace Topology3D
 {
 
 class TopologyEdgeTest : public ::testing::Test
@@ -32,5 +32,5 @@ TEST_F(TopologyEdgeTest, ConnectivityTest)
     EXPECT_TRUE(true); // Placeholder test
 }
 
-} // namespace Topology
+} // namespace Topology3D
 } // namespace cMesh

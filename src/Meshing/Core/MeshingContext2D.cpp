@@ -1,16 +1,16 @@
 #include "MeshingContext2D.h"
 
-#include "Geometry/Base/Corner.h"
-#include "Geometry/Base/Edge.h"
-#include "Geometry/Base/GeometryCollection.h"
-#include "Geometry/Base/Surface.h"
+#include "Geometry/Base/Corner3D.h"
+#include "Geometry/Base/Edge3D.h"
+#include "Geometry/Base/GeometryCollection3D.h"
+#include "Geometry/Base/Surface3D.h"
 #include "Geometry2D/Corner2D.h"
 #include "Geometry2D/Edge2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/MeshOperations2D.h"
-#include "Topology/Edge.h"
-#include "Topology/Surface.h"
-#include "Topology/Topology.h"
+#include "Topology/Edge3D.h"
+#include "Topology/Surface3D.h"
+#include "Topology/Topology3D.h"
 
 #include <set>
 
@@ -18,10 +18,10 @@ namespace Meshing
 {
 
 MeshingContext2D MeshingContext2D::fromSurface(
-    const Geometry::Surface& surface,
-    const Topology::Surface& topoSurface,
-    const Topology::Topology& fullTopology,
-    const Geometry::GeometryCollection& fullGeometry)
+    const Geometry3D::Surface3D& surface,
+    const Topology3D::Surface3D& topoSurface,
+    const Topology3D::Topology3D& fullTopology,
+    const Geometry3D::GeometryCollection3D& fullGeometry)
 {
     // Create 2D geometry collection
     auto geometry2D = std::make_unique<Geometry2D::GeometryCollection2D>();

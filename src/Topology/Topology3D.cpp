@@ -1,21 +1,21 @@
-#include "Topology.h"
+#include "Topology3D.h"
 #include "Common/Types.h"
 #include <algorithm>
 #include <stdexcept>
 
-namespace Topology
+namespace Topology3D
 {
 
-Topology::Topology(const std::unordered_map<std::string, Surface>& surfaces,
-                   const std::unordered_map<std::string, Edge>& edges,
-                   const std::unordered_map<std::string, Corner>& corners) :
+Topology3D::Topology3D(const std::unordered_map<std::string, Surface3D>& surfaces,
+                       const std::unordered_map<std::string, Edge3D>& edges,
+                       const std::unordered_map<std::string, Corner3D>& corners) :
     surfaces_(surfaces),
     edges_(edges),
     corners_(corners)
 {
 }
 
-const Surface& Topology::getSurface(const std::string& id) const
+const Surface3D& Topology3D::getSurface(const std::string& id) const
 {
     auto it = surfaces_.find(id);
     if (it == surfaces_.end())
@@ -25,7 +25,7 @@ const Surface& Topology::getSurface(const std::string& id) const
     return it->second;
 }
 
-const Edge& Topology::getEdge(const std::string& id) const
+const Edge3D& Topology3D::getEdge(const std::string& id) const
 {
     auto it = edges_.find(id);
     if (it == edges_.end())
@@ -35,7 +35,7 @@ const Edge& Topology::getEdge(const std::string& id) const
     return it->second;
 }
 
-const Corner& Topology::getCorner(const std::string& id) const
+const Corner3D& Topology3D::getCorner(const std::string& id) const
 {
     auto it = corners_.find(id);
     if (it == corners_.end())
@@ -45,7 +45,7 @@ const Corner& Topology::getCorner(const std::string& id) const
     return it->second;
 }
 
-std::vector<std::string> Topology::getAllSurfaceIds() const
+std::vector<std::string> Topology3D::getAllSurfaceIds() const
 {
     std::vector<std::string> ids;
     ids.reserve(surfaces_.size());
@@ -56,7 +56,7 @@ std::vector<std::string> Topology::getAllSurfaceIds() const
     return ids;
 }
 
-std::vector<std::string> Topology::getAllEdgeIds() const
+std::vector<std::string> Topology3D::getAllEdgeIds() const
 {
     std::vector<std::string> ids;
     ids.reserve(edges_.size());
@@ -67,7 +67,7 @@ std::vector<std::string> Topology::getAllEdgeIds() const
     return ids;
 }
 
-std::vector<std::string> Topology::getAllCornerIds() const
+std::vector<std::string> Topology3D::getAllCornerIds() const
 {
     std::vector<std::string> ids;
     ids.reserve(corners_.size());
@@ -78,7 +78,7 @@ std::vector<std::string> Topology::getAllCornerIds() const
     return ids;
 }
 
-std::vector<std::string> Topology::getBoundaryEdgeIds() const
+std::vector<std::string> Topology3D::getBoundaryEdgeIds() const
 {
     std::vector<std::string> boundaryIds;
     for (const auto& pair : edges_)
@@ -91,7 +91,7 @@ std::vector<std::string> Topology::getBoundaryEdgeIds() const
     return boundaryIds;
 }
 
-std::vector<std::string> Topology::getNonManifoldEdgeIds() const
+std::vector<std::string> Topology3D::getNonManifoldEdgeIds() const
 {
     std::vector<std::string> nonManifoldIds;
     for (const auto& pair : edges_)
@@ -104,12 +104,12 @@ std::vector<std::string> Topology::getNonManifoldEdgeIds() const
     return nonManifoldIds;
 }
 
-bool Topology::isValid() const
+bool Topology3D::isValid() const
 {
     // Check that all referenced entities exist
     for (const auto& surfacePair : surfaces_)
     {
-        const Surface& surface = surfacePair.second;
+        const Surface3D& surface = surfacePair.second;
 
         // Check that all boundary edges exist
         for (const std::string& edgeId : surface.getBoundaryEdgeIds())
@@ -142,7 +142,7 @@ bool Topology::isValid() const
     // Check edges
     for (const auto& edgePair : edges_)
     {
-        const Edge& edge = edgePair.second;
+        const Edge3D& edge = edgePair.second;
 
         // Check that start and end corners exist
         if (corners_.find(edge.getStartCornerId()) == corners_.end() ||
@@ -164,7 +164,7 @@ bool Topology::isValid() const
     // Check corners
     for (const auto& cornerPair : corners_)
     {
-        const Corner& corner = cornerPair.second;
+        const Corner3D& corner = cornerPair.second;
 
         // Check that all connected edges exist
         for (const std::string& edgeId : corner.getConnectedEdgeIds())
@@ -188,7 +188,7 @@ bool Topology::isValid() const
     return true;
 }
 
-bool Topology::isManifold() const
+bool Topology3D::isManifold() const
 {
     // A topology is manifold if all edges are manifold (have at most 2 adjacent surfaces)
     for (const auto& pair : edges_)
@@ -201,4 +201,4 @@ bool Topology::isManifold() const
     return true;
 }
 
-} // namespace Topology
+} // namespace Topology3D

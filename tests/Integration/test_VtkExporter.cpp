@@ -9,13 +9,13 @@
 #include "Meshing/Core/SimpleMesher.h"
 
 #include "Common/Types.h"
-#include "Geometry/Base/GeometryCollection.h"
-#include "Topology/Topology.h"
+#include "Geometry/Base/GeometryCollection3D.h"
+#include "Topology/Topology3D.h"
 
 // Dummy geometry implementations (reuse from SimpleMesher test if needed)
-namespace Geometry
+namespace Geometry3D
 {
-class DummySurface : public Surface
+class DummySurface : public Surface3D
 {
 public:
     explicit DummySurface(std::string id) :
@@ -36,7 +36,7 @@ public:
 private:
     std::string id_;
 };
-class DummyEdge : public Edge
+class DummyEdge : public Edge3D
 {
 public:
     explicit DummyEdge(std::string id) :
@@ -53,7 +53,7 @@ public:
 private:
     std::string id_;
 };
-class DummyCorner : public Corner
+class DummyCorner : public Corner3D
 {
 public:
     explicit DummyCorner(std::string id, Meshing::Point3D p = Meshing::Point3D(0.0, 0.0, 0.0)) :
@@ -65,31 +65,31 @@ private:
     std::string id_;
     Meshing::Point3D p_;
 };
-} // namespace Geometry
+} // namespace Geometry3D
 
 TEST(VtkExporter, WritesBasicVtu)
 {
     // Setup minimal geometry & topology
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Surface>> surfaces;
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Edge>> edges;
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Corner>> corners;
-    surfaces["S1"] = std::make_unique<Geometry::DummySurface>("S1");
-    edges["E1"] = std::make_unique<Geometry::DummyEdge>("E1");
-    corners["C1"] = std::make_unique<Geometry::DummyCorner>("C1", Meshing::Point3D(0.0, 0.0, 0.0));
-    corners["C2"] = std::make_unique<Geometry::DummyCorner>("C2", Meshing::Point3D(1.0, 0.0, 0.0));
-    corners["C3"] = std::make_unique<Geometry::DummyCorner>("C3", Meshing::Point3D(0.0, 1.0, 0.0));
-    corners["C4"] = std::make_unique<Geometry::DummyCorner>("C4", Meshing::Point3D(0.0, 0.0, 1.0));
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Surface3D>> surfaces;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Edge3D>> edges;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Corner3D>> corners;
+    surfaces["S1"] = std::make_unique<Geometry3D::DummySurface>("S1");
+    edges["E1"] = std::make_unique<Geometry3D::DummyEdge>("E1");
+    corners["C1"] = std::make_unique<Geometry3D::DummyCorner>("C1", Meshing::Point3D(0.0, 0.0, 0.0));
+    corners["C2"] = std::make_unique<Geometry3D::DummyCorner>("C2", Meshing::Point3D(1.0, 0.0, 0.0));
+    corners["C3"] = std::make_unique<Geometry3D::DummyCorner>("C3", Meshing::Point3D(0.0, 1.0, 0.0));
+    corners["C4"] = std::make_unique<Geometry3D::DummyCorner>("C4", Meshing::Point3D(0.0, 0.0, 1.0));
 
-    Geometry::GeometryCollection geom(std::move(surfaces), std::move(edges), std::move(corners));
+    Geometry3D::GeometryCollection3D geom(std::move(surfaces), std::move(edges), std::move(corners));
 
-    std::unordered_map<std::string, Topology::Surface> topoSurfaces;
-    std::unordered_map<std::string, Topology::Edge> topoEdges;
-    std::unordered_map<std::string, Topology::Corner> topoCorners;
-    topoCorners.emplace("C1", Topology::Corner("C1", std::set<std::string>{}, std::set<std::string>{}));
-    topoCorners.emplace("C2", Topology::Corner("C2", std::set<std::string>{}, std::set<std::string>{}));
-    topoCorners.emplace("C3", Topology::Corner("C3", std::set<std::string>{}, std::set<std::string>{}));
-    topoCorners.emplace("C4", Topology::Corner("C4", std::set<std::string>{}, std::set<std::string>{}));
-    Topology::Topology topology(topoSurfaces, topoEdges, topoCorners);
+    std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;
+    std::unordered_map<std::string, Topology3D::Edge3D> topoEdges;
+    std::unordered_map<std::string, Topology3D::Corner3D> topoCorners;
+    topoCorners.emplace("C1", Topology3D::Corner3D("C1", std::set<std::string>{}, std::set<std::string>{}));
+    topoCorners.emplace("C2", Topology3D::Corner3D("C2", std::set<std::string>{}, std::set<std::string>{}));
+    topoCorners.emplace("C3", Topology3D::Corner3D("C3", std::set<std::string>{}, std::set<std::string>{}));
+    topoCorners.emplace("C4", Topology3D::Corner3D("C4", std::set<std::string>{}, std::set<std::string>{}));
+    Topology3D::Topology3D topology(topoSurfaces, topoEdges, topoCorners);
 
     Meshing::MeshingContext context(geom, topology);
     Meshing::SimpleMesher mesher; // generates a single tetra

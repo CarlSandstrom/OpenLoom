@@ -4,7 +4,7 @@
 
 namespace cMesh
 {
-namespace Geometry
+namespace Geometry3D
 {
 
 class GeometryCornerTest : public ::testing::Test
@@ -33,5 +33,5 @@ TEST_F(GeometryCornerTest, BasicOperationsTest)
     EXPECT_TRUE(true); // Placeholder test
 }
 
-} // namespace Geometry
+} // namespace Geometry3D
 } // namespace cMesh

@@ -1,18 +1,19 @@
-#include "GeometryCollection.h"
+#include "GeometryCollection3D.h"
 #include <stdexcept>
 
-using namespace Geometry;
+namespace Geometry3D
+{
 
-GeometryCollection::GeometryCollection(std::unordered_map<std::string, std::unique_ptr<Surface>> surfaces,
-                                       std::unordered_map<std::string, std::unique_ptr<Edge>> edges,
-                                       std::unordered_map<std::string, std::unique_ptr<Corner>> corners) :
+GeometryCollection3D::GeometryCollection3D(std::unordered_map<std::string, std::unique_ptr<Surface3D>> surfaces,
+                                           std::unordered_map<std::string, std::unique_ptr<Edge3D>> edges,
+                                           std::unordered_map<std::string, std::unique_ptr<Corner3D>> corners) :
     surfaces_(std::move(surfaces)),
     edges_(std::move(edges)),
     corners_(std::move(corners))
 {
 }
 
-Surface* GeometryCollection::getSurface(const std::string& id) const
+Surface3D* GeometryCollection3D::getSurface(const std::string& id) const
 {
     auto it = surfaces_.find(id);
     if (it == surfaces_.end())
@@ -22,7 +23,7 @@ Surface* GeometryCollection::getSurface(const std::string& id) const
     return it->second.get();
 }
 
-Edge* GeometryCollection::getEdge(const std::string& id) const
+Edge3D* GeometryCollection3D::getEdge(const std::string& id) const
 {
     auto it = edges_.find(id);
     if (it == edges_.end())
@@ -32,7 +33,7 @@ Edge* GeometryCollection::getEdge(const std::string& id) const
     return it->second.get();
 }
 
-Corner* GeometryCollection::getCorner(const std::string& id) const
+Corner3D* GeometryCollection3D::getCorner(const std::string& id) const
 {
     auto it = corners_.find(id);
     if (it == corners_.end())
@@ -41,3 +42,5 @@ Corner* GeometryCollection::getCorner(const std::string& id) const
     }
     return it->second.get();
 }
+
+} // namespace Geometry3D

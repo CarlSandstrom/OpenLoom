@@ -2,13 +2,13 @@
 
 #include <string>
 
-namespace Geometry
+namespace Geometry3D
 {
-class GeometryCollection;
+class GeometryCollection3D;
 }
-namespace Topology
+namespace Topology3D
 {
-class Topology;
+class Topology3D;
 }
 namespace Meshing
 {

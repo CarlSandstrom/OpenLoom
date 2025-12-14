@@ -1,9 +1,7 @@
-#include "../../Topology/Corner.h"
+#include "../../Topology/Corner3D.h"
 #include <gtest/gtest.h>
 #include <set>
 #include <string>
-
-using namespace Topology;
 
 class TopologyCornerTest : public ::testing::Test
 {
@@ -35,7 +33,7 @@ protected:
 TEST_F(TopologyCornerTest, ConstructorWithValidParameters)
 {
     // Test Corner construction with valid parameters
-    Topology::Corner corner(cornerId_, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, edgeIds_, surfaceIds_);
 
     EXPECT_EQ(corner.getId(), cornerId_);
     EXPECT_EQ(corner.getConnectedEdgeIds(), edgeIds_);
@@ -45,7 +43,7 @@ TEST_F(TopologyCornerTest, ConstructorWithValidParameters)
 TEST_F(TopologyCornerTest, ConstructorWithEmptyConnections)
 {
     // Test Corner construction with empty connection sets
-    Topology::Corner corner(cornerId_, emptyEdgeIds_, emptySurfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, emptyEdgeIds_, emptySurfaceIds_);
 
     EXPECT_EQ(corner.getId(), cornerId_);
     EXPECT_TRUE(corner.getConnectedEdgeIds().empty());
@@ -56,7 +54,7 @@ TEST_F(TopologyCornerTest, ConstructorWithEmptyId)
 {
     // Test Corner construction with empty ID
     std::string emptyId = "";
-    Topology::Corner corner(emptyId, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(emptyId, edgeIds_, surfaceIds_);
 
     EXPECT_EQ(corner.getId(), emptyId);
     EXPECT_EQ(corner.getConnectedEdgeIds(), edgeIds_);
@@ -66,7 +64,7 @@ TEST_F(TopologyCornerTest, ConstructorWithEmptyId)
 TEST_F(TopologyCornerTest, GetIdReturnsCorrectValue)
 {
     // Test that getId() returns the correct ID
-    Topology::Corner corner(cornerId_, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, edgeIds_, surfaceIds_);
 
     EXPECT_EQ(corner.getId(), cornerId_);
 }
@@ -74,7 +72,7 @@ TEST_F(TopologyCornerTest, GetIdReturnsCorrectValue)
 TEST_F(TopologyCornerTest, GetConnectedEdgeIdsReturnsCorrectSet)
 {
     // Test that getConnectedEdgeIds() returns the correct edge set
-    Topology::Corner corner(cornerId_, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, edgeIds_, surfaceIds_);
 
     const auto& returnedEdgeIds = corner.getConnectedEdgeIds();
     EXPECT_EQ(returnedEdgeIds.size(), edgeIds_.size());
@@ -88,7 +86,7 @@ TEST_F(TopologyCornerTest, GetConnectedEdgeIdsReturnsCorrectSet)
 TEST_F(TopologyCornerTest, GetConnectedSurfaceIdsReturnsCorrectSet)
 {
     // Test that getConnectedSurfaceIds() returns the correct surface set
-    Topology::Corner corner(cornerId_, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, edgeIds_, surfaceIds_);
 
     const auto& returnedSurfaceIds = corner.getConnectedSurfaceIds();
     EXPECT_EQ(returnedSurfaceIds.size(), surfaceIds_.size());
@@ -102,7 +100,7 @@ TEST_F(TopologyCornerTest, GetConnectedSurfaceIdsReturnsCorrectSet)
 TEST_F(TopologyCornerTest, ConnectedEdgeIdsAreImmutable)
 {
     // Test that the returned edge IDs set cannot be modified from outside
-    Topology::Corner corner(cornerId_, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, edgeIds_, surfaceIds_);
 
     const auto& returnedEdgeIds = corner.getConnectedEdgeIds();
     size_t originalSize = returnedEdgeIds.size();
@@ -116,7 +114,7 @@ TEST_F(TopologyCornerTest, ConnectedEdgeIdsAreImmutable)
 TEST_F(TopologyCornerTest, ConnectedSurfaceIdsAreImmutable)
 {
     // Test that the returned surface IDs set cannot be modified from outside
-    Topology::Corner corner(cornerId_, edgeIds_, surfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, edgeIds_, surfaceIds_);
 
     const auto& returnedSurfaceIds = corner.getConnectedSurfaceIds();
     size_t originalSize = returnedSurfaceIds.size();
@@ -131,7 +129,7 @@ TEST_F(TopologyCornerTest, SingleEdgeConnection)
 {
     // Test Corner with a single edge connection
     std::set<std::string> singleEdge = {"edge_single"};
-    Topology::Corner corner(cornerId_, singleEdge, emptySurfaceIds_);
+    Topology3D::Corner3D corner(cornerId_, singleEdge, emptySurfaceIds_);
 
     EXPECT_EQ(corner.getConnectedEdgeIds().size(), 1);
     EXPECT_TRUE(corner.getConnectedEdgeIds().count("edge_single") > 0);
@@ -142,7 +140,7 @@ TEST_F(TopologyCornerTest, SingleSurfaceConnection)
 {
     // Test Corner with a single surface connection
     std::set<std::string> singleSurface = {"surface_single"};
-    Topology::Corner corner(cornerId_, emptyEdgeIds_, singleSurface);
+    Topology3D::Corner3D corner(cornerId_, emptyEdgeIds_, singleSurface);
 
     EXPECT_TRUE(corner.getConnectedEdgeIds().empty());
     EXPECT_EQ(corner.getConnectedSurfaceIds().size(), 1);
@@ -161,7 +159,7 @@ TEST_F(TopologyCornerTest, LargeConnectionSet)
         manySurfaces.insert("surface_" + std::to_string(i));
     }
 
-    Topology::Corner corner(cornerId_, manyEdges, manySurfaces);
+    Topology3D::Corner3D corner(cornerId_, manyEdges, manySurfaces);
 
     EXPECT_EQ(corner.getConnectedEdgeIds().size(), 100);
     EXPECT_EQ(corner.getConnectedSurfaceIds().size(), 100);
@@ -180,7 +178,7 @@ TEST_F(TopologyCornerTest, SpecialCharactersInIds)
     std::set<std::string> specialEdges = {"edge-with-dashes", "edge_with_underscores", "edge.with.dots"};
     std::set<std::string> specialSurfaces = {"surface@symbol", "surface#hash", "surface$dollar"};
 
-    Topology::Corner corner(specialId, specialEdges, specialSurfaces);
+    Topology3D::Corner3D corner(specialId, specialEdges, specialSurfaces);
 
     EXPECT_EQ(corner.getId(), specialId);
     EXPECT_EQ(corner.getConnectedEdgeIds(), specialEdges);

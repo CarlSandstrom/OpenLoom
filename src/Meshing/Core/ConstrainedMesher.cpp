@@ -1,8 +1,8 @@
 #include "ConstrainedMesher.h"
 #include "ConstrainedDelaunay3D.h"
-#include "Geometry/Base/GeometryCollection.h"
+#include "Geometry/Base/GeometryCollection3D.h"
 #include "MeshingContext.h"
-#include "Topology/Topology.h"
+#include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
 namespace Meshing

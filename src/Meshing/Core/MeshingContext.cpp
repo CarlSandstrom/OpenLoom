@@ -1,7 +1,7 @@
 #include "MeshingContext.h"
 
-#include "../../Geometry/Base/GeometryCollection.h"
-#include "../../Topology/Topology.h"
+#include "../../Geometry/Base/GeometryCollection3D.h"
+#include "../../Topology/Topology3D.h"
 #include "../Data/MeshConnectivity.h"
 #include "../Data/MeshData.h"
 #include "../Data/MeshOperations.h"
@@ -9,8 +9,8 @@
 namespace Meshing
 {
 
-MeshingContext::MeshingContext(const Geometry::GeometryCollection& geometry,
-                               const Topology::Topology& topology) :
+MeshingContext::MeshingContext(const Geometry3D::GeometryCollection3D& geometry,
+                               const Topology3D::Topology3D& topology) :
     geometry_(geometry), topology_(topology)
 {
     ensureInitialized_();

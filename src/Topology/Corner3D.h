@@ -3,15 +3,15 @@
 #include <set>
 #include <string>
 
-namespace Topology
+namespace Topology3D
 {
 
-class Corner
+class Corner3D
 {
 public:
-    Corner(const std::string& id,
-           const std::set<std::string>& connectedEdgeIds,
-           const std::set<std::string>& connectedSurfaceIds);
+    Corner3D(const std::string& id,
+             const std::set<std::string>& connectedEdgeIds,
+             const std::set<std::string>& connectedSurfaceIds);
 
     std::string getId() const;
     const std::set<std::string>& getConnectedEdgeIds() const;
@@ -23,4 +23,4 @@ private:
     std::set<std::string> connectedSurfaceIds_;
 };
 
-} // namespace Topology
+} // namespace Topology3D

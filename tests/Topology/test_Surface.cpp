@@ -1,9 +1,9 @@
-#include "Surface.h"
+#include "../../Topology/Surface3D.h"
 #include <gtest/gtest.h>
 
 namespace cMesh
 {
-namespace Topology
+namespace Topology3D
 {
 
 class TopologySurfaceTest : public ::testing::Test
@@ -32,5 +32,5 @@ TEST_F(TopologySurfaceTest, ConnectivityTest)
     EXPECT_TRUE(true); // Placeholder test
 }
 
-} // namespace Topology
+} // namespace Topology3D
 } // namespace cMesh

@@ -3,7 +3,7 @@
 #include <gp_Pnt.hxx>
 #include <sstream>
 
-namespace Geometry
+namespace Geometry3D
 {
 
 OpenCascadeCorner::OpenCascadeCorner(const TopoDS_Vertex& vertex) :
@@ -24,4 +24,4 @@ std::string OpenCascadeCorner::getId() const
     return oss.str();
 }
 
-} // namespace Geometry
+} // namespace Geometry3D

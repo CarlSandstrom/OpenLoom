@@ -1,15 +1,15 @@
 #pragma once
 
-#include "../Base/Edge.h"
+#include "../Base/Edge3D.h"
 #include <TopoDS_Edge.hxx>
 
-namespace Geometry
+namespace Geometry3D
 {
 
 /**
  * @brief OpenCASCADE implementation of Edge
  */
-class OpenCascadeEdge : public Edge
+class OpenCascadeEdge : public Edge3D
 {
 public:
     explicit OpenCascadeEdge(const TopoDS_Edge& edge);
@@ -27,4 +27,4 @@ private:
     TopoDS_Edge edge_;
 };
 
-} // namespace Geometry
+} // namespace Geometry3D

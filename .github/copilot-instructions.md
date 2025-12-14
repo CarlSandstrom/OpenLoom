@@ -2,14 +2,14 @@
 
 ## Architecture & Data Flow
 - `Common/` hosts math helpers (`BoundingBox{2,3}D`, `MathConverter`, `Types`) that every module includes; keep new utilities dependency-free so they can compile in headers.
-- Geometry lives behind interfaces in `src/Geometry/Base` (`Surface`, `Edge`, `Corner`, `GeometryCollection`) while `Geometry/OpenCascade` supplies the concrete OpenCascade-backed shapes; treat `GeometryCollection` as the single entry point for geometry data.
-- `Topology/Topology` mirrors the same IDs and provides validation helpers (`isValid`, `isManifold`) that meshing code calls before generating elements.
-- `Meshing/Core/MeshingContext` ties a `GeometryCollection` + `Topology` to mutable mesh state (`Meshing/Data/*`); call `getMeshData()/getConnectivity()` through the context instead of caching the owning pointers yourself.
+- Geometry lives behind interfaces in `src/Geometry/Base` (`Surface3D`, `Edge3D`, `Corner3D`, `GeometryCollection3D`) while `Geometry/OpenCascade` supplies the concrete OpenCascade-backed shapes; treat `GeometryCollection3D` as the single entry point for 3D geometry data.
+- `Topology/Topology3D` mirrors the same IDs and provides validation helpers (`isValid`, `isManifold`) that meshing code calls before generating elements.
+- `Meshing/Core/MeshingContext` ties a `GeometryCollection3D` + `Topology3D` to mutable mesh state (`Meshing/Data/*`); call `getMeshData()/getConnectivity()` through the context instead of caching the owning pointers yourself.
 - Mesh generation strategies implement `Meshing/Core/IMesher`; `SimpleMesher` and `Delaunay3D` show the pattern of pulling nodes from geometry, inserting through `MeshOperations`, and optionally invoking a `IQualityController`.
 - Export flows through `Export/VtkExporter`, which currently emits ASCII `.vtu` (tetra support only); integration tests (`tests/Integration/test_VtkExporter.cpp`) assert the full XML skeleton, so keep new tags consistent.
 
 ## Key Modules & Extension Points
-- Readers: `Readers/OpenCascade` + `ShapeConverter` create `GeometryCollection`/`Topology` pairs from CAD; add new importers by returning those same abstractions so solvers remain engine-agnostic.
+- Readers: `Readers/OpenCascade` + `ShapeConverter` create `GeometryCollection3D`/`Topology3D` pairs from CAD; add new importers by returning those same abstractions so solvers remain engine-agnostic.
 - Meshing Data: `MeshData`, `MeshConnectivity`, and `MeshOperations` own `std::unique_ptr` containers and expose mutation only through friend APIs; never modify the containers directly.
 - Meshing Operations: transaction-style helpers in `Meshing/Operations/` update nodes/elements and rebuild adjacency; call `MeshingContext::rebuildConnectivity()` after bulk edits.
 - Export: `Export/IExporter` is intentionally tiny—new exporters should mimic `VtkExporter::exportMesh` signature and keep file I/O streaming (std::ostream) friendly.

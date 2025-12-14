@@ -6,17 +6,17 @@
 #include "Geometry2D/GeometryCollection2D.h"
 #include "Topology2D/Topology2D.h"
 
-namespace Geometry
+namespace Geometry3D
 {
-class Surface;
-class GeometryCollection;
-} // namespace Geometry
+class Surface3D;
+class GeometryCollection3D;
+} // namespace Geometry3D
 
-namespace Topology
+namespace Topology3D
 {
-class Surface;
-class Topology;
-} // namespace Topology
+class Surface3D;
+class Topology3D;
+} // namespace Topology3D
 
 namespace Meshing
 {
@@ -48,10 +48,10 @@ public:
      * @return MeshingContext2D for the surface's parametric domain
      */
     static MeshingContext2D fromSurface(
-        const Geometry::Surface& surface,
-        const Topology::Surface& topoSurface,
-        const Topology::Topology& fullTopology,
-        const Geometry::GeometryCollection& fullGeometry);
+        const Geometry3D::Surface3D& surface,
+        const Topology3D::Surface3D& topoSurface,
+        const Topology3D::Topology3D& fullTopology,
+        const Geometry3D::GeometryCollection3D& fullGeometry);
 
     /**
      * @brief Create a standalone 2D meshing context
