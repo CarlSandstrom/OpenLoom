@@ -1,7 +1,7 @@
 #include "ConstrainedDelaunay2D.h"
 
 #include "Geometry2D/Corner2D.h"
-#include "Geometry2D/Edge2D.h"
+#include "Geometry2D/IEdge2D.h"
 #include "Geometry2D/GeometryCollection2D.h"
 #include "Meshing/Core/MeshingContext2D.h"
 #include "Meshing/Data/MeshOperations2D.h"

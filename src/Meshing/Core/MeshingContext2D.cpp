@@ -5,7 +5,7 @@
 #include "Geometry/Base/GeometryCollection3D.h"
 #include "Geometry/Base/Surface3D.h"
 #include "Geometry2D/Corner2D.h"
-#include "Geometry2D/Edge2D.h"
+#include "Geometry2D/IEdge2D.h"
 #include "Geometry2D/LinearEdge2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/MeshOperations2D.h"

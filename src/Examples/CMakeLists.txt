@@ -5,6 +5,7 @@ set(EXAMPLE_SOURCES
     CreateBox.cc
     BoxWithHole.cc
     ConstrainedBoxExample.cc
+    RectangleWithHole2D.cc
 )
 
 # Link external libraries
