@@ -13,10 +13,10 @@ namespace Geometry2D
  *
  * Represents a curve in the (u,v) parametric domain of a surface.
  */
-class Edge2D
+class IEdge2D
 {
 public:
-    virtual ~Edge2D() = default;
+    virtual ~IEdge2D() = default;
 
     virtual Meshing::Point2D getPoint(double t) const = 0;
     virtual Meshing::Point2D getStartPoint() const = 0;
@@ -32,7 +32,7 @@ public:
  *
  * Simple implementation that linearly interpolates between start and end points.
  */
-class LinearEdge2D : public Edge2D
+class LinearEdge2D : public IEdge2D
 {
 public:
     LinearEdge2D(const std::string& id,

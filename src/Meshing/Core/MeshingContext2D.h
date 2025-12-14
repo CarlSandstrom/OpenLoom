@@ -8,7 +8,7 @@
 
 namespace Geometry3D
 {
-class Surface3D;
+class ISurface3D;
 class GeometryCollection3D;
 } // namespace Geometry3D
 
@@ -48,7 +48,7 @@ public:
      * @return MeshingContext2D for the surface's parametric domain
      */
     static MeshingContext2D fromSurface(
-        const Geometry3D::Surface3D& surface,
+        const Geometry3D::ISurface3D& surface,
         const Topology3D::Surface3D& topoSurface,
         const Topology3D::Topology3D& fullTopology,
         const Geometry3D::GeometryCollection3D& fullGeometry);

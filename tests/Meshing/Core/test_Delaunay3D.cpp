@@ -20,9 +20,9 @@
 
 TEST(Delaunay3D, SplitsSuperTetrahedronAtCenterInsertion)
 {
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Surface3D>> surfaces;
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Edge3D>> edges;
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Corner3D>> corners;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
     Geometry3D::GeometryCollection3D geometry(std::move(surfaces), std::move(edges), std::move(corners));
 
     std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;

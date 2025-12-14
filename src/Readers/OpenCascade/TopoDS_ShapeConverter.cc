@@ -37,8 +37,8 @@ void TopoDS_ShapeConverter::buildTopology()
     createCorners();
 
     topology_ = std::make_unique<Topology3D::Topology3D>(std::unordered_map<std::string, Topology3D::Surface3D>(surfaces_),
-                                                     std::unordered_map<std::string, Topology3D::Edge3D>(edges_),
-                                                     std::unordered_map<std::string, Topology3D::Corner3D>(corners_));
+                                                         std::unordered_map<std::string, Topology3D::Edge3D>(edges_),
+                                                         std::unordered_map<std::string, Topology3D::Corner3D>(corners_));
 }
 
 void TopoDS_ShapeConverter::buildGeometryCollection()
@@ -47,9 +47,9 @@ void TopoDS_ShapeConverter::buildGeometryCollection()
     auto edgeMap = openCascadeGeometryCollection_->getEdgeMap();
     auto faceMap = openCascadeGeometryCollection_->getFaceMap();
 
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Surface3D>> surfaces;
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Edge3D>> edges;
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Corner3D>> corners;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
 
     for (const auto& [id, vertex] : vertexMap)
     {
@@ -70,8 +70,8 @@ void TopoDS_ShapeConverter::buildGeometryCollection()
     }
 
     geometryCollection_ = std::make_unique<Geometry3D::GeometryCollection3D>(std::move(surfaces),
-                                                                         std::move(edges),
-                                                                         std::move(corners));
+                                                                             std::move(edges),
+                                                                             std::move(corners));
 }
 
 void TopoDS_ShapeConverter::createSurfaces()

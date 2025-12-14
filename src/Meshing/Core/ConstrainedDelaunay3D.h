@@ -133,7 +133,7 @@ protected:
     std::vector<std::array<size_t, 3>> triangulateSurface2D_(
         const std::vector<size_t>& boundaryNodeIds,
         const std::vector<size_t>& interiorNodeIds,
-        const Geometry3D::Surface3D* surface);
+        const Geometry3D::ISurface3D* surface);
 
     /**
      * @brief Triangulate a surface using MeshingContext2D
@@ -147,7 +147,7 @@ protected:
      * @return Vector of triangles (node ID triplets)
      */
     std::vector<std::array<size_t, 3>> triangulateSurfaceWithContext_(
-        const Geometry3D::Surface3D* surface,
+        const Geometry3D::ISurface3D* surface,
         const Topology3D::Surface3D& topoSurface,
         size_t samplesPerEdge);
 

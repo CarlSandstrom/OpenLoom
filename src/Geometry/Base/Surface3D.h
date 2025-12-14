@@ -14,10 +14,10 @@ namespace Geometry3D
  *
  * Provides methods for querying surface properties needed for meshing
  */
-class Surface3D
+class ISurface3D
 {
 public:
-    virtual ~Surface3D() = default;
+    virtual ~ISurface3D() = default;
 
     virtual std::array<double, 3> getNormal(double u, double v) const = 0;
     virtual Meshing::Point3D getPoint(double u, double v) const = 0;

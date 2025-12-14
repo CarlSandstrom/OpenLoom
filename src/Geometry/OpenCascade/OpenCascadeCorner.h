@@ -9,7 +9,7 @@ namespace Geometry3D
 /**
  * @brief OpenCASCADE implementation of Corner
  */
-class OpenCascadeCorner : public Corner3D
+class OpenCascadeCorner : public ICorner3D
 {
 public:
     explicit OpenCascadeCorner(const TopoDS_Vertex& vertex);

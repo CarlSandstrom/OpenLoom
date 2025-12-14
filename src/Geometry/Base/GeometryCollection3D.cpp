@@ -4,16 +4,16 @@
 namespace Geometry3D
 {
 
-GeometryCollection3D::GeometryCollection3D(std::unordered_map<std::string, std::unique_ptr<Surface3D>> surfaces,
-                                           std::unordered_map<std::string, std::unique_ptr<Edge3D>> edges,
-                                           std::unordered_map<std::string, std::unique_ptr<Corner3D>> corners) :
+GeometryCollection3D::GeometryCollection3D(std::unordered_map<std::string, std::unique_ptr<ISurface3D>> surfaces,
+                                           std::unordered_map<std::string, std::unique_ptr<IEdge3D>> edges,
+                                           std::unordered_map<std::string, std::unique_ptr<ICorner3D>> corners) :
     surfaces_(std::move(surfaces)),
     edges_(std::move(edges)),
     corners_(std::move(corners))
 {
 }
 
-Surface3D* GeometryCollection3D::getSurface(const std::string& id) const
+ISurface3D* GeometryCollection3D::getSurface(const std::string& id) const
 {
     auto it = surfaces_.find(id);
     if (it == surfaces_.end())
@@ -23,7 +23,7 @@ Surface3D* GeometryCollection3D::getSurface(const std::string& id) const
     return it->second.get();
 }
 
-Edge3D* GeometryCollection3D::getEdge(const std::string& id) const
+IEdge3D* GeometryCollection3D::getEdge(const std::string& id) const
 {
     auto it = edges_.find(id);
     if (it == edges_.end())
@@ -33,7 +33,7 @@ Edge3D* GeometryCollection3D::getEdge(const std::string& id) const
     return it->second.get();
 }
 
-Corner3D* GeometryCollection3D::getCorner(const std::string& id) const
+ICorner3D* GeometryCollection3D::getCorner(const std::string& id) const
 {
     auto it = corners_.find(id);
     if (it == corners_.end())

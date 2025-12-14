@@ -12,7 +12,7 @@ void GeometryCollection2D::addCorner(std::unique_ptr<Corner2D> corner)
     }
 }
 
-void GeometryCollection2D::addEdge(std::unique_ptr<Edge2D> edge)
+void GeometryCollection2D::addEdge(std::unique_ptr<IEdge2D> edge)
 {
     if (edge)
     {
@@ -27,7 +27,7 @@ const Corner2D* GeometryCollection2D::getCorner(const std::string& id) const
     return it != corners_.end() ? it->second.get() : nullptr;
 }
 
-const Edge2D* GeometryCollection2D::getEdge(const std::string& id) const
+const IEdge2D* GeometryCollection2D::getEdge(const std::string& id) const
 {
     auto it = edges_.find(id);
     return it != edges_.end() ? it->second.get() : nullptr;

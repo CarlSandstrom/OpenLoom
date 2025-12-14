@@ -18,7 +18,7 @@ namespace Meshing
 {
 
 MeshingContext2D MeshingContext2D::fromSurface(
-    const Geometry3D::Surface3D& surface,
+    const Geometry3D::ISurface3D& surface,
     const Topology3D::Surface3D& topoSurface,
     const Topology3D::Topology3D& fullTopology,
     const Geometry3D::GeometryCollection3D& fullGeometry)

@@ -20,7 +20,7 @@
 namespace Geometry3D
 {
 
-class DummySurface : public Surface3D
+class DummySurface : public ISurface3D
 {
 public:
     explicit DummySurface(std::string id) :
@@ -42,7 +42,7 @@ private:
     std::string id_;
 };
 
-class DummyEdge : public Edge3D
+class DummyEdge : public IEdge3D
 {
 public:
     explicit DummyEdge(std::string id) :
@@ -60,7 +60,7 @@ private:
     std::string id_;
 };
 
-class DummyCorner : public Corner3D
+class DummyCorner : public ICorner3D
 {
 public:
     explicit DummyCorner(std::string id, Meshing::Point3D p = Meshing::Point3D(0.0, 0.0, 0.0)) :
@@ -78,9 +78,9 @@ private:
 TEST(SimpleMesher, GeneratesBasicTet)
 {
     // Prepare minimal geometry collection
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Surface3D>> surfaces;
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Edge3D>> edges;
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::Corner3D>> corners;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
 
     surfaces["S1"] = std::make_unique<Geometry3D::DummySurface>("S1");
     edges["E1"] = std::make_unique<Geometry3D::DummyEdge>("E1");

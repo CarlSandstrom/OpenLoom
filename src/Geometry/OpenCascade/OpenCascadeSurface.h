@@ -9,7 +9,7 @@ namespace Geometry3D
 /**
  * @brief OpenCASCADE implementation of Surface
  */
-class OpenCascadeSurface : public Surface3D
+class OpenCascadeSurface : public ISurface3D
 {
 public:
     explicit OpenCascadeSurface(const TopoDS_Face& face);

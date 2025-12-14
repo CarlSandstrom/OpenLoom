@@ -12,10 +12,10 @@ namespace Geometry3D
 /**
  * @brief Abstract interface for geometric edges/curves
  */
-class Edge3D
+class IEdge3D
 {
 public:
-    virtual ~Edge3D() = default;
+    virtual ~IEdge3D() = default;
 
     virtual Meshing::Point3D getPoint(double t) const = 0;
     virtual std::array<double, 3> getTangent(double t) const = 0;

@@ -18,19 +18,19 @@ namespace Geometry3D
 class GeometryCollection3D
 {
 public:
-    explicit GeometryCollection3D(std::unordered_map<std::string, std::unique_ptr<Surface3D>> surfaces,
-                                  std::unordered_map<std::string, std::unique_ptr<Edge3D>> edges,
-                                  std::unordered_map<std::string, std::unique_ptr<Corner3D>> corners);
+    explicit GeometryCollection3D(std::unordered_map<std::string, std::unique_ptr<ISurface3D>> surfaces,
+                                  std::unordered_map<std::string, std::unique_ptr<IEdge3D>> edges,
+                                  std::unordered_map<std::string, std::unique_ptr<ICorner3D>> corners);
 
     // Retrieve geometry entities
-    Surface3D* getSurface(const std::string& id) const;
-    Edge3D* getEdge(const std::string& id) const;
-    Corner3D* getCorner(const std::string& id) const;
+    ISurface3D* getSurface(const std::string& id) const;
+    IEdge3D* getEdge(const std::string& id) const;
+    ICorner3D* getCorner(const std::string& id) const;
 
 private:
-    std::unordered_map<std::string, std::unique_ptr<Surface3D>> surfaces_;
-    std::unordered_map<std::string, std::unique_ptr<Edge3D>> edges_;
-    std::unordered_map<std::string, std::unique_ptr<Corner3D>> corners_;
+    std::unordered_map<std::string, std::unique_ptr<ISurface3D>> surfaces_;
+    std::unordered_map<std::string, std::unique_ptr<IEdge3D>> edges_;
+    std::unordered_map<std::string, std::unique_ptr<ICorner3D>> corners_;
 };
 
 } // namespace Geometry3D

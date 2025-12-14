@@ -10,10 +10,10 @@ namespace Geometry3D
 /**
  * @brief Abstract interface for geometric vertices/corners
  */
-class Corner3D
+class ICorner3D
 {
 public:
-    virtual ~Corner3D() = default;
+    virtual ~ICorner3D() = default;
 
     virtual Meshing::Point3D getPoint() const = 0;
     virtual std::string getId() const = 0;

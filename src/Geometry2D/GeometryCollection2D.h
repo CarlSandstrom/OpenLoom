@@ -23,11 +23,11 @@ public:
 
     // Add entities
     void addCorner(std::unique_ptr<Corner2D> corner);
-    void addEdge(std::unique_ptr<Edge2D> edge);
+    void addEdge(std::unique_ptr<IEdge2D> edge);
 
     // Access entities
     const Corner2D* getCorner(const std::string& id) const;
-    const Edge2D* getEdge(const std::string& id) const;
+    const IEdge2D* getEdge(const std::string& id) const;
 
     // Query all IDs
     std::vector<std::string> getAllCornerIds() const;
@@ -38,7 +38,7 @@ public:
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Corner2D>> corners_;
-    std::unordered_map<std::string, std::unique_ptr<Edge2D>> edges_;
+    std::unordered_map<std::string, std::unique_ptr<IEdge2D>> edges_;
 };
 
 } // namespace Geometry2D

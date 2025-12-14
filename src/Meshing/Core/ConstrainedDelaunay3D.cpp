@@ -432,7 +432,7 @@ void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology3D::Topology3D& t
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurface2D_(
     const std::vector<size_t>& boundaryNodeIds,
     const std::vector<size_t>& interiorNodeIds,
-    const Geometry3D::Surface3D* surface)
+    const Geometry3D::ISurface3D* surface)
 {
     std::vector<std::array<size_t, 3>> triangles;
 
@@ -588,7 +588,7 @@ void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
 }
 
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurfaceWithContext_(
-    const Geometry3D::Surface3D* surface,
+    const Geometry3D::ISurface3D* surface,
     const Topology3D::Surface3D& topoSurface,
     size_t samplesPerEdge)
 {

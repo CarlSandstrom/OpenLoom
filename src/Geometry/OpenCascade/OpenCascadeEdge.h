@@ -9,7 +9,7 @@ namespace Geometry3D
 /**
  * @brief OpenCASCADE implementation of Edge
  */
-class OpenCascadeEdge : public Edge3D
+class OpenCascadeEdge : public IEdge3D
 {
 public:
     explicit OpenCascadeEdge(const TopoDS_Edge& edge);
