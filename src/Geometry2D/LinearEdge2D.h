@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "Common/Types.h"
-#include "Edge2D.h"
+#include "IEdge2D.h"
 
 namespace Geometry2D
 {

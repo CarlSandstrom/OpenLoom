@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include "Corner2D.h"
-#include "Edge2D.h"
+#include "IEdge2D.h"
 
 namespace Geometry2D
 {
