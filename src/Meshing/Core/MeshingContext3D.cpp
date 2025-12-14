@@ -1,10 +1,10 @@
-#include "MeshingContext.h"
+#include "MeshingContext3D.h"
 
 #include "../../Geometry/Base/GeometryCollection3D.h"
 #include "../../Topology/Topology3D.h"
 #include "../Data/MeshConnectivity.h"
-#include "../Data/MeshData.h"
-#include "../Data/MeshOperations.h"
+#include "../Data/MeshData3D.h"
+#include "../Data/MeshOperations3D.h"
 
 namespace Meshing
 {

@@ -5,8 +5,8 @@
 #include <memory>
 
 #include "Meshing/Core/ConstrainedDelaunay3D.h"
-#include "Meshing/Data/MeshData.h"
-#include "Meshing/Data/MeshOperations.h"
+#include "Meshing/Data/MeshData3D.h"
+#include "Meshing/Data/MeshOperations3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 
 namespace Meshing

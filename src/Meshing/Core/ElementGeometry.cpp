@@ -18,7 +18,7 @@ namespace
 template <size_t N>
 bool gatherNodes(const MeshData& mesh,
                  const std::vector<size_t>& nodeIds,
-                 std::array<const Node*, N>& nodes)
+                 std::array<const Node3D*, N>& nodes)
 {
     if (nodeIds.size() != N)
     {
@@ -54,7 +54,7 @@ double computeVolume(const Point3DRef v0,
 
 std::optional<double> computeVolume(const MeshData& mesh, const TetrahedralElement& element)
 {
-    std::array<const Node*, 4> nodes;
+    std::array<const Node3D*, 4> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
@@ -77,7 +77,7 @@ double computeArea(const Point3DRef v0,
 
 std::optional<double> computeArea(const MeshData& mesh, const TriangleElement& element)
 {
-    std::array<const Node*, 3> nodes;
+    std::array<const Node3D*, 3> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
@@ -116,7 +116,7 @@ std::optional<CircumscribedSphere> computeCircumscribingSphere(const Point3DRef 
 
 std::optional<CircumscribedSphere> computeCircumscribingSphere(const MeshData& mesh, const TetrahedralElement& element)
 {
-    std::array<const Node*, 4> nodes;
+    std::array<const Node3D*, 4> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
@@ -130,7 +130,7 @@ std::optional<CircumscribedSphere> computeCircumscribingSphere(const MeshData& m
 
 std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElement& element)
 {
-    std::array<const Node*, 4> nodes;
+    std::array<const Node3D*, 4> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
@@ -172,7 +172,7 @@ std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElem
 
 std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement& element)
 {
-    std::array<const Node*, 3> nodes;
+    std::array<const Node3D*, 3> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return std::nullopt;
@@ -204,7 +204,7 @@ std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement
 
 double computeShortestEdgeLength(const MeshData& mesh, const TetrahedralElement& element)
 {
-    std::array<const Node*, 4> nodes;
+    std::array<const Node3D*, 4> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
     {
         return 0.0;

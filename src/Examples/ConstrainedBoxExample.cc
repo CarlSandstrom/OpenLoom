@@ -1,7 +1,7 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/ConstrainedMesher.h" // NEW
-#include "Meshing/Core/MeshingContext.h"
+#include "Meshing/Core/MeshingContext3D.h"
 #include "spdlog/spdlog.h"
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopoDS_Shape.hxx>

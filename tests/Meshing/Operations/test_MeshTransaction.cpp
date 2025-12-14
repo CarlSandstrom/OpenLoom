@@ -1,7 +1,7 @@
 #include "Common/Types.h"
 #include "Meshing/Data/MeshConnectivity.h"
-#include "Meshing/Data/MeshData.h"
-#include "Meshing/Data/MeshOperations.h"
+#include "Meshing/Data/MeshData3D.h"
+#include "Meshing/Data/MeshOperations3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Meshing/Operations/MeshTransaction.h"
 #include "Meshing/Operations/ScopedTransaction.h"
@@ -169,7 +169,7 @@ TEST_F(MeshTransactionTest, NodeAdditionAndRollbackTest)
 TEST_F(MeshTransactionTest, NodeModificationAndRollbackTest)
 {
     // Get original coordinates
-    const Node* node = geometry_->getNode(node1Id_);
+    const Node3D* node = geometry_->getNode(node1Id_);
     ASSERT_NE(node, nullptr);
     Point3D originalCoords = node->getCoordinates();
 
@@ -229,7 +229,7 @@ TEST_F(MeshTransactionTest, MultipleOperationsRollbackTest)
     size_t initialElementCount = geometry_->getElementCount();
 
     // Get original coordinates of node2
-    const Node* node2 = geometry_->getNode(node2Id_);
+    const Node3D* node2 = geometry_->getNode(node2Id_);
     ASSERT_NE(node2, nullptr);
     Point3D originalNode2Coords = node2->getCoordinates();
 
@@ -412,7 +412,7 @@ TEST_F(ScopedTransactionTest, MultipleOperationsWithCommitTest)
     EXPECT_NE(geometry_->getElement(elementId), nullptr);
 
     // Verify node coordinates were modified
-    const Node* node1 = geometry_->getNode(node1Id_);
+    const Node3D* node1 = geometry_->getNode(node1Id_);
     ASSERT_NE(node1, nullptr);
     Point3D expectedCoords(1.5, 1.5, 1.5);
     EXPECT_TRUE(node1->getCoordinates().isApprox(expectedCoords));

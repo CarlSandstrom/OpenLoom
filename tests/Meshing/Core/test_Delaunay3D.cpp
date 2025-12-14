@@ -2,14 +2,14 @@
 
 #include "Common/Types.h"
 #include "Geometry/Base/GeometryCollection3D.h"
-#include "Meshing/Core/MeshingContext.h"
+#include "Meshing/Core/MeshingContext3D.h"
 
 #define private public
 #include "Meshing/Core/ConstrainedDelaunay3D.h"
 #undef private
 
 #include "Export/VtkExporter.h"
-#include "Meshing/Data/MeshData.h"
+#include "Meshing/Data/MeshData3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Topology/Topology3D.h"
 #include <algorithm>

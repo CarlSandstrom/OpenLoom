@@ -1,7 +1,7 @@
 #include "ConstrainedMesher.h"
 #include "ConstrainedDelaunay3D.h"
 #include "Geometry/Base/GeometryCollection3D.h"
-#include "MeshingContext.h"
+#include "MeshingContext3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 

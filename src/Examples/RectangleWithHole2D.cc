@@ -3,9 +3,9 @@
 #include "Geometry2D/LinearEdge2D.h"
 #include "Meshing/Core/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/MeshingContext2D.h"
-#include "Meshing/Data/MeshData.h"
 #include "Meshing/Data/MeshData2D.h"
-#include "Meshing/Data/MeshOperations.h"
+#include "Meshing/Data/MeshData3D.h"
+#include "Meshing/Data/MeshOperations3D.h"
 #include "Meshing/Data/Node2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include "Topology2D/Topology2D.h"
@@ -48,8 +48,7 @@ MeshData convertToMeshData3D(const MeshData2D& meshData2D)
             std::array<size_t, 3> newNodeIds = {
                 nodeIdMap[oldNodeIds[0]],
                 nodeIdMap[oldNodeIds[1]],
-                nodeIdMap[oldNodeIds[2]]
-            };
+                nodeIdMap[oldNodeIds[2]]};
             operations.addElement(std::make_unique<TriangleElement>(newNodeIds));
         }
     }
@@ -117,8 +116,7 @@ int main()
     // Boundary edge loop: outer boundary followed by inner boundary (hole)
     std::vector<std::string> boundaryEdgeLoop = {
         "outer_e0", "outer_e1", "outer_e2", "outer_e3",
-        "inner_e0", "inner_e1", "inner_e2", "inner_e3"
-    };
+        "inner_e0", "inner_e1", "inner_e2", "inner_e3"};
 
     auto topology = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, boundaryEdgeLoop);
 

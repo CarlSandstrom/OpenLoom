@@ -6,10 +6,10 @@
 namespace Meshing
 {
 
-class Node
+class Node3D
 {
 public:
-    explicit Node(const Point3D& coordinates);
+    explicit Node3D(const Point3D& coordinates);
 
     const Point3D& getCoordinates() const;
     void setCoordinates(const Point3D& coords);

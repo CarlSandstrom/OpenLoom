@@ -3,11 +3,12 @@
 #include "Geometry/Base/GeometryCollection3D.h"
 #include "Topology/Topology3D.h"
 
-#include "Meshing/Core/MeshingContext.h"
+#include "Meshing/Core/MeshingContext3D.h"
 #include "Meshing/Core/SimpleMesher.h"
 
 #include "Common/Types.h"
-#include "Meshing/Data/MeshData.h"
+#include "Meshing/Data/MeshData3D.h"
+#include "Meshing/Data/MeshOperations3D.h"
 
 #include <array>
 #include <memory>

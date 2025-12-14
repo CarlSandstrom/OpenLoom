@@ -3,7 +3,7 @@
 #include <optional>
 
 #include "Common/Types.h"
-#include "Meshing/Data/MeshData.h"
+#include "Meshing/Data/MeshData3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Meshing/Data/TriangleElement.h"
 

@@ -1,6 +1,6 @@
-#include "MeshOperations.h"
+#include "MeshOperations3D.h"
 #include "MeshConnectivity.h"
-#include "Node.h"
+#include "Node3D.h"
 #include <stdexcept>
 
 namespace Meshing
@@ -20,7 +20,7 @@ size_t MeshOperations::addNode(const Point3D& coordinates)
 {
     size_t id = nextNodeId_++;
 
-    auto node = std::make_unique<Node>(coordinates);
+    auto node = std::make_unique<Node3D>(coordinates);
     geometry_.addNodeInternal_(id, std::move(node));
 
     // Notify transaction listener
@@ -34,7 +34,7 @@ size_t MeshOperations::addNode(const Point3D& coordinates)
 
 void MeshOperations::moveNode(size_t id, const Point3D& newCoords)
 {
-    Node* node = geometry_.getNodeMutable_(id);
+    Node3D* node = geometry_.getNodeMutable_(id);
     if (!node)
     {
         throw std::runtime_error("Node ID " + std::to_string(id) + " does not exist");
@@ -53,7 +53,7 @@ void MeshOperations::moveNode(size_t id, const Point3D& newCoords)
 
 void MeshOperations::removeNode(size_t id)
 {
-    const Node* node = geometry_.getNode(id);
+    const Node3D* node = geometry_.getNode(id);
     if (!node)
     {
         throw std::runtime_error("Node ID " + std::to_string(id) + " does not exist");
@@ -136,7 +136,7 @@ void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element
 
 void MeshOperations::restoreNode(size_t id, const Point3D& coordinates)
 {
-    Node* node = geometry_.getNodeMutable_(id);
+    Node3D* node = geometry_.getNodeMutable_(id);
     if (node)
     {
         node->setCoordinates(coordinates);
