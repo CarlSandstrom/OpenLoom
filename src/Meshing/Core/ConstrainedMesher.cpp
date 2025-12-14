@@ -1,14 +1,14 @@
 #include "ConstrainedMesher.h"
 #include "ConstrainedDelaunay3D.h"
-#include "Geometry/Base/GeometryCollection.h"
+#include "Geometry/Base/GeometryCollection3D.h"
 #include "MeshingContext.h"
-#include "Topology/Topology.h"
+#include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
 namespace Meshing
 {
 
-void ConstrainedMesher::generate(MeshingContext& context)
+void ConstrainedMesher::generate(MeshingContext3D& context)
 {
     SPDLOG_INFO("ConstrainedMesher: Starting mesh generation");
     SPDLOG_INFO("  Edge samples: {}", samplesPerEdge_);

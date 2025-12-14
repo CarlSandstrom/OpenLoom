@@ -10,7 +10,7 @@
 #include <limits>
 #include <sstream>
 
-namespace Geometry
+namespace Geometry3D
 {
 
 OpenCascadeEdge::OpenCascadeEdge(const TopoDS_Edge& edge) :
@@ -112,4 +112,4 @@ std::string OpenCascadeEdge::getId() const
     return oss.str();
 }
 
-} // namespace Geometry
+} // namespace Geometry3D

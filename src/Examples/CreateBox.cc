@@ -13,7 +13,7 @@ int main()
 
     TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
     Readers::TopoDS_ShapeConverter converter(cube);
-    Meshing::MeshingContext context(
+    Meshing::MeshingContext3D context(
         converter.getGeometryCollection(),
         converter.getTopology());
 

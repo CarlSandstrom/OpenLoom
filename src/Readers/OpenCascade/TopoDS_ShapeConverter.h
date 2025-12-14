@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Geometry/Base/GeometryCollection.h"
+#include "Geometry/Base/GeometryCollection3D.h"
 #include "OpenCascadeGeometryCollection.h"
-#include "Topology/Corner.h"
-#include "Topology/Edge.h"
-#include "Topology/Surface.h"
-#include "Topology/Topology.h"
+#include "Topology/Corner3D.h"
+#include "Topology/Edge3D.h"
+#include "Topology/Surface3D.h"
+#include "Topology/Topology3D.h"
 #include <TopoDS_Shape.hxx>
 #include <memory>
 #include <unordered_map>
@@ -18,8 +18,8 @@ class TopoDS_ShapeConverter
 public:
     TopoDS_ShapeConverter(const TopoDS_Shape& shape);
 
-    const Topology::Topology& getTopology() const;
-    const Geometry::GeometryCollection& getGeometryCollection() const;
+    const Topology3D::Topology3D& getTopology() const;
+    const Geometry3D::GeometryCollection3D& getGeometryCollection() const;
 
 private:
     void buildTopology();
@@ -32,11 +32,11 @@ private:
     const TopoDS_Shape& shape_;
     std::unique_ptr<OpenCascadeGeometryCollection> openCascadeGeometryCollection_;
 
-    std::unordered_map<std::string, Topology::Corner> corners_;
-    std::unordered_map<std::string, Topology::Edge> edges_;
-    std::unordered_map<std::string, Topology::Surface> surfaces_;
-    std::unique_ptr<Topology::Topology> topology_;
+    std::unordered_map<std::string, Topology3D::Corner3D> corners_;
+    std::unordered_map<std::string, Topology3D::Edge3D> edges_;
+    std::unordered_map<std::string, Topology3D::Surface3D> surfaces_;
+    std::unique_ptr<Topology3D::Topology3D> topology_;
 
-    std::unique_ptr<Geometry::GeometryCollection> geometryCollection_;
+    std::unique_ptr<Geometry3D::GeometryCollection3D> geometryCollection_;
 };
 } // namespace Readers

@@ -2,13 +2,13 @@
 
 #include <memory>
 
-namespace Geometry
+namespace Geometry3D
 {
-class GeometryCollection;
+class GeometryCollection3D;
 }
-namespace Topology
+namespace Topology3D
 {
-class Topology;
+class Topology3D;
 }
 
 namespace Meshing
@@ -19,16 +19,16 @@ class MeshOperations;
 
 // Central orchestrator holding references to geometry and topology and
 // owning mesh-specific mutable data structures.
-class MeshingContext
+class MeshingContext3D
 {
 public:
-    MeshingContext(const Geometry::GeometryCollection& geometry,
-                   const Topology::Topology& topology);
-    ~MeshingContext();
+    MeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
+                     const Topology3D::Topology3D& topology);
+    ~MeshingContext3D();
 
     // Non-owning references to input domains
-    const Geometry::GeometryCollection& getGeometry() const { return geometry_; }
-    const Topology::Topology& getTopology() const { return topology_; }
+    const Geometry3D::GeometryCollection3D& getGeometry() const { return geometry_; }
+    const Topology3D::Topology3D& getTopology() const { return topology_; }
 
     // Access to mesh data structures
     MeshData& getMeshData();
@@ -42,8 +42,8 @@ public:
     void clearMesh();
 
 private:
-    const Geometry::GeometryCollection& geometry_;
-    const Topology::Topology& topology_;
+    const Geometry3D::GeometryCollection3D& geometry_;
+    const Topology3D::Topology3D& topology_;
 
     std::unique_ptr<MeshData> meshData_;
     std::unique_ptr<MeshConnectivity> connectivity_;

@@ -15,7 +15,7 @@ public:
         IMesher(qualityController) {}
     ~SimpleMesher() override = default;
 
-    void generate(MeshingContext& context) override;
+    void generate(MeshingContext3D& context) override;
     std::string getName() const override { return "SimpleMesher"; }
 };
 

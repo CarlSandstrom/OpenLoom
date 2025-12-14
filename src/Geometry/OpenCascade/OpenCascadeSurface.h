@@ -1,15 +1,15 @@
 #pragma once
 
-#include "../Base/Surface.h"
+#include "../Base/Surface3D.h"
 #include <TopoDS_Face.hxx>
 
-namespace Geometry
+namespace Geometry3D
 {
 
 /**
  * @brief OpenCASCADE implementation of Surface
  */
-class OpenCascadeSurface : public Surface
+class OpenCascadeSurface : public ISurface3D
 {
 public:
     explicit OpenCascadeSurface(const TopoDS_Face& face);
@@ -25,4 +25,4 @@ private:
     TopoDS_Face face_;
 };
 
-} // namespace Geometry
+} // namespace Geometry3D

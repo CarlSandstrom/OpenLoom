@@ -4,19 +4,19 @@
 
 #include "Common/Types.h"
 
-namespace Geometry
+namespace Geometry3D
 {
 
 /**
  * @brief Abstract interface for geometric vertices/corners
  */
-class Corner
+class ICorner3D
 {
 public:
-    virtual ~Corner() = default;
+    virtual ~ICorner3D() = default;
 
     virtual Meshing::Point3D getPoint() const = 0;
     virtual std::string getId() const = 0;
 };
 
-} // namespace Geometry
+} // namespace Geometry3D

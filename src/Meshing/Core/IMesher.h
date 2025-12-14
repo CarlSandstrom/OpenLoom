@@ -2,17 +2,17 @@
 
 #include <string>
 
-namespace Geometry
+namespace Geometry3D
 {
-class GeometryCollection;
+class GeometryCollection3D;
 }
-namespace Topology
+namespace Topology3D
 {
-class Topology;
+class Topology3D;
 }
 namespace Meshing
 {
-class MeshingContext;
+class MeshingContext3D;
 class IQualityController;
 } // namespace Meshing
 
@@ -30,7 +30,7 @@ public:
 
     // Generate or regenerate a mesh in the provided context.
     // Implementations may clear existing data or refine in-place.
-    virtual void generate(MeshingContext& context) = 0;
+    virtual void generate(MeshingContext3D& context) = 0;
 
     // Name/identifier for logging or selection.
     virtual std::string getName() const = 0;

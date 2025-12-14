@@ -23,7 +23,9 @@ target_link_libraries(MeshingCore PUBLIC
     MeshingData
     MeshingOperations
     Geometry
+    Geometry2D
     Topology
+    Topology2D
     ExportCore
     spdlog::spdlog
     fmt::fmt

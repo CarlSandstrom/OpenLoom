@@ -14,7 +14,7 @@
 namespace Meshing
 {
 
-ConstrainedDelaunay3D::ConstrainedDelaunay3D(MeshingContext& context) :
+ConstrainedDelaunay3D::ConstrainedDelaunay3D(MeshingContext3D& context) :
     computer_(context.getMeshData()),
     context_(context),
     meshData_(context.getMeshData()),
@@ -316,8 +316,8 @@ void ConstrainedDelaunay3D::generateConstrained(size_t samplesPerEdge,
     SPDLOG_INFO("========================================");
 }
 
-void ConstrainedDelaunay3D::insertCornerNodes_(const Topology::Topology& topology,
-                                               const Geometry::GeometryCollection& geometry)
+void ConstrainedDelaunay3D::insertCornerNodes_(const Topology3D::Topology3D& topology,
+                                               const Geometry3D::GeometryCollection3D& geometry)
 {
     for (const auto& cornerId : topology.getAllCornerIds())
     {
@@ -334,8 +334,8 @@ void ConstrainedDelaunay3D::insertCornerNodes_(const Topology::Topology& topolog
     SPDLOG_INFO("✓ Inserted {} corner nodes", topology.getAllCornerIds().size());
 }
 
-void ConstrainedDelaunay3D::insertEdgeNodes_(const Topology::Topology& topology,
-                                             const Geometry::GeometryCollection& geometry,
+void ConstrainedDelaunay3D::insertEdgeNodes_(const Topology3D::Topology3D& topology,
+                                             const Geometry3D::GeometryCollection3D& geometry,
                                              size_t samplesPerEdge)
 {
     for (const auto& edgeId : topology.getAllEdgeIds())
@@ -372,8 +372,8 @@ void ConstrainedDelaunay3D::insertEdgeNodes_(const Topology::Topology& topology,
                 constraints_.getSegmentCount(), topology.getAllEdgeIds().size());
 }
 
-void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology::Topology& topology,
-                                                 const Geometry::GeometryCollection& geometry,
+void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology3D::Topology3D& topology,
+                                                 const Geometry3D::GeometryCollection3D& geometry,
                                                  size_t samplesPerSurface)
 {
     for (const auto& surfaceId : topology.getAllSurfaceIds())
@@ -432,7 +432,7 @@ void ConstrainedDelaunay3D::triangulateSurfaces_(const Topology::Topology& topol
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurface2D_(
     const std::vector<size_t>& boundaryNodeIds,
     const std::vector<size_t>& interiorNodeIds,
-    const Geometry::Surface* surface)
+    const Geometry3D::ISurface3D* surface)
 {
     std::vector<std::array<size_t, 3>> triangles;
 
@@ -492,21 +492,21 @@ void ConstrainedDelaunay3D::recoverSegments_()
 
     for (const auto& seg : constraints_.segments)
     {
-        if (ConstrainedDelaunayHelper::segmentExists(*this,
-                                                     seg.startNodeId,
-                                                     seg.endNodeId,
-                                                     activeTetrahedra_,
-                                                     satisfiedSegments_))
+        if (ConstrainedDelaunay3DHelper::segmentExists(*this,
+                                                       seg.startNodeId,
+                                                       seg.endNodeId,
+                                                       activeTetrahedra_,
+                                                       satisfiedSegments_))
         {
             satisfiedSegments_.insert(
-                ConstrainedDelaunayHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
+                ConstrainedDelaunay3DHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
             alreadyPresent++;
         }
         else
         {
             forceSegment(seg.startNodeId, seg.endNodeId);
             satisfiedSegments_.insert(
-                ConstrainedDelaunayHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
+                ConstrainedDelaunay3DHelper::makeSegmentKey(seg.startNodeId, seg.endNodeId));
             recovered++;
         }
     }
@@ -525,22 +525,22 @@ void ConstrainedDelaunay3D::recoverFacets_()
         {
             const auto& n = subfacet.nodeIds;
 
-            if (ConstrainedDelaunayHelper::facetExists(*this,
-                                                       n[0],
-                                                       n[1],
-                                                       n[2],
-                                                       activeTetrahedra_,
-                                                       satisfiedFacets_))
+            if (ConstrainedDelaunay3DHelper::facetExists(*this,
+                                                         n[0],
+                                                         n[1],
+                                                         n[2],
+                                                         activeTetrahedra_,
+                                                         satisfiedFacets_))
             {
                 satisfiedFacets_.insert(
-                    ConstrainedDelaunayHelper::makeTriangleKey(n[0], n[1], n[2]));
+                    ConstrainedDelaunay3DHelper::makeTriangleKey(n[0], n[1], n[2]));
                 alreadyPresent++;
             }
             else
             {
                 forceFacet(n[0], n[1], n[2]);
                 satisfiedFacets_.insert(
-                    ConstrainedDelaunayHelper::makeTriangleKey(n[0], n[1], n[2]));
+                    ConstrainedDelaunay3DHelper::makeTriangleKey(n[0], n[1], n[2]));
                 recovered++;
             }
         }
@@ -551,7 +551,7 @@ void ConstrainedDelaunay3D::recoverFacets_()
 
 void ConstrainedDelaunay3D::forceSegment(size_t n1, size_t n2)
 {
-    auto intersecting = ConstrainedDelaunayHelper::findIntersectingTetrahedra(
+    auto intersecting = ConstrainedDelaunay3DHelper::findIntersectingTetrahedra(
         *this, meshData_, n1, n2, activeTetrahedra_);
     if (intersecting.empty()) return;
 
@@ -563,13 +563,13 @@ void ConstrainedDelaunay3D::forceSegment(size_t n1, size_t n2)
         activeTetrahedra_.erase(tetId);
     }
 
-    ConstrainedDelaunayHelper::retriangulateCavityWithSegment(
+    ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
         operations_, activeTetrahedra_, n1, n2, boundary);
 }
 
 void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
 {
-    auto intersecting = ConstrainedDelaunayHelper::findIntersectingTetrahedraForFacet(
+    auto intersecting = ConstrainedDelaunay3DHelper::findIntersectingTetrahedraForFacet(
         *this, meshData_, n0, n1, n2, activeTetrahedra_);
     if (intersecting.empty()) return;
 
@@ -583,8 +583,56 @@ void ConstrainedDelaunay3D::forceFacet(size_t n0, size_t n1, size_t n2)
         activeTetrahedra_.erase(tetId);
     }
 
-    ConstrainedDelaunayHelper::retriangulateCavityWithFacet(
+    ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
         operations_, activeTetrahedra_, n0, n1, n2, boundary);
+}
+
+std::vector<std::array<size_t, 3>> ConstrainedDelaunay3D::triangulateSurfaceWithContext_(
+    const Geometry3D::ISurface3D* surface,
+    const Topology3D::Surface3D& topoSurface,
+    size_t samplesPerEdge)
+{
+    std::vector<std::array<size_t, 3>> triangles;
+
+    if (surface == nullptr)
+    {
+        return triangles;
+    }
+
+    // Create a 2D meshing context from the 3D surface
+    auto context2D = MeshingContext2D::fromSurface(
+        *surface,
+        topoSurface,
+        context_.getTopology(),
+        context_.getGeometry());
+
+    // Create constrained Delaunay 2D with the context
+    ConstrainedDelaunay2D delaunay2D(context2D);
+
+    // Generate constrained triangulation
+    delaunay2D.generateConstrained(samplesPerEdge);
+
+    // Extract the triangulation results
+    // Note: The nodes are in 2D parametric space; we need to map them back
+    // to our 3D mesh node IDs. For now, we return the triangles directly
+    // as they use the context's node IDs which are separate from our 3D mesh.
+
+    const auto& meshData2D = delaunay2D.getMeshData2D();
+    for (const auto& [elemId, elemPtr] : meshData2D.getElements())
+    {
+        if (elemPtr != nullptr)
+        {
+            const auto& nodeIds = elemPtr->getNodeIds();
+            if (nodeIds.size() == 3)
+            {
+                triangles.push_back({nodeIds[0], nodeIds[1], nodeIds[2]});
+            }
+        }
+    }
+
+    SPDLOG_DEBUG("Surface triangulated with context: {} triangles", triangles.size());
+
+    return triangles;
 }
 
 } // namespace Meshing

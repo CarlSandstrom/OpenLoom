@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Geometry/Base/GeometryCollection.h"
+#include "Geometry/Base/GeometryCollection3D.h"
 #include "Meshing/Core/MeshingContext.h"
 
 #define private public
@@ -11,7 +11,7 @@
 #include "Export/VtkExporter.h"
 #include "Meshing/Data/MeshData.h"
 #include "Meshing/Data/TetrahedralElement.h"
-#include "Topology/Topology.h"
+#include "Topology/Topology3D.h"
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -20,17 +20,17 @@
 
 TEST(Delaunay3D, SplitsSuperTetrahedronAtCenterInsertion)
 {
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Surface>> surfaces;
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Edge>> edges;
-    std::unordered_map<std::string, std::unique_ptr<Geometry::Corner>> corners;
-    Geometry::GeometryCollection geometry(std::move(surfaces), std::move(edges), std::move(corners));
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
+    Geometry3D::GeometryCollection3D geometry(std::move(surfaces), std::move(edges), std::move(corners));
 
-    std::unordered_map<std::string, Topology::Surface> topoSurfaces;
-    std::unordered_map<std::string, Topology::Edge> topoEdges;
-    std::unordered_map<std::string, Topology::Corner> topoCorners;
-    Topology::Topology topology(topoSurfaces, topoEdges, topoCorners);
+    std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;
+    std::unordered_map<std::string, Topology3D::Edge3D> topoEdges;
+    std::unordered_map<std::string, Topology3D::Corner3D> topoCorners;
+    Topology3D::Topology3D topology(topoSurfaces, topoEdges, topoCorners);
 
-    Meshing::MeshingContext context(geometry, topology);
+    Meshing::MeshingContext3D context(geometry, topology);
     Meshing::ConstrainedDelaunay3D delaunay(context);
 
     const std::vector<Meshing::Point3D> referencePoints{

@@ -9,13 +9,14 @@
 #include "ConstrainedDelaunay2D.h"
 #include "ConstrainedDelaunayHelper.h"
 #include "ConstraintStructures.h"
-#include "Geometry/Base/GeometryCollection.h"
+#include "Geometry/Base/GeometryCollection3D.h"
 #include "Meshing/Core/Computer.h"
 #include "Meshing/Core/MeshingContext.h"
+#include "Meshing/Core/MeshingContext2D.h"
 #include "Meshing/Data/MeshData.h"
 #include "Meshing/Data/MeshOperations.h"
 #include "Meshing/Data/TetrahedralElement.h"
-#include "Topology/Topology.h"
+#include "Topology/Topology3D.h"
 
 namespace Meshing
 {
@@ -35,7 +36,7 @@ namespace Meshing
 class ConstrainedDelaunay3D
 {
 public:
-    explicit ConstrainedDelaunay3D(MeshingContext& context);
+    explicit ConstrainedDelaunay3D(MeshingContext3D& context);
     ~ConstrainedDelaunay3D() = default;
 
     void initialize(const std::vector<Point3D>& points);
@@ -91,29 +92,29 @@ protected:
     /**
      * @brief Extract constraints from topology/geometry
      */
-    void extractConstraints_(const Topology::Topology& topology,
-                             const Geometry::GeometryCollection& geometry,
+    void extractConstraints_(const Topology3D::Topology3D& topology,
+                             const Geometry3D::GeometryCollection3D& geometry,
                              size_t samplesPerEdge,
                              size_t samplesPerSurface);
 
     /**
      * @brief Insert nodes for all corners in topology
      */
-    void insertCornerNodes_(const Topology::Topology& topology,
-                            const Geometry::GeometryCollection& geometry);
+    void insertCornerNodes_(const Topology3D::Topology3D& topology,
+                            const Geometry3D::GeometryCollection3D& geometry);
 
     /**
      * @brief Sample and insert nodes along edges
      */
-    void insertEdgeNodes_(const Topology::Topology& topology,
-                          const Geometry::GeometryCollection& geometry,
+    void insertEdgeNodes_(const Topology3D::Topology3D& topology,
+                          const Geometry3D::GeometryCollection3D& geometry,
                           size_t samplesPerEdge);
 
     /**
      * @brief Sample and triangulate surface nodes
      */
-    void triangulateSurfaces_(const Topology::Topology& topology,
-                              const Geometry::GeometryCollection& geometry,
+    void triangulateSurfaces_(const Topology3D::Topology3D& topology,
+                              const Geometry3D::GeometryCollection3D& geometry,
                               size_t samplesPerSurface);
 
     /**
@@ -132,7 +133,23 @@ protected:
     std::vector<std::array<size_t, 3>> triangulateSurface2D_(
         const std::vector<size_t>& boundaryNodeIds,
         const std::vector<size_t>& interiorNodeIds,
-        const Geometry::Surface* surface);
+        const Geometry3D::ISurface3D* surface);
+
+    /**
+     * @brief Triangulate a surface using MeshingContext2D
+     *
+     * Alternative method that creates a MeshingContext2D from the surface
+     * and uses ConstrainedDelaunay2D with the context-based workflow.
+     *
+     * @param surface The 3D surface geometry
+     * @param topoSurface The 3D surface topology
+     * @param samplesPerEdge Number of sample points per edge
+     * @return Vector of triangles (node ID triplets)
+     */
+    std::vector<std::array<size_t, 3>> triangulateSurfaceWithContext_(
+        const Geometry3D::ISurface3D* surface,
+        const Topology3D::Surface3D& topoSurface,
+        size_t samplesPerEdge);
 
 private:
     void createSuperTetrahedron(const std::vector<Point3D>& points);
@@ -145,7 +162,7 @@ private:
     std::vector<size_t> superNodeIds_;
     std::unordered_set<size_t> activeTetrahedra_;
 
-    MeshingContext& context_;
+    MeshingContext3D& context_;
     MeshData& meshData_;
     MeshOperations& operations_;
 };

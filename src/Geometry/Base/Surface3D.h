@@ -6,7 +6,7 @@
 #include "Common/BoundingBox2D.h"
 #include "Common/Types.h"
 
-namespace Geometry
+namespace Geometry3D
 {
 
 /**
@@ -14,10 +14,10 @@ namespace Geometry
  *
  * Provides methods for querying surface properties needed for meshing
  */
-class Surface
+class ISurface3D
 {
 public:
-    virtual ~Surface() = default;
+    virtual ~ISurface3D() = default;
 
     virtual std::array<double, 3> getNormal(double u, double v) const = 0;
     virtual Meshing::Point3D getPoint(double u, double v) const = 0;
@@ -28,4 +28,4 @@ public:
     virtual std::string getId() const = 0;
 };
 
-} // namespace Geometry
+} // namespace Geometry3D

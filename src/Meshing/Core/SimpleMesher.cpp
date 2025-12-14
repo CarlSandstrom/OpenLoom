@@ -3,9 +3,9 @@
 #include "../Data/TetrahedralElement.h"
 #include "../Operations/ScopedTransaction.h"
 #include "ConstrainedDelaunay3D.h"
-#include "Geometry/Base/GeometryCollection.h"
+#include "Geometry/Base/GeometryCollection3D.h"
 #include "MeshingContext.h"
-#include "Topology/Topology.h"
+#include "Topology/Topology3D.h"
 
 #include <array>
 #include <memory>
@@ -13,7 +13,7 @@
 namespace Meshing
 {
 
-void SimpleMesher::generate(MeshingContext& context)
+void SimpleMesher::generate(MeshingContext3D& context)
 {
     // Start with a clean mesh for this simple example
     context.clearMesh();

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "../Base/Corner.h"
+#include "../Base/Corner3D.h"
 #include <TopoDS_Vertex.hxx>
 
-namespace Geometry
+namespace Geometry3D
 {
 
 /**
  * @brief OpenCASCADE implementation of Corner
  */
-class OpenCascadeCorner : public Corner
+class OpenCascadeCorner : public ICorner3D
 {
 public:
     explicit OpenCascadeCorner(const TopoDS_Vertex& vertex);
@@ -21,4 +21,4 @@ private:
     TopoDS_Vertex vertex_;
 };
 
-} // namespace Geometry
+} // namespace Geometry3D

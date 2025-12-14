@@ -1,9 +1,19 @@
 #include "ConstrainedDelaunay2D.h"
 
+#include "Geometry2D/Corner2D.h"
+#include "Geometry2D/IEdge2D.h"
+#include "Geometry2D/GeometryCollection2D.h"
+#include "Meshing/Core/MeshingContext2D.h"
+#include "Meshing/Data/MeshOperations2D.h"
+#include "Topology2D/Corner2D.h"
+#include "Topology2D/Edge2D.h"
+#include "Topology2D/Topology2D.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <map>
+#include <stdexcept>
 
 #include "spdlog/spdlog.h"
 
@@ -18,6 +28,13 @@ bool triangleHasNode(const TriangleElement& triangle, size_t nodeId)
     return nodes[0] == nodeId || nodes[1] == nodeId || nodes[2] == nodeId;
 }
 } // namespace
+
+ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context) :
+    context_(&context),
+    meshData2D_(&context.getMeshData()),
+    operations_(&context.getOperations())
+{
+}
 
 ConstrainedDelaunay2D::ConstrainedDelaunay2D(const std::unordered_map<size_t, Point2D>& nodeCoords) :
     nodeCoords_(nodeCoords)
@@ -482,20 +499,190 @@ bool ConstrainedDelaunay2D::segmentsIntersect_(const Point2D& a1, const Point2D&
 MeshData ConstrainedDelaunay2D::getMeshData() const
 {
     MeshData meshData;
+    // Note: This method has limited functionality as MeshData
+    // doesn't have a public addNode method for Point2D.
+    // Use getMeshData2D() instead for full 2D support.
+    return meshData;
+}
 
-    // Add nodes
-    for (const auto& [nodeId, coord] : nodeCoords_)
+MeshData2D& ConstrainedDelaunay2D::getMeshData2D()
+{
+    if (meshData2D_ == nullptr)
     {
-        meshData.addNode(nodeId, coord);
+        throw std::runtime_error("getMeshData2D requires MeshingContext2D constructor");
+    }
+    return *meshData2D_;
+}
+
+const MeshData2D& ConstrainedDelaunay2D::getMeshData2D() const
+{
+    if (meshData2D_ == nullptr)
+    {
+        throw std::runtime_error("getMeshData2D requires MeshingContext2D constructor");
+    }
+    return *meshData2D_;
+}
+
+void ConstrainedDelaunay2D::generateConstrained(size_t samplesPerEdge)
+{
+    if (context_ == nullptr)
+    {
+        throw std::runtime_error("generateConstrained requires MeshingContext2D constructor");
     }
 
-    // Add triangle elements
+    SPDLOG_INFO("========================================");
+    SPDLOG_INFO("Starting 2D Constrained Delaunay");
+    SPDLOG_INFO("========================================");
+
+    // Step 1: Insert corner nodes from topology
+    insertCornerNodes_();
+
+    // Step 2: Insert edge nodes and build constraint edges
+    insertEdgeNodes_(samplesPerEdge);
+
+    // Step 3: Build Delaunay triangulation
+    buildTriangulation_();
+
+    // Step 4: Recover constraint edges
+    recoverConstraintEdges_();
+
+    // Step 5: Store results in mesh data
+    storeResultsInMeshData_();
+
+    SPDLOG_INFO("========================================");
+    SPDLOG_INFO("2D Constrained Delaunay COMPLETE");
+    SPDLOG_INFO("  Final: {} nodes, {} triangles",
+                meshData2D_->getNodeCount(), meshData2D_->getElementCount());
+    SPDLOG_INFO("========================================");
+}
+
+void ConstrainedDelaunay2D::insertCornerNodes_()
+{
+    const auto& geometry = context_->getGeometry();
+    const auto& topology = context_->getTopology();
+
+    for (const auto& cornerId : topology.getAllCornerIds())
+    {
+        const auto* corner = geometry.getCorner(cornerId);
+        if (corner != nullptr)
+        {
+            Point2D point = corner->getPoint();
+            size_t nodeId = operations_->addNode(point);
+            topologyToNodeId_[cornerId] = nodeId;
+            nodeCoords_[nodeId] = point;
+
+            SPDLOG_DEBUG("Corner {} → node {} at ({:.4f}, {:.4f})",
+                         cornerId, nodeId, point.x(), point.y());
+        }
+    }
+
+    SPDLOG_INFO("Inserted {} corner nodes", topology.getAllCornerIds().size());
+}
+
+void ConstrainedDelaunay2D::insertEdgeNodes_(size_t samplesPerEdge)
+{
+    const auto& geometry = context_->getGeometry();
+    const auto& topology = context_->getTopology();
+
+    for (const auto& edgeId : topology.getAllEdgeIds())
+    {
+        const auto& topoEdge = topology.getEdge(edgeId);
+        const auto* geomEdge = geometry.getEdge(edgeId);
+
+        if (geomEdge == nullptr)
+        {
+            continue;
+        }
+
+        size_t startNodeId = topologyToNodeId_[topoEdge.getStartCornerId()];
+        size_t endNodeId = topologyToNodeId_[topoEdge.getEndCornerId()];
+
+        auto [tMin, tMax] = geomEdge->getParameterBounds();
+        std::vector<size_t> edgeNodeIds;
+        edgeNodeIds.push_back(startNodeId);
+
+        // Insert intermediate nodes
+        for (size_t i = 1; i < samplesPerEdge; ++i)
+        {
+            double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(samplesPerEdge);
+            Point2D point = geomEdge->getPoint(t);
+            size_t nodeId = operations_->addNode(point);
+            edgeNodeIds.push_back(nodeId);
+            nodeCoords_[nodeId] = point;
+        }
+
+        edgeNodeIds.push_back(endNodeId);
+
+        // Create constraint edges
+        for (size_t i = 0; i < edgeNodeIds.size() - 1; ++i)
+        {
+            addConstraintEdge(edgeNodeIds[i], edgeNodeIds[i + 1]);
+        }
+    }
+
+    SPDLOG_INFO("Created {} constraint edges from {} boundary edges",
+                constraintEdges_.size(), topology.getAllEdgeIds().size());
+}
+
+void ConstrainedDelaunay2D::buildTriangulation_()
+{
+    if (nodeCoords_.size() < 3)
+    {
+        SPDLOG_WARN("Not enough nodes for triangulation");
+        return;
+    }
+
+    activeTriangles_.clear();
+    superNodeIds_.clear();
+
+    // Create super triangle
+    createSuperTriangle_();
+
+    // Insert all vertices
+    for (const auto& [nodeId, coord] : nodeCoords_)
+    {
+        if (std::find(superNodeIds_.begin(), superNodeIds_.end(), nodeId) != superNodeIds_.end())
+        {
+            continue;
+        }
+        insertVertex_(nodeId);
+    }
+
+    // Remove super triangle
+    removeSuperTriangle_();
+
+    SPDLOG_INFO("Built initial triangulation with {} triangles", activeTriangles_.size());
+}
+
+void ConstrainedDelaunay2D::recoverConstraintEdges_()
+{
+    size_t recovered = 0;
+    size_t alreadyPresent = 0;
+
+    for (const auto& [nodeId1, nodeId2] : constraintEdges_)
+    {
+        if (edgeExists_(nodeId1, nodeId2))
+        {
+            alreadyPresent++;
+        }
+        else
+        {
+            forceEdge_(nodeId1, nodeId2);
+            recovered++;
+        }
+    }
+
+    SPDLOG_INFO("Constraint edges: {} present, {} forced", alreadyPresent, recovered);
+}
+
+void ConstrainedDelaunay2D::storeResultsInMeshData_()
+{
+    // Add triangle elements to mesh data
     for (const auto& tri : activeTriangles_)
     {
         auto element = std::make_unique<TriangleElement>(tri.getNodeIdArray());
-        meshData.addElement(std::move(element));
+        operations_->addElement(std::move(element));
     }
-
-    return meshData;
+}
 
 } // namespace Meshing

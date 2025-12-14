@@ -4,7 +4,7 @@
 
 namespace cMesh
 {
-namespace Geometry
+namespace Geometry3D
 {
 
 class GeometrySurfaceTest : public ::testing::Test
@@ -33,5 +33,5 @@ TEST_F(GeometrySurfaceTest, AreaCalculationTest)
     EXPECT_TRUE(true); // Placeholder test
 }
 
-} // namespace Geometry
+} // namespace Geometry3D
 } // namespace cMesh
