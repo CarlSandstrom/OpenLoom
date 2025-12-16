@@ -14,13 +14,13 @@ size_t MeshOperations2D::addNode(const Point2D& coordinates)
 {
     size_t id = nextNodeId_++;
     auto node = std::make_unique<Node2D>(coordinates);
-    meshData_.addNodeInternal_(id, std::move(node));
+    meshData_.addNodeInternal(id, std::move(node));
     return id;
 }
 
 void MeshOperations2D::moveNode(size_t id, const Point2D& newCoords)
 {
-    Node2D* node = meshData_.getNodeMutable_(id);
+    Node2D* node = meshData_.getNodeMutable(id);
     if (node != nullptr)
     {
         node->setCoordinates(newCoords);
@@ -29,19 +29,19 @@ void MeshOperations2D::moveNode(size_t id, const Point2D& newCoords)
 
 void MeshOperations2D::removeNode(size_t id)
 {
-    meshData_.removeNodeInternal_(id);
+    meshData_.removeNodeInternal(id);
 }
 
 size_t MeshOperations2D::addElement(std::unique_ptr<IElement> element)
 {
     size_t id = nextElementId_++;
-    meshData_.addElementInternal_(id, std::move(element));
+    meshData_.addElementInternal(id, std::move(element));
     return id;
 }
 
 void MeshOperations2D::removeElement(size_t id)
 {
-    meshData_.removeElementInternal_(id);
+    meshData_.removeElementInternal(id);
 }
 
 } // namespace Meshing

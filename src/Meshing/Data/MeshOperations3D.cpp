@@ -21,7 +21,7 @@ size_t MeshOperations::addNode(const Point3D& coordinates)
     size_t id = nextNodeId_++;
 
     auto node = std::make_unique<Node3D>(coordinates);
-    geometry_.addNodeInternal_(id, std::move(node));
+    geometry_.addNodeInternal(id, std::move(node));
 
     // Notify transaction listener
     if (transactionListener_)
@@ -34,7 +34,7 @@ size_t MeshOperations::addNode(const Point3D& coordinates)
 
 void MeshOperations::moveNode(size_t id, const Point3D& newCoords)
 {
-    Node3D* node = geometry_.getNodeMutable_(id);
+    Node3D* node = geometry_.getNodeMutable(id);
     if (!node)
     {
         throw std::runtime_error("Node ID " + std::to_string(id) + " does not exist");
@@ -60,7 +60,7 @@ void MeshOperations::removeNode(size_t id)
     }
 
     // Validate that node can be removed (this would need connectivity info)
-    validateNodeRemoval_(id);
+    validateNodeRemoval(id);
 
     // Save node data if transaction is active
     if (transactionListener_)
@@ -70,14 +70,14 @@ void MeshOperations::removeNode(size_t id)
     }
 
     // Remove node
-    geometry_.removeNodeInternal_(id);
+    geometry_.removeNodeInternal(id);
 }
 
 size_t MeshOperations::addElement(std::unique_ptr<IElement> element)
 {
     size_t id = nextElementId_++;
 
-    geometry_.addElementInternal_(id, std::move(element));
+    geometry_.addElementInternal(id, std::move(element));
 
     // Notify listener if present
     if (transactionListener_)
@@ -110,7 +110,7 @@ void MeshOperations::removeElement(size_t id)
     }
 
     // Actually remove
-    geometry_.removeElementInternal_(id);
+    geometry_.removeElementInternal(id);
 }
 
 void MeshOperations::setTransactionListener(ITransactionListener* listener)
@@ -125,7 +125,7 @@ void MeshOperations::clearTransactionListener()
 
 void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element)
 {
-    geometry_.addElementInternal_(id, std::move(element));
+    geometry_.addElementInternal(id, std::move(element));
 
     // Ensure nextElementId_ accounts for restored elements
     if (id >= nextElementId_)
@@ -136,7 +136,7 @@ void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element
 
 void MeshOperations::restoreNode(size_t id, const Point3D& coordinates)
 {
-    Node3D* node = geometry_.getNodeMutable_(id);
+    Node3D* node = geometry_.getNodeMutable(id);
     if (node)
     {
         node->setCoordinates(coordinates);
@@ -149,7 +149,7 @@ void MeshOperations::restoreNode(size_t id, const Point3D& coordinates)
     }
 }
 
-void MeshOperations::validateNodeRemoval_(size_t nodeId) const
+void MeshOperations::validateNodeRemoval(size_t nodeId) const
 {
     if (connectivity_ && !connectivity_->canRemoveNode(nodeId))
     {
