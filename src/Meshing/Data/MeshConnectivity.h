@@ -28,10 +28,10 @@ private:
     std::unordered_map<size_t, std::vector<size_t>> nodeToElements_;
     std::unordered_map<FaceKey, std::pair<size_t, size_t>, FaceKeyHash> faceToElements_;
 
-    void buildNodeToElementsMap_();
-    void buildFaceToElementsMap_();
-    void addElementToConnectivity_(size_t elementId);
-    void removeElementFromConnectivity_(size_t elementId);
+    void buildNodeToElementsMap();
+    void buildFaceToElementsMap();
+    void addElementToConnectivity(size_t elementId);
+    void removeElementFromConnectivity(size_t elementId);
 };
 
 } // namespace Meshing

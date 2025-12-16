@@ -124,78 +124,78 @@ private:
     /**
      * @brief Create super triangle that contains all points
      */
-    void createSuperTriangle_();
+    void createSuperTriangle();
 
     /**
      * @brief Insert a vertex into the triangulation
      */
-    void insertVertex_(size_t nodeId);
+    void insertVertex(size_t nodeId);
 
     /**
      * @brief Find triangles whose circumcircle contains the point
      */
-    std::vector<size_t> findConflictingTriangles_(const Point2D& point) const;
+    std::vector<size_t> findConflictingTriangles(const Point2D& point) const;
 
     /**
      * @brief Find the boundary of the cavity formed by conflicting triangles
      */
-    std::vector<std::array<size_t, 2>> findCavityBoundary_(const std::vector<size_t>& conflictingIndices) const;
+    std::vector<std::array<size_t, 2>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
 
     /**
      * @brief Retriangulate the cavity with the new vertex
      */
-    void retriangulate_(size_t vertexNodeId, const std::vector<std::array<size_t, 2>>& boundary);
+    void retriangulate(size_t vertexNodeId, const std::vector<std::array<size_t, 2>>& boundary);
 
     /**
      * @brief Remove super triangle and its associated triangles
      */
-    void removeSuperTriangle_();
+    void removeSuperTriangle();
 
     /**
      * @brief Force a constraint edge to appear in the mesh
      */
-    void forceEdge_(size_t nodeId1, size_t nodeId2);
+    void forceEdge(size_t nodeId1, size_t nodeId2);
 
     /**
      * @brief Check if edge exists in triangulation
      */
-    bool edgeExists_(size_t nodeId1, size_t nodeId2) const;
+    bool edgeExists(size_t nodeId1, size_t nodeId2) const;
 
     /**
      * @brief Find triangles that intersect with a constraint edge
      */
-    std::vector<size_t> findIntersectingTriangles_(size_t nodeId1, size_t nodeId2) const;
+    std::vector<size_t> findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const;
 
     /**
      * @brief Compute circumcircle of a triangle
      */
-    std::optional<CircumCircle> computeCircumcircle_(const TriangleElement& tri) const;
+    std::optional<CircumCircle> computeCircumcircle(const TriangleElement& tri) const;
 
     /**
      * @brief Check if point is inside circumcircle
      */
-    bool isPointInsideCircumcircle_(const CircumCircle& circle, const Point2D& point) const;
+    bool isPointInsideCircumcircle(const CircumCircle& circle, const Point2D& point) const;
 
     /**
      * @brief Check if two 2D segments intersect
      */
-    bool segmentsIntersect_(const Point2D& a1, const Point2D& a2,
-                            const Point2D& b1, const Point2D& b2) const;
+    bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
+                           const Point2D& b1, const Point2D& b2) const;
 
     /**
      * @brief Create ordered edge key for lookups
      */
-    static std::pair<size_t, size_t> makeEdgeKey_(size_t a, size_t b)
+    static std::pair<size_t, size_t> makeEdgeKey(size_t a, size_t b)
     {
         return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
     }
 
     // Helper methods for generateConstrained workflow
-    void insertCornerNodes_();
-    void insertEdgeNodes_(size_t samplesPerEdge);
-    void buildTriangulation_();
-    void recoverConstraintEdges_();
-    void storeResultsInMeshData_();
+    void insertCornerNodes();
+    void insertEdgeNodes(size_t samplesPerEdge);
+    void buildTriangulation();
+    void recoverConstraintEdges();
+    void storeResultsInMeshData();
 };
 
 } // namespace Meshing

@@ -79,7 +79,7 @@ public:
      */
     void forceFacet(size_t n0, size_t n1, size_t n2);
 
-protected:
+private:
     ConstraintSet constraints_;
 
     // Maps topology IDs to mesh node IDs
@@ -92,45 +92,45 @@ protected:
     /**
      * @brief Extract constraints from topology/geometry
      */
-    void extractConstraints_(const Topology3D::Topology3D& topology,
-                             const Geometry3D::GeometryCollection3D& geometry,
-                             size_t samplesPerEdge,
-                             size_t samplesPerSurface);
+    void extractConstraints(const Topology3D::Topology3D& topology,
+                            const Geometry3D::GeometryCollection3D& geometry,
+                            size_t samplesPerEdge,
+                            size_t samplesPerSurface); // TODO: Is this used?
 
     /**
      * @brief Insert nodes for all corners in topology
      */
-    void insertCornerNodes_(const Topology3D::Topology3D& topology,
-                            const Geometry3D::GeometryCollection3D& geometry);
+    void insertCornerNodes(const Topology3D::Topology3D& topology,
+                           const Geometry3D::GeometryCollection3D& geometry);
 
     /**
      * @brief Sample and insert nodes along edges
      */
-    void insertEdgeNodes_(const Topology3D::Topology3D& topology,
-                          const Geometry3D::GeometryCollection3D& geometry,
-                          size_t samplesPerEdge);
+    void insertEdgeNodes(const Topology3D::Topology3D& topology,
+                         const Geometry3D::GeometryCollection3D& geometry,
+                         size_t samplesPerEdge);
 
     /**
      * @brief Sample and triangulate surface nodes
      */
-    void triangulateSurfaces_(const Topology3D::Topology3D& topology,
-                              const Geometry3D::GeometryCollection3D& geometry,
-                              size_t samplesPerSurface);
+    void triangulateSurfaces(const Topology3D::Topology3D& topology,
+                             const Geometry3D::GeometryCollection3D& geometry,
+                             size_t samplesPerSurface);
 
     /**
      * @brief Recover all constraint segments in the mesh
      */
-    void recoverSegments_();
+    void recoverSegments();
 
     /**
      * @brief Recover all constraint facets in the mesh
      */
-    void recoverFacets_();
+    void recoverFacets();
 
     /**
      * @brief Triangulate a surface in 2D parametric space using constrained Delaunay
      */
-    std::vector<std::array<size_t, 3>> triangulateSurface2D_(
+    std::vector<std::array<size_t, 3>> triangulateSurface2D(
         const std::vector<size_t>& boundaryNodeIds,
         const std::vector<size_t>& interiorNodeIds,
         const Geometry3D::ISurface3D* surface);
@@ -146,12 +146,11 @@ protected:
      * @param samplesPerEdge Number of sample points per edge
      * @return Vector of triangles (node ID triplets)
      */
-    std::vector<std::array<size_t, 3>> triangulateSurfaceWithContext_(
+    std::vector<std::array<size_t, 3>> triangulateSurfaceWithContext(
         const Geometry3D::ISurface3D* surface,
         const Topology3D::Surface3D& topoSurface,
         size_t samplesPerEdge);
 
-private:
     void createSuperTetrahedron(const std::vector<Point3D>& points);
     void removeSuperTetrahedron();
     std::vector<size_t> findConflictingTetrahedra(const Point3D& p) const;
