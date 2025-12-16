@@ -31,27 +31,27 @@ bool VtkExporter::exportMesh(const Meshing::MeshData& mesh, const std::string& f
         return false;
     }
 
-    writeHeader_(os);
-    writePoints_(os, mesh);
-    writeCells_(os, mesh);
-    writeFooter_(os);
+    writeHeader(os);
+    writePoints(os, mesh);
+    writeCells(os, mesh);
+    writeFooter(os);
     return true;
 }
 
-void VtkExporter::writeHeader_(std::ostream& os) const
+void VtkExporter::writeHeader(std::ostream& os) const
 {
     os << "<?xml version=\"1.0\"?>\n";
     os << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\" byte_order=\"LittleEndian\">\n";
     os << "  <UnstructuredGrid>\n";
 }
 
-void VtkExporter::writeFooter_(std::ostream& os) const
+void VtkExporter::writeFooter(std::ostream& os) const
 {
     os << "  </UnstructuredGrid>\n";
     os << "</VTKFile>\n";
 }
 
-void VtkExporter::writePoints_(std::ostream& os, const Meshing::MeshData& mesh) const
+void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData& mesh) const
 {
     // For a deterministic index mapping, sort node IDs
     std::vector<std::size_t> nodeIds;
@@ -90,7 +90,7 @@ static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData& mesh)
     return ids;
 }
 
-void VtkExporter::writeCells_(std::ostream& os, const Meshing::MeshData& mesh) const
+void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData& mesh) const
 {
     // Build node ID -> contiguous index mapping (sorted by ID to match points order)
     std::vector<std::size_t> nodeIds;
@@ -121,7 +121,7 @@ void VtkExporter::writeCells_(std::ostream& os, const Meshing::MeshData& mesh) c
     for (std::size_t eid : elemIds)
     {
         const auto* e = mesh.getElement(eid);
-        const int vtkType = vtkCellTypeFor_(*e);
+        const int vtkType = vtkCellTypeFor(*e);
         if (vtkType < 0)
         {
             // Skip unsupported element types
@@ -162,11 +162,11 @@ void VtkExporter::writeCells_(std::ostream& os, const Meshing::MeshData& mesh) c
 
     os << "      </Cells>\n";
 
-    // Close Piece tag started in writePoints_
+    // Close Piece tag started in writePoints
     os << "    </Piece>\n";
 }
 
-int VtkExporter::vtkCellTypeFor_(const Meshing::IElement& element)
+int VtkExporter::vtkCellTypeFor(const Meshing::IElement& element)
 {
     using Meshing::ElementType;
     switch (element.getType())

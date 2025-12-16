@@ -40,27 +40,27 @@ size_t MeshData::getElementCount() const
     return elements_.size();
 }
 
-void MeshData::addNodeInternal_(size_t id, std::unique_ptr<Node3D> node)
+void MeshData::addNodeInternal(size_t id, std::unique_ptr<Node3D> node)
 {
     nodes_[id] = std::move(node);
 }
 
-void MeshData::addElementInternal_(size_t id, std::unique_ptr<IElement> element)
+void MeshData::addElementInternal(size_t id, std::unique_ptr<IElement> element)
 {
     elements_[id] = std::move(element);
 }
 
-void MeshData::removeNodeInternal_(size_t id)
+void MeshData::removeNodeInternal(size_t id)
 {
     nodes_.erase(id);
 }
 
-void MeshData::removeElementInternal_(size_t id)
+void MeshData::removeElementInternal(size_t id)
 {
     elements_.erase(id);
 }
 
-Node3D* MeshData::getNodeMutable_(size_t id)
+Node3D* MeshData::getNodeMutable(size_t id)
 {
     auto it = nodes_.find(id);
     return (it != nodes_.end()) ? it->second.get() : nullptr;

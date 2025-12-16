@@ -45,7 +45,7 @@ private:
     // Transaction listener (optional)
     ITransactionListener* transactionListener_ = nullptr;
 
-    void validateNodeRemoval_(size_t nodeId) const;
+    void validateNodeRemoval(size_t nodeId) const;
 };
 
 } // namespace Meshing

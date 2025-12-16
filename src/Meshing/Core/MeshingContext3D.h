@@ -49,7 +49,7 @@ private:
     std::unique_ptr<MeshConnectivity> connectivity_;
     std::unique_ptr<MeshOperations> operations_;
 
-    void ensureInitialized_();
+    void ensureInitialized();
 };
 
 } // namespace Meshing

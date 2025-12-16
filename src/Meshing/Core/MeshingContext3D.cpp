@@ -13,32 +13,32 @@ MeshingContext3D::MeshingContext3D(const Geometry3D::GeometryCollection3D& geome
                                    const Topology3D::Topology3D& topology) :
     geometry_(geometry), topology_(topology)
 {
-    ensureInitialized_();
+    ensureInitialized();
 }
 
 MeshingContext3D::~MeshingContext3D() = default;
 
 MeshData& MeshingContext3D::getMeshData()
 {
-    ensureInitialized_();
+    ensureInitialized();
     return *meshData_;
 }
 
 MeshConnectivity& MeshingContext3D::getConnectivity()
 {
-    ensureInitialized_();
+    ensureInitialized();
     return *connectivity_;
 }
 
 MeshOperations& MeshingContext3D::getOperations()
 {
-    ensureInitialized_();
+    ensureInitialized();
     return *operations_;
 }
 
 void MeshingContext3D::rebuildConnectivity()
 {
-    ensureInitialized_();
+    ensureInitialized();
     connectivity_->rebuildConnectivity();
 }
 
@@ -51,7 +51,7 @@ void MeshingContext3D::clearMesh()
     operations_->setConnectivity(connectivity_.get());
 }
 
-void MeshingContext3D::ensureInitialized_()
+void MeshingContext3D::ensureInitialized()
 {
     if (!meshData_)
     {

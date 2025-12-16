@@ -113,7 +113,7 @@ MeshingContext2D::MeshingContext2D(
     geometry_(std::move(geometry)),
     topology_(std::move(topology))
 {
-    ensureInitialized_();
+    ensureInitialized();
 }
 
 MeshingContext2D::~MeshingContext2D() = default;
@@ -123,13 +123,13 @@ MeshingContext2D& MeshingContext2D::operator=(MeshingContext2D&&) noexcept = def
 
 MeshData2D& MeshingContext2D::getMeshData()
 {
-    ensureInitialized_();
+    ensureInitialized();
     return *meshData_;
 }
 
 MeshOperations2D& MeshingContext2D::getOperations()
 {
-    ensureInitialized_();
+    ensureInitialized();
     return *operations_;
 }
 
@@ -139,7 +139,7 @@ void MeshingContext2D::clearMesh()
     operations_ = std::make_unique<MeshOperations2D>(*meshData_);
 }
 
-void MeshingContext2D::ensureInitialized_()
+void MeshingContext2D::ensureInitialized()
 {
     if (!meshData_)
     {

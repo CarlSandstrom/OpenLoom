@@ -30,12 +30,12 @@ public:
     bool writeVtu(const Meshing::MeshData& mesh, const std::string& filePath) const { return exportMesh(mesh, filePath); }
 
 private:
-    void writeHeader_(std::ostream& os) const;
-    void writePoints_(std::ostream& os, const Meshing::MeshData& mesh) const;
-    void writeCells_(std::ostream& os, const Meshing::MeshData& mesh) const;
-    void writeFooter_(std::ostream& os) const;
+    void writeHeader(std::ostream& os) const;
+    void writePoints(std::ostream& os, const Meshing::MeshData& mesh) const;
+    void writeCells(std::ostream& os, const Meshing::MeshData& mesh) const;
+    void writeFooter(std::ostream& os) const;
 
-    static int vtkCellTypeFor_(const Meshing::IElement& element);
+    static int vtkCellTypeFor(const Meshing::IElement& element);
 };
 
 } // namespace Export

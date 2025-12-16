@@ -87,7 +87,7 @@ private:
     std::unique_ptr<MeshData2D> meshData_;
     std::unique_ptr<MeshOperations2D> operations_;
 
-    void ensureInitialized_();
+    void ensureInitialized();
 };
 
 } // namespace Meshing

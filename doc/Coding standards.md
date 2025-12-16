@@ -12,6 +12,7 @@
 - Setters: `set...()` | Getters: `get...()`
 - Variables: `camelCase` (e.g., `nodeCount`)
 - Member variables: `camelCase_` with trailing underscore (e.g., `meshData_`)
+- Member functions MUST NOT use trailing underscores; reserve `_` suffix strictly for data members.
 - Constants: `ALL_CAPS` (e.g., `MAX_ITERATIONS`)
 
 ## Code Structure

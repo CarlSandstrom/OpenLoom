@@ -1,8 +1,8 @@
 #include "ConstrainedDelaunay2D.h"
 
 #include "Geometry2D/Corner2D.h"
-#include "Geometry2D/IEdge2D.h"
 #include "Geometry2D/GeometryCollection2D.h"
+#include "Geometry2D/IEdge2D.h"
 #include "Meshing/Core/MeshingContext2D.h"
 #include "Meshing/Data/MeshOperations2D.h"
 #include "Topology2D/Corner2D.h"
@@ -43,7 +43,7 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(const std::unordered_map<size_t, Po
 
 void ConstrainedDelaunay2D::addConstraintEdge(size_t nodeId1, size_t nodeId2)
 {
-    constraintEdges_.emplace_back(makeEdgeKey_(nodeId1, nodeId2));
+    constraintEdges_.emplace_back(makeEdgeKey(nodeId1, nodeId2));
 }
 
 std::vector<std::array<size_t, 3>> ConstrainedDelaunay2D::triangulate()
@@ -58,7 +58,7 @@ std::vector<std::array<size_t, 3>> ConstrainedDelaunay2D::triangulate()
     superNodeIds_.clear();
 
     // Step 1: Create super triangle
-    createSuperTriangle_();
+    createSuperTriangle();
 
     // Step 2: Insert all vertices
     for (const auto& [nodeId, coord] : nodeCoords_)
@@ -68,18 +68,18 @@ std::vector<std::array<size_t, 3>> ConstrainedDelaunay2D::triangulate()
         {
             continue;
         }
-        insertVertex_(nodeId);
+        insertVertex(nodeId);
     }
 
     // Step 3: Remove super triangle
-    removeSuperTriangle_();
+    removeSuperTriangle();
 
     // Step 4: Force constraint edges
     for (const auto& [nodeId1, nodeId2] : constraintEdges_)
     {
-        if (!edgeExists_(nodeId1, nodeId2))
+        if (!edgeExists(nodeId1, nodeId2))
         {
-            forceEdge_(nodeId1, nodeId2);
+            forceEdge(nodeId1, nodeId2);
         }
     }
 
@@ -94,7 +94,7 @@ std::vector<std::array<size_t, 3>> ConstrainedDelaunay2D::triangulate()
     return result;
 }
 
-void ConstrainedDelaunay2D::createSuperTriangle_()
+void ConstrainedDelaunay2D::createSuperTriangle()
 {
     // Find bounding box
     double minX = std::numeric_limits<double>::max();
@@ -137,12 +137,12 @@ void ConstrainedDelaunay2D::createSuperTriangle_()
     activeTriangles_.emplace_back(std::array<size_t, 3>{superNodeIds_[0], superNodeIds_[1], superNodeIds_[2]});
 }
 
-void ConstrainedDelaunay2D::insertVertex_(size_t nodeId)
+void ConstrainedDelaunay2D::insertVertex(size_t nodeId)
 {
     const Point2D& point = nodeCoords_.at(nodeId);
 
     // Find conflicting triangles
-    std::vector<size_t> conflicting = findConflictingTriangles_(point);
+    std::vector<size_t> conflicting = findConflictingTriangles(point);
 
     if (conflicting.empty())
     {
@@ -152,7 +152,7 @@ void ConstrainedDelaunay2D::insertVertex_(size_t nodeId)
     }
 
     // Find cavity boundary
-    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary_(conflicting);
+    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
 
     // Remove conflicting triangles
     std::vector<TriangleElement> newActiveTriangles;
@@ -167,19 +167,19 @@ void ConstrainedDelaunay2D::insertVertex_(size_t nodeId)
     activeTriangles_ = std::move(newActiveTriangles);
 
     // Retriangulate cavity
-    retriangulate_(nodeId, boundary);
+    retriangulate(nodeId, boundary);
 }
 
-std::vector<size_t> ConstrainedDelaunay2D::findConflictingTriangles_(const Point2D& point) const
+std::vector<size_t> ConstrainedDelaunay2D::findConflictingTriangles(const Point2D& point) const
 {
     std::vector<size_t> conflicting;
 
     for (size_t i = 0; i < activeTriangles_.size(); ++i)
     {
         const auto& tri = activeTriangles_[i];
-        auto circle = computeCircumcircle_(tri);
+        auto circle = computeCircumcircle(tri);
 
-        if (circle && isPointInsideCircumcircle_(*circle, point))
+        if (circle && isPointInsideCircumcircle(*circle, point))
         {
             conflicting.push_back(i);
         }
@@ -188,7 +188,7 @@ std::vector<size_t> ConstrainedDelaunay2D::findConflictingTriangles_(const Point
     return conflicting;
 }
 
-std::vector<std::array<size_t, 2>> ConstrainedDelaunay2D::findCavityBoundary_(
+std::vector<std::array<size_t, 2>> ConstrainedDelaunay2D::findCavityBoundary(
     const std::vector<size_t>& conflictingIndices) const
 {
     // Count how many times each edge appears
@@ -201,7 +201,7 @@ std::vector<std::array<size_t, 2>> ConstrainedDelaunay2D::findCavityBoundary_(
         for (size_t i = 0; i < 3; ++i)
         {
             auto edge = tri.getEdge(i);
-            auto key = makeEdgeKey_(edge[0], edge[1]);
+            auto key = makeEdgeKey(edge[0], edge[1]);
             edgeCount[key]++;
             edgeLookup[key] = edge; // Store original order
         }
@@ -220,8 +220,8 @@ std::vector<std::array<size_t, 2>> ConstrainedDelaunay2D::findCavityBoundary_(
     return boundary;
 }
 
-void ConstrainedDelaunay2D::retriangulate_(size_t vertexNodeId,
-                                           const std::vector<std::array<size_t, 2>>& boundary)
+void ConstrainedDelaunay2D::retriangulate(size_t vertexNodeId,
+                                          const std::vector<std::array<size_t, 2>>& boundary)
 {
     for (const auto& edge : boundary)
     {
@@ -229,7 +229,7 @@ void ConstrainedDelaunay2D::retriangulate_(size_t vertexNodeId,
     }
 }
 
-void ConstrainedDelaunay2D::removeSuperTriangle_()
+void ConstrainedDelaunay2D::removeSuperTriangle()
 {
     if (superNodeIds_.empty())
     {
@@ -271,16 +271,16 @@ void ConstrainedDelaunay2D::removeSuperTriangle_()
     superNodeIds_.clear();
 }
 
-bool ConstrainedDelaunay2D::edgeExists_(size_t nodeId1, size_t nodeId2) const
+bool ConstrainedDelaunay2D::edgeExists(size_t nodeId1, size_t nodeId2) const
 {
-    auto key = makeEdgeKey_(nodeId1, nodeId2);
+    auto key = makeEdgeKey(nodeId1, nodeId2);
 
     for (const auto& tri : activeTriangles_)
     {
         for (size_t i = 0; i < 3; ++i)
         {
             auto edge = tri.getEdge(i);
-            if (makeEdgeKey_(edge[0], edge[1]) == key)
+            if (makeEdgeKey(edge[0], edge[1]) == key)
             {
                 return true;
             }
@@ -290,10 +290,10 @@ bool ConstrainedDelaunay2D::edgeExists_(size_t nodeId1, size_t nodeId2) const
     return false;
 }
 
-void ConstrainedDelaunay2D::forceEdge_(size_t nodeId1, size_t nodeId2)
+void ConstrainedDelaunay2D::forceEdge(size_t nodeId1, size_t nodeId2)
 {
     // Find all triangles that intersect with this edge
-    std::vector<size_t> intersecting = findIntersectingTriangles_(nodeId1, nodeId2);
+    std::vector<size_t> intersecting = findIntersectingTriangles(nodeId1, nodeId2);
 
     if (intersecting.empty())
     {
@@ -304,7 +304,7 @@ void ConstrainedDelaunay2D::forceEdge_(size_t nodeId1, size_t nodeId2)
                  nodeId1, nodeId2, intersecting.size());
 
     // Find cavity boundary
-    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary_(intersecting);
+    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(intersecting);
 
     // Remove intersecting triangles
     std::vector<TriangleElement> newActiveTriangles;
@@ -366,7 +366,7 @@ void ConstrainedDelaunay2D::forceEdge_(size_t nodeId1, size_t nodeId2)
     }
 }
 
-std::vector<size_t> ConstrainedDelaunay2D::findIntersectingTriangles_(size_t nodeId1, size_t nodeId2) const
+std::vector<size_t> ConstrainedDelaunay2D::findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const
 {
     std::vector<size_t> result;
 
@@ -399,7 +399,7 @@ std::vector<size_t> ConstrainedDelaunay2D::findIntersectingTriangles_(size_t nod
             const Point2D& e1 = nodeCoords_.at(edge[0]);
             const Point2D& e2 = nodeCoords_.at(edge[1]);
 
-            if (segmentsIntersect_(p1, p2, e1, e2))
+            if (segmentsIntersect(p1, p2, e1, e2))
             {
                 intersects = true;
                 break;
@@ -416,7 +416,7 @@ std::vector<size_t> ConstrainedDelaunay2D::findIntersectingTriangles_(size_t nod
 }
 
 std::optional<ConstrainedDelaunay2D::CircumCircle>
-ConstrainedDelaunay2D::computeCircumcircle_(const TriangleElement& tri) const
+ConstrainedDelaunay2D::computeCircumcircle(const TriangleElement& tri) const
 {
     const auto& nodes = tri.getNodeIdArray();
     const Point2D& p0 = nodeCoords_.at(nodes[0]);
@@ -449,8 +449,8 @@ ConstrainedDelaunay2D::computeCircumcircle_(const TriangleElement& tri) const
     return circle;
 }
 
-bool ConstrainedDelaunay2D::isPointInsideCircumcircle_(const CircumCircle& circle,
-                                                       const Point2D& point) const
+bool ConstrainedDelaunay2D::isPointInsideCircumcircle(const CircumCircle& circle,
+                                                      const Point2D& point) const
 {
     const double dx = point.x() - circle.center.x();
     const double dy = point.y() - circle.center.y();
@@ -459,8 +459,8 @@ bool ConstrainedDelaunay2D::isPointInsideCircumcircle_(const CircumCircle& circl
     return distSquared < circle.radiusSquared - 1e-10;
 }
 
-bool ConstrainedDelaunay2D::segmentsIntersect_(const Point2D& a1, const Point2D& a2,
-                                               const Point2D& b1, const Point2D& b2) const
+bool ConstrainedDelaunay2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
+                                              const Point2D& b1, const Point2D& b2) const
 {
     // Compute orientation of ordered triplet (p, q, r)
     // Returns: 0 -> colinear, 1 -> clockwise, 2 -> counterclockwise
@@ -535,19 +535,19 @@ void ConstrainedDelaunay2D::generateConstrained(size_t samplesPerEdge)
     SPDLOG_INFO("========================================");
 
     // Step 1: Insert corner nodes from topology
-    insertCornerNodes_();
+    insertCornerNodes();
 
     // Step 2: Insert edge nodes and build constraint edges
-    insertEdgeNodes_(samplesPerEdge);
+    insertEdgeNodes(samplesPerEdge);
 
     // Step 3: Build Delaunay triangulation
-    buildTriangulation_();
+    buildTriangulation();
 
     // Step 4: Recover constraint edges
-    recoverConstraintEdges_();
+    recoverConstraintEdges();
 
     // Step 5: Store results in mesh data
-    storeResultsInMeshData_();
+    storeResultsInMeshData();
 
     SPDLOG_INFO("========================================");
     SPDLOG_INFO("2D Constrained Delaunay COMPLETE");
@@ -556,7 +556,7 @@ void ConstrainedDelaunay2D::generateConstrained(size_t samplesPerEdge)
     SPDLOG_INFO("========================================");
 }
 
-void ConstrainedDelaunay2D::insertCornerNodes_()
+void ConstrainedDelaunay2D::insertCornerNodes()
 {
     const auto& geometry = context_->getGeometry();
     const auto& topology = context_->getTopology();
@@ -579,7 +579,7 @@ void ConstrainedDelaunay2D::insertCornerNodes_()
     SPDLOG_INFO("Inserted {} corner nodes", topology.getAllCornerIds().size());
 }
 
-void ConstrainedDelaunay2D::insertEdgeNodes_(size_t samplesPerEdge)
+void ConstrainedDelaunay2D::insertEdgeNodes(size_t samplesPerEdge)
 {
     const auto& geometry = context_->getGeometry();
     const auto& topology = context_->getTopology();
@@ -624,7 +624,7 @@ void ConstrainedDelaunay2D::insertEdgeNodes_(size_t samplesPerEdge)
                 constraintEdges_.size(), topology.getAllEdgeIds().size());
 }
 
-void ConstrainedDelaunay2D::buildTriangulation_()
+void ConstrainedDelaunay2D::buildTriangulation()
 {
     if (nodeCoords_.size() < 3)
     {
@@ -636,7 +636,7 @@ void ConstrainedDelaunay2D::buildTriangulation_()
     superNodeIds_.clear();
 
     // Create super triangle
-    createSuperTriangle_();
+    createSuperTriangle();
 
     // Insert all vertices
     for (const auto& [nodeId, coord] : nodeCoords_)
@@ -645,29 +645,29 @@ void ConstrainedDelaunay2D::buildTriangulation_()
         {
             continue;
         }
-        insertVertex_(nodeId);
+        insertVertex(nodeId);
     }
 
     // Remove super triangle
-    removeSuperTriangle_();
+    removeSuperTriangle();
 
     SPDLOG_INFO("Built initial triangulation with {} triangles", activeTriangles_.size());
 }
 
-void ConstrainedDelaunay2D::recoverConstraintEdges_()
+void ConstrainedDelaunay2D::recoverConstraintEdges()
 {
     size_t recovered = 0;
     size_t alreadyPresent = 0;
 
     for (const auto& [nodeId1, nodeId2] : constraintEdges_)
     {
-        if (edgeExists_(nodeId1, nodeId2))
+        if (edgeExists(nodeId1, nodeId2))
         {
             alreadyPresent++;
         }
         else
         {
-            forceEdge_(nodeId1, nodeId2);
+            forceEdge(nodeId1, nodeId2);
             recovered++;
         }
     }
@@ -675,7 +675,7 @@ void ConstrainedDelaunay2D::recoverConstraintEdges_()
     SPDLOG_INFO("Constraint edges: {} present, {} forced", alreadyPresent, recovered);
 }
 
-void ConstrainedDelaunay2D::storeResultsInMeshData_()
+void ConstrainedDelaunay2D::storeResultsInMeshData()
 {
     // Add triangle elements to mesh data
     for (const auto& tri : activeTriangles_)

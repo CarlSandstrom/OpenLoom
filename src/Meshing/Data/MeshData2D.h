@@ -34,11 +34,11 @@ private:
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
 
     // Private methods for friend classes
-    void addNodeInternal_(size_t id, std::unique_ptr<Node2D> node);
-    void addElementInternal_(size_t id, std::unique_ptr<IElement> element);
-    void removeNodeInternal_(size_t id);
-    void removeElementInternal_(size_t id);
-    Node2D* getNodeMutable_(size_t id);
+    void addNodeInternal(size_t id, std::unique_ptr<Node2D> node);
+    void addElementInternal(size_t id, std::unique_ptr<IElement> element);
+    void removeNodeInternal(size_t id);
+    void removeElementInternal(size_t id);
+    Node2D* getNodeMutable(size_t id);
 };
 
 } // namespace Meshing

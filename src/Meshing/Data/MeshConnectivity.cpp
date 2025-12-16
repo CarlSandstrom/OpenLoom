@@ -51,8 +51,8 @@ void MeshConnectivity::rebuildConnectivity()
     }
 
     // Build connectivity maps
-    buildNodeToElementsMap_();
-    buildFaceToElementsMap_();
+    buildNodeToElementsMap();
+    buildFaceToElementsMap();
 }
 
 bool MeshConnectivity::canRemoveNode(size_t nodeId) const
@@ -61,15 +61,15 @@ bool MeshConnectivity::canRemoveNode(size_t nodeId) const
     return (it == nodeToElements_.end()) || it->second.empty();
 }
 
-void MeshConnectivity::buildNodeToElementsMap_()
+void MeshConnectivity::buildNodeToElementsMap()
 {
     for (const auto& [elementId, element] : geometry_.getElements())
     {
-        addElementToConnectivity_(elementId);
+        addElementToConnectivity(elementId);
     }
 }
 
-void MeshConnectivity::buildFaceToElementsMap_()
+void MeshConnectivity::buildFaceToElementsMap()
 {
     for (const auto& [elementId, element] : geometry_.getElements())
     {
@@ -100,7 +100,7 @@ void MeshConnectivity::buildFaceToElementsMap_()
     }
 }
 
-void MeshConnectivity::addElementToConnectivity_(size_t elementId)
+void MeshConnectivity::addElementToConnectivity(size_t elementId)
 {
     const IElement* elem = geometry_.getElement(elementId);
     if (!elem) return;
@@ -114,7 +114,7 @@ void MeshConnectivity::addElementToConnectivity_(size_t elementId)
     }
 }
 
-void MeshConnectivity::removeElementFromConnectivity_(size_t elementId)
+void MeshConnectivity::removeElementFromConnectivity(size_t elementId)
 {
     const IElement* elem = geometry_.getElement(elementId);
     if (!elem) return;
