@@ -12,15 +12,6 @@
 namespace Meshing
 {
 
-namespace
-{
-bool triangleHasNode(const TriangleElement& triangle, size_t nodeId)
-{
-    const auto& nodes = triangle.getNodeIdArray();
-    return nodes[0] == nodeId || nodes[1] == nodeId || nodes[2] == nodeId;
-}
-} // namespace
-
 MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
     meshData_(meshData),
     mutator_(std::make_unique<MeshMutator2D>(meshData))
@@ -28,8 +19,8 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
 }
 
 void MeshOperations2D::insertVertexBowyerWatson(size_t nodeId,
-                                                 const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                                 std::vector<TriangleElement>& activeTriangles) const
+                                                const std::unordered_map<size_t, Point2D>& nodeCoords,
+                                                std::vector<TriangleElement>& activeTriangles) const
 {
     const Point2D& point = nodeCoords.at(nodeId);
 
@@ -132,7 +123,7 @@ std::vector<size_t> MeshOperations2D::findIntersectingTriangles(
         const auto& tri = activeTriangles[i];
 
         // Skip triangles that already contain both nodes
-        if (triangleHasNode(tri, nodeId1) && triangleHasNode(tri, nodeId2))
+        if (tri.getHasNode(nodeId1) && tri.getHasNode(nodeId2))
         {
             continue;
         }
@@ -170,8 +161,8 @@ std::vector<size_t> MeshOperations2D::findIntersectingTriangles(
 }
 
 void MeshOperations2D::retriangulate(size_t vertexNodeId,
-                                      const std::vector<std::array<size_t, 2>>& boundary,
-                                      std::vector<TriangleElement>& activeTriangles) const
+                                     const std::vector<std::array<size_t, 2>>& boundary,
+                                     std::vector<TriangleElement>& activeTriangles) const
 {
     for (const auto& edge : boundary)
     {
@@ -180,7 +171,7 @@ void MeshOperations2D::retriangulate(size_t vertexNodeId,
 }
 
 bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                          const Point2D& b1, const Point2D& b2) const
+                                         const Point2D& b1, const Point2D& b2) const
 {
     // Compute orientation of ordered triplet (p, q, r)
     // Returns: 0 -> colinear, 1 -> clockwise, 2 -> counterclockwise

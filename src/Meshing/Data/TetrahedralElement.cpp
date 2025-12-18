@@ -16,6 +16,11 @@ const std::vector<size_t>& TetrahedralElement::getNodeIds() const
     return nodeVector;
 }
 
+bool TetrahedralElement::getHasNode(size_t nodeId) const
+{
+    return nodeIds_[0] == nodeId || nodeIds_[1] == nodeId || nodeIds_[2] == nodeId || nodeIds_[3] == nodeId;
+}
+
 std::array<size_t, 3> TetrahedralElement::getFace(size_t faceIndex) const
 {
     // Standard tetrahedral face ordering (opposite to node)

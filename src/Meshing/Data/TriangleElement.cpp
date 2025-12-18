@@ -16,6 +16,11 @@ const std::vector<size_t>& TriangleElement::getNodeIds() const
     return nodeVector;
 }
 
+bool TriangleElement::getHasNode(size_t nodeId) const
+{
+    return nodeIds_[0] == nodeId || nodeIds_[1] == nodeId || nodeIds_[2] == nodeId;
+}
+
 std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
 {
     switch (edgeIndex)

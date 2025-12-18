@@ -22,15 +22,6 @@
 namespace Meshing
 {
 
-namespace
-{
-bool triangleHasNode(const TriangleElement& triangle, size_t nodeId)
-{
-    const auto& nodes = triangle.getNodeIdArray();
-    return nodes[0] == nodeId || nodes[1] == nodeId || nodes[2] == nodeId;
-}
-} // namespace
-
 ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context) :
     context_(&context),
     meshData2D_(&context.getMeshData()),
@@ -148,7 +139,6 @@ void ConstrainedDelaunay2D::insertVertex(size_t nodeId)
 {
     meshOps_->insertVertexBowyerWatson(nodeId, nodeCoords_, activeTriangles_);
 }
-
 
 void ConstrainedDelaunay2D::removeSuperTriangle()
 {
@@ -286,7 +276,6 @@ void ConstrainedDelaunay2D::forceEdge(size_t nodeId1, size_t nodeId2)
         activeTriangles_.emplace_back(std::array<size_t, 3>{nodeId2, edge[0], edge[1]});
     }
 }
-
 
 MeshData ConstrainedDelaunay2D::getMeshData() const
 {

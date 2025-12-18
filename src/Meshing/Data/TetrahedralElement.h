@@ -13,6 +13,7 @@ public:
     ElementType getType() const override { return ElementType::TETRAHEDRON; }
     size_t getNodeCount() const override { return 4; }
     const std::vector<size_t>& getNodeIds() const override;
+    bool getHasNode(size_t nodeId) const override;
 
     std::unique_ptr<IElement> clone() const override;
 

@@ -24,6 +24,7 @@ public:
     virtual ElementType getType() const = 0;
     virtual size_t getNodeCount() const = 0;
     virtual const std::vector<size_t>& getNodeIds() const = 0;
+    virtual bool getHasNode(size_t nodeId) const = 0;
 
     // For transaction support
     virtual std::unique_ptr<IElement> clone() const = 0;

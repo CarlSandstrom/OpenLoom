@@ -13,6 +13,8 @@ public:
     ElementType getType() const override { return ElementType::TRIANGLE; }
     size_t getNodeCount() const override { return 3; }
     const std::vector<size_t>& getNodeIds() const override;
+    bool getHasNode(size_t nodeId) const override;
+
     const std::array<size_t, 3>& getNodeIdArray() const { return nodeIds_; }
     std::array<size_t, 3> getSortedNodeIds() const;
 
