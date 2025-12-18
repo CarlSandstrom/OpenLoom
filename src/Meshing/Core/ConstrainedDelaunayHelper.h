@@ -47,13 +47,13 @@ public:
                                                                   size_t n2,
                                                                   const std::unordered_set<size_t>& activeTetrahedra);
 
-    static void retriangulateCavityWithSegment(MeshMutator3D& operations,
+    static void retriangulateCavityWithSegment(MeshMutator3D& mutator,
                                                std::unordered_set<size_t>& activeTetrahedra,
                                                size_t n1,
                                                size_t n2,
                                                const std::vector<std::array<size_t, 3>>& boundary);
 
-    static void retriangulateCavityWithFacet(MeshMutator3D& operations,
+    static void retriangulateCavityWithFacet(MeshMutator3D& mutator,
                                              std::unordered_set<size_t>& activeTetrahedra,
                                              size_t n0,
                                              size_t n1,

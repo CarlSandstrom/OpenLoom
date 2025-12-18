@@ -150,7 +150,7 @@ std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedraForFa
 }
 
 void ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
-    MeshMutator3D& operations,
+    MeshMutator3D& mutator,
     std::unordered_set<size_t>& activeTetrahedra,
     size_t n1,
     size_t n2,
@@ -181,12 +181,12 @@ void ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
         }
 
         auto element = std::make_unique<TetrahedralElement>(nodes);
-        activeTetrahedra.insert(operations.addElement(std::move(element)));
+        activeTetrahedra.insert(mutator.addElement(std::move(element)));
     }
 }
 
 void ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
-    MeshMutator3D& operations,
+    MeshMutator3D& mutator,
     std::unordered_set<size_t>& activeTetrahedra,
     size_t n0,
     size_t n1,
@@ -211,7 +211,7 @@ void ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
             {
                 std::array<size_t, 4> nodes = {cn, face[0], face[1], face[2]};
                 auto element = std::make_unique<TetrahedralElement>(nodes);
-                activeTetrahedra.insert(operations.addElement(std::move(element)));
+                activeTetrahedra.insert(mutator.addElement(std::move(element)));
                 break;
             }
         }
