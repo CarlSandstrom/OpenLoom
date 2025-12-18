@@ -5,6 +5,7 @@
 #include "Meshing/Data/MeshData3D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <array>
+#include <memory>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -15,6 +16,7 @@ namespace Meshing
 
 class MeshingContext2D;
 class MeshMutator2D;
+class MeshOperations2D;
 
 /**
  * @brief Constrained 2D Delaunay triangulation
@@ -57,6 +59,11 @@ public:
     explicit ConstrainedDelaunay2D(const std::unordered_map<size_t, Point2D>& nodeCoords);
 
     /**
+     * @brief Destructor
+     */
+    ~ConstrainedDelaunay2D();
+
+    /**
      * @brief Add a constraint edge that must appear in the triangulation
      * @param nodeId1 First node ID
      * @param nodeId2 Second node ID
@@ -95,16 +102,14 @@ public:
     MeshData getMeshData() const;
 
 private:
-    struct CircumCircle
-    {
-        Point2D center;
-        double radiusSquared;
-    };
-
     // Context (optional - for generateConstrained workflow)
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
     MeshMutator2D* operations_ = nullptr;
+
+    // For standalone usage without MeshingContext2D
+    std::unique_ptr<MeshData2D> ownedMeshData_;
+    std::unique_ptr<MeshOperations2D> meshOps_;
 
     // Maps topology IDs to mesh node IDs (for generateConstrained)
     std::unordered_map<std::string, size_t> topologyToNodeId_;
@@ -132,21 +137,6 @@ private:
     void insertVertex(size_t nodeId);
 
     /**
-     * @brief Find triangles whose circumcircle contains the point
-     */
-    std::vector<size_t> findConflictingTriangles(const Point2D& point) const;
-
-    /**
-     * @brief Find the boundary of the cavity formed by conflicting triangles
-     */
-    std::vector<std::array<size_t, 2>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
-
-    /**
-     * @brief Retriangulate the cavity with the new vertex
-     */
-    void retriangulate(size_t vertexNodeId, const std::vector<std::array<size_t, 2>>& boundary);
-
-    /**
      * @brief Remove super triangle and its associated triangles
      */
     void removeSuperTriangle();
@@ -160,27 +150,6 @@ private:
      * @brief Check if edge exists in triangulation
      */
     bool edgeExists(size_t nodeId1, size_t nodeId2) const;
-
-    /**
-     * @brief Find triangles that intersect with a constraint edge
-     */
-    std::vector<size_t> findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const;
-
-    /**
-     * @brief Compute circumcircle of a triangle
-     */
-    std::optional<CircumCircle> computeCircumcircle(const TriangleElement& tri) const;
-
-    /**
-     * @brief Check if point is inside circumcircle
-     */
-    bool isPointInsideCircumcircle(const CircumCircle& circle, const Point2D& point) const;
-
-    /**
-     * @brief Check if two 2D segments intersect
-     */
-    bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                           const Point2D& b1, const Point2D& b2) const;
 
     /**
      * @brief Create ordered edge key for lookups
