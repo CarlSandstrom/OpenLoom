@@ -15,7 +15,7 @@ namespace Meshing
 {
 class MeshData;
 class MeshConnectivity;
-class MeshOperations;
+class MeshMutator3D;
 
 // Central orchestrator holding references to geometry and topology and
 // owning mesh-specific mutable data structures.
@@ -33,7 +33,7 @@ public:
     // Access to mesh data structures
     MeshData& getMeshData();
     MeshConnectivity& getConnectivity();
-    MeshOperations& getOperations();
+    MeshMutator3D& getOperations();
 
     // Utility: rebuild connectivity after large changes
     void rebuildConnectivity();
@@ -47,7 +47,7 @@ private:
 
     std::unique_ptr<MeshData> meshData_;
     std::unique_ptr<MeshConnectivity> connectivity_;
-    std::unique_ptr<MeshOperations> operations_;
+    std::unique_ptr<MeshMutator3D> operations_;
 
     void ensureInitialized();
 };

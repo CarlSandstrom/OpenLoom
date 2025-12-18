@@ -1,5 +1,5 @@
 #pragma once
-#include "../Data/MeshOperations3D.h"
+#include "../Data/MeshMutator3D.h"
 #include "ITransactionListener.h"
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@ namespace Meshing
 class MeshTransaction : public ITransactionListener
 {
 public:
-    explicit MeshTransaction(MeshOperations* operations);
+    explicit MeshTransaction(MeshMutator3D* operations);
     ~MeshTransaction();
 
     void begin();
@@ -38,7 +38,7 @@ private:
         Point3D coordinates;
     };
 
-    MeshOperations* operations_;
+    MeshMutator3D* operations_;
     bool isActive_;
     bool committed_;
 

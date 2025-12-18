@@ -11,10 +11,10 @@ namespace Meshing
 
 class MeshConnectivity; // Forward declaration
 
-class MeshOperations
+class MeshMutator3D
 {
 public:
-    explicit MeshOperations(MeshData& geometry);
+    explicit MeshMutator3D(MeshData& geometry);
 
     // Optional: Set connectivity for validation during operations
     void setConnectivity(MeshConnectivity* connectivity);

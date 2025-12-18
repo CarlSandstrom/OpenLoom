@@ -6,7 +6,7 @@
 
 #include "Meshing/Core/ConstrainedDelaunay3D.h"
 #include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshOperations3D.h"
+#include "Meshing/Data/MeshMutator3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 
 namespace Meshing
@@ -150,7 +150,7 @@ std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedraForFa
 }
 
 void ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
-    MeshOperations& operations,
+    MeshMutator3D& operations,
     std::unordered_set<size_t>& activeTetrahedra,
     size_t n1,
     size_t n2,
@@ -186,7 +186,7 @@ void ConstrainedDelaunay3DHelper::retriangulateCavityWithSegment(
 }
 
 void ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
-    MeshOperations& operations,
+    MeshMutator3D& operations,
     std::unordered_set<size_t>& activeTetrahedra,
     size_t n0,
     size_t n1,

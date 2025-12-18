@@ -1,16 +1,16 @@
-#include "MeshOperations2D.h"
+#include "MeshMutator2D.h"
 
 #include "Node2D.h"
 
 namespace Meshing
 {
 
-MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
+MeshMutator2D::MeshMutator2D(MeshData2D& meshData) :
     meshData_(meshData)
 {
 }
 
-size_t MeshOperations2D::addNode(const Point2D& coordinates)
+size_t MeshMutator2D::addNode(const Point2D& coordinates)
 {
     size_t id = nextNodeId_++;
     auto node = std::make_unique<Node2D>(coordinates);
@@ -18,7 +18,7 @@ size_t MeshOperations2D::addNode(const Point2D& coordinates)
     return id;
 }
 
-void MeshOperations2D::moveNode(size_t id, const Point2D& newCoords)
+void MeshMutator2D::moveNode(size_t id, const Point2D& newCoords)
 {
     Node2D* node = meshData_.getNodeMutable(id);
     if (node != nullptr)
@@ -27,19 +27,19 @@ void MeshOperations2D::moveNode(size_t id, const Point2D& newCoords)
     }
 }
 
-void MeshOperations2D::removeNode(size_t id)
+void MeshMutator2D::removeNode(size_t id)
 {
     meshData_.removeNodeInternal(id);
 }
 
-size_t MeshOperations2D::addElement(std::unique_ptr<IElement> element)
+size_t MeshMutator2D::addElement(std::unique_ptr<IElement> element)
 {
     size_t id = nextElementId_++;
     meshData_.addElementInternal(id, std::move(element));
     return id;
 }
 
-void MeshOperations2D::removeElement(size_t id)
+void MeshMutator2D::removeElement(size_t id)
 {
     meshData_.removeElementInternal(id);
 }

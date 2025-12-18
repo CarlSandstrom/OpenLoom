@@ -9,9 +9,9 @@
 
 #pragma once
 #include "Common/Types.h"
-#include "MeshData.h"
+#include "MeshData3D.h"
 #include "Meshing/Data/MeshConnectivity.h"
-#include "Meshing/Data/MeshOperations.h"
+#include "Meshing/Data/MeshMutator3D.h"
 #include <fstream>
 #include <iostream>
 
@@ -94,7 +94,7 @@ inline void demonstrateSeparatedDesign()
 
     // 1. Create the separated components
     MeshData geometry;                                // Pure data storage
-    Meshing::MeshOperations operations(geometry);     // Operations on data
+    Meshing::MeshMutator3D operations(geometry);      // Operations on data
     Meshing::MeshConnectivity connectivity(geometry); // Connectivity queries
 
     // Wire up operations to use connectivity for validation

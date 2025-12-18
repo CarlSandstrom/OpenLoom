@@ -4,7 +4,7 @@
 #include "../../Topology/Topology3D.h"
 #include "../Data/MeshConnectivity.h"
 #include "../Data/MeshData3D.h"
-#include "../Data/MeshOperations3D.h"
+#include "../Data/MeshMutator3D.h"
 
 namespace Meshing
 {
@@ -30,7 +30,7 @@ MeshConnectivity& MeshingContext3D::getConnectivity()
     return *connectivity_;
 }
 
-MeshOperations& MeshingContext3D::getOperations()
+MeshMutator3D& MeshingContext3D::getOperations()
 {
     ensureInitialized();
     return *operations_;
@@ -47,7 +47,7 @@ void MeshingContext3D::clearMesh()
     // Recreate fresh containers
     meshData_ = std::make_unique<MeshData>();
     connectivity_ = std::make_unique<MeshConnectivity>(*meshData_);
-    operations_ = std::make_unique<MeshOperations>(*meshData_);
+    operations_ = std::make_unique<MeshMutator3D>(*meshData_);
     operations_->setConnectivity(connectivity_.get());
 }
 
@@ -63,7 +63,7 @@ void MeshingContext3D::ensureInitialized()
     }
     if (!operations_)
     {
-        operations_ = std::make_unique<MeshOperations>(*meshData_);
+        operations_ = std::make_unique<MeshMutator3D>(*meshData_);
         operations_->setConnectivity(connectivity_.get());
     }
 }

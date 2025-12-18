@@ -5,7 +5,7 @@
 #include "Meshing/Core/MeshingContext2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshOperations3D.h"
+#include "Meshing/Data/MeshMutator3D.h"
 #include "Meshing/Data/Node2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include "Topology2D/Topology2D.h"
@@ -24,7 +24,7 @@ using namespace Meshing;
 MeshData convertToMeshData3D(const MeshData2D& meshData2D)
 {
     MeshData meshData3D;
-    MeshOperations operations(meshData3D);
+    MeshMutator3D operations(meshData3D);
 
     // Create a mapping from old node IDs to new node IDs
     std::unordered_map<size_t, size_t> nodeIdMap;

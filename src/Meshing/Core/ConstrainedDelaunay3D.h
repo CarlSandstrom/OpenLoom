@@ -14,7 +14,7 @@
 #include "Meshing/Core/MeshingContext2D.h"
 #include "Meshing/Core/MeshingContext3D.h"
 #include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshOperations3D.h"
+#include "Meshing/Data/MeshMutator3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Topology/Topology3D.h"
 
@@ -29,7 +29,7 @@ namespace Meshing
  *
  * Integration with project architecture:
  * - Uses MeshingContext for data access
- * - Uses MeshOperations (friend pattern) for modifications
+ * - Uses MeshMutator3D (friend pattern) for modifications
  * - Uses Computer for geometric calculations
  * - Respects Topology/Geometry separation
  */
@@ -163,7 +163,7 @@ private:
 
     MeshingContext3D& context_;
     MeshData& meshData_;
-    MeshOperations& operations_;
+    MeshMutator3D& operations_;
 };
 
 } // namespace Meshing

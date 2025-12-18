@@ -1,7 +1,7 @@
 #include "Common/Types.h"
 #include "Meshing/Data/MeshConnectivity.h"
 #include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshOperations3D.h"
+#include "Meshing/Data/MeshMutator3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "Meshing/Operations/MeshTransaction.h"
 #include "Meshing/Operations/ScopedTransaction.h"
@@ -35,7 +35,7 @@ protected:
     void SetUp() override
     {
         geometry_ = std::make_unique<MeshData>();
-        operations_ = std::make_unique<MeshOperations>(*geometry_);
+        operations_ = std::make_unique<MeshMutator3D>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
         // Wire up operations to use connectivity for validation
@@ -60,7 +60,7 @@ protected:
     }
 
     std::unique_ptr<MeshData> geometry_;
-    std::unique_ptr<MeshOperations> operations_;
+    std::unique_ptr<MeshMutator3D> operations_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_, node5Id_;
 };
@@ -306,7 +306,7 @@ protected:
     void SetUp() override
     {
         geometry_ = std::make_unique<MeshData>();
-        operations_ = std::make_unique<MeshOperations>(*geometry_);
+        operations_ = std::make_unique<MeshMutator3D>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
         // Wire up operations to use connectivity for validation
@@ -330,7 +330,7 @@ protected:
     }
 
     std::unique_ptr<MeshData> geometry_;
-    std::unique_ptr<MeshOperations> operations_;
+    std::unique_ptr<MeshMutator3D> operations_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_;
 };

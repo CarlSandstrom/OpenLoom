@@ -24,7 +24,7 @@ public:
     size_t getElementCount() const;
 
     // Internal access for operations classes (friends)
-    friend class MeshOperations;
+    friend class MeshMutator3D;
 
 private:
     std::unordered_map<size_t, std::unique_ptr<Node3D>> nodes_;

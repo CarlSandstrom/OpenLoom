@@ -3,7 +3,7 @@
 namespace Meshing
 {
 
-ScopedTransaction::ScopedTransaction(MeshOperations* operations) :
+ScopedTransaction::ScopedTransaction(MeshMutator3D* operations) :
     transaction_(operations)
 {
     transaction_.begin();

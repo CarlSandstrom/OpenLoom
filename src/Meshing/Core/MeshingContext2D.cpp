@@ -8,7 +8,7 @@
 #include "Geometry2D/IEdge2D.h"
 #include "Geometry2D/LinearEdge2D.h"
 #include "Meshing/Data/MeshData2D.h"
-#include "Meshing/Data/MeshOperations2D.h"
+#include "Meshing/Data/MeshMutator2D.h"
 #include "Topology/Edge3D.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
@@ -127,7 +127,7 @@ MeshData2D& MeshingContext2D::getMeshData()
     return *meshData_;
 }
 
-MeshOperations2D& MeshingContext2D::getOperations()
+MeshMutator2D& MeshingContext2D::getOperations()
 {
     ensureInitialized();
     return *operations_;
@@ -136,7 +136,7 @@ MeshOperations2D& MeshingContext2D::getOperations()
 void MeshingContext2D::clearMesh()
 {
     meshData_ = std::make_unique<MeshData2D>();
-    operations_ = std::make_unique<MeshOperations2D>(*meshData_);
+    operations_ = std::make_unique<MeshMutator2D>(*meshData_);
 }
 
 void MeshingContext2D::ensureInitialized()
@@ -147,7 +147,7 @@ void MeshingContext2D::ensureInitialized()
     }
     if (!operations_)
     {
-        operations_ = std::make_unique<MeshOperations2D>(*meshData_);
+        operations_ = std::make_unique<MeshMutator2D>(*meshData_);
     }
 }
 

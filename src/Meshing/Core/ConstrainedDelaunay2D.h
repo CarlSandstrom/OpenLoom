@@ -14,7 +14,7 @@ namespace Meshing
 {
 
 class MeshingContext2D;
-class MeshOperations2D;
+class MeshMutator2D;
 
 /**
  * @brief Constrained 2D Delaunay triangulation
@@ -104,7 +104,7 @@ private:
     // Context (optional - for generateConstrained workflow)
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
-    MeshOperations2D* operations_ = nullptr;
+    MeshMutator2D* operations_ = nullptr;
 
     // Maps topology IDs to mesh node IDs (for generateConstrained)
     std::unordered_map<std::string, size_t> topologyToNodeId_;

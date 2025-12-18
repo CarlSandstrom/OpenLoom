@@ -12,10 +12,10 @@ namespace Meshing
 /**
  * @brief Operations for modifying 2D mesh data
  */
-class MeshOperations2D
+class MeshMutator2D
 {
 public:
-    explicit MeshOperations2D(MeshData2D& meshData);
+    explicit MeshMutator2D(MeshData2D& meshData);
 
     // Node operations
     size_t addNode(const Point2D& coordinates);

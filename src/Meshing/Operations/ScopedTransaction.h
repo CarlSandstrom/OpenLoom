@@ -7,7 +7,7 @@ namespace Meshing
 class ScopedTransaction
 {
 public:
-    explicit ScopedTransaction(MeshOperations* operations);
+    explicit ScopedTransaction(MeshMutator3D* operations);
     ~ScopedTransaction();
     void commit();
 

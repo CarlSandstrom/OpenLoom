@@ -11,7 +11,7 @@ namespace Meshing
 {
 
 class ConstrainedDelaunay3D;
-class MeshOperations;
+class MeshMutator3D;
 class MeshData;
 class TetrahedralElement;
 
@@ -47,13 +47,13 @@ public:
                                                                   size_t n2,
                                                                   const std::unordered_set<size_t>& activeTetrahedra);
 
-    static void retriangulateCavityWithSegment(MeshOperations& operations,
+    static void retriangulateCavityWithSegment(MeshMutator3D& operations,
                                                std::unordered_set<size_t>& activeTetrahedra,
                                                size_t n1,
                                                size_t n2,
                                                const std::vector<std::array<size_t, 3>>& boundary);
 
-    static void retriangulateCavityWithFacet(MeshOperations& operations,
+    static void retriangulateCavityWithFacet(MeshMutator3D& operations,
                                              std::unordered_set<size_t>& activeTetrahedra,
                                              size_t n0,
                                              size_t n1,

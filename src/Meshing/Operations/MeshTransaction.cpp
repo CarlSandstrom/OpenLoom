@@ -3,7 +3,7 @@
 namespace Meshing
 {
 
-MeshTransaction::MeshTransaction(MeshOperations* operations) :
+MeshTransaction::MeshTransaction(MeshMutator3D* operations) :
     operations_(operations), isActive_(false), committed_(false)
 {
 }

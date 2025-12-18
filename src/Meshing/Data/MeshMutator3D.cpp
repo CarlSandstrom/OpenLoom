@@ -1,4 +1,4 @@
-#include "MeshOperations3D.h"
+#include "MeshMutator3D.h"
 #include "MeshConnectivity.h"
 #include "Node3D.h"
 #include <stdexcept>
@@ -6,17 +6,17 @@
 namespace Meshing
 {
 
-MeshOperations::MeshOperations(MeshData& geometry) :
+MeshMutator3D::MeshMutator3D(MeshData& geometry) :
     geometry_(geometry)
 {
 }
 
-void MeshOperations::setConnectivity(MeshConnectivity* connectivity)
+void MeshMutator3D::setConnectivity(MeshConnectivity* connectivity)
 {
     connectivity_ = connectivity;
 }
 
-size_t MeshOperations::addNode(const Point3D& coordinates)
+size_t MeshMutator3D::addNode(const Point3D& coordinates)
 {
     size_t id = nextNodeId_++;
 
@@ -32,7 +32,7 @@ size_t MeshOperations::addNode(const Point3D& coordinates)
     return id;
 }
 
-void MeshOperations::moveNode(size_t id, const Point3D& newCoords)
+void MeshMutator3D::moveNode(size_t id, const Point3D& newCoords)
 {
     Node3D* node = geometry_.getNodeMutable(id);
     if (!node)
@@ -51,7 +51,7 @@ void MeshOperations::moveNode(size_t id, const Point3D& newCoords)
     node->setCoordinates(newCoords);
 }
 
-void MeshOperations::removeNode(size_t id)
+void MeshMutator3D::removeNode(size_t id)
 {
     const Node3D* node = geometry_.getNode(id);
     if (!node)
@@ -73,7 +73,7 @@ void MeshOperations::removeNode(size_t id)
     geometry_.removeNodeInternal(id);
 }
 
-size_t MeshOperations::addElement(std::unique_ptr<IElement> element)
+size_t MeshMutator3D::addElement(std::unique_ptr<IElement> element)
 {
     size_t id = nextElementId_++;
 
@@ -88,7 +88,7 @@ size_t MeshOperations::addElement(std::unique_ptr<IElement> element)
     return id;
 }
 
-void MeshOperations::removeElement(size_t id)
+void MeshMutator3D::removeElement(size_t id)
 {
     const IElement* element = geometry_.getElement(id);
     if (!element)
@@ -113,17 +113,17 @@ void MeshOperations::removeElement(size_t id)
     geometry_.removeElementInternal(id);
 }
 
-void MeshOperations::setTransactionListener(ITransactionListener* listener)
+void MeshMutator3D::setTransactionListener(ITransactionListener* listener)
 {
     transactionListener_ = listener;
 }
 
-void MeshOperations::clearTransactionListener()
+void MeshMutator3D::clearTransactionListener()
 {
     transactionListener_ = nullptr;
 }
 
-void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element)
+void MeshMutator3D::restoreElement(size_t id, std::unique_ptr<IElement> element)
 {
     geometry_.addElementInternal(id, std::move(element));
 
@@ -134,7 +134,7 @@ void MeshOperations::restoreElement(size_t id, std::unique_ptr<IElement> element
     }
 }
 
-void MeshOperations::restoreNode(size_t id, const Point3D& coordinates)
+void MeshMutator3D::restoreNode(size_t id, const Point3D& coordinates)
 {
     Node3D* node = geometry_.getNodeMutable(id);
     if (node)
@@ -149,7 +149,7 @@ void MeshOperations::restoreNode(size_t id, const Point3D& coordinates)
     }
 }
 
-void MeshOperations::validateNodeRemoval(size_t nodeId) const
+void MeshMutator3D::validateNodeRemoval(size_t nodeId) const
 {
     if (connectivity_ && !connectivity_->canRemoveNode(nodeId))
     {
