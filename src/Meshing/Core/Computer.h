@@ -3,8 +3,8 @@
 #include <optional>
 #include <unordered_map>
 
-#include "Meshing/Core/ElementGeometry.h"
 #include "Common/Types.h"
+#include "Meshing/Core/ElementGeometry.h"
 
 namespace Meshing
 {
@@ -21,36 +21,30 @@ public:
         double radiusSquared;
     };
 
+    struct CircumscribedSphere
+    {
+        Point3D center;
+        double radius;
+    };
+
     explicit Computer(const MeshData& mesh);
 
-    static double computeVolume(const Point3DRef v0,
-                                const Point3DRef v1,
-                                const Point3DRef v2,
-                                const Point3DRef v3);
+    double computeVolume(const TetrahedralElement& element);
 
-    static double computeArea(const Point3DRef v0,
-                              const Point3DRef v1,
-                              const Point3DRef v2);
+    double computeArea(const TriangleElement& element) const;
 
-    static std::optional<ElementGeometry::CircumscribedSphere> getCircumscribingSphere(const Point3DRef v0,
-                                                                                       const Point3DRef v1,
-                                                                                       const Point3DRef v2,
-                                                                                       const Point3DRef v3);
+    std::optional<CircumscribedSphere> computeCircumscribingSphere(const TetrahedralElement& element) const;
 
-    static bool getIsPointInsideCircumscribingSphere(const ElementGeometry::CircumscribedSphere& sphere,
+    static bool getIsPointInsideCircumscribingSphere(const CircumscribedSphere& sphere,
                                                      const Point3DRef point,
                                                      double tolerance = 1e-12);
 
-    // 2D circumcircle methods
     static std::optional<CircumCircle2D> computeCircumcircle(const TriangleElement& tri,
-                                                              const std::unordered_map<size_t, Point2D>& nodeCoords);
+                                                             const std::unordered_map<size_t, Point2D>& nodeCoords);
 
     static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);
 
-    double computeVolume(const TetrahedralElement& element) const;
-    std::optional<ElementGeometry::CircumscribedSphere> getCircumscribingSphere(const TetrahedralElement& element) const;
     bool getIsPointInsideCircumscribingSphere(const TetrahedralElement& element, const Point3D& point) const;
-    double computeArea(const TriangleElement& element) const;
     double computeQuality(const TetrahedralElement& element) const;
     double computeQuality(const TriangleElement& element) const;
     double getShortestEdgeLength(const TetrahedralElement& element) const;

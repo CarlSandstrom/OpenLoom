@@ -248,7 +248,7 @@ bool ConstrainedDelaunay3D::isDelaunay() const
             continue;
         }
 
-        const auto sphere = computer_.getCircumscribingSphere(*element);
+        const auto sphere = computer_.computeCircumscribingSphere(*element);
         if (!sphere)
         {
             continue;

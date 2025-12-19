@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <optional>
+#include <vector>
 
 #include "Common/Types.h"
 #include "Meshing/Data/MeshData3D.h"
@@ -10,39 +12,29 @@
 namespace Meshing::ElementGeometry
 {
 
-struct CircumscribedSphere
+template <size_t N>
+bool gatherNodes(const MeshData& mesh,
+                 const std::vector<size_t>& nodeIds,
+                 std::array<const Node3D*, N>& nodes)
 {
-    Point3D center;
-    double radius;
-};
+    if (nodeIds.size() != N)
+    {
+        return false;
+    }
 
-double computeVolume(const Point3DRef v0,
-                     const Point3DRef v1,
-                     const Point3DRef v2,
-                     const Point3DRef v3);
+    for (size_t i = 0; i < N; ++i)
+    {
+        nodes[i] = mesh.getNode(nodeIds[i]);
+        if (nodes[i] == nullptr)
+        {
+            return false;
+        }
+    }
 
-std::optional<double> computeVolume(const MeshData& mesh, const TetrahedralElement& element);
-
-double computeArea(const Point3DRef v0,
-                   const Point3DRef v1,
-                   const Point3DRef v2);
-
-std::optional<double> computeArea(const MeshData& mesh, const TriangleElement& element);
-
-std::optional<CircumscribedSphere> computeCircumscribingSphere(const Point3DRef v0,
-                                                               const Point3DRef v1,
-                                                               const Point3DRef v2,
-                                                               const Point3DRef v3);
-
-std::optional<CircumscribedSphere> computeCircumscribingSphere(const MeshData& mesh,
-                                                               const TetrahedralElement& element);
+    return true;
+}
 
 std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElement& element);
-
 std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement& element);
-
-double computeShortestEdgeLength(const MeshData& mesh, const TetrahedralElement& element);
-double computeCircumradiusToShortestEdgeRatio(const MeshData& mesh, const TetrahedralElement& element);
-bool isSkinny(const MeshData& mesh, const TetrahedralElement& element, double threshold);
 
 } // namespace Meshing::ElementGeometry

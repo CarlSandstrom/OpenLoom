@@ -2,6 +2,7 @@
 
 #include "Meshing/Data/TriangleElement.h"
 #include <cmath>
+#include <limits>
 #include <optional>
 
 namespace Meshing
@@ -12,30 +13,73 @@ Computer::Computer(const MeshData& mesh) :
 {
 }
 
-double Computer::computeVolume(const Point3DRef v0,
-                               const Point3DRef v1,
-                               const Point3DRef v2,
-                               const Point3DRef v3)
+double Computer::computeVolume(const TetrahedralElement& element)
 {
-    return ElementGeometry::computeVolume(v0, v1, v2, v3);
+    std::array<const Node3D*, 4> nodes;
+    ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes);
+
+    auto v0 = nodes[0]->getCoordinates();
+    auto v1 = nodes[1]->getCoordinates();
+    auto v2 = nodes[2]->getCoordinates();
+    auto v3 = nodes[3]->getCoordinates();
+    const auto edge1 = v1 - v0;
+    const auto edge2 = v2 - v0;
+    const auto edge3 = v3 - v0;
+    const double scalarTriple = edge1.dot(edge2.cross(edge3));
+    return std::abs(scalarTriple) / 6.0;
 }
 
-double Computer::computeArea(const Point3DRef v0,
-                             const Point3DRef v1,
-                             const Point3DRef v2)
+double Computer::computeArea(const TriangleElement& element) const
 {
-    return ElementGeometry::computeArea(v0, v1, v2);
+    std::array<const Node3D*, 3> nodes;
+    if (!ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes))
+    {
+        return 0.0;
+    }
+
+    auto v0 = nodes[0]->getCoordinates();
+    auto v1 = nodes[1]->getCoordinates();
+    auto v2 = nodes[2]->getCoordinates();
+    const auto edge1 = v1 - v0;
+    const auto edge2 = v2 - v0;
+    return 0.5 * edge1.cross(edge2).norm();
 }
 
-std::optional<ElementGeometry::CircumscribedSphere> Computer::getCircumscribingSphere(const Point3DRef v0,
-                                                                                      const Point3DRef v1,
-                                                                                      const Point3DRef v2,
-                                                                                      const Point3DRef v3)
+std::optional<Computer::CircumscribedSphere> Computer::computeCircumscribingSphere(const TetrahedralElement& element) const
 {
-    return ElementGeometry::computeCircumscribingSphere(v0, v1, v2, v3);
+    std::array<const Node3D*, 4> nodes;
+    if (!ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes))
+    {
+        return std::nullopt;
+    }
+
+    auto v0 = nodes[0]->getCoordinates();
+    auto v1 = nodes[1]->getCoordinates();
+    auto v2 = nodes[2]->getCoordinates();
+    auto v3 = nodes[3]->getCoordinates();
+
+    Eigen::Matrix3d A;
+    A.row(0) = (v1 - v0).transpose();
+    A.row(1) = (v2 - v0).transpose();
+    A.row(2) = (v3 - v0).transpose();
+
+    Eigen::Vector3d b;
+    b(0) = 0.5 * (v1.squaredNorm() - v0.squaredNorm());
+    b(1) = 0.5 * (v2.squaredNorm() - v0.squaredNorm());
+    b(2) = 0.5 * (v3.squaredNorm() - v0.squaredNorm());
+
+    const Eigen::FullPivLU<Eigen::Matrix3d> lu(A);
+    if (!lu.isInvertible())
+    {
+        return std::nullopt;
+    }
+
+    const Point3D center = lu.solve(b);
+    const double radius = (center - v0).norm();
+    return CircumscribedSphere{center, radius};
 }
 
-bool Computer::getIsPointInsideCircumscribingSphere(const ElementGeometry::CircumscribedSphere& sphere,
+bool Computer::getIsPointInsideCircumscribingSphere(const CircumscribedSphere& sphere,
                                                     const Point3DRef point,
                                                     double tolerance)
 {
@@ -44,34 +88,9 @@ bool Computer::getIsPointInsideCircumscribingSphere(const ElementGeometry::Circu
     return distanceSq <= radiusSq + tolerance;
 }
 
-double Computer::computeVolume(const TetrahedralElement& element) const
-{
-    if (const auto maybeVolume = ElementGeometry::computeVolume(mesh_, element))
-    {
-        return *maybeVolume;
-    }
-
-    return 0.0;
-}
-
-double Computer::computeArea(const TriangleElement& element) const
-{
-    if (const auto maybeArea = ElementGeometry::computeArea(mesh_, element))
-    {
-        return *maybeArea;
-    }
-
-    return 0.0;
-}
-
-std::optional<ElementGeometry::CircumscribedSphere> Computer::getCircumscribingSphere(const TetrahedralElement& element) const
-{
-    return ElementGeometry::computeCircumscribingSphere(mesh_, element);
-}
-
 bool Computer::getIsPointInsideCircumscribingSphere(const TetrahedralElement& element, const Point3D& point) const
 {
-    if (const auto sphere = getCircumscribingSphere(element))
+    if (const auto sphere = computeCircumscribingSphere(element))
     {
         return getIsPointInsideCircumscribingSphere(*sphere, point);
     }
@@ -101,17 +120,53 @@ double Computer::computeQuality(const TriangleElement& element) const
 
 double Computer::getShortestEdgeLength(const TetrahedralElement& element) const
 {
-    return ElementGeometry::computeShortestEdgeLength(mesh_, element);
+    std::array<const Node3D*, 4> nodes;
+    if (!ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes))
+    {
+        return 0.0;
+    }
+
+    double minLen = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < 4; ++i)
+    {
+        for (size_t j = i + 1; j < 4; ++j)
+        {
+            const double len = (nodes[i]->getCoordinates() - nodes[j]->getCoordinates()).norm();
+            minLen = std::min(minLen, len);
+        }
+    }
+
+    return minLen;
 }
 
 double Computer::getCircumradiusToShortestEdgeRatio(const TetrahedralElement& element) const
 {
-    return ElementGeometry::computeCircumradiusToShortestEdgeRatio(mesh_, element);
+    constexpr double MIN_EDGE = 1e-15;
+
+    const auto sphere = computeCircumscribingSphere(element);
+    if (!sphere)
+    {
+        return 0.0;
+    }
+
+    const double shortestEdge = getShortestEdgeLength(element);
+    if (shortestEdge <= MIN_EDGE)
+    {
+        return std::numeric_limits<double>::infinity();
+    }
+
+    return sphere->radius / shortestEdge;
 }
 
 bool Computer::isSkinny(const TetrahedralElement& element, double threshold) const
 {
-    return ElementGeometry::isSkinny(mesh_, element, threshold);
+    const double ratio = getCircumradiusToShortestEdgeRatio(element);
+    if (ratio == 0.0)
+    {
+        return false;
+    }
+
+    return ratio > threshold;
 }
 
 std::optional<Computer::CircumCircle2D> Computer::computeCircumcircle(
