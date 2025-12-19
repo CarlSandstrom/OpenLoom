@@ -1,5 +1,6 @@
 #include "ConstrainedDelaunay3D.h"
 
+#include "ComputerGeneral.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include "spdlog/spdlog.h"
@@ -261,7 +262,7 @@ bool ConstrainedDelaunay3D::isDelaunay() const
                 continue;
             }
 
-            if (computer_.getIsPointInsideCircumscribingSphere(*sphere, nodePtr->getCoordinates()))
+            if (ComputerGeneral::getIsPointInsideCircumscribingSphere(*sphere, nodePtr->getCoordinates()))
             {
                 return false;
             }

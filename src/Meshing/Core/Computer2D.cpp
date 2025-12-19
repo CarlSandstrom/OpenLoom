@@ -1,0 +1,118 @@
+#include "Computer2D.h"
+
+#include <cmath>
+#include <optional>
+
+namespace Meshing
+{
+
+Computer2D::Computer2D(const MeshData2D& mesh) :
+    mesh_(mesh)
+{
+}
+
+std::optional<Computer2D::CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(tri);
+
+    const double ax = p1.x() - p0.x();
+    const double ay = p1.y() - p0.y();
+    const double bx = p2.x() - p0.x();
+    const double by = p2.y() - p0.y();
+
+    const double d = 2.0 * (ax * by - ay * bx);
+
+    if (std::abs(d) < 1e-10)
+    {
+        // Degenerate triangle
+        return std::nullopt;
+    }
+
+    const double aSq = ax * ax + ay * ay;
+    const double bSq = bx * bx + by * by;
+
+    const double cx = (by * aSq - ay * bSq) / d;
+    const double cy = (ax * bSq - bx * aSq) / d;
+
+    CircumCircle2D circle;
+    circle.center = Point2D(p0.x() + cx, p0.y() + cy);
+    circle.radiusSquared = cx * cx + cy * cy;
+
+    return circle;
+}
+
+double Computer2D::computeArea(const TriangleElement& element) const
+{
+    auto [v0, v1, v2] = getElementNodeCoordinates(element);
+    const double dx1 = v1.x() - v0.x();
+    const double dy1 = v1.y() - v0.y();
+    const double dx2 = v2.x() - v0.x();
+    const double dy2 = v2.y() - v0.y();
+
+    // Cross product in 2D gives the area
+    return 0.5 * std::abs(dx1 * dy2 - dy1 * dx2);
+}
+
+std::tuple<Point2D, Point2D, Point2D> Computer2D::getElementNodeCoordinates(const TriangleElement& element) const
+{
+    auto nodeIds = element.getNodeIds();
+    const auto* n0 = mesh_.getNode(nodeIds[0]);
+    const auto* n1 = mesh_.getNode(nodeIds[1]);
+    const auto* n2 = mesh_.getNode(nodeIds[2]);
+    return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
+}
+
+std::optional<Computer2D::CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri,
+                                                                          const std::unordered_map<size_t, Point2D>& nodeCoords)
+{
+    const auto& nodes = tri.getNodeIdArray();
+
+    auto it0 = nodeCoords.find(nodes[0]);
+    auto it1 = nodeCoords.find(nodes[1]);
+    auto it2 = nodeCoords.find(nodes[2]);
+
+    if (it0 == nodeCoords.end() || it1 == nodeCoords.end() || it2 == nodeCoords.end())
+    {
+        return std::nullopt;
+    }
+
+    const Point2D& p0 = it0->second;
+    const Point2D& p1 = it1->second;
+    const Point2D& p2 = it2->second;
+
+    const double ax = p1.x() - p0.x();
+    const double ay = p1.y() - p0.y();
+    const double bx = p2.x() - p0.x();
+    const double by = p2.y() - p0.y();
+
+    const double d = 2.0 * (ax * by - ay * bx);
+
+    if (std::abs(d) < 1e-10)
+    {
+        // Degenerate triangle
+        return std::nullopt;
+    }
+
+    const double aSq = ax * ax + ay * ay;
+    const double bSq = bx * bx + by * by;
+
+    const double cx = (by * aSq - ay * bSq) / d;
+    const double cy = (ax * bSq - bx * aSq) / d;
+
+    CircumCircle2D circle;
+    circle.center = Point2D(p0.x() + cx, p0.y() + cy);
+    circle.radiusSquared = cx * cx + cy * cy;
+
+    return circle;
+}
+
+bool Computer2D::isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point)
+{
+    const double dx = point.x() - circle.center.x();
+    const double dy = point.y() - circle.center.y();
+    const double distSquared = dx * dx + dy * dy;
+
+    return distSquared < circle.radiusSquared - 1e-10;
+}
+
+} // namespace Meshing

@@ -10,7 +10,7 @@
 #include "ConstrainedDelaunayHelper.h"
 #include "ConstraintStructures.h"
 #include "Geometry/Base/GeometryCollection3D.h"
-#include "Meshing/Core/Computer.h"
+#include "Meshing/Core/Computer3D.h"
 #include "Meshing/Core/MeshingContext2D.h"
 #include "Meshing/Core/MeshingContext3D.h"
 #include "Meshing/Data/MeshData3D.h"
@@ -48,8 +48,8 @@ public:
     const std::unordered_set<size_t>& getActiveTetrahedronIds() const { return activeTetrahedra_; }
     bool isElementActive(size_t elementId) const;
 
-    Computer& getComputer() { return computer_; }
-    const Computer& getComputer() const { return computer_; }
+    Computer3D& getComputer() { return computer_; }
+    const Computer3D& getComputer() const { return computer_; }
 
     const TetrahedralElement* getTetrahedralElement(size_t elementId) const;
 
@@ -157,7 +157,7 @@ private:
     std::vector<std::array<size_t, 3>> findCavityBoundary(const std::vector<size_t>& conflicting) const;
     void retriangulate(size_t vertexNodeId, const std::vector<std::array<size_t, 3>>& boundary);
 
-    Computer computer_;
+    Computer3D computer_;
     std::vector<size_t> superNodeIds_;
     std::unordered_set<size_t> activeTetrahedra_;
 

@@ -1,6 +1,6 @@
 #include "MeshOperations2D.h"
 
-#include "Computer.h"
+#include "Computer2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
 
 #include <algorithm>
@@ -14,7 +14,8 @@ namespace Meshing
 
 MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
     meshData_(meshData),
-    mutator_(std::make_unique<MeshMutator2D>(meshData))
+    mutator_(std::make_unique<MeshMutator2D>(meshData)),
+    computer_(std::make_unique<Computer2D>(meshData))
 {
 }
 
@@ -63,9 +64,9 @@ std::vector<size_t> MeshOperations2D::findConflictingTriangles(
     for (size_t i = 0; i < activeTriangles.size(); ++i)
     {
         const auto& tri = activeTriangles[i];
-        auto circle = Computer::computeCircumcircle(tri, nodeCoords);
+        auto circle = Computer2D::computeCircumcircle(tri, nodeCoords);
 
-        if (circle && Computer::isPointInsideCircumcircle(*circle, point))
+        if (circle && Computer2D::isPointInsideCircumcircle(*circle, point))
         {
             conflicting.push_back(i);
         }
