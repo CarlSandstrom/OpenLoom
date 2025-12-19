@@ -12,7 +12,7 @@ namespace Meshing
 
 class ConstrainedDelaunay3D;
 class MeshMutator3D;
-class MeshData;
+class MeshData3D;
 class TetrahedralElement;
 
 class ConstrainedDelaunay3DHelper
@@ -35,13 +35,13 @@ public:
                             const std::unordered_set<std::array<size_t, 3>, TriangleHash>& satisfiedFacets);
 
     static std::vector<size_t> findIntersectingTetrahedra(const ConstrainedDelaunay3D& delaunay,
-                                                          const MeshData& meshData,
+                                                          const MeshData3D& meshData,
                                                           size_t nodeId1,
                                                           size_t nodeId2,
                                                           const std::unordered_set<size_t>& activeTetrahedra);
 
     static std::vector<size_t> findIntersectingTetrahedraForFacet(const ConstrainedDelaunay3D& delaunay,
-                                                                  const MeshData& meshData,
+                                                                  const MeshData3D& meshData,
                                                                   size_t n0,
                                                                   size_t n1,
                                                                   size_t n2,
@@ -61,12 +61,12 @@ public:
                                              const std::vector<std::array<size_t, 3>>& boundary);
 
 private:
-    static bool segmentIntersectsTet(const MeshData& meshData,
+    static bool segmentIntersectsTet(const MeshData3D& meshData,
                                      const Point3D& p1,
                                      const Point3D& p2,
                                      const TetrahedralElement& tet);
 
-    static bool triangleIntersectsTet(const MeshData& meshData,
+    static bool triangleIntersectsTet(const MeshData3D& meshData,
                                       const Point3D& t0,
                                       const Point3D& t1,
                                       const Point3D& t2,

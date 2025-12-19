@@ -23,7 +23,7 @@ constexpr int VTK_TRIANGLE = 5;
 constexpr int VTK_QUAD = 9;
 } // namespace
 
-bool VtkExporter::exportMesh(const Meshing::MeshData& mesh, const std::string& filePath) const
+bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string& filePath) const
 {
     std::ofstream os(filePath);
     if (!os.is_open())
@@ -51,7 +51,7 @@ void VtkExporter::writeFooter(std::ostream& os) const
     os << "</VTKFile>\n";
 }
 
-void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData& mesh) const
+void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh) const
 {
     // For a deterministic index mapping, sort node IDs
     std::vector<std::size_t> nodeIds;
@@ -78,7 +78,7 @@ void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData& mesh) c
     os << "      </Points>\n";
 }
 
-static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData& mesh)
+static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData3D& mesh)
 {
     std::vector<std::size_t> ids;
     ids.reserve(mesh.getElements().size());
@@ -90,7 +90,7 @@ static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData& mesh)
     return ids;
 }
 
-void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData& mesh) const
+void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) const
 {
     // Build node ID -> contiguous index mapping (sorted by ID to match points order)
     std::vector<std::size_t> nodeIds;

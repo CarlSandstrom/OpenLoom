@@ -277,9 +277,9 @@ void ConstrainedDelaunay2D::forceEdge(size_t nodeId1, size_t nodeId2)
     }
 }
 
-MeshData ConstrainedDelaunay2D::getMeshData() const
+MeshData3D ConstrainedDelaunay2D::getMeshData() const
 {
-    MeshData meshData;
+    MeshData3D meshData;
     // Note: This method has limited functionality as MeshData
     // doesn't have a public addNode method for Point2D.
     // Use getMeshData2D() instead for full 2D support.

@@ -8,7 +8,7 @@
 namespace Meshing
 {
 
-Computer::Computer(const MeshData& mesh) :
+Computer::Computer(const MeshData3D& mesh) :
     mesh_(mesh)
 {
 }

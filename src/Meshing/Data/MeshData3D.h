@@ -8,10 +8,10 @@
 namespace Meshing
 {
 
-class MeshData
+class MeshData3D
 {
 public:
-    MeshData();
+    MeshData3D();
 
     // Read-only access to mesh data
     const std::unordered_map<size_t, std::unique_ptr<Node3D>>& getNodes() const;

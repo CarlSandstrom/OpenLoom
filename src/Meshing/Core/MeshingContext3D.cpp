@@ -18,7 +18,7 @@ MeshingContext3D::MeshingContext3D(const Geometry3D::GeometryCollection3D& geome
 
 MeshingContext3D::~MeshingContext3D() = default;
 
-MeshData& MeshingContext3D::getMeshData()
+MeshData3D& MeshingContext3D::getMeshData()
 {
     ensureInitialized();
     return *meshData_;
@@ -45,7 +45,7 @@ void MeshingContext3D::rebuildConnectivity()
 void MeshingContext3D::clearMesh()
 {
     // Recreate fresh containers
-    meshData_ = std::make_unique<MeshData>();
+    meshData_ = std::make_unique<MeshData3D>();
     connectivity_ = std::make_unique<MeshConnectivity>(*meshData_);
     operations_ = std::make_unique<MeshMutator3D>(*meshData_);
     operations_->setConnectivity(connectivity_.get());
@@ -55,7 +55,7 @@ void MeshingContext3D::ensureInitialized()
 {
     if (!meshData_)
     {
-        meshData_ = std::make_unique<MeshData>();
+        meshData_ = std::make_unique<MeshData3D>();
     }
     if (!connectivity_)
     {

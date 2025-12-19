@@ -42,8 +42,8 @@ public:
     void initialize(const std::vector<Point3D>& points);
     void insertVertex(const Point3D& point);
 
-    const MeshData& getMeshData() const { return meshData_; }
-    MeshData& getMeshData() { return meshData_; }
+    const MeshData3D& getMeshData() const { return meshData_; }
+    MeshData3D& getMeshData() { return meshData_; }
 
     const std::unordered_set<size_t>& getActiveTetrahedronIds() const { return activeTetrahedra_; }
     bool isElementActive(size_t elementId) const;
@@ -162,7 +162,7 @@ private:
     std::unordered_set<size_t> activeTetrahedra_;
 
     MeshingContext3D& context_;
-    MeshData& meshData_;
+    MeshData3D& meshData_;
     MeshMutator3D& operations_;
 };
 

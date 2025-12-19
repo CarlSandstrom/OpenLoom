@@ -4,7 +4,7 @@
 
 namespace Meshing
 {
-class MeshData;
+class MeshData3D;
 class MeshConnectivity;
 
 // Interface responsible for evaluating mesh quality and optionally
@@ -16,7 +16,7 @@ public:
 
     // Called after generation or refinement to assess overall quality.
     // Return true if acceptable, false if further refinement needed.
-    virtual bool isMeshAcceptable(const MeshData& data, const MeshConnectivity& connectivity) const = 0;
+    virtual bool isMeshAcceptable(const MeshData3D& data, const MeshConnectivity& connectivity) const = 0;
 
     // Optional target minimum quality metric for elements.
     virtual double getTargetElementQuality() const = 0;

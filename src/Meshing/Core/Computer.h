@@ -27,7 +27,7 @@ public:
         double radius;
     };
 
-    explicit Computer(const MeshData& mesh);
+    explicit Computer(const MeshData3D& mesh);
 
     double computeVolume(const TetrahedralElement& element);
 
@@ -52,7 +52,7 @@ public:
     bool isSkinny(const TetrahedralElement& element, double threshold) const;
 
 private:
-    const MeshData& mesh_;
+    const MeshData3D& mesh_;
 };
 
 } // namespace Meshing

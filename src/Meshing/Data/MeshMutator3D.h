@@ -14,7 +14,7 @@ class MeshConnectivity; // Forward declaration
 class MeshMutator3D
 {
 public:
-    explicit MeshMutator3D(MeshData& geometry);
+    explicit MeshMutator3D(MeshData3D& geometry);
 
     // Optional: Set connectivity for validation during operations
     void setConnectivity(MeshConnectivity* connectivity);
@@ -37,7 +37,7 @@ public:
     void restoreNode(size_t id, const Point3D& coordinates);
 
 private:
-    MeshData& geometry_;
+    MeshData3D& geometry_;
     MeshConnectivity* connectivity_ = nullptr; // Optional for validation
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;

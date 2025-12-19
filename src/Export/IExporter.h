@@ -4,7 +4,7 @@
 
 namespace Meshing
 {
-class MeshData;
+class MeshData3D;
 }
 
 namespace Export
@@ -17,7 +17,7 @@ public:
     virtual ~IExporter() = default;
 
     // Export the provided mesh to the given file path. Returns true on success.
-    virtual bool exportMesh(const Meshing::MeshData& mesh, const std::string& filePath) const = 0;
+    virtual bool exportMesh(const Meshing::MeshData3D& mesh, const std::string& filePath) const = 0;
 
     // Human readable name (e.g., "VTK")
     virtual std::string getName() const = 0;

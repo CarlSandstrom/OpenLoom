@@ -13,7 +13,7 @@ class Topology3D;
 
 namespace Meshing
 {
-class MeshData;
+class MeshData3D;
 class MeshConnectivity;
 class MeshMutator3D;
 
@@ -31,7 +31,7 @@ public:
     const Topology3D::Topology3D& getTopology() const { return topology_; }
 
     // Access to mesh data structures
-    MeshData& getMeshData();
+    MeshData3D& getMeshData();
     MeshConnectivity& getConnectivity();
     MeshMutator3D& getOperations();
 
@@ -45,7 +45,7 @@ private:
     const Geometry3D::GeometryCollection3D& geometry_;
     const Topology3D::Topology3D& topology_;
 
-    std::unique_ptr<MeshData> meshData_;
+    std::unique_ptr<MeshData3D> meshData_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     std::unique_ptr<MeshMutator3D> operations_;
 

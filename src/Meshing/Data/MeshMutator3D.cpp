@@ -6,7 +6,7 @@
 namespace Meshing
 {
 
-MeshMutator3D::MeshMutator3D(MeshData& geometry) :
+MeshMutator3D::MeshMutator3D(MeshData3D& geometry) :
     geometry_(geometry)
 {
 }

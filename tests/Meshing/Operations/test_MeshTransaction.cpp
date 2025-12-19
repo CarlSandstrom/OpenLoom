@@ -34,7 +34,7 @@ class MeshTransactionTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        geometry_ = std::make_unique<MeshData>();
+        geometry_ = std::make_unique<MeshData3D>();
         operations_ = std::make_unique<MeshMutator3D>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
@@ -59,7 +59,7 @@ protected:
         geometry_.reset();
     }
 
-    std::unique_ptr<MeshData> geometry_;
+    std::unique_ptr<MeshData3D> geometry_;
     std::unique_ptr<MeshMutator3D> operations_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_, node5Id_;
@@ -305,7 +305,7 @@ class ScopedTransactionTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        geometry_ = std::make_unique<MeshData>();
+        geometry_ = std::make_unique<MeshData3D>();
         operations_ = std::make_unique<MeshMutator3D>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
@@ -329,7 +329,7 @@ protected:
         geometry_.reset();
     }
 
-    std::unique_ptr<MeshData> geometry_;
+    std::unique_ptr<MeshData3D> geometry_;
     std::unique_ptr<MeshMutator3D> operations_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_;

@@ -3,7 +3,7 @@
  * @brief Example showing how to use the separated mesh data classes for export
  *
  * This example demonstrates the benefit of separation of concerns:
- * - Export only needs MeshData (lightweight data access)
+ * - Export only needs MeshData3D (lightweight data access)
  * - No heavy connectivity maps or operation infrastructure needed
  */
 
@@ -22,13 +22,13 @@ namespace Examples
  * @brief Simple mesh exporter that only needs the pure data container
  *
  * This example shows how export operations can now work with just
- * the lightweight MeshData class, without carrying the overhead
+ * the lightweight MeshData3D class, without carrying the overhead
  * of operations and connectivity.
  */
 class SimpleMeshExporter
 {
 public:
-    explicit SimpleMeshExporter(const Meshing::MeshData& geometry) :
+    explicit SimpleMeshExporter(const Meshing::MeshData3D& geometry) :
         geometry_(geometry) {}
 
     void exportToVTK(const std::string& filename) const
@@ -82,7 +82,7 @@ public:
     }
 
 private:
-    const Meshing::MeshData& geometry_;
+    const Meshing::MeshData3D& geometry_;
 };
 
 /**
@@ -93,7 +93,7 @@ inline void demonstrateSeparatedDesign()
     using namespace Meshing;
 
     // 1. Create the separated components
-    MeshData geometry;                                // Pure data storage
+    MeshData3D geometry;                              // Pure data storage
     Meshing::MeshMutator3D operations(geometry);      // Operations on data
     Meshing::MeshConnectivity connectivity(geometry); // Connectivity queries
 
@@ -115,7 +115,7 @@ inline void demonstrateSeparatedDesign()
     SimpleMeshExporter exporter(geometry);
     exporter.exportToVTK("example_mesh.vtk");
 
-    std::cout << "Exported mesh - exporter only needed MeshData!\n";
+    std::cout << "Exported mesh - exporter only needed MeshData3D!\n";
     std::cout << "No heavy connectivity maps or operations overhead in export.\n";
 
     // 4. Demonstrate connectivity queries (when needed)

@@ -19,11 +19,11 @@
 using namespace Meshing;
 
 /**
- * @brief Convert MeshData2D to MeshData (3D with z=0) for VTK export
+ * @brief Convert MeshData2D to MeshData3D (3D with z=0) for VTK export
  */
-MeshData convertToMeshData3D(const MeshData2D& meshData2D)
+MeshData3D convertToMeshData3D(const MeshData2D& meshData2D)
 {
-    MeshData meshData3D;
+    MeshData3D meshData3D;
     MeshMutator3D operations(meshData3D);
 
     // Create a mapping from old node IDs to new node IDs
@@ -138,7 +138,7 @@ int main()
     spdlog::info("  Elements: {}", meshData2D.getElementCount());
 
     // Convert to 3D mesh data for export
-    MeshData meshData3D = convertToMeshData3D(meshData2D);
+    MeshData3D meshData3D = convertToMeshData3D(meshData2D);
 
     // Export to VTK
     Export::VtkExporter exporter;

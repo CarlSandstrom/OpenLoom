@@ -99,7 +99,7 @@ public:
      * @brief Get mesh data as 3D (for backward compatibility)
      * @deprecated Use getMeshData2D() instead
      */
-    MeshData getMeshData() const;
+    MeshData3D getMeshData() const;
 
 private:
     // Context (optional - for generateConstrained workflow)

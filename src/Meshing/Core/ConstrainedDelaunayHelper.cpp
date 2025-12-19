@@ -93,7 +93,7 @@ bool ConstrainedDelaunay3DHelper::facetExists(const ConstrainedDelaunay3D& delau
 
 std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedra(
     const ConstrainedDelaunay3D& delaunay,
-    const MeshData& meshData,
+    const MeshData3D& meshData,
     size_t nodeId1,
     size_t nodeId2,
     const std::unordered_set<size_t>& activeTetrahedra)
@@ -121,7 +121,7 @@ std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedra(
 
 std::vector<size_t> ConstrainedDelaunay3DHelper::findIntersectingTetrahedraForFacet(
     const ConstrainedDelaunay3D& delaunay,
-    const MeshData& meshData,
+    const MeshData3D& meshData,
     size_t n0,
     size_t n1,
     size_t n2,
@@ -218,7 +218,7 @@ void ConstrainedDelaunay3DHelper::retriangulateCavityWithFacet(
     }
 }
 
-bool ConstrainedDelaunay3DHelper::segmentIntersectsTet(const MeshData& meshData,
+bool ConstrainedDelaunay3DHelper::segmentIntersectsTet(const MeshData3D& meshData,
                                                        const Point3D& p1,
                                                        const Point3D& p2,
                                                        const TetrahedralElement& tet)
@@ -244,7 +244,7 @@ bool ConstrainedDelaunay3DHelper::segmentIntersectsTet(const MeshData& meshData,
     return pointInTet(p1) || pointInTet(p2);
 }
 
-bool ConstrainedDelaunay3DHelper::triangleIntersectsTet(const MeshData& meshData,
+bool ConstrainedDelaunay3DHelper::triangleIntersectsTet(const MeshData3D& meshData,
                                                         const Point3D& t0,
                                                         const Point3D& t1,
                                                         const Point3D& t2,

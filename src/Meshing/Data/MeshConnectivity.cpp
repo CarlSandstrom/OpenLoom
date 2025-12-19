@@ -7,7 +7,7 @@ namespace Meshing
 
 constexpr size_t INVALID_ID = SIZE_MAX;
 
-MeshConnectivity::MeshConnectivity(const MeshData& geometry) :
+MeshConnectivity::MeshConnectivity(const MeshData3D& geometry) :
     geometry_(geometry)
 {
     rebuildConnectivity();
