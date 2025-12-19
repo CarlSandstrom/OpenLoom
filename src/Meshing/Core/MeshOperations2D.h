@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Core/Computer.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <array>
@@ -42,8 +43,8 @@ public:
      * @param activeTriangles In/out vector of active triangles
      */
     void insertVertexBowyerWatson(size_t nodeId,
-                                   const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                   std::vector<TriangleElement>& activeTriangles) const;
+                                  const std::unordered_map<size_t, Point2D>& nodeCoords,
+                                  std::vector<TriangleElement>& activeTriangles) const;
 
     /**
      * @brief Find triangles whose circumcircle contains the point
@@ -53,8 +54,8 @@ public:
      * @return Indices of conflicting triangles
      */
     std::vector<size_t> findConflictingTriangles(const Point2D& point,
-                                                   const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                                   const std::vector<TriangleElement>& activeTriangles) const;
+                                                 const std::unordered_map<size_t, Point2D>& nodeCoords,
+                                                 const std::vector<TriangleElement>& activeTriangles) const;
 
     /**
      * @brief Find the boundary of the cavity formed by conflicting triangles
@@ -75,9 +76,9 @@ public:
      * @return Indices of intersecting triangles
      */
     std::vector<size_t> findIntersectingTriangles(size_t nodeId1,
-                                                    size_t nodeId2,
-                                                    const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                                    const std::vector<TriangleElement>& activeTriangles) const;
+                                                  size_t nodeId2,
+                                                  const std::unordered_map<size_t, Point2D>& nodeCoords,
+                                                  const std::vector<TriangleElement>& activeTriangles) const;
 
     /**
      * @brief Get the mesh mutator for primitive operations

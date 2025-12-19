@@ -1,4 +1,4 @@
-#include "ElementGeometry.h"
+#include "QualityComputer.h"
 #include <Eigen/Core>
 #include <array>
 #include <cmath>
@@ -12,7 +12,7 @@
 namespace Meshing::ElementGeometry
 {
 
-std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElement& element)
+std::optional<double> computeQuality(const MeshData3D& mesh, const TetrahedralElement& element)
 {
     std::array<const Node3D*, 4> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))
@@ -59,7 +59,7 @@ std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElem
     return numerator / denominator;
 }
 
-std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement& element)
+std::optional<double> computeQuality(const MeshData3D& mesh, const TriangleElement& element)
 {
     std::array<const Node3D*, 3> nodes;
     if (!gatherNodes(mesh, element.getNodeIds(), nodes))

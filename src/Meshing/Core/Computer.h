@@ -1,10 +1,10 @@
 #pragma once
 
+#include "Common/Types.h"
+#include "Meshing/Data/MeshData3D.h"
+#include "Meshing/Data/TetrahedralElement.h"
 #include <optional>
 #include <unordered_map>
-
-#include "Common/Types.h"
-#include "Meshing/Core/ElementGeometry.h"
 
 namespace Meshing
 {
@@ -45,13 +45,14 @@ public:
     static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);
 
     bool getIsPointInsideCircumscribingSphere(const TetrahedralElement& element, const Point3D& point) const;
-    double computeQuality(const TetrahedralElement& element) const;
-    double computeQuality(const TriangleElement& element) const;
     double getShortestEdgeLength(const TetrahedralElement& element) const;
     double getCircumradiusToShortestEdgeRatio(const TetrahedralElement& element) const;
     bool isSkinny(const TetrahedralElement& element, double threshold) const;
 
 private:
+    std::tuple<Point3D, Point3D, Point3D, Point3D> getElementNodeCoordinates(const TetrahedralElement& element) const;
+    std::tuple<Point3D, Point3D, Point3D> getElementNodeCoordinates(const TriangleElement& element) const;
+
     const MeshData3D& mesh_;
 };
 

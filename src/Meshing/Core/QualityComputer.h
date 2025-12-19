@@ -13,7 +13,7 @@ namespace Meshing::ElementGeometry
 {
 
 template <size_t N>
-bool gatherNodes(const MeshData& mesh,
+bool gatherNodes(const MeshData3D& mesh,
                  const std::vector<size_t>& nodeIds,
                  std::array<const Node3D*, N>& nodes)
 {
@@ -34,7 +34,7 @@ bool gatherNodes(const MeshData& mesh,
     return true;
 }
 
-std::optional<double> computeQuality(const MeshData& mesh, const TetrahedralElement& element);
-std::optional<double> computeQuality(const MeshData& mesh, const TriangleElement& element);
+std::optional<double> computeQuality(const MeshData3D& mesh, const TetrahedralElement& element);
+std::optional<double> computeQuality(const MeshData3D& mesh, const TriangleElement& element);
 
 } // namespace Meshing::ElementGeometry

@@ -15,13 +15,7 @@ Computer::Computer(const MeshData3D& mesh) :
 
 double Computer::computeVolume(const TetrahedralElement& element)
 {
-    std::array<const Node3D*, 4> nodes;
-    ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes);
-
-    auto v0 = nodes[0]->getCoordinates();
-    auto v1 = nodes[1]->getCoordinates();
-    auto v2 = nodes[2]->getCoordinates();
-    auto v3 = nodes[3]->getCoordinates();
+    auto [v0, v1, v2, v3] = getElementNodeCoordinates(element);
     const auto edge1 = v1 - v0;
     const auto edge2 = v2 - v0;
     const auto edge3 = v3 - v0;
@@ -31,15 +25,7 @@ double Computer::computeVolume(const TetrahedralElement& element)
 
 double Computer::computeArea(const TriangleElement& element) const
 {
-    std::array<const Node3D*, 3> nodes;
-    if (!ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes))
-    {
-        return 0.0;
-    }
-
-    auto v0 = nodes[0]->getCoordinates();
-    auto v1 = nodes[1]->getCoordinates();
-    auto v2 = nodes[2]->getCoordinates();
+    auto [v0, v1, v2] = getElementNodeCoordinates(element);
     const auto edge1 = v1 - v0;
     const auto edge2 = v2 - v0;
     return 0.5 * edge1.cross(edge2).norm();
@@ -47,16 +33,7 @@ double Computer::computeArea(const TriangleElement& element) const
 
 std::optional<Computer::CircumscribedSphere> Computer::computeCircumscribingSphere(const TetrahedralElement& element) const
 {
-    std::array<const Node3D*, 4> nodes;
-    if (!ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes))
-    {
-        return std::nullopt;
-    }
-
-    auto v0 = nodes[0]->getCoordinates();
-    auto v1 = nodes[1]->getCoordinates();
-    auto v2 = nodes[2]->getCoordinates();
-    auto v3 = nodes[3]->getCoordinates();
+    auto [v0, v1, v2, v3] = getElementNodeCoordinates(element);
 
     Eigen::Matrix3d A;
     A.row(0) = (v1 - v0).transpose();
@@ -98,32 +75,18 @@ bool Computer::getIsPointInsideCircumscribingSphere(const TetrahedralElement& el
     return false;
 }
 
-double Computer::computeQuality(const TetrahedralElement& element) const
-{
-    if (const auto maybeQuality = ElementGeometry::computeQuality(mesh_, element))
-    {
-        return *maybeQuality;
-    }
-
-    return 0.0;
-}
-
-double Computer::computeQuality(const TriangleElement& element) const
-{
-    if (const auto maybeQuality = ElementGeometry::computeQuality(mesh_, element))
-    {
-        return *maybeQuality;
-    }
-
-    return 0.0;
-}
-
 double Computer::getShortestEdgeLength(const TetrahedralElement& element) const
 {
-    std::array<const Node3D*, 4> nodes;
-    if (!ElementGeometry::gatherNodes(mesh_, element.getNodeIds(), nodes))
+    auto nodeIds = element.getNodeIds();
+    std::vector<const Node3D*> nodes;
+    for (auto nodeId : nodeIds)
     {
-        return 0.0;
+        const auto* node = mesh_.getNode(nodeId);
+        if (!node)
+        {
+            return 0.0;
+        }
+        nodes.push_back(node);
     }
 
     double minLen = std::numeric_limits<double>::max();
@@ -169,9 +132,27 @@ bool Computer::isSkinny(const TetrahedralElement& element, double threshold) con
     return ratio > threshold;
 }
 
-std::optional<Computer::CircumCircle2D> Computer::computeCircumcircle(
-    const TriangleElement& tri,
-    const std::unordered_map<size_t, Point2D>& nodeCoords)
+std::tuple<Point3D, Point3D, Point3D, Point3D> Computer::getElementNodeCoordinates(const TetrahedralElement& element) const
+{
+    auto nodeIds = element.getNodeIds();
+    const auto* n0 = mesh_.getNode(nodeIds[0]);
+    const auto* n1 = mesh_.getNode(nodeIds[1]);
+    const auto* n2 = mesh_.getNode(nodeIds[2]);
+    const auto* n3 = mesh_.getNode(nodeIds[3]);
+    return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates(), n3->getCoordinates()};
+}
+
+std::tuple<Point3D, Point3D, Point3D> Computer::getElementNodeCoordinates(const TriangleElement& element) const
+{
+    auto nodeIds = element.getNodeIds();
+    const auto* n0 = mesh_.getNode(nodeIds[0]);
+    const auto* n1 = mesh_.getNode(nodeIds[1]);
+    const auto* n2 = mesh_.getNode(nodeIds[2]);
+    return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
+}
+
+std::optional<Computer::CircumCircle2D> Computer::computeCircumcircle(const TriangleElement& tri,
+                                                                      const std::unordered_map<size_t, Point2D>& nodeCoords)
 {
     const auto& nodes = tri.getNodeIdArray();
 
