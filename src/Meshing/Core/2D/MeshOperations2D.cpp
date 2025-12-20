@@ -64,7 +64,7 @@ std::vector<size_t> MeshOperations2D::findConflictingTriangles(
     for (size_t i = 0; i < activeTriangles.size(); ++i)
     {
         const auto& tri = activeTriangles[i];
-        auto circle = Computer2D::computeCircumcircle(tri, nodeCoords);
+        auto circle = computer_->computeCircumcircle(tri);
 
         if (circle && Computer2D::isPointInsideCircumcircle(*circle, point))
         {

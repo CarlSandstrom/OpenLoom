@@ -20,10 +20,6 @@ public:
     std::optional<CircumCircle2D> computeCircumcircle(const TriangleElement& tri) const;
     double computeArea(const TriangleElement& element) const;
 
-    // Static methods for working with external coordinate maps (used during triangulation)
-    static std::optional<CircumCircle2D> computeCircumcircle(const TriangleElement& tri,
-                                                             const std::unordered_map<size_t, Point2D>& nodeCoords);
-
     static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);
 
 private:

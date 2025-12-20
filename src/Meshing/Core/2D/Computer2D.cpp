@@ -62,50 +62,6 @@ std::tuple<Point2D, Point2D, Point2D> Computer2D::getElementNodeCoordinates(cons
     return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
 }
 
-std::optional<CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri,
-                                                              const std::unordered_map<size_t, Point2D>& nodeCoords)
-{
-    const auto& nodes = tri.getNodeIdArray();
-
-    auto it0 = nodeCoords.find(nodes[0]);
-    auto it1 = nodeCoords.find(nodes[1]);
-    auto it2 = nodeCoords.find(nodes[2]);
-
-    if (it0 == nodeCoords.end() || it1 == nodeCoords.end() || it2 == nodeCoords.end())
-    {
-        return std::nullopt;
-    }
-
-    const Point2D& p0 = it0->second;
-    const Point2D& p1 = it1->second;
-    const Point2D& p2 = it2->second;
-
-    const double ax = p1.x() - p0.x();
-    const double ay = p1.y() - p0.y();
-    const double bx = p2.x() - p0.x();
-    const double by = p2.y() - p0.y();
-
-    const double d = 2.0 * (ax * by - ay * bx);
-
-    if (std::abs(d) < 1e-10)
-    {
-        // Degenerate triangle
-        return std::nullopt;
-    }
-
-    const double aSq = ax * ax + ay * ay;
-    const double bSq = bx * bx + by * by;
-
-    const double cx = (by * aSq - ay * bSq) / d;
-    const double cy = (ax * bSq - bx * aSq) / d;
-
-    CircumCircle2D circle;
-    circle.center = Point2D(p0.x() + cx, p0.y() + cy);
-    circle.radius = std::sqrt(cx * cx + cy * cy);
-
-    return circle;
-}
-
 bool Computer2D::isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point)
 {
     const double dx = point.x() - circle.center.x();
