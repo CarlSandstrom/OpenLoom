@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Meshing/Core/ConstrainedDelaunay2D.h"
+#include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 
 #include <unordered_map>
 #include <vector>

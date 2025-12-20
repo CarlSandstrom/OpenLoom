@@ -1,10 +1,10 @@
-#include "Meshing/Core/ConstrainedDelaunayHelper.h"
+#include "ConstrainedDelaunayHelper.h"
 
 #include <Eigen/Dense>
 #include <algorithm>
 #include <memory>
 
-#include "Meshing/Core/ConstrainedDelaunay3D.h"
+#include "Meshing/Core/3D/ConstrainedDelaunay3D.h"
 #include "Meshing/Data/MeshData3D.h"
 #include "Meshing/Data/MeshMutator3D.h"
 #include "Meshing/Data/TetrahedralElement.h"

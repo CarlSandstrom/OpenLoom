@@ -2,10 +2,10 @@
 
 #include "Common/Types.h"
 #include "Geometry/Base/GeometryCollection3D.h"
-#include "Meshing/Core/MeshingContext3D.h"
+#include "Meshing/Core/3D/MeshingContext3D.h"
 
 #define private public
-#include "Meshing/Core/ConstrainedDelaunay3D.h"
+#include "Meshing/Core/3D/ConstrainedDelaunay3D.h"
 #undef private
 
 #include "Export/VtkExporter.h"

@@ -4,7 +4,7 @@
 #include "Geometry2D/GeometryCollection2D.h"
 #include "Geometry2D/IEdge2D.h"
 #include "MeshOperations2D.h"
-#include "Meshing/Core/MeshingContext2D.h"
+#include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
 #include "Topology2D/Corner2D.h"
 #include "Topology2D/Edge2D.h"

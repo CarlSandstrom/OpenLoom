@@ -5,8 +5,8 @@
 #include <utility>
 
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/MeshingContext3D.h"
-#include "Meshing/Core/SimpleMesher.h"
+#include "Meshing/Core/3D/MeshingContext3D.h"
+#include "Meshing/Core/3D/SimpleMesher.h"
 
 #include "Common/Types.h"
 #include "Geometry/Base/GeometryCollection3D.h"

@@ -6,13 +6,13 @@
 #include <vector>
 
 #include "Common/Types.h"
-#include "ConstrainedDelaunay2D.h"
+#include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "ConstrainedDelaunayHelper.h"
-#include "ConstraintStructures.h"
+#include "Meshing/Core/ConstraintStructures.h"
 #include "Geometry/Base/GeometryCollection3D.h"
-#include "Meshing/Core/Computer3D.h"
-#include "Meshing/Core/MeshingContext2D.h"
-#include "Meshing/Core/MeshingContext3D.h"
+#include "Meshing/Core/3D/Computer3D.h"
+#include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Data/MeshData3D.h"
 #include "Meshing/Data/MeshMutator3D.h"
 #include "Meshing/Data/TetrahedralElement.h"

@@ -1,7 +1,7 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/ConstrainedDelaunay3D.h"
-#include "Meshing/Core/MeshingContext3D.h"
+#include "Meshing/Core/3D/ConstrainedDelaunay3D.h"
+#include "Meshing/Core/3D/MeshingContext3D.h"
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>

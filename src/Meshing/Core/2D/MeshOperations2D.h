@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/Computer2D.h"
+#include "Meshing/Core/2D/Computer2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <array>
