@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <optional>
@@ -13,12 +14,6 @@ namespace Meshing
 class Computer2D
 {
 public:
-    struct CircumCircle2D
-    {
-        Point2D center;
-        double radiusSquared;
-    };
-
     explicit Computer2D(const MeshData2D& mesh);
 
     // Methods that use mesh data

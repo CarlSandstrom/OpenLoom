@@ -2,6 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/2D/Computer2D.h"
+#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <array>
@@ -24,12 +25,6 @@ class MeshMutator2D;
 class MeshOperations2D
 {
 public:
-    struct CircumCircle
-    {
-        Point2D center;
-        double radiusSquared;
-    };
-
     /**
      * @brief Construct mesh operations with mesh data
      * @param meshData Reference to the 2D mesh data

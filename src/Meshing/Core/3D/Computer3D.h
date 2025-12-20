@@ -2,6 +2,7 @@
 
 #include "Common/Types.h"
 #include "ComputerGeneral.h"
+#include "GeometryStructures3D.h"
 #include "Meshing/Data/MeshData3D.h"
 #include "Meshing/Data/TetrahedralElement.h"
 #include <optional>
@@ -15,8 +16,6 @@ class TriangleElement;
 class Computer3D
 {
 public:
-    using CircumscribedSphere = ComputerGeneral::CircumscribedSphere;
-
     explicit Computer3D(const MeshData3D& mesh);
 
     double computeVolume(const TetrahedralElement& element) const;

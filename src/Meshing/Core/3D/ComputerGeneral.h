@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Core/3D/GeometryStructures3D.h"
 
 namespace Meshing
 {
@@ -9,12 +10,6 @@ namespace Meshing
 class ComputerGeneral
 {
 public:
-    struct CircumscribedSphere
-    {
-        Point3D center;
-        double radius;
-    };
-
     static bool getIsPointInsideCircumscribingSphere(const CircumscribedSphere& sphere,
                                                      const Point3DRef point,
                                                      double tolerance = 1e-12);

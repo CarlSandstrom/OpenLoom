@@ -33,7 +33,7 @@ double Computer3D::computeArea(const TriangleElement& element) const
     return 0.5 * edge1.cross(edge2).norm();
 }
 
-std::optional<Computer3D::CircumscribedSphere> Computer3D::computeCircumscribingSphere(const TetrahedralElement& element) const
+std::optional<CircumscribedSphere> Computer3D::computeCircumscribingSphere(const TetrahedralElement& element) const
 {
     auto [v0, v1, v2, v3] = getElementNodeCoordinates(element);
 

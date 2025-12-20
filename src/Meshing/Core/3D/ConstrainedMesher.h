@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IMesher.h"
+#include "Meshing/Interfaces/IMesher.h"
 #include <string>
 
 namespace Meshing

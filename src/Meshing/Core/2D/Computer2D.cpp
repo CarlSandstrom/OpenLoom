@@ -11,7 +11,7 @@ Computer2D::Computer2D(const MeshData2D& mesh) :
 {
 }
 
-std::optional<Computer2D::CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri) const
+std::optional<CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri) const
 {
     auto [p0, p1, p2] = getElementNodeCoordinates(tri);
 
@@ -36,7 +36,7 @@ std::optional<Computer2D::CircumCircle2D> Computer2D::computeCircumcircle(const 
 
     CircumCircle2D circle;
     circle.center = Point2D(p0.x() + cx, p0.y() + cy);
-    circle.radiusSquared = cx * cx + cy * cy;
+    circle.radius = std::sqrt(cx * cx + cy * cy);
 
     return circle;
 }
@@ -62,8 +62,8 @@ std::tuple<Point2D, Point2D, Point2D> Computer2D::getElementNodeCoordinates(cons
     return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
 }
 
-std::optional<Computer2D::CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri,
-                                                                          const std::unordered_map<size_t, Point2D>& nodeCoords)
+std::optional<CircumCircle2D> Computer2D::computeCircumcircle(const TriangleElement& tri,
+                                                              const std::unordered_map<size_t, Point2D>& nodeCoords)
 {
     const auto& nodes = tri.getNodeIdArray();
 
@@ -101,7 +101,7 @@ std::optional<Computer2D::CircumCircle2D> Computer2D::computeCircumcircle(const 
 
     CircumCircle2D circle;
     circle.center = Point2D(p0.x() + cx, p0.y() + cy);
-    circle.radiusSquared = cx * cx + cy * cy;
+    circle.radius = std::sqrt(cx * cx + cy * cy);
 
     return circle;
 }
@@ -112,7 +112,7 @@ bool Computer2D::isPointInsideCircumcircle(const CircumCircle2D& circle, const P
     const double dy = point.y() - circle.center.y();
     const double distSquared = dx * dx + dy * dy;
 
-    return distSquared < circle.radiusSquared - 1e-10;
+    return distSquared < circle.radius * circle.radius - 1e-10;
 }
 
 } // namespace Meshing
