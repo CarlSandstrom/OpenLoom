@@ -19,6 +19,7 @@ public:
     // Methods that use mesh data
     std::optional<CircumCircle2D> computeCircumcircle(const TriangleElement& tri) const;
     double computeArea(const TriangleElement& element) const;
+    std::array<Point2D, 3> createSuperTriangle(const std::vector<Point2D>& points);
 
     static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);
 

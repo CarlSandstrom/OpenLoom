@@ -53,6 +53,37 @@ double Computer2D::computeArea(const TriangleElement& element) const
     return 0.5 * std::abs(dx1 * dy2 - dy1 * dx2);
 }
 
+std::array<Point2D, 3> Computer2D::createSuperTriangle(const std::vector<Point2D>& points)
+{
+    // Find bounding box
+    double minX = std::numeric_limits<double>::max();
+    double minY = std::numeric_limits<double>::max();
+    double maxX = -std::numeric_limits<double>::max();
+    double maxY = -std::numeric_limits<double>::max();
+
+    for (const auto& coord : points)
+    {
+        minX = std::min(minX, coord.x());
+        minY = std::min(minY, coord.y());
+        maxX = std::max(maxX, coord.x());
+        maxY = std::max(maxY, coord.y());
+    }
+
+    const double dx = maxX - minX;
+    const double dy = maxY - minY;
+    const double dmax = std::max(dx, dy);
+    const double midX = (minX + maxX) * 0.5;
+    const double midY = (minY + maxY) * 0.5;
+
+    // Create node points describing a large triangle that contains all points
+    const double scale = 10.0 * dmax;
+
+    Point2D p0(midX - scale, midY - scale);
+    Point2D p1(midX + scale, midY - scale);
+    Point2D p2(midX, midY + scale);
+    return {p0, p1, p2};
+}
+
 std::tuple<Point2D, Point2D, Point2D> Computer2D::getElementNodeCoordinates(const TriangleElement& element) const
 {
     auto nodeIds = element.getNodeIds();

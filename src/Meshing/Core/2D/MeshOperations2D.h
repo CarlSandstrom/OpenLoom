@@ -40,27 +40,23 @@ public:
     void insertVertexBowyerWatson(size_t nodeId,
                                   const std::unordered_map<size_t, Point2D>& nodeCoords,
                                   std::vector<TriangleElement>& activeTriangles) const;
+    size_t insertVertexBowyerWatson(const Point2D& point);
 
     /**
      * @brief Find triangles whose circumcircle contains the point
      * @param point The point to test
-     * @param nodeCoords Map of all node coordinates
-     * @param activeTriangles Vector of active triangles
-     * @return Indices of conflicting triangles
+     * @return Ids of conflicting triangles
      */
-    std::vector<size_t> findConflictingTriangles(const Point2D& point,
-                                                 const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                                 const std::vector<TriangleElement>& activeTriangles) const;
+    std::vector<size_t> findConflictingTriangles(const Point2D& point) const;
 
     /**
      * @brief Find the boundary of the cavity formed by conflicting triangles
      * @param conflictingIndices Indices of conflicting triangles
-     * @param activeTriangles Vector of active triangles
      * @return Boundary edges of the cavity
      */
-    std::vector<std::array<size_t, 2>> findCavityBoundary(
-        const std::vector<size_t>& conflictingIndices,
-        const std::vector<TriangleElement>& activeTriangles) const;
+    std::vector<std::array<size_t, 2>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
+
+    bool removeTrianglesContainingNode(size_t nodeId);
 
     /**
      * @brief Find triangles that intersect with an edge

@@ -214,7 +214,7 @@ void ConstrainedDelaunay2D::forceEdge(size_t nodeId1, size_t nodeId2)
                  nodeId1, nodeId2, intersecting.size());
 
     // Find cavity boundary
-    std::vector<std::array<size_t, 2>> boundary = meshOps_->findCavityBoundary(intersecting, activeTriangles_);
+    std::vector<std::array<size_t, 2>> boundary = meshOps_->findCavityBoundary(intersecting);
 
     // Remove intersecting triangles
     std::vector<TriangleElement> newActiveTriangles;

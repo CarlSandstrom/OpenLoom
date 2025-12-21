@@ -8,6 +8,29 @@ MeshData3D::MeshData3D()
 {
 }
 
+MeshData3D::MeshData3D(const MeshData2D& mesh2D)
+{
+    auto& nodes2D = mesh2D.getNodes();
+    auto& elements2D = mesh2D.getElements();
+
+    for (const auto& [id, node2D] : nodes2D)
+    {
+        const Point2D& coords2D = node2D->getCoordinates();
+        Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
+        auto node3D = std::make_unique<Node3D>(coords3D);
+        node3D->setBoundary(node2D->isBoundary());
+        node3D->setGeometryId(node2D->getGeometryId());
+        addNodeInternal(id, std::move(node3D));
+    }
+
+    for (const auto& [id, element2D] : elements2D)
+    {
+        // Assuming IElement can be cloned for 3D usage
+        auto element3D = element2D->clone();
+        addElementInternal(id, std::move(element3D));
+    }
+}
+
 const std::unordered_map<size_t, std::unique_ptr<Node3D>>& MeshData3D::getNodes() const
 {
     return nodes_;

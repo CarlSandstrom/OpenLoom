@@ -26,7 +26,7 @@ void MeshOperations2D::insertVertexBowyerWatson(size_t nodeId,
     const Point2D& point = nodeCoords.at(nodeId);
 
     // Find conflicting triangles
-    std::vector<size_t> conflicting = findConflictingTriangles(point, nodeCoords, activeTriangles);
+    std::vector<size_t> conflicting = findConflictingTriangles(point);
 
     if (conflicting.empty())
     {
@@ -36,7 +36,7 @@ void MeshOperations2D::insertVertexBowyerWatson(size_t nodeId,
     }
 
     // Find cavity boundary
-    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting, activeTriangles);
+    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
 
     // Remove conflicting triangles
     std::vector<TriangleElement> newActiveTriangles;
@@ -54,30 +54,60 @@ void MeshOperations2D::insertVertexBowyerWatson(size_t nodeId,
     retriangulate(nodeId, boundary, activeTriangles);
 }
 
-std::vector<size_t> MeshOperations2D::findConflictingTriangles(
-    const Point2D& point,
-    const std::unordered_map<size_t, Point2D>& nodeCoords,
-    const std::vector<TriangleElement>& activeTriangles) const
+size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
+{
+    std::vector<size_t> conflicting = findConflictingTriangles(point);
+
+    if (conflicting.empty())
+    {
+        SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
+                    point.x(), point.y());
+        return -1;
+    }
+
+    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
+
+    for (auto conflictingElementId : conflicting)
+    {
+        mutator_->removeElement(conflictingElementId);
+    }
+
+    size_t newVertex = mutator_->addNode(point);
+
+    for (const auto& edge : boundary)
+    {
+        auto newTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]});
+        mutator_->addElement(std::move(newTriangle));
+    }
+
+    return newVertex; // Placeholder return value
+}
+
+std::vector<size_t> MeshOperations2D::findConflictingTriangles(const Point2D& point) const
 {
     std::vector<size_t> conflicting;
 
-    for (size_t i = 0; i < activeTriangles.size(); ++i)
+    for (const auto& [id, element] : meshData_.getElements())
     {
-        const auto& tri = activeTriangles[i];
-        auto circle = computer_->computeCircumcircle(tri);
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (triangle == nullptr)
+        {
+            SPDLOG_WARN("MeshOperations2D: Skipping non-triangle element {}", id);
+            continue;
+        }
+
+        auto circle = computer_->computeCircumcircle(*triangle);
 
         if (circle && Computer2D::isPointInsideCircumcircle(*circle, point))
         {
-            conflicting.push_back(i);
+            conflicting.push_back(id);
         }
     }
 
     return conflicting;
 }
 
-std::vector<std::array<size_t, 2>> MeshOperations2D::findCavityBoundary(
-    const std::vector<size_t>& conflictingIndices,
-    const std::vector<TriangleElement>& activeTriangles) const
+std::vector<std::array<size_t, 2>> MeshOperations2D::findCavityBoundary(const std::vector<size_t>& conflictingIndices) const
 {
     // Count how many times each edge appears
     std::map<std::pair<size_t, size_t>, int> edgeCount;
@@ -85,7 +115,7 @@ std::vector<std::array<size_t, 2>> MeshOperations2D::findCavityBoundary(
 
     for (size_t idx : conflictingIndices)
     {
-        const auto& tri = activeTriangles[idx];
+        auto tri = dynamic_cast<const TriangleElement&>(*meshData_.getElement(idx));
         for (size_t i = 0; i < 3; ++i)
         {
             auto edge = tri.getEdge(i);
@@ -106,6 +136,26 @@ std::vector<std::array<size_t, 2>> MeshOperations2D::findCavityBoundary(
     }
 
     return boundary;
+}
+
+bool MeshOperations2D::removeTrianglesContainingNode(size_t nodeId)
+{
+    std::vector<size_t> elementsToRemove;
+    for (const auto& [id, element] : meshData_.getElements())
+    {
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (triangle && triangle->getHasNode(nodeId))
+        {
+            elementsToRemove.push_back(id);
+        }
+    }
+
+    for (size_t id : elementsToRemove)
+    {
+        mutator_->removeElement(id);
+    }
+
+    return !elementsToRemove.empty();
 }
 
 std::vector<size_t> MeshOperations2D::findIntersectingTriangles(

@@ -12,9 +12,8 @@ MeshMutator2D::MeshMutator2D(MeshData2D& meshData) :
 
 size_t MeshMutator2D::addNode(const Point2D& coordinates)
 {
-    size_t id = nextNodeId_++;
     auto node = std::make_unique<Node2D>(coordinates);
-    meshData_.addNodeInternal(id, std::move(node));
+    size_t id = meshData_.addNodeInternal(std::move(node));
     return id;
 }
 
@@ -34,8 +33,7 @@ void MeshMutator2D::removeNode(size_t id)
 
 size_t MeshMutator2D::addElement(std::unique_ptr<IElement> element)
 {
-    size_t id = nextElementId_++;
-    meshData_.addElementInternal(id, std::move(element));
+    size_t id = meshData_.addElementInternal(std::move(element));
     return id;
 }
 

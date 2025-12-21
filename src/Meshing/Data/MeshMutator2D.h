@@ -28,8 +28,6 @@ public:
 
 private:
     MeshData2D& meshData_;
-    size_t nextNodeId_ = 0;
-    size_t nextElementId_ = 0;
 };
 
 } // namespace Meshing

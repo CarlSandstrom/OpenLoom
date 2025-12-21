@@ -15,14 +15,16 @@ const IElement* MeshData2D::getElement(size_t id) const
     return (it != elements_.end()) ? it->second.get() : nullptr;
 }
 
-void MeshData2D::addNodeInternal(size_t id, std::unique_ptr<Node2D> node)
+size_t MeshData2D::addNodeInternal(std::unique_ptr<Node2D> node)
 {
-    nodes_[id] = std::move(node);
+    nodes_[nextNodeId_] = std::move(node);
+    return nextNodeId_++;
 }
 
-void MeshData2D::addElementInternal(size_t id, std::unique_ptr<IElement> element)
+size_t MeshData2D::addElementInternal(std::unique_ptr<IElement> element)
 {
-    elements_[id] = std::move(element);
+    elements_[nextElementId_] = std::move(element);
+    return nextElementId_++;
 }
 
 void MeshData2D::removeNodeInternal(size_t id)

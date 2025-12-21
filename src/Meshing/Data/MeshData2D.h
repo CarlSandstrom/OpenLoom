@@ -32,10 +32,12 @@ public:
 private:
     std::unordered_map<size_t, std::unique_ptr<Node2D>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
+    size_t nextNodeId_ = 0;
+    size_t nextElementId_ = 0;
 
     // Private methods for friend classes
-    void addNodeInternal(size_t id, std::unique_ptr<Node2D> node);
-    void addElementInternal(size_t id, std::unique_ptr<IElement> element);
+    size_t addNodeInternal(std::unique_ptr<Node2D> node);
+    size_t addElementInternal(std::unique_ptr<IElement> element);
     void removeNodeInternal(size_t id);
     void removeElementInternal(size_t id);
     Node2D* getNodeMutable(size_t id);
