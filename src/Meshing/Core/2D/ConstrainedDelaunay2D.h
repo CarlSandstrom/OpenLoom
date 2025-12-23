@@ -18,27 +18,6 @@ class MeshingContext2D;
 class MeshMutator2D;
 class MeshOperations2D;
 
-/**
- * @brief Constrained 2D Delaunay triangulation
- *
- * Provides unconstrained and constrained 2D Delaunay triangulation in parametric space.
- * Used for triangulating surfaces in the 3D mesher.
- *
- * Design:
- * - Works in 2D parametric space (u,v coordinates)
- * - Uses Bowyer-Watson incremental algorithm
- * - Supports constrained edges (for surface boundaries)
- * - Returns triangulation as list of node ID triplets
- *
- * Usage (with MeshingContext2D):
- * 1. Create instance with MeshingContext2D
- * 2. Call generateConstrained() to create mesh from topology/geometry
- *
- * Usage (standalone):
- * 1. Create instance with node ID to Point2D mapping
- * 2. Optionally add constraint edges
- * 3. Call triangulate() to get triangles
- */
 class ConstrainedDelaunay2D
 {
 public:
@@ -50,121 +29,17 @@ public:
      *
      * @param context The 2D meshing context containing geometry and topology
      */
-    explicit ConstrainedDelaunay2D(MeshingContext2D& context);
+    explicit ConstrainedDelaunay2D(MeshingContext2D& context, const std::vector<Point2D>& additionalPoints = {});
 
-    /**
-     * @brief Construct 2D Delaunay triangulator with raw coordinates
-     * @param nodeCoords Map from node ID to 2D parametric coordinates
-     */
-    explicit ConstrainedDelaunay2D(const std::unordered_map<size_t, Point2D>& nodeCoords);
-
-    /**
-     * @brief Destructor
-     */
     ~ConstrainedDelaunay2D();
 
-    /**
-     * @brief Add a constraint edge that must appear in the triangulation
-     * @param nodeId1 First node ID
-     * @param nodeId2 Second node ID
-     */
-    void addConstraintEdge(size_t nodeId1, size_t nodeId2);
-
-    /**
-     * @brief Compute the triangulation
-     * @return Vector of triangles, each as array of 3 node IDs
-     */
     std::vector<std::array<size_t, 3>> triangulate();
-
-    /**
-     * @brief Generate constrained mesh from topology (requires MeshingContext2D)
-     *
-     * Process:
-     * 1. Insert corner nodes from topology
-     * 2. Sample and insert edge nodes
-     * 3. Create initial Delaunay triangulation
-     * 4. Force each constraint edge into mesh
-     *
-     * @param samplesPerEdge Number of sample points per boundary edge
-     */
-    void generateConstrained(size_t samplesPerEdge = 10);
-
-    /**
-     * @brief Get the 2D mesh data (requires MeshingContext2D constructor)
-     */
-    MeshData2D& getMeshData2D();
-    const MeshData2D& getMeshData2D() const;
-
-    /**
-     * @brief Get mesh data as 3D (for backward compatibility)
-     * @deprecated Use getMeshData2D() instead
-     */
-    MeshData3D getMeshData() const;
 
 private:
     // Context (optional - for generateConstrained workflow)
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
     MeshMutator2D* operations_ = nullptr;
-
-    // For standalone usage without MeshingContext2D
-    std::unique_ptr<MeshData2D> ownedMeshData_;
-    std::unique_ptr<MeshOperations2D> meshOps_;
-
-    // Maps topology IDs to mesh node IDs (for generateConstrained)
-    std::unordered_map<std::string, size_t> topologyToNodeId_;
-
-    // Node coordinates in 2D parametric space
-    std::unordered_map<size_t, Point2D> nodeCoords_;
-
-    // Constraint edges
-    std::vector<std::pair<size_t, size_t>> constraintEdges_;
-
-    // Active triangles during triangulation
-    std::vector<TriangleElement> activeTriangles_;
-
-    // Super triangle node IDs
-    std::vector<size_t> superNodeIds_;
-
-    /**
-     * @brief Create super triangle that contains all points
-     */
-    void createSuperTriangle();
-
-    /**
-     * @brief Insert a vertex into the triangulation
-     */
-    void insertVertex(size_t nodeId);
-
-    /**
-     * @brief Remove super triangle and its associated triangles
-     */
-    void removeSuperTriangle();
-
-    /**
-     * @brief Force a constraint edge to appear in the mesh
-     */
-    void forceEdge(size_t nodeId1, size_t nodeId2);
-
-    /**
-     * @brief Check if edge exists in triangulation
-     */
-    bool edgeExists(size_t nodeId1, size_t nodeId2) const;
-
-    /**
-     * @brief Create ordered edge key for lookups
-     */
-    static std::pair<size_t, size_t> makeEdgeKey(size_t a, size_t b)
-    {
-        return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
-    }
-
-    // Helper methods for generateConstrained workflow
-    void insertCornerNodes();
-    void insertEdgeNodes(size_t samplesPerEdge);
-    void buildTriangulation();
-    void recoverConstraintEdges();
-    void storeResultsInMeshData();
 };
 
 } // namespace Meshing

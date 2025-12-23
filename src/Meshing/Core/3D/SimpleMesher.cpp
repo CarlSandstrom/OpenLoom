@@ -42,11 +42,12 @@ void SimpleMesher::generate(MeshingContext3D& context)
         }
     }
 
-    ConstrainedDelaunay3D delaunay(context);
-    delaunay.initialize(points);
+    /*     ConstrainedDelaunay3D delaunay(context);
+        delaunay.initialize(points);
 
-    // Build connectivity
-    context.rebuildConnectivity();
+        // Build connectivity
+        context.rebuildConnectivity();
+     */
 }
 
 } // namespace Meshing

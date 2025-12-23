@@ -21,8 +21,8 @@ void ConstrainedMesher::generate(MeshingContext3D& context)
     ConstrainedDelaunay3D mesher(context);
 
     // Generate constrained mesh respecting topology (edges AND faces)
-    mesher.generateConstrained(samplesPerEdge_,
-                               samplesPerSurface_);
+    /*    mesher.generateConstrained(samplesPerEdge_,
+                                   samplesPerSurface_);*/
 
     // Build connectivity
     context.rebuildConnectivity();

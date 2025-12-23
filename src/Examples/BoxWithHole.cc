@@ -27,7 +27,7 @@ int main()
         converter.getTopology());
 
     Meshing::ConstrainedDelaunay3D mesher(context);
-    mesher.generateConstrained(1, 5);
+    //    mesher.generateConstrained(1, 5);
 
     Export::VtkExporter exporter;
     exporter.writeVtu(context.getMeshData(), "BoxWithHole_mesh.vtu");

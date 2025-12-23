@@ -6,6 +6,7 @@
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
 #include <array>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -25,7 +26,7 @@ public:
      * @brief Construct a Delaunay2D triangulator with input points
      * @param points Vector of Point2D representing the input vertices
      */
-    explicit Delaunay2D(const std::vector<Point2D>& points);
+    explicit Delaunay2D(const std::vector<Point2D>& points, MeshData2D* meshData);
 
     /**
      * @brief Perform the Delaunay triangulation
@@ -33,18 +34,15 @@ public:
      */
     void triangulate();
 
-    /**
-     * @brief Get the generated mesh data
-     * @return Pointer to MeshData2D containing the triangulated mesh
-     */
-    MeshData2D* getMeshData() const { return meshData_.get(); }
+    std::map<size_t, size_t> getPointIndexToNodeIdMap() const { return pointIndexToNodeIdMap_; }
 
 private:
-    std::unique_ptr<MeshData2D> meshData_;
+    MeshData2D* meshData_;
     MeshMutator2D meshMutator_;
     MeshOperations2D meshOperations_;
     Computer2D computer_;
     std::vector<Point2D> points_;
+    std::map<size_t, size_t> pointIndexToNodeIdMap_;
 };
 
 } // namespace Meshing

@@ -4,9 +4,9 @@
 namespace Meshing
 {
 
-Delaunay2D::Delaunay2D(const std::vector<Point2D>& points) :
+Delaunay2D::Delaunay2D(const std::vector<Point2D>& points, MeshData2D* meshData) :
     points_(points),
-    meshData_(std::make_unique<MeshData2D>()),
+    meshData_(meshData),
     meshMutator_(*meshData_),
     meshOperations_(*meshData_),
     computer_(*meshData_)
@@ -26,9 +26,13 @@ void Delaunay2D::triangulate()
     auto superTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{superNodeId0, superNodeId1, superNodeId2});
     size_t superElementId = meshMutator_.addElement(std::move(superTriangle));
 
+    pointIndexToNodeIdMap_.clear();
+    size_t index = 0;
     for (const auto& point : points_)
     {
         size_t nodeId = meshOperations_.insertVertexBowyerWatson(point);
+        pointIndexToNodeIdMap_[index] = nodeId;
+        ++index;
     }
 
     meshOperations_.removeTrianglesContainingNode(superNodeId0);

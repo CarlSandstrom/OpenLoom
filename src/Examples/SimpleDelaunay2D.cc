@@ -16,13 +16,15 @@ int main()
 
     spdlog::info("Simple Delaunay2D Example - Rectangle Corners");
 
-    // Define the corners of a rectangle
-    std::vector<Point2D> points = {
-        Point2D(0.0, 0.0), // Bottom-left
-        Point2D(5.0, 0.0), // Bottom-right
-        Point2D(5.0, 3.0), // Top-right
-        Point2D(0.0, 3.0)  // Top-left
-    };
+    // Define the nodes on a circle
+    std::vector<Point2D> points;
+
+    for (double alpha = 0; alpha < 2 * M_PI; alpha += M_PI / 10.0)
+    {
+        double x = std::cos(alpha);
+        double y = std::sin(alpha);
+        points.emplace_back(x, y);
+    }
 
     spdlog::info("Created {} points forming a rectangle", points.size());
     for (size_t i = 0; i < points.size(); ++i)
@@ -31,17 +33,17 @@ int main()
     }
 
     // Create Delaunay triangulator
-    Delaunay2D triangulator(points);
+    MeshData2D meshData2D;
+    Delaunay2D triangulator(points, &meshData2D);
 
     // Perform triangulation
     spdlog::info("Running triangulation...");
     triangulator.triangulate();
-    const auto& triangles = triangulator.getMeshData()->getElements();
-    const auto& nodes = triangulator.getMeshData()->getNodes();
+    const auto& triangles = meshData2D.getElements();
+    const auto& nodes = meshData2D.getNodes();
 
     // Create 3D mesh data for export (with z=0)
-    MeshData3D meshData3D(*triangulator.getMeshData());
-
+    MeshData3D meshData3D(meshData2D);
     // Export to VTK
     Export::VtkExporter exporter;
     exporter.writeVtu(meshData3D, "simple_delaunay_2d.vtu");

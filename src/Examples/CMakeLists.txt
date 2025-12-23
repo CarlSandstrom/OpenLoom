@@ -6,6 +6,7 @@ set(EXAMPLE_SOURCES
     BoxWithHole.cc
     ConstrainedBoxExample.cc
     RectangleWithHole2D.cc
+    RectangleWithCrack.cc
     SimpleDelaunay2D.cc
 )
 
