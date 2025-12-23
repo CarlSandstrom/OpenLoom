@@ -18,7 +18,7 @@ void SimpleMesher::generate(MeshingContext3D& context)
     // Start with a clean mesh for this simple example
     context.clearMesh();
 
-    auto& ops = context.getOperations();
+    auto& ops = context.getMutator();
 
     // Begin transaction to ensure rollback on any failure
     std::vector<Point3D> points;

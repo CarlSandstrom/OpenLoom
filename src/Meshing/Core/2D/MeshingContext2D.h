@@ -23,6 +23,7 @@ namespace Meshing
 
 class MeshData2D;
 class MeshMutator2D;
+class MeshOperations2D;
 
 /**
  * @brief Central orchestrator for 2D meshing in parametric space
@@ -75,7 +76,8 @@ public:
 
     // Access to mesh data structures
     MeshData2D& getMeshData();
-    MeshMutator2D& getOperations();
+    MeshMutator2D& getMutator();
+    MeshOperations2D& getOperations();
 
     // Clear mesh (data only, keeps geometry/topology)
     void clearMesh();
@@ -85,7 +87,8 @@ private:
     std::unique_ptr<Topology2D::Topology2D> topology_;
 
     std::unique_ptr<MeshData2D> meshData_;
-    std::unique_ptr<MeshMutator2D> operations_;
+    std::unique_ptr<MeshMutator2D> meshMutator_;
+    std::unique_ptr<MeshOperations2D> meshOperations_;
 
     void ensureInitialized();
 };

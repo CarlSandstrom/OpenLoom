@@ -158,32 +158,33 @@ bool MeshOperations2D::removeTrianglesContainingNode(size_t nodeId)
     return !elementsToRemove.empty();
 }
 
-std::vector<size_t> MeshOperations2D::findIntersectingTriangles(
-    size_t nodeId1,
-    size_t nodeId2,
-    const std::unordered_map<size_t, Point2D>& nodeCoords,
-    const std::vector<TriangleElement>& activeTriangles) const
+std::vector<size_t> MeshOperations2D::findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const
 {
     std::vector<size_t> result;
 
-    const Point2D& p1 = nodeCoords.at(nodeId1);
-    const Point2D& p2 = nodeCoords.at(nodeId2);
+    const auto& p1 = meshData_.getNode(nodeId1)->getCoordinates();
+    const auto& p2 = meshData_.getNode(nodeId2)->getCoordinates();
 
-    for (size_t i = 0; i < activeTriangles.size(); ++i)
+    for (auto& idAndTriangle : meshData_.getElements())
     {
-        const auto& tri = activeTriangles[i];
+        auto triangle = dynamic_cast<const TriangleElement*>(idAndTriangle.second.get());
+        if (!triangle)
+        {
+            spdlog::warn("MeshOperations2D: Skipping non-triangle element {}", idAndTriangle.first);
+            continue; // Skip non-triangle elements
+        }
 
         // Skip triangles that already contain both nodes
-        if (tri.getHasNode(nodeId1) && tri.getHasNode(nodeId2))
+        if (triangle->getHasNode(nodeId1) && triangle->getHasNode(nodeId2))
         {
             continue;
         }
 
         // Check if constraint edge intersects any edge of this triangle
         bool intersects = false;
-        for (size_t edgeIdx = 0; edgeIdx < 3; ++edgeIdx)
+        for (size_t edgeIndex = 0; edgeIndex < 3; ++edgeIndex)
         {
-            auto edge = tri.getEdge(edgeIdx);
+            auto edge = triangle->getEdge(edgeIndex);
 
             // Skip edges that share a node with the constraint edge
             if (edge[0] == nodeId1 || edge[0] == nodeId2 ||
@@ -192,10 +193,10 @@ std::vector<size_t> MeshOperations2D::findIntersectingTriangles(
                 continue;
             }
 
-            const Point2D& e1 = nodeCoords.at(edge[0]);
-            const Point2D& e2 = nodeCoords.at(edge[1]);
+            const Point2D& coordinate1 = meshData_.getNode(edge[0])->getCoordinates();
+            const Point2D& coordinate2 = meshData_.getNode(edge[1])->getCoordinates();
 
-            if (segmentsIntersect(p1, p2, e1, e2))
+            if (segmentsIntersect(p1, p2, coordinate1, coordinate2))
             {
                 intersects = true;
                 break;
@@ -204,11 +205,36 @@ std::vector<size_t> MeshOperations2D::findIntersectingTriangles(
 
         if (intersects)
         {
-            result.push_back(i);
+            result.push_back(idAndTriangle.first);
         }
     }
 
     return result;
+}
+
+bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
+{
+
+    auto intersectingTriangles = findIntersectingTriangles(nodeId1, nodeId2);
+
+    if (intersectingTriangles.empty())
+    {
+        return true; // Edge already enforced
+    }
+
+    // Find the cavity boundary
+    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(intersectingTriangles);
+
+    // Remove intersecting triangles
+    for (auto index : intersectingTriangles)
+    {
+        const auto& tri = *meshData_.getElement(index);
+        mutator_->removeElement(index);
+    }
+
+    // Retriangulate the cavity
+
+    return true;
 }
 
 void MeshOperations2D::retriangulate(size_t vertexNodeId,

@@ -30,10 +30,10 @@ MeshConnectivity& MeshingContext3D::getConnectivity()
     return *connectivity_;
 }
 
-MeshMutator3D& MeshingContext3D::getOperations()
+MeshMutator3D& MeshingContext3D::getMutator()
 {
     ensureInitialized();
-    return *operations_;
+    return *meshMutator_;
 }
 
 void MeshingContext3D::rebuildConnectivity()
@@ -47,8 +47,8 @@ void MeshingContext3D::clearMesh()
     // Recreate fresh containers
     meshData_ = std::make_unique<MeshData3D>();
     connectivity_ = std::make_unique<MeshConnectivity>(*meshData_);
-    operations_ = std::make_unique<MeshMutator3D>(*meshData_);
-    operations_->setConnectivity(connectivity_.get());
+    meshMutator_ = std::make_unique<MeshMutator3D>(*meshData_);
+    meshMutator_->setConnectivity(connectivity_.get());
 }
 
 void MeshingContext3D::ensureInitialized()
@@ -61,10 +61,10 @@ void MeshingContext3D::ensureInitialized()
     {
         connectivity_ = std::make_unique<MeshConnectivity>(*meshData_);
     }
-    if (!operations_)
+    if (!meshMutator_)
     {
-        operations_ = std::make_unique<MeshMutator3D>(*meshData_);
-        operations_->setConnectivity(connectivity_.get());
+        meshMutator_ = std::make_unique<MeshMutator3D>(*meshData_);
+        meshMutator_->setConnectivity(connectivity_.get());
     }
 }
 

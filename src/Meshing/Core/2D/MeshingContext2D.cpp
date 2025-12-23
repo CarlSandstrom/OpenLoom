@@ -7,6 +7,7 @@
 #include "Geometry2D/Corner2D.h"
 #include "Geometry2D/IEdge2D.h"
 #include "Geometry2D/LinearEdge2D.h"
+#include "MeshOperations2D.h"
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
 #include "Topology/Edge3D.h"
@@ -127,16 +128,22 @@ MeshData2D& MeshingContext2D::getMeshData()
     return *meshData_;
 }
 
-MeshMutator2D& MeshingContext2D::getOperations()
+MeshOperations2D& MeshingContext2D::getOperations()
 {
     ensureInitialized();
-    return *operations_;
+    return *meshOperations_;
+}
+
+MeshMutator2D& MeshingContext2D::getMutator()
+{
+    ensureInitialized();
+    return *meshMutator_;
 }
 
 void MeshingContext2D::clearMesh()
 {
     meshData_ = std::make_unique<MeshData2D>();
-    operations_ = std::make_unique<MeshMutator2D>(*meshData_);
+    meshMutator_ = std::make_unique<MeshMutator2D>(*meshData_);
 }
 
 void MeshingContext2D::ensureInitialized()
@@ -145,9 +152,13 @@ void MeshingContext2D::ensureInitialized()
     {
         meshData_ = std::make_unique<MeshData2D>();
     }
-    if (!operations_)
+    if (!meshMutator_)
     {
-        operations_ = std::make_unique<MeshMutator2D>(*meshData_);
+        meshMutator_ = std::make_unique<MeshMutator2D>(*meshData_);
+    }
+    if (!meshOperations_)
+    {
+        meshOperations_ = std::make_unique<MeshOperations2D>(*meshData_);
     }
 }
 

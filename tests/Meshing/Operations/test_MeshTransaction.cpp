@@ -35,18 +35,18 @@ protected:
     void SetUp() override
     {
         geometry_ = std::make_unique<MeshData3D>();
-        operations_ = std::make_unique<MeshMutator3D>(*geometry_);
+        meshMutator_ = std::make_unique<MeshMutator3D>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
         // Wire up operations to use connectivity for validation
-        operations_->setConnectivity(connectivity_.get());
+        meshMutator_->setConnectivity(connectivity_.get());
 
         // Add some test nodes
-        node1Id_ = operations_->addNode(Point3D(0.0, 0.0, 0.0));
-        node2Id_ = operations_->addNode(Point3D(1.0, 0.0, 0.0));
-        node3Id_ = operations_->addNode(Point3D(0.0, 1.0, 0.0));
-        node4Id_ = operations_->addNode(Point3D(0.0, 0.0, 1.0));
-        node5Id_ = operations_->addNode(Point3D(1.0, 1.0, 1.0));
+        node1Id_ = meshMutator_->addNode(Point3D(0.0, 0.0, 0.0));
+        node2Id_ = meshMutator_->addNode(Point3D(1.0, 0.0, 0.0));
+        node3Id_ = meshMutator_->addNode(Point3D(0.0, 1.0, 0.0));
+        node4Id_ = meshMutator_->addNode(Point3D(0.0, 0.0, 1.0));
+        node5Id_ = meshMutator_->addNode(Point3D(1.0, 1.0, 1.0));
 
         // Rebuild connectivity after adding nodes
         connectivity_->rebuildConnectivity();
@@ -54,27 +54,27 @@ protected:
 
     void TearDown() override
     {
-        operations_.reset();
+        meshMutator_.reset();
         connectivity_.reset();
         geometry_.reset();
     }
 
     std::unique_ptr<MeshData3D> geometry_;
-    std::unique_ptr<MeshMutator3D> operations_;
+    std::unique_ptr<MeshMutator3D> meshMutator_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_, node5Id_;
 };
 
 TEST_F(MeshTransactionTest, ConstructorTest)
 {
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
 
     EXPECT_FALSE(transaction.isActive());
 }
 
 TEST_F(MeshTransactionTest, BeginTransactionTest)
 {
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
 
     EXPECT_FALSE(transaction.isActive());
 
@@ -85,14 +85,14 @@ TEST_F(MeshTransactionTest, BeginTransactionTest)
 
 TEST_F(MeshTransactionTest, CommitTransactionTest)
 {
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
     transaction.begin();
 
     auto element = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
 
     EXPECT_EQ(geometry_->getElementCount(), 0);
-    size_t elementId = operations_->addElement(std::move(element));
+    size_t elementId = meshMutator_->addElement(std::move(element));
 
     EXPECT_EQ(geometry_->getElementCount(), 1);
     EXPECT_TRUE(transaction.isActive());
@@ -105,14 +105,14 @@ TEST_F(MeshTransactionTest, CommitTransactionTest)
 
 TEST_F(MeshTransactionTest, RollbackTransactionTest)
 {
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
     transaction.begin();
 
     auto element = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
 
     EXPECT_EQ(geometry_->getElementCount(), 0);
-    size_t elementId = operations_->addElement(std::move(element));
+    size_t elementId = meshMutator_->addElement(std::move(element));
 
     EXPECT_TRUE(transaction.isActive());
     EXPECT_EQ(geometry_->getElementCount(), 1);
@@ -128,13 +128,13 @@ TEST_F(MeshTransactionTest, AutoRollbackOnDestructorTest)
     EXPECT_EQ(geometry_->getElementCount(), 0);
 
     {
-        MeshTransaction transaction(operations_.get());
+        MeshTransaction transaction(meshMutator_.get());
         transaction.begin();
 
         // Add an element during transaction
         auto element = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
-        size_t elementId = operations_->addElement(std::move(element));
+        size_t elementId = meshMutator_->addElement(std::move(element));
 
         EXPECT_EQ(geometry_->getElementCount(), 1);
         EXPECT_TRUE(transaction.isActive());
@@ -150,11 +150,11 @@ TEST_F(MeshTransactionTest, NodeAdditionAndRollbackTest)
 {
     size_t initialNodeCount = geometry_->getNodeCount();
 
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
     transaction.begin();
 
     // Add a node during transaction
-    size_t newNodeId = operations_->addNode(Point3D(2.0, 2.0, 2.0));
+    size_t newNodeId = meshMutator_->addNode(Point3D(2.0, 2.0, 2.0));
 
     EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount + 1);
     EXPECT_TRUE(transaction.isActive());
@@ -173,12 +173,12 @@ TEST_F(MeshTransactionTest, NodeModificationAndRollbackTest)
     ASSERT_NE(node, nullptr);
     Point3D originalCoords = node->getCoordinates();
 
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
     transaction.begin();
 
     // Modify an existing node during transaction
     Point3D newCoords(1.5, 1.5, 1.5);
-    operations_->moveNode(node1Id_, newCoords);
+    meshMutator_->moveNode(node1Id_, newCoords);
 
     // Verify the node was modified
     node = geometry_->getNode(node1Id_);
@@ -200,16 +200,16 @@ TEST_F(MeshTransactionTest, ElementRemovalAndRollbackTest)
     // First add an element outside transaction
     auto element = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
-    size_t elementId = operations_->addElement(std::move(element));
+    size_t elementId = meshMutator_->addElement(std::move(element));
 
     EXPECT_EQ(geometry_->getElementCount(), 1);
     EXPECT_NE(geometry_->getElement(elementId), nullptr);
 
     // Now remove it within a transaction
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
     transaction.begin();
 
-    operations_->removeElement(elementId);
+    meshMutator_->removeElement(elementId);
 
     EXPECT_EQ(geometry_->getElementCount(), 0);
     EXPECT_EQ(geometry_->getElement(elementId), nullptr);
@@ -233,16 +233,16 @@ TEST_F(MeshTransactionTest, MultipleOperationsRollbackTest)
     ASSERT_NE(node2, nullptr);
     Point3D originalNode2Coords = node2->getCoordinates();
 
-    MeshTransaction transaction(operations_.get());
+    MeshTransaction transaction(meshMutator_.get());
     transaction.begin();
 
     // Perform multiple operations
-    size_t newNodeId = operations_->addNode(Point3D(3.0, 3.0, 3.0));
-    operations_->moveNode(node2Id_, Point3D(2.5, 2.5, 2.5));
+    size_t newNodeId = meshMutator_->addNode(Point3D(3.0, 3.0, 3.0));
+    meshMutator_->moveNode(node2Id_, Point3D(2.5, 2.5, 2.5));
 
     auto element = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node1Id_, node3Id_, node4Id_, newNodeId});
-    size_t elementId = operations_->addElement(std::move(element));
+    size_t elementId = meshMutator_->addElement(std::move(element));
 
     // Verify operations were applied
     EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount + 1);
@@ -269,26 +269,26 @@ TEST_F(MeshTransactionTest, NestedTransactionBehaviorTest)
 {
     EXPECT_EQ(geometry_->getElementCount(), 0);
 
-    MeshTransaction transaction1(operations_.get());
+    MeshTransaction transaction1(meshMutator_.get());
     transaction1.begin();
 
     // Add element in first transaction
     auto element1 = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
-    size_t elementId1 = operations_->addElement(std::move(element1));
+    size_t elementId1 = meshMutator_->addElement(std::move(element1));
 
     EXPECT_EQ(geometry_->getElementCount(), 1);
     transaction1.commit();
     EXPECT_EQ(geometry_->getElementCount(), 1);
 
     // Second transaction
-    MeshTransaction transaction2(operations_.get());
+    MeshTransaction transaction2(meshMutator_.get());
     transaction2.begin();
 
     // Add another element
     auto element2 = std::make_unique<MockTetrahedralElement>(
         std::array<size_t, 4>{node2Id_, node3Id_, node4Id_, node5Id_});
-    size_t elementId2 = operations_->addElement(std::move(element2));
+    size_t elementId2 = meshMutator_->addElement(std::move(element2));
 
     EXPECT_EQ(geometry_->getElementCount(), 2);
     transaction2.rollback();
@@ -306,17 +306,17 @@ protected:
     void SetUp() override
     {
         geometry_ = std::make_unique<MeshData3D>();
-        operations_ = std::make_unique<MeshMutator3D>(*geometry_);
+        meshMutator_ = std::make_unique<MeshMutator3D>(*geometry_);
         connectivity_ = std::make_unique<MeshConnectivity>(*geometry_);
 
         // Wire up operations to use connectivity for validation
-        operations_->setConnectivity(connectivity_.get());
+        meshMutator_->setConnectivity(connectivity_.get());
 
         // Add some test nodes
-        node1Id_ = operations_->addNode(Point3D(0.0, 0.0, 0.0));
-        node2Id_ = operations_->addNode(Point3D(1.0, 0.0, 0.0));
-        node3Id_ = operations_->addNode(Point3D(0.0, 1.0, 0.0));
-        node4Id_ = operations_->addNode(Point3D(0.0, 0.0, 1.0));
+        node1Id_ = meshMutator_->addNode(Point3D(0.0, 0.0, 0.0));
+        node2Id_ = meshMutator_->addNode(Point3D(1.0, 0.0, 0.0));
+        node3Id_ = meshMutator_->addNode(Point3D(0.0, 1.0, 0.0));
+        node4Id_ = meshMutator_->addNode(Point3D(0.0, 0.0, 1.0));
 
         // Rebuild connectivity after adding nodes
         connectivity_->rebuildConnectivity();
@@ -324,13 +324,13 @@ protected:
 
     void TearDown() override
     {
-        operations_.reset();
+        meshMutator_.reset();
         connectivity_.reset();
         geometry_.reset();
     }
 
     std::unique_ptr<MeshData3D> geometry_;
-    std::unique_ptr<MeshMutator3D> operations_;
+    std::unique_ptr<MeshMutator3D> meshMutator_;
     std::unique_ptr<MeshConnectivity> connectivity_;
     size_t node1Id_, node2Id_, node3Id_, node4Id_;
 };
@@ -340,12 +340,12 @@ TEST_F(ScopedTransactionTest, AutoRollbackOnScopeExitTest)
     EXPECT_EQ(geometry_->getElementCount(), 0);
 
     {
-        ScopedTransaction scopedTx(operations_.get());
+        ScopedTransaction scopedTx(meshMutator_.get());
 
         // Add an element within scoped transaction
         auto element = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
-        size_t elementId = operations_->addElement(std::move(element));
+        size_t elementId = meshMutator_->addElement(std::move(element));
 
         EXPECT_EQ(geometry_->getElementCount(), 1);
 
@@ -361,12 +361,12 @@ TEST_F(ScopedTransactionTest, ExplicitCommitTest)
     EXPECT_EQ(geometry_->getElementCount(), 0);
 
     {
-        ScopedTransaction scopedTx(operations_.get());
+        ScopedTransaction scopedTx(meshMutator_.get());
 
         // Add an element within scoped transaction
         auto element = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, node4Id_});
-        size_t elementId = operations_->addElement(std::move(element));
+        size_t elementId = meshMutator_->addElement(std::move(element));
 
         EXPECT_EQ(geometry_->getElementCount(), 1);
 
@@ -388,15 +388,15 @@ TEST_F(ScopedTransactionTest, MultipleOperationsWithCommitTest)
     size_t newNodeId, elementId;
 
     {
-        ScopedTransaction scopedTx(operations_.get());
+        ScopedTransaction scopedTx(meshMutator_.get());
 
         // Perform multiple operations
-        newNodeId = operations_->addNode(Point3D(2.0, 2.0, 2.0));
-        operations_->moveNode(node1Id_, Point3D(1.5, 1.5, 1.5));
+        newNodeId = meshMutator_->addNode(Point3D(2.0, 2.0, 2.0));
+        meshMutator_->moveNode(node1Id_, Point3D(1.5, 1.5, 1.5));
 
         auto element = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, newNodeId});
-        elementId = operations_->addElement(std::move(element));
+        elementId = meshMutator_->addElement(std::move(element));
 
         EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount + 1);
         EXPECT_EQ(geometry_->getElementCount(), initialElementCount + 1);
@@ -424,19 +424,19 @@ TEST_F(ScopedTransactionTest, PartialWorkRollbackTest)
     size_t initialElementCount = geometry_->getElementCount();
 
     {
-        ScopedTransaction scopedTx(operations_.get());
+        ScopedTransaction scopedTx(meshMutator_.get());
 
         // Add some nodes and elements
-        size_t newNode1 = operations_->addNode(Point3D(2.0, 0.0, 0.0));
-        size_t newNode2 = operations_->addNode(Point3D(0.0, 2.0, 0.0));
+        size_t newNode1 = meshMutator_->addNode(Point3D(2.0, 0.0, 0.0));
+        size_t newNode2 = meshMutator_->addNode(Point3D(0.0, 2.0, 0.0));
 
         auto element1 = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node2Id_, node3Id_, newNode1});
-        size_t elementId1 = operations_->addElement(std::move(element1));
+        size_t elementId1 = meshMutator_->addElement(std::move(element1));
 
         auto element2 = std::make_unique<MockTetrahedralElement>(
             std::array<size_t, 4>{node1Id_, node3Id_, node4Id_, newNode2});
-        size_t elementId2 = operations_->addElement(std::move(element2));
+        size_t elementId2 = meshMutator_->addElement(std::move(element2));
 
         // Verify operations were applied
         EXPECT_EQ(geometry_->getNodeCount(), initialNodeCount + 2);

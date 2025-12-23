@@ -4,7 +4,7 @@ namespace Meshing
 {
 
 MeshTransaction::MeshTransaction(MeshMutator3D* operations) :
-    operations_(operations), isActive_(false), committed_(false)
+    meshMutator_(operations), isActive_(false), committed_(false)
 {
 }
 
@@ -28,7 +28,7 @@ void MeshTransaction::begin()
     removedElementIds_.clear();
 
     // Register as listener
-    operations_->setTransactionListener(this);
+    meshMutator_->setTransactionListener(this);
 }
 
 void MeshTransaction::commit()
@@ -39,7 +39,7 @@ void MeshTransaction::commit()
     committed_ = true;
 
     // Unregister as listener
-    operations_->clearTransactionListener();
+    meshMutator_->clearTransactionListener();
 
     // Clear saved data
     savedElements_.clear();
@@ -54,30 +54,30 @@ void MeshTransaction::rollback()
     if (!isActive_) return;
 
     // Unregister first to avoid recording rollback operations
-    operations_->clearTransactionListener();
+    meshMutator_->clearTransactionListener();
 
     // 1. Remove newly added elements
     for (size_t id : addedElementIds_)
     {
-        operations_->removeElement(id);
+        meshMutator_->removeElement(id);
     }
 
     // 2. Restore removed elements
     for (auto& saved : savedElements_)
     {
-        operations_->restoreElement(saved.id, std::move(saved.element));
+        meshMutator_->restoreElement(saved.id, std::move(saved.element));
     }
 
     // 3. Remove newly added nodes
     for (size_t id : addedNodeIds_)
     {
-        operations_->removeNode(id);
+        meshMutator_->removeNode(id);
     }
 
     // 4. Restore modified nodes
     for (const auto& saved : savedNodes_)
     {
-        operations_->restoreNode(saved.id, saved.coordinates);
+        meshMutator_->restoreNode(saved.id, saved.coordinates);
     }
 
     isActive_ = false;

@@ -62,14 +62,11 @@ public:
      * @brief Find triangles that intersect with an edge
      * @param nodeId1 First node ID of the edge
      * @param nodeId2 Second node ID of the edge
-     * @param nodeCoords Map of all node coordinates
-     * @param activeTriangles Vector of active triangles
      * @return Indices of intersecting triangles
      */
-    std::vector<size_t> findIntersectingTriangles(size_t nodeId1,
-                                                  size_t nodeId2,
-                                                  const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                                  const std::vector<TriangleElement>& activeTriangles) const;
+    std::vector<size_t> findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const;
+
+    bool enforceEdge(size_t nodeId1, size_t nodeId2);
 
     /**
      * @brief Get the mesh mutator for primitive operations

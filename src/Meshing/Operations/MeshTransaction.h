@@ -38,7 +38,7 @@ private:
         Point3D coordinates;
     };
 
-    MeshMutator3D* operations_;
+    MeshMutator3D* meshMutator_;
     bool isActive_;
     bool committed_;
 

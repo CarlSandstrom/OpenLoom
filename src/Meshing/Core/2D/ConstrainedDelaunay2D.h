@@ -33,13 +33,14 @@ public:
 
     ~ConstrainedDelaunay2D();
 
-    std::vector<std::array<size_t, 3>> triangulate();
+    void triangulate();
 
 private:
     // Context (optional - for generateConstrained workflow)
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
-    MeshMutator2D* operations_ = nullptr;
+    MeshMutator2D* meshMutator_ = nullptr;
+    MeshOperations2D* meshOperations_ = nullptr;
 };
 
 } // namespace Meshing

@@ -33,7 +33,7 @@ public:
     // Access to mesh data structures
     MeshData3D& getMeshData();
     MeshConnectivity& getConnectivity();
-    MeshMutator3D& getOperations();
+    MeshMutator3D& getMutator();
 
     // Utility: rebuild connectivity after large changes
     void rebuildConnectivity();
@@ -47,7 +47,7 @@ private:
 
     std::unique_ptr<MeshData3D> meshData_;
     std::unique_ptr<MeshConnectivity> connectivity_;
-    std::unique_ptr<MeshMutator3D> operations_;
+    std::unique_ptr<MeshMutator3D> meshMutator_;
 
     void ensureInitialized();
 };

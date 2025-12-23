@@ -24,7 +24,8 @@ namespace Meshing
 ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const std::vector<Point2D>& additionalPoints) :
     context_(&context),
     meshData2D_(&context.getMeshData()),
-    operations_(&context.getOperations())
+    meshMutator_(&context.getMutator()),
+    meshOperations_(&context.getOperations())
 {
     // Extract corner points from geometry and generate a vector of points along with a mapping from cornerId to point index
     std::vector<Point2D> points;
@@ -78,14 +79,28 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
 
     Export::VtkExporter exporter;
     MeshData3D meshData3D(*meshData2D_);
-    exporter.exportMesh(meshData3D, "constrained_delaunay_initial.vtu");
+    size_t counter = 0;
+    exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(counter++) + ".vtu");
+
+    bool allConstrinedEdgesPresent = false;
+
+    while (!allConstrinedEdgesPresent)
+    {
+        allConstrinedEdgesPresent = true;
+        for (const auto& edge : constrainedEdges)
+        {
+            meshOperations_->enforceEdge(edge.first, edge.second);
+            MeshData3D meshData3D(*meshData2D_);
+            exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(counter++) + ".vtu");
+        }
+    }
 }
 
 ConstrainedDelaunay2D::~ConstrainedDelaunay2D() {
 
 };
 
-std::vector<std::array<size_t, 3>> ConstrainedDelaunay2D::triangulate()
+void ConstrainedDelaunay2D::triangulate()
 {
 }
 

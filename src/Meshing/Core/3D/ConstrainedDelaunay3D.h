@@ -163,7 +163,7 @@ private:
 
     MeshingContext3D& context_;
     MeshData3D& meshData_;
-    MeshMutator3D& operations_;
+    MeshMutator3D& meshMutator_;
 };
 
 } // namespace Meshing
