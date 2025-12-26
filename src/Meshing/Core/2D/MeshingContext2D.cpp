@@ -1,5 +1,5 @@
 #include "MeshingContext2D.h"
-
+#include <set>
 #include "Geometry/Base/Corner3D.h"
 #include "Geometry/Base/Edge3D.h"
 #include "Geometry/Base/GeometryCollection3D.h"
@@ -13,8 +13,6 @@
 #include "Topology/Edge3D.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
-
-#include <set>
 
 namespace Meshing
 {

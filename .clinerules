@@ -92,6 +92,8 @@
 
 ### Classes & Access Control
 - No public or protected data members (use getters/setters)
+  - Exception: `struct` types used as plain data containers (e.g., `CircumCircle2D`, `PointExtractionResult`) may have public members
+  - Rationale: Structs are semantically data containers; forcing getters/setters adds boilerplate without encapsulation benefit
 - **Friend classes**: General rule is NO friend classes
   - Exception: `MeshData2D` ↔ `MeshMutator2D` and `MeshData3D` ↔ `MeshMutator3D` for controlled mutation access
   - Rationale: Enforces encapsulation while avoiding public setters for internal containers
@@ -105,10 +107,10 @@
 - Member initializer lists: one member per line for readability
 - Default constructors: use `= default` when compiler-generated version is appropriate
 - Destructors: use `= default` for simple classes, `virtual ~ClassName() = default` for base classes
-- **Copy/Move semantics**: For classes with `std::unique_ptr` members:
-  - Explicitly delete copy: `ClassName(const ClassName&) = delete;`
-  - Explicitly delete copy assignment: `ClassName& operator=(const ClassName&) = delete;`
-  - Let compiler generate move operations implicitly (no need to declare them)
+- **Copy/Move semantics**:
+  - Classes with `std::unique_ptr` members automatically have copy operations deleted by the compiler (move operations are auto-generated)
+  - Explicitly deleting copy operations is optional but can improve code documentation
+  - If copy is desired for a class with unique_ptr, implement custom copy constructor/assignment that performs deep copy
 - Default parameters: allowed, no limits on usage
 
 ### Headers & Includes
@@ -166,7 +168,7 @@
   - Unit tests: `tests/ModuleName/` (e.g., `tests/Meshing/Core/`)
   - Integration tests: `tests/Integration/` for full workflows
 - **CMake**: When adding new tests, update `tests/CMakeLists.txt` to link against appropriate libraries (`Geometry`, `Geometry2D`, `Topology`, `Topology2D`, `Meshing`, `Export`, `Readers`, `Common`, `Utils`)
-- **Namespaces in tests**: `using namespace` is acceptable in test .cpp files for convenience
+- **Namespaces in tests**: `using namespace` is acceptable in test .cpp files and example .cc files for convenience
 
 ### 2D vs 3D Patterns
 - Maintain clear separation between 2D and 3D code (separate classes, separate directories)

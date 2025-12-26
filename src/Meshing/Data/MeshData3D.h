@@ -13,7 +13,7 @@ class MeshData3D
 {
 public:
     MeshData3D();
-    MeshData3D(const MeshData2D& mesh2D);
+    explicit MeshData3D(const MeshData2D& mesh2D);
 
     // Read-only access to mesh data
     const std::unordered_map<size_t, std::unique_ptr<Node3D>>& getNodes() const;

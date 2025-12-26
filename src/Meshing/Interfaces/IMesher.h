@@ -36,7 +36,9 @@ public:
     virtual std::string getName() const = 0;
 
 protected:
-    // Non-owning pointer to quality controller (may be nullptr if not provided)
+    const IQualityController* getQualityController() const { return qualityController_; }
+
+private:
     const IQualityController* qualityController_ = nullptr;
 };
 

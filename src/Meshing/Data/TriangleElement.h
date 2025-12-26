@@ -8,7 +8,7 @@ namespace Meshing
 class TriangleElement : public IElement
 {
 public:
-    TriangleElement(const std::array<size_t, 3>& nodeIds);
+    explicit TriangleElement(const std::array<size_t, 3>& nodeIds);
 
     ElementType getType() const override { return ElementType::TRIANGLE; }
     size_t getNodeCount() const override { return 3; }

@@ -8,7 +8,7 @@ namespace Meshing
 class TetrahedralElement : public IElement
 {
 public:
-    TetrahedralElement(const std::array<size_t, 4>& nodeIds);
+    explicit TetrahedralElement(const std::array<size_t, 4>& nodeIds);
 
     ElementType getType() const override { return ElementType::TETRAHEDRON; }
     size_t getNodeCount() const override { return 4; }

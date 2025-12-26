@@ -16,7 +16,7 @@ namespace Readers
 class TopoDS_ShapeConverter
 {
 public:
-    TopoDS_ShapeConverter(const TopoDS_Shape& shape);
+    explicit TopoDS_ShapeConverter(const TopoDS_Shape& shape);
 
     const Topology3D::Topology3D& getTopology() const;
     const Geometry3D::GeometryCollection3D& getGeometryCollection() const;

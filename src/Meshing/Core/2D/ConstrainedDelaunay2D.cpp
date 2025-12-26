@@ -1,4 +1,9 @@
 #include "ConstrainedDelaunay2D.h"
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <stdexcept>
 #include "Delaunay2D.h"
 #include "Export/VtkExporter.h"
 #include "Geometry2D/DiscretizationSettings2D.h"
@@ -7,13 +12,8 @@
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
-#include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <map>
-#include <stdexcept>
+#include "Utils/MeshLogger.h"
 
 namespace Meshing
 {

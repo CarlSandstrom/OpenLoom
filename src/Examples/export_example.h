@@ -90,10 +90,8 @@ private:
  */
 inline void demonstrateSeparatedDesign()
 {
-    using namespace Meshing;
-
     // 1. Create the separated components
-    MeshData3D geometry;                              // Pure data storage
+    Meshing::MeshData3D geometry;                     // Pure data storage
     Meshing::MeshMutator3D operations(geometry);      // Operations on data
     Meshing::MeshConnectivity connectivity(geometry); // Connectivity queries
 
@@ -101,10 +99,10 @@ inline void demonstrateSeparatedDesign()
     operations.setConnectivity(&connectivity);
 
     // 2. Build some mesh data using operations
-    size_t n1 = operations.addNode(Point3D(0.0, 0.0, 0.0));
-    size_t n2 = operations.addNode(Point3D(1.0, 0.0, 0.0));
-    size_t n3 = operations.addNode(Point3D(0.0, 1.0, 0.0));
-    size_t n4 = operations.addNode(Point3D(0.0, 0.0, 1.0));
+    size_t n1 = operations.addNode(Meshing::Point3D(0.0, 0.0, 0.0));
+    size_t n2 = operations.addNode(Meshing::Point3D(1.0, 0.0, 0.0));
+    size_t n3 = operations.addNode(Meshing::Point3D(0.0, 1.0, 0.0));
+    size_t n4 = operations.addNode(Meshing::Point3D(0.0, 0.0, 1.0));
 
     // Rebuild connectivity after adding nodes
     connectivity.rebuildConnectivity();

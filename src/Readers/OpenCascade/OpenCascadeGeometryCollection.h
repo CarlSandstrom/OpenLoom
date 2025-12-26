@@ -14,7 +14,7 @@ namespace Readers
 class OpenCascadeGeometryCollection
 {
 public:
-    OpenCascadeGeometryCollection(const TopoDS_Shape& shape);
+    explicit OpenCascadeGeometryCollection(const TopoDS_Shape& shape);
 
     // Getters
     const std::map<std::string, TopoDS_Vertex>& getVertexMap() const;
