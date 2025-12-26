@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Base/Edge3D.h"
+#include "../Base/IEdge3D.h"
 #include <TopoDS_Edge.hxx>
 
 namespace Geometry3D

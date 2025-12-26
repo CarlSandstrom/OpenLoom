@@ -1,9 +1,9 @@
 #include "MeshingContext2D.h"
 #include <set>
-#include "Geometry/Base/Corner3D.h"
-#include "Geometry/Base/Edge3D.h"
+#include "Geometry/Base/ICorner3D.h"
+#include "Geometry/Base/IEdge3D.h"
 #include "Geometry/Base/GeometryCollection3D.h"
-#include "Geometry/Base/Surface3D.h"
+#include "Geometry/Base/ISurface3D.h"
 #include "Geometry2D/Corner2D.h"
 #include "Geometry2D/IEdge2D.h"
 #include "Geometry2D/LinearEdge2D.h"

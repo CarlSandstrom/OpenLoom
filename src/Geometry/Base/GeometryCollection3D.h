@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Corner3D.h"
-#include "Edge3D.h"
-#include "Surface3D.h"
+#include "ICorner3D.h"
+#include "IEdge3D.h"
+#include "ISurface3D.h"
 #include <memory>
 #include <string>
 #include <unordered_map>

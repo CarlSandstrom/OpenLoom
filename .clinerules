@@ -78,6 +78,8 @@
 
 ### Naming Conventions
 - Classes: `CamelCase` (e.g., `ConstrainedDelaunay2D`, `MeshData3D`)
+- Interfaces: Must start with capital `I` (e.g., `ICorner3D`, `IEdge3D`, `ISurface3D`)
+  - File containing the interface must also start with `I` (e.g., `ICorner3D.h`, not `Corner3D.h`)
 - Variables: `camelCase` (e.g., `nodeCount`, `triangleIndex`)
 - Member variables: `camelCase_` with trailing underscore (e.g., `nodes_`, `connectivity_`)
 - Constants: `ALL_CAPS` (e.g., `MAX_ITERATIONS`)

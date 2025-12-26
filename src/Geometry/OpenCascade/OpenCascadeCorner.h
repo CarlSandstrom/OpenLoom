@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Base/Corner3D.h"
+#include "../Base/ICorner3D.h"
 #include <TopoDS_Vertex.hxx>
 
 namespace Geometry3D

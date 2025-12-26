@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Base/Surface3D.h"
+#include "../Base/ISurface3D.h"
 #include <TopoDS_Face.hxx>
 
 namespace Geometry3D
