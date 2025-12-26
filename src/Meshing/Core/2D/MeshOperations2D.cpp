@@ -1,13 +1,10 @@
 #include "MeshOperations2D.h"
-
 #include "Computer2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
-
+#include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
-
-#include "spdlog/spdlog.h"
 
 namespace Meshing
 {
@@ -233,6 +230,169 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     }
 
     // Retriangulate the cavity
+    // The cavity boundary needs to be split into two polygons by the constraint edge
+
+    // Separate boundary edges into left and right of the constraint edge
+    std::vector<size_t> leftPolygon;
+    std::vector<size_t> rightPolygon;
+
+    const Point2D& p1 = meshData_.getNode(nodeId1)->getCoordinates();
+    const Point2D& p2 = meshData_.getNode(nodeId2)->getCoordinates();
+
+    // Collect all unique vertices on the boundary
+    std::vector<size_t> boundaryVertices;
+    for (const auto& edge : boundary)
+    {
+        // Only add vertices that aren't the constraint edge endpoints
+        for (size_t v : edge)
+        {
+            if (v != nodeId1 && v != nodeId2)
+            {
+                if (std::find(boundaryVertices.begin(), boundaryVertices.end(), v) == boundaryVertices.end())
+                {
+                    boundaryVertices.push_back(v);
+                }
+            }
+        }
+    }
+
+    // Determine which side of the constraint edge each vertex is on
+    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> double {
+        return (q.x() - p.x()) * (r.y() - p.y()) - (q.y() - p.y()) * (r.x() - p.x());
+    };
+
+    for (size_t v : boundaryVertices)
+    {
+        const Point2D& point = meshData_.getNode(v)->getCoordinates();
+        double orient = orientation(p1, p2, point);
+
+        if (orient > 1e-10)
+        {
+            leftPolygon.push_back(v);
+        }
+        else if (orient < -1e-10)
+        {
+            rightPolygon.push_back(v);
+        }
+    }
+
+    // Sort vertices along the constraint edge to create proper polygon ordering
+    auto sortVerticesAlongEdge = [&](std::vector<size_t>& vertices) {
+        if (vertices.empty()) return;
+
+        // Project each vertex onto the constraint edge to get ordering parameter
+        Point2D edgeDir = p2 - p1;
+        double edgeLength2 = edgeDir.x() * edgeDir.x() + edgeDir.y() * edgeDir.y();
+
+        std::sort(vertices.begin(), vertices.end(), [&](size_t v1, size_t v2) {
+            const Point2D& pv1 = meshData_.getNode(v1)->getCoordinates();
+            const Point2D& pv2 = meshData_.getNode(v2)->getCoordinates();
+
+            // Project onto edge direction
+            Point2D p1ToV1 = pv1 - p1;
+            Point2D p1ToV2 = pv2 - p1;
+            double t1 = (p1ToV1.x() * edgeDir.x() + p1ToV1.y() * edgeDir.y()) / edgeLength2;
+            double t2 = (p1ToV2.x() * edgeDir.x() + p1ToV2.y() * edgeDir.y()) / edgeLength2;
+
+            return t1 < t2;
+        });
+    };
+
+    sortVerticesAlongEdge(leftPolygon);
+    sortVerticesAlongEdge(rightPolygon);
+
+    // Helper function to compute signed area for orientation checking
+    auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double {
+        const Point2D& p1 = meshData_.getNode(n1)->getCoordinates();
+        const Point2D& p2 = meshData_.getNode(n2)->getCoordinates();
+        const Point2D& p3 = meshData_.getNode(n3)->getCoordinates();
+        return 0.5 * ((p2.x() - p1.x()) * (p3.y() - p1.y()) -
+                      (p3.x() - p1.x()) * (p2.y() - p1.y()));
+    };
+
+    // Triangulate left polygon using fan triangulation from nodeId1
+    // Creates triangles: (nodeId1, leftPolygon[i], leftPolygon[i+1])
+    // and final edge triangle (nodeId1, leftPolygon.back(), nodeId2)
+    if (!leftPolygon.empty())
+    {
+        for (size_t i = 0; i < leftPolygon.size() - 1; ++i)
+        {
+            // Check orientation and adjust if needed
+            double area = computeSignedArea(nodeId1, leftPolygon[i], leftPolygon[i + 1]);
+            if (area > 0)
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, leftPolygon[i], leftPolygon[i + 1]});
+                mutator_->addElement(std::move(newTriangle));
+            }
+            else
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, leftPolygon[i + 1], leftPolygon[i]});
+                mutator_->addElement(std::move(newTriangle));
+            }
+        }
+        // Final triangle connects to nodeId2
+        double area = computeSignedArea(nodeId1, leftPolygon.back(), nodeId2);
+        if (area > 0)
+        {
+            auto newTriangle = std::make_unique<TriangleElement>(
+                std::array<size_t, 3>{nodeId1, leftPolygon.back(), nodeId2});
+            mutator_->addElement(std::move(newTriangle));
+        }
+        else
+        {
+            auto newTriangle = std::make_unique<TriangleElement>(
+                std::array<size_t, 3>{nodeId1, nodeId2, leftPolygon.back()});
+            mutator_->addElement(std::move(newTriangle));
+        }
+    }
+    else
+    {
+        // No vertices on left side, just need one triangle for the constraint edge
+        // This case is already handled by the right polygon or is degenerate
+    }
+
+    // Triangulate right polygon using fan triangulation from nodeId1
+    // Creates triangles with correct orientation
+    if (!rightPolygon.empty())
+    {
+        for (size_t i = 0; i < rightPolygon.size() - 1; ++i)
+        {
+            // Check orientation and adjust if needed
+            double area = computeSignedArea(nodeId1, rightPolygon[i + 1], rightPolygon[i]);
+            if (area > 0)
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, rightPolygon[i + 1], rightPolygon[i]});
+                mutator_->addElement(std::move(newTriangle));
+            }
+            else
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, rightPolygon[i], rightPolygon[i + 1]});
+                mutator_->addElement(std::move(newTriangle));
+            }
+        }
+        // Final triangle connects to nodeId2
+        double area = computeSignedArea(nodeId1, nodeId2, rightPolygon.back());
+        if (area > 0)
+        {
+            auto newTriangle = std::make_unique<TriangleElement>(
+                std::array<size_t, 3>{nodeId1, nodeId2, rightPolygon.back()});
+            mutator_->addElement(std::move(newTriangle));
+        }
+        else
+        {
+            auto newTriangle = std::make_unique<TriangleElement>(
+                std::array<size_t, 3>{nodeId1, rightPolygon.back(), nodeId2});
+            mutator_->addElement(std::move(newTriangle));
+        }
+    }
+    else
+    {
+        // No vertices on right side
+    }
 
     return true;
 }

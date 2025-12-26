@@ -4,6 +4,7 @@
 #include "Geometry2D/GeometryCollection2D.h"
 #include "Geometry2D/IEdge2D.h"
 #include "MeshOperations2D.h"
+#include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
 #include "Topology2D/Corner2D.h"
@@ -17,6 +18,7 @@
 #include <stdexcept>
 
 #include "Export/VtkExporter.h"
+#include "Utils/MeshLogger.h"
 
 namespace Meshing
 {
@@ -83,15 +85,40 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(counter++) + ".vtu");
 
     bool allConstrinedEdgesPresent = false;
+    MeshLogger::logMeshData2D(*meshData2D_);
+    MeshVerifier verifier(*meshData2D_);
+
+    auto result = verifier.verify();
+    if (!result.isValid)
+    {
+        for (const auto& error : result.errors)
+        {
+            spdlog::error(" - {}", error);
+        }
+        throw std::runtime_error("Mesh verification failed");
+    }
 
     while (!allConstrinedEdgesPresent)
     {
         allConstrinedEdgesPresent = true;
         for (const auto& edge : constrainedEdges)
         {
-            meshOperations_->enforceEdge(edge.first, edge.second);
+            allConstrinedEdgesPresent = allConstrinedEdgesPresent && meshOperations_->enforceEdge(edge.first, edge.second);
+            MeshLogger::logMeshData2D(*meshData2D_);
             MeshData3D meshData3D(*meshData2D_);
             exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(counter++) + ".vtu");
+
+            MeshVerifier verifier(*meshData2D_);
+            auto result = verifier.verify();
+            if (!result.isValid)
+            {
+                spdlog::error("Mesh invalid after enforcing edge ({}, {})", edge.first, edge.second);
+                for (const auto& error : result.errors)
+                {
+                    spdlog::error(" - {}", error);
+                }
+                throw std::runtime_error("Mesh verification failed");
+            }
         }
     }
 }

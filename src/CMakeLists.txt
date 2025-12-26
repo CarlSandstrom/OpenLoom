@@ -6,6 +6,7 @@ add_subdirectory(Topology)
 add_subdirectory(Topology2D)
 add_subdirectory(Readers)
 add_subdirectory(Export)
+add_subdirectory(Utils)
 add_subdirectory(Meshing)
 add_subdirectory(Examples)
 

@@ -19,6 +19,7 @@ target_link_libraries(MeshingCore2D PUBLIC
     Geometry2D
     Topology
     Topology2D
+    Utils
     ExportCore
     spdlog::spdlog
     fmt::fmt

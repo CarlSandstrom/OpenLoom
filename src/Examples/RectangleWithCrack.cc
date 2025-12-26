@@ -30,8 +30,8 @@ int main()
 
     Point2D bottomLeft(0, 0);
     Point2D topRight(10, 10);
-    Point2D bottomRight(0, 10);
-    Point2D topLeft(10, 0);
+    Point2D bottomRight(10, 0);
+    Point2D topLeft(0, 10);
     Point2D crackStart(0, 5.1);
     Point2D crackTip(9.9, 8.0);
     Point2D crackEnd(0, 4.9);
