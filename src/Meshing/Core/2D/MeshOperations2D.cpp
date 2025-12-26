@@ -1,6 +1,8 @@
 #include "MeshOperations2D.h"
 #include "Computer2D.h"
 #include "Meshing/Data/MeshMutator2D.h"
+#include "Topology2D/Edge2D.h"
+#include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
@@ -442,6 +444,31 @@ bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
     if (o4 == 0 && onSegment(b1, a2, b2)) return true;
 
     return false;
+}
+
+std::vector<std::pair<size_t, size_t>> MeshOperations2D::extractConstrainedEdges(
+    const Topology2D::Topology2D& topology,
+    const std::map<std::string, size_t>& cornerIdToPointIndexMap,
+    const std::map<size_t, size_t>& pointIndexToNodeIdMap) const
+{
+    std::vector<std::pair<size_t, size_t>> constrainedEdges;
+
+    for (const auto& edgeId : topology.getAllEdgeIds())
+    {
+        const auto edgeTopology = topology.getEdge(edgeId);
+
+        // Map: cornerId -> pointIndex -> nodeId
+        size_t startNodeId = pointIndexToNodeIdMap.at(
+            cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId()));
+        size_t endNodeId = pointIndexToNodeIdMap.at(
+            cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId()));
+
+        constrainedEdges.push_back({startNodeId, endNodeId});
+
+        spdlog::info("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
+    }
+
+    return constrainedEdges;
 }
 
 } // namespace Meshing

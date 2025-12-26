@@ -6,10 +6,17 @@
 #include "Meshing/Data/MeshData2D.h"
 #include "Meshing/Data/TriangleElement.h"
 #include <array>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
+
+namespace Topology2D
+{
+class Topology2D;
+}
 
 namespace Meshing
 {
@@ -67,6 +74,22 @@ public:
     std::vector<size_t> findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const;
 
     bool enforceEdge(size_t nodeId1, size_t nodeId2);
+
+    /**
+     * @brief Extract constrained edges from topology as mesh node pairs
+     *
+     * Converts topology edge definitions into mesh node ID pairs using
+     * the point-to-node mapping from triangulation.
+     *
+     * @param topology The topology containing edge definitions
+     * @param cornerIdToPointIndexMap Maps corner IDs to point array indices
+     * @param pointIndexToNodeIdMap Maps point array indices to mesh node IDs
+     * @return Vector of node ID pairs representing constrained edges
+     */
+    std::vector<std::pair<size_t, size_t>> extractConstrainedEdges(
+        const Topology2D::Topology2D& topology,
+        const std::map<std::string, size_t>& cornerIdToPointIndexMap,
+        const std::map<size_t, size_t>& pointIndexToNodeIdMap) const;
 
     /**
      * @brief Get the mesh mutator for primitive operations

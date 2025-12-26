@@ -14,4 +14,5 @@ target_include_directories(Geometry2D PUBLIC
 
 target_link_libraries(Geometry2D PUBLIC
     Common
+    Topology2D
 )

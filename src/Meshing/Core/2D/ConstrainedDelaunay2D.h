@@ -39,6 +39,8 @@ private:
     void exportAndVerifyMesh();
 
 private:
+    size_t exportCounter_ = 0;
+
     std::vector<std::pair<size_t, size_t>> constrainedEdges_;
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
