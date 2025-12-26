@@ -15,8 +15,6 @@ class Topology2D;
 namespace Geometry2D
 {
 
-using Meshing::Point2D;
-
 /**
  * @brief Utility operations for 2D geometry collections
  *
@@ -31,7 +29,7 @@ public:
      */
     struct PointExtractionResult
     {
-        std::vector<Point2D> points;                              ///< Extracted point array
+        std::vector<Meshing::Point2D> points;                     ///< Extracted point array
         std::map<std::string, size_t> cornerIdToPointIndexMap;    ///< Maps corner IDs to indices in points vector
     };
 

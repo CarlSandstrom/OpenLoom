@@ -1,10 +1,71 @@
+# cMesh clang-format configuration
+# Aligned with .clinerules coding standards
+
+# Base style
 BasedOnStyle: Microsoft
-AccessModifierOffset: '-4'
-AllowShortIfStatementsOnASingleLine: Always
-AllowShortFunctionsOnASingleLine: All
-BreakBeforeTernaryOperators: 'false'
+
+# Indentation
+IndentWidth: 4
+AccessModifierOffset: -4
+ConstructorInitializerIndentWidth: 4
+
+# Line breaking
+ColumnLimit: 0  # No line length limit
+BreakBeforeTernaryOperators: false
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterColon
-ColumnLimit: '0'
-IndentWidth: '4'
+AlwaysBreakTemplateDeclarations: Yes
+
+# Constructor initializer lists (one per line for readability per .clinerules)
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+AllowAllConstructorInitializersOnNextLine: false
+
+# Short forms
+AllowShortIfStatementsOnASingleLine: Always
+AllowShortFunctionsOnASingleLine: All
+AllowShortBlocksOnASingleLine: Always
+AllowShortCaseLabelsOnASingleLine: true
+AllowShortEnumsOnASingleLine: false
+
+# Pointer and reference alignment
 PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Include ordering (own header first, then alphabetical)
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex:           '^".*\.h"$'
+    Priority:        1
+  - Regex:           '^<.*>$'
+    Priority:        2
+
+# Namespace formatting
+NamespaceIndentation: None
+CompactNamespaces: false
+
+# Function parameters
+BinPackParameters: true
+BinPackArguments: true
+AlignAfterOpenBracket: Align
+
+# Braces (Microsoft style)
+BreakBeforeBraces: Allman
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Other
+DerivePointerAlignment: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+ReflowComments: true
+Standard: c++17

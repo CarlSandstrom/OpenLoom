@@ -92,32 +92,81 @@
 
 ### Classes & Access Control
 - No public or protected data members (use getters/setters)
-- Friends only for existing data/operations partnerships (e.g., `MeshData` ↔ `MeshMutator`)
+- **Friend classes**: General rule is NO friend classes
+  - Exception: `MeshData2D` ↔ `MeshMutator2D` and `MeshData3D` ↔ `MeshMutator3D` for controlled mutation access
+  - Rationale: Enforces encapsulation while avoiding public setters for internal containers
+  - New friend relationships require strong architectural justification and approval
 - Ownership via `std::unique_ptr` for heap-allocated objects
 - Only use `static_cast` and `dynamic_cast` (no C-style casts)
 - Prefer composition over inheritance
+
+### Constructors & Initialization
+- Use `explicit` on all single-argument constructors (prevents implicit conversions)
+- Member initializer lists: one member per line for readability
+- Default constructors: use `= default` when compiler-generated version is appropriate
+- Destructors: use `= default` for simple classes, `virtual ~ClassName() = default` for base classes
+- **Copy/Move semantics**: For classes with `std::unique_ptr` members:
+  - Explicitly delete copy: `ClassName(const ClassName&) = delete;`
+  - Explicitly delete copy assignment: `ClassName& operator=(const ClassName&) = delete;`
+  - Let compiler generate move operations implicitly (no need to declare them)
+- Default parameters: allowed, no limits on usage
 
 ### Headers & Includes
 - Include paths relative to `src/` (e.g., `#include "Meshing/Data/MeshData2D.h"`)
 - Favor forward declarations in headers to minimize dependencies
 - Include concrete headers in `.cpp` files only
 - See `Meshing/Interfaces/IMesher.h` for forward declaration examples
+- **Include order**: Own header first (for .cpp files), then all other includes alphabetically
+- Keep files small with one class - include sections should be short
 
 ### Namespaces
 - Wrap code in namespaces: `namespace cMesh { ... }`
 - No nested namespace declarations in C++17 (use separate lines if needed)
+- **Using declarations**:
+  - Allowed in `.cpp` files for convenience (e.g., `using std::vector;`, `using Meshing::Point2D;`)
+  - NOT allowed in `.h` header files - use fully qualified names instead
+  - Never use `using namespace` directives anywhere
+
+### Comments & Documentation
+- Keep comments minimal - code should be self-documenting through descriptive naming
+- Use comments only when naming alone cannot convey the intent or complexity
+- If code requires extensive comments to understand, consider refactoring into smaller, clearer chunks
+- Inline comments: use `//` sparingly for non-obvious logic or algorithmic decisions
+- No mandatory Doxygen comments - reserve for truly complex APIs if needed
+- Exception: brief comments acceptable for algorithmic rationale or mathematical concepts
+
+### Error Handling & Exceptions
+- **Exceptions** (`std::runtime_error`): Use for public API contract violations and unrecoverable failures
+  - Invalid inputs from users (missing IDs, null references, invalid geometry)
+  - Failed operations that cannot proceed (verification failures, topology errors)
+  - Include descriptive error messages with context (IDs, values, etc.)
+- **std::optional**: Use for operations that may legitimately produce no result
+  - Geometric computations on potentially degenerate elements (circumsphere, quality metrics)
+  - Lookup operations where "not found" is a valid outcome (findVertexId, findEdgeId)
+  - Caller must check result before using (e.g., `if (result.has_value())`)
+- **Validation policy**: Validate at public API boundaries, trust internal/private method calls within the same class
+- **Logging**: Use `spdlog::error()` before throwing exceptions to aid debugging
+- **No assertions**: Prefer exceptions for precondition checks to maintain debuggability in release builds
 
 ## Implementation Tips & Best Practices
 
 ### Code Organization
 - Favor forward declarations in headers and include concrete headers in `.cpp` files to minimize compile dependencies
 - See `Meshing/Interfaces/IMesher.h` for examples of proper forward declaration usage
-- Consult `Meshing/Core/DIRECTORY_OVERVIEW.md` for meshing module organization and patterns
+- Consult `doc/Meshing_Core_Overview.md` for meshing module organization and patterns
 
 ### Testing
-- When adding new tests, update `tests/CMakeLists.txt` to link against appropriate libraries (`Geometry`, `Geometry2D`, `Topology`, `Topology2D`, `Meshing`, `Export`, `Readers`, `Common`, `Utils`)
-- Follow existing test patterns in `tests/` subdirectories (organized by module)
-- Integration tests go in `tests/Integration/` and should test full workflows
+- **Test naming**: Use `TEST(ClassName, DescriptiveBehavior)` format
+  - ClassName: The class being tested
+  - DescriptiveBehavior: What the test verifies (e.g., `TriangulatesSimpleSquare`, `HandlesEmptyInput`)
+- **Assertions**: Prefer `EXPECT_*` for non-fatal checks, `ASSERT_*` only when test cannot continue
+  - Use `EXPECT_EQ`, `EXPECT_TRUE`, `EXPECT_FALSE`, etc.
+- **File organization**: One test file per class, matching filename: `test_ClassName.cpp`
+- **Test structure**: Organize by module in `tests/` subdirectories
+  - Unit tests: `tests/ModuleName/` (e.g., `tests/Meshing/Core/`)
+  - Integration tests: `tests/Integration/` for full workflows
+- **CMake**: When adding new tests, update `tests/CMakeLists.txt` to link against appropriate libraries (`Geometry`, `Geometry2D`, `Topology`, `Topology2D`, `Meshing`, `Export`, `Readers`, `Common`, `Utils`)
+- **Namespaces in tests**: `using namespace` is acceptable in test .cpp files for convenience
 
 ### 2D vs 3D Patterns
 - Maintain clear separation between 2D and 3D code (separate classes, separate directories)
@@ -132,7 +181,6 @@
 - Rebuild connectivity after bulk operations: `context.rebuildConnectivity()`
 
 ### Documentation & Background
-- See `doc/Coding standards.md` for detailed coding standards rationale
 - Check `doc/Other/MeshData_C++20_Improvements.md` for background on data structure design choices
 - Consult existing documentation in `doc/` and `docs/` before major refactoring
 
