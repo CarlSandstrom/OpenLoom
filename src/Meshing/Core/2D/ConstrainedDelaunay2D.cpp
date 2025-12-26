@@ -65,8 +65,6 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     // The nodes in the mesh is in the same order as the input points, so we can find which node is which corner.
     auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();
 
-    std::vector<std::pair<size_t, size_t>> constrainedEdges;
-
     for (auto edge : context_->getTopology().getAllEdgeIds())
     {
         const auto* edgeGeometryPtr = context_->getGeometry().getEdge(edge);
@@ -75,10 +73,35 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
         std::pair<size_t, size_t> edgeNodeIds = {
             pointIndexToNodeIdMap[cornerIdToPointIndexMap[edgeTopologyPtr.getStartCornerId()]],
             pointIndexToNodeIdMap[cornerIdToPointIndexMap[edgeTopologyPtr.getEndCornerId()]]};
-        constrainedEdges.push_back(edgeNodeIds);
+        constrainedEdges_.push_back(edgeNodeIds);
         spdlog::info("Edge {}: Node IDs ({}, {})", edge, edgeNodeIds.first, edgeNodeIds.second);
     }
 
+    exportAndVerifyMesh();
+
+    bool allConstrinedEdgesPresent = false;
+    size_t counter = 0;
+    while (!allConstrinedEdgesPresent)
+    {
+        allConstrinedEdgesPresent = true;
+        for (const auto& edge : constrainedEdges_)
+        {
+            allConstrinedEdgesPresent = allConstrinedEdgesPresent && meshOperations_->enforceEdge(edge.first, edge.second);
+            exportAndVerifyMesh();
+        }
+    }
+}
+
+ConstrainedDelaunay2D::~ConstrainedDelaunay2D() {
+
+};
+
+void ConstrainedDelaunay2D::triangulate()
+{
+}
+
+void ConstrainedDelaunay2D::exportAndVerifyMesh()
+{
     Export::VtkExporter exporter;
     MeshData3D meshData3D(*meshData2D_);
     size_t counter = 0;
@@ -97,38 +120,6 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
         }
         throw std::runtime_error("Mesh verification failed");
     }
-
-    while (!allConstrinedEdgesPresent)
-    {
-        allConstrinedEdgesPresent = true;
-        for (const auto& edge : constrainedEdges)
-        {
-            allConstrinedEdgesPresent = allConstrinedEdgesPresent && meshOperations_->enforceEdge(edge.first, edge.second);
-            MeshLogger::logMeshData2D(*meshData2D_);
-            MeshData3D meshData3D(*meshData2D_);
-            exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(counter++) + ".vtu");
-
-            MeshVerifier verifier(*meshData2D_);
-            auto result = verifier.verify();
-            if (!result.isValid)
-            {
-                spdlog::error("Mesh invalid after enforcing edge ({}, {})", edge.first, edge.second);
-                for (const auto& error : result.errors)
-                {
-                    spdlog::error(" - {}", error);
-                }
-                throw std::runtime_error("Mesh verification failed");
-            }
-        }
-    }
-}
-
-ConstrainedDelaunay2D::~ConstrainedDelaunay2D() {
-
-};
-
-void ConstrainedDelaunay2D::triangulate()
-{
 }
 
 } // namespace Meshing

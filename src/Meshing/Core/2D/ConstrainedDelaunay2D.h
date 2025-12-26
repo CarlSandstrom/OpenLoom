@@ -36,7 +36,10 @@ public:
     void triangulate();
 
 private:
-    // Context (optional - for generateConstrained workflow)
+    void exportAndVerifyMesh();
+
+private:
+    std::vector<std::pair<size_t, size_t>> constrainedEdges_;
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
     MeshMutator2D* meshMutator_ = nullptr;
