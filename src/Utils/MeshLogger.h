@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Meshing/Data/MeshData2D.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 
 namespace Meshing
 {

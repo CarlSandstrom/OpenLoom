@@ -5,9 +5,9 @@
 #include <vector>
 
 #include "Common/Types.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/TetrahedralElement.h"
-#include "Meshing/Data/TriangleElement.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 
 namespace Meshing::ElementGeometry
 {

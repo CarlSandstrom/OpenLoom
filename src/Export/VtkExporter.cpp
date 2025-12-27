@@ -1,8 +1,8 @@
 #include "VtkExporter.h"
 
-#include "Meshing/Data/IElement.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/Node3D.h"
+#include "Meshing/Data/Base/IElement.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/Node3D.h"
 
 #include <algorithm>
 #include <fstream>

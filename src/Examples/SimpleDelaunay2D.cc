@@ -1,8 +1,8 @@
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/2D/Delaunay2D.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshMutator3D.h"
-#include "Meshing/Data/TriangleElement.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 #include "spdlog/spdlog.h"
 
 #include <vector>

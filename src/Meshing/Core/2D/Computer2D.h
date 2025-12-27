@@ -2,8 +2,8 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/2D/GeometryStructures2D.h"
-#include "Meshing/Data/MeshData2D.h"
-#include "Meshing/Data/TriangleElement.h"
+#include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 #include <optional>
 #include <unordered_map>
 

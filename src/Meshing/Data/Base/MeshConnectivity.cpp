@@ -1,5 +1,5 @@
-#include "MeshConnectivity.h"
-#include "TetrahedralElement.h"
+#include "../Base/MeshConnectivity.h"
+#include "../3D/TetrahedralElement.h"
 #include <algorithm>
 
 namespace Meshing

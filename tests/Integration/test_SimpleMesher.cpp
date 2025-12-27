@@ -7,8 +7,8 @@
 #include "Meshing/Core/3D/SimpleMesher.h"
 
 #include "Common/Types.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshMutator3D.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
 
 #include <array>
 #include <memory>

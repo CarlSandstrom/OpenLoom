@@ -13,9 +13,9 @@
 #include "Meshing/Core/3D/Computer3D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/MeshMutator3D.h"
-#include "Meshing/Data/TetrahedralElement.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Topology/Topology3D.h"
 
 namespace Meshing

@@ -1,6 +1,6 @@
 #include "SimpleMesher.h"
-#include "../Data/MeshMutator3D.h"
-#include "../Data/TetrahedralElement.h"
+#include "../Data/3D/MeshMutator3D.h"
+#include "../Data/3D/TetrahedralElement.h"
 #include "../Operations/ScopedTransaction.h"
 #include "ConstrainedDelaunay3D.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"

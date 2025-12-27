@@ -3,8 +3,8 @@
 #include "Common/Types.h"
 #include "Computer2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
-#include "Meshing/Data/MeshData2D.h"
-#include "Meshing/Data/MeshMutator2D.h"
+#include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/2D/MeshMutator2D.h"
 #include <array>
 #include <map>
 #include <memory>

@@ -11,7 +11,7 @@
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Data/MeshMutator2D.h"
+#include "Meshing/Data/2D/MeshMutator2D.h"
 #include "spdlog/spdlog.h"
 #include "Utils/MeshLogger.h"
 

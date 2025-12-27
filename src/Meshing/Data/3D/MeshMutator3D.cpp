@@ -1,5 +1,5 @@
 #include "MeshMutator3D.h"
-#include "MeshConnectivity.h"
+#include "../Base/MeshConnectivity.h"
 #include "Node3D.h"
 #include <stdexcept>
 

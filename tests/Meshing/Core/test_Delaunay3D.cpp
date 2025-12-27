@@ -9,8 +9,8 @@
 #undef private
 
 #include "Export/VtkExporter.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/TetrahedralElement.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Topology/Topology3D.h"
 #include <algorithm>
 #include <memory>

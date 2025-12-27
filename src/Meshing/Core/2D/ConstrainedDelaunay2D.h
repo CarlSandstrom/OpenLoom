@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Data/MeshData2D.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/TriangleElement.h"
+#include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 #include <array>
 #include <memory>
 #include <optional>

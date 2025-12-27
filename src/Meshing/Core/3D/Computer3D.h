@@ -3,8 +3,8 @@
 #include "Common/Types.h"
 #include "ComputerGeneral.h"
 #include "GeometryStructures3D.h"
-#include "Meshing/Data/MeshData3D.h"
-#include "Meshing/Data/TetrahedralElement.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/TetrahedralElement.h"
 #include <optional>
 
 namespace Meshing

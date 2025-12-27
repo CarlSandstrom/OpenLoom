@@ -2,9 +2,9 @@
 
 #include "../../Geometry/3D/Base/GeometryCollection3D.h"
 #include "../../Topology/Topology3D.h"
-#include "../Data/MeshConnectivity.h"
-#include "../Data/MeshData3D.h"
-#include "../Data/MeshMutator3D.h"
+#include "../Data/Base/MeshConnectivity.h"
+#include "../Data/3D/MeshData3D.h"
+#include "../Data/3D/MeshMutator3D.h"
 
 namespace Meshing
 {
