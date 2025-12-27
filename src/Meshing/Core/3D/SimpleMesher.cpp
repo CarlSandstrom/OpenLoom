@@ -3,7 +3,7 @@
 #include "../Data/TetrahedralElement.h"
 #include "../Operations/ScopedTransaction.h"
 #include "ConstrainedDelaunay3D.h"
-#include "Geometry/Base/GeometryCollection3D.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "MeshingContext3D.h"
 #include "Topology/Topology3D.h"
 

@@ -1,6 +1,6 @@
 #include "MeshingContext3D.h"
 
-#include "../../Geometry/Base/GeometryCollection3D.h"
+#include "../../Geometry/3D/Base/GeometryCollection3D.h"
 #include "../../Topology/Topology3D.h"
 #include "../Data/MeshConnectivity.h"
 #include "../Data/MeshData3D.h"

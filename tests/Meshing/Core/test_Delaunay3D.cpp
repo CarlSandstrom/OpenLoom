@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Geometry/Base/GeometryCollection3D.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"
 
 #define private public

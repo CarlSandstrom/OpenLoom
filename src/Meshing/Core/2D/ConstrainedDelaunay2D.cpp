@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include "Delaunay2D.h"
 #include "Export/VtkExporter.h"
-#include "Geometry2D/DiscretizationSettings2D.h"
-#include "Geometry2D/GeometryOperations2D.h"
+#include "Geometry/2D/Base/DiscretizationSettings2D.h"
+#include "Geometry/2D/Base/GeometryOperations2D.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"

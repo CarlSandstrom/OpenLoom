@@ -1,6 +1,6 @@
 #include "Export/VtkExporter.h"
-#include "Geometry2D/GeometryCollection2D.h"
-#include "Geometry2D/LinearEdge2D.h"
+#include "Geometry/2D/Base/GeometryCollection2D.h"
+#include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/MeshData2D.h"

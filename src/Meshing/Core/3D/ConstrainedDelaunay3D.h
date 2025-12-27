@@ -9,7 +9,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "ConstrainedDelaunayHelper.h"
 #include "Meshing/Core/ConstraintStructures.h"
-#include "Geometry/Base/GeometryCollection3D.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/Computer3D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"

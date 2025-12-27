@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Geometry/Base/GeometryCollection3D.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "OpenCascadeGeometryCollection.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"

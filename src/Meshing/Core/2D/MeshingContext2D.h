@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "Geometry2D/GeometryCollection2D.h"
+#include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Topology2D/Topology2D.h"
 
 namespace Geometry3D

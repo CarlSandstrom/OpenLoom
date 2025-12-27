@@ -1,10 +1,10 @@
 #include "TopoDS_ShapeConverter.h"
-#include "../../Geometry/Base/ICorner3D.h"
-#include "../../Geometry/Base/IEdge3D.h"
-#include "../../Geometry/Base/ISurface3D.h"
-#include "../../Geometry/OpenCascade/OpenCascadeCorner.h"
-#include "../../Geometry/OpenCascade/OpenCascadeEdge.h"
-#include "../../Geometry/OpenCascade/OpenCascadeSurface.h"
+#include "../../Geometry/3D/Base/ICorner3D.h"
+#include "../../Geometry/3D/Base/IEdge3D.h"
+#include "../../Geometry/3D/Base/ISurface3D.h"
+#include "../../Geometry/3D/OpenCascade/OpenCascadeCorner.h"
+#include "../../Geometry/3D/OpenCascade/OpenCascadeEdge.h"
+#include "../../Geometry/3D/OpenCascade/OpenCascadeSurface.h"
 #include <TopExp.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>

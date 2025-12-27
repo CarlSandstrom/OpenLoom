@@ -9,7 +9,7 @@
 #include "Meshing/Core/3D/SimpleMesher.h"
 
 #include "Common/Types.h"
-#include "Geometry/Base/GeometryCollection3D.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Topology/Topology3D.h"
 
 // Dummy geometry implementations (reuse from SimpleMesher test if needed)
