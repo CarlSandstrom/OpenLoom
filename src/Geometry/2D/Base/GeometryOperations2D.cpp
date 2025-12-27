@@ -37,22 +37,40 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
     // Add intermediate points along edges based on discretization settings
     size_t numSegments = settings.getNumSegmentsPerEdge();
 
-    if (numSegments > 1)
+    for (const auto& edgeId : topology.getAllEdgeIds())
     {
-        for (const auto& edgeId : topology.getAllEdgeIds())
-        {
-            const auto* edgeGeometry = geometry_.getEdge(edgeId);
-            auto parameterBounds = edgeGeometry->getParameterBounds();
+        const auto& edgeTopology = topology.getEdge(edgeId);
+        const auto* edgeGeometry = geometry_.getEdge(edgeId);
+        auto parameterBounds = edgeGeometry->getParameterBounds();
 
-            // Add intermediate points (skip i=0 and i=numSegments as they are corners)
+        // Get start and end corner point indices
+        size_t startCornerIdx = result.cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
+        size_t endCornerIdx = result.cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
+
+        // Initialize the edge point indices list with the start corner
+        std::vector<size_t> edgePointIndices;
+        edgePointIndices.push_back(startCornerIdx);
+
+        // Add intermediate points if discretization is enabled
+        if (numSegments > 1)
+        {
             for (size_t i = 1; i < numSegments; ++i)
             {
                 double t = parameterBounds.first +
                           i * (parameterBounds.second - parameterBounds.first) / numSegments;
                 Point2D point = edgeGeometry->getPoint(t);
+
+                size_t pointIndex = result.points.size();
                 result.points.push_back(point);
+                edgePointIndices.push_back(pointIndex);
             }
         }
+
+        // Add the end corner
+        edgePointIndices.push_back(endCornerIdx);
+
+        // Store the edge point indices
+        result.edgeIdToPointIndicesMap[edgeId] = edgePointIndices;
     }
 
     return result;

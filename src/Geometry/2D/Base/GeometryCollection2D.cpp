@@ -3,7 +3,7 @@
 namespace Geometry2D
 {
 
-void GeometryCollection2D::addCorner(std::unique_ptr<Corner2D> corner)
+void GeometryCollection2D::addCorner(std::unique_ptr<ICorner2D> corner)
 {
     if (corner)
     {
@@ -21,7 +21,7 @@ void GeometryCollection2D::addEdge(std::unique_ptr<IEdge2D> edge)
     }
 }
 
-const Corner2D* GeometryCollection2D::getCorner(const std::string& id) const
+const ICorner2D* GeometryCollection2D::getCorner(const std::string& id) const
 {
     auto it = corners_.find(id);
     return it != corners_.end() ? it->second.get() : nullptr;

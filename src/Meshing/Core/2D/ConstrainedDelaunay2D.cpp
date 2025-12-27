@@ -1,9 +1,4 @@
 #include "ConstrainedDelaunay2D.h"
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <map>
-#include <stdexcept>
 #include "Delaunay2D.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/DiscretizationSettings2D.h"
@@ -12,8 +7,13 @@
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
-#include "spdlog/spdlog.h"
 #include "Utils/MeshLogger.h"
+#include "spdlog/spdlog.h"
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <map>
+#include <stdexcept>
 
 namespace Meshing
 {
@@ -25,7 +25,7 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     meshOperations_(&context.getOperations())
 {
     // Configure discretization settings (1 segment per edge = no subdivision)
-    Geometry2D::DiscretizationSettings2D discretizationSettings(1);
+    Geometry2D::DiscretizationSettings2D discretizationSettings(2);
 
     // Create geometry operations for this geometry
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
@@ -47,7 +47,8 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     constrainedEdges_ = meshOperations_->extractConstrainedEdges(
         context_->getTopology(),
         extractionResult.cornerIdToPointIndexMap,
-        delaunay.getPointIndexToNodeIdMap());
+        delaunay.getPointIndexToNodeIdMap(),
+        extractionResult.edgeIdToPointIndicesMap);
 
     exportAndVerifyMesh();
 

@@ -449,23 +449,49 @@ bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
 std::vector<std::pair<size_t, size_t>> MeshOperations2D::extractConstrainedEdges(
     const Topology2D::Topology2D& topology,
     const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-    const std::map<size_t, size_t>& pointIndexToNodeIdMap) const
+    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
 {
     std::vector<std::pair<size_t, size_t>> constrainedEdges;
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
-        const auto edgeTopology = topology.getEdge(edgeId);
+        // Check if this edge has discretization information
+        auto edgePointsIt = edgeIdToPointIndicesMap.find(edgeId);
 
-        // Map: cornerId -> pointIndex -> nodeId
-        size_t startNodeId = pointIndexToNodeIdMap.at(
-            cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId()));
-        size_t endNodeId = pointIndexToNodeIdMap.at(
-            cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId()));
+        if (edgePointsIt != edgeIdToPointIndicesMap.end() && edgePointsIt->second.size() >= 2)
+        {
+            // Edge has been discretized into multiple segments
+            const auto& pointIndices = edgePointsIt->second;
 
-        constrainedEdges.push_back({startNodeId, endNodeId});
+            // Create constrained edges for each segment
+            for (size_t i = 0; i < pointIndices.size() - 1; ++i)
+            {
+                size_t startPointIdx = pointIndices[i];
+                size_t endPointIdx = pointIndices[i + 1];
 
-        spdlog::info("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
+                size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
+                size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
+
+                constrainedEdges.push_back({startNodeId, endNodeId});
+
+                spdlog::info("Edge {} segment {}: Node IDs ({}, {})", edgeId, i, startNodeId, endNodeId);
+            }
+        }
+        else
+        {
+            // Fallback: use corner-to-corner edge (no discretization)
+            const auto edgeTopology = topology.getEdge(edgeId);
+
+            size_t startNodeId = pointIndexToNodeIdMap.at(
+                cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId()));
+            size_t endNodeId = pointIndexToNodeIdMap.at(
+                cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId()));
+
+            constrainedEdges.push_back({startNodeId, endNodeId});
+
+            spdlog::info("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
+        }
     }
 
     return constrainedEdges;

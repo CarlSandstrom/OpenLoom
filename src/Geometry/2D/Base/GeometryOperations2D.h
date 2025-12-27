@@ -31,6 +31,7 @@ public:
     {
         std::vector<Meshing::Point2D> points;                     ///< Extracted point array
         std::map<std::string, size_t> cornerIdToPointIndexMap;    ///< Maps corner IDs to indices in points vector
+        std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap; ///< Maps edge IDs to ordered list of point indices along the edge (including start and end corners)
     };
 
     /**

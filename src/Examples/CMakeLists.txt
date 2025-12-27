@@ -8,6 +8,7 @@ set(EXAMPLE_SOURCES
     RectangleWithHole2D.cc
     RectangleWithCrack.cc
     SimpleDelaunay2D.cc
+    SquareWithCircularHole.cc
 )
 
 # Link external libraries

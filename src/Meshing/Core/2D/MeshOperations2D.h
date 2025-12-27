@@ -79,17 +79,20 @@ public:
      * @brief Extract constrained edges from topology as mesh node pairs
      *
      * Converts topology edge definitions into mesh node ID pairs using
-     * the point-to-node mapping from triangulation.
+     * the point-to-node mapping from triangulation. If edges have been discretized
+     * into multiple segments, creates constrained edges for each segment.
      *
      * @param topology The topology containing edge definitions
      * @param cornerIdToPointIndexMap Maps corner IDs to point array indices
      * @param pointIndexToNodeIdMap Maps point array indices to mesh node IDs
+     * @param edgeIdToPointIndicesMap Maps edge IDs to ordered point indices (including intermediate points)
      * @return Vector of node ID pairs representing constrained edges
      */
     std::vector<std::pair<size_t, size_t>> extractConstrainedEdges(
         const Topology2D::Topology2D& topology,
         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-        const std::map<size_t, size_t>& pointIndexToNodeIdMap) const;
+        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const;
 
     /**
      * @brief Get the mesh mutator for primitive operations

@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "Corner2D.h"
+#include "ICorner2D.h"
 #include "IEdge2D.h"
 
 namespace Geometry2D
@@ -22,11 +22,11 @@ public:
     GeometryCollection2D() = default;
 
     // Add entities
-    void addCorner(std::unique_ptr<Corner2D> corner);
+    void addCorner(std::unique_ptr<ICorner2D> corner);
     void addEdge(std::unique_ptr<IEdge2D> edge);
 
     // Access entities
-    const Corner2D* getCorner(const std::string& id) const;
+    const ICorner2D* getCorner(const std::string& id) const;
     const IEdge2D* getEdge(const std::string& id) const;
 
     // Query all IDs
@@ -37,7 +37,7 @@ public:
     size_t getEdgeCount() const { return edges_.size(); }
 
 private:
-    std::unordered_map<std::string, std::unique_ptr<Corner2D>> corners_;
+    std::unordered_map<std::string, std::unique_ptr<ICorner2D>> corners_;
     std::unordered_map<std::string, std::unique_ptr<IEdge2D>> edges_;
 };
 
