@@ -3,6 +3,7 @@
 #include <string>
 
 #include "Common/Types.h"
+#include "ICorner2D.h"
 
 namespace Geometry2D
 {
@@ -12,13 +13,13 @@ namespace Geometry2D
  *
  * Represents a point in the (u,v) parametric domain of a surface.
  */
-class Corner2D
+class Corner2D : public ICorner2D
 {
 public:
     Corner2D(const std::string& id, const Meshing::Point2D& point);
 
-    const std::string& getId() const { return id_; }
-    const Meshing::Point2D& getPoint() const { return point_; }
+    Meshing::Point2D getPoint() const override { return point_; }
+    std::string getId() const override { return id_; }
 
 private:
     std::string id_;

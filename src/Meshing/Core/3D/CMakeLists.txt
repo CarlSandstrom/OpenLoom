@@ -17,7 +17,7 @@ target_link_libraries(MeshingCore3D PUBLIC
     MeshingData
     MeshingOperations
     Geometry
-    Geometry2D
+    Geometry2DBase
     Topology
     Topology2D
     ExportCore
