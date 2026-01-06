@@ -1,4 +1,5 @@
 #include "GeometryOperations2D.h"
+#include "Common/MathConstants.h"
 #include "Topology2D/Topology2D.h"
 
 namespace Geometry2D
@@ -6,8 +7,8 @@ namespace Geometry2D
 
 using Meshing::Point2D;
 
-GeometryOperations2D::GeometryOperations2D(const GeometryCollection2D& geometry)
-    : geometry_(geometry)
+GeometryOperations2D::GeometryOperations2D(const GeometryCollection2D& geometry) :
+    geometry_(geometry)
 {
 }
 
@@ -35,7 +36,8 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
     PointExtractionResult result = extractCornerPoints();
 
     // Add intermediate points along edges based on discretization settings
-    size_t numSegments = settings.getNumSegmentsPerEdge();
+    auto numSegments = settings.getNumSegmentsPerEdge();
+    auto largestAngle = settings.getMaxAngleBetweenSegments();
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
@@ -52,12 +54,53 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
         edgePointIndices.push_back(startCornerIdx);
 
         // Add intermediate points if discretization is enabled
-        if (numSegments > 1)
+
+        if (largestAngle.has_value())
         {
-            for (size_t i = 1; i < numSegments; ++i)
+            Eigen::Vector2d prevTangent = computeEdgeTangentAtParameter(*edgeGeometry, parameterBounds.first);
+            Point2D startCornerPoint = result.points[startCornerIdx];
+            Point2D endCornerPoint = result.points[endCornerIdx];
+
+            for (size_t i = 1; i <= 1000; ++i) // Limit to 1000 segments to avoid infinite loops
             {
-                double t = parameterBounds.first +
-                          i * (parameterBounds.second - parameterBounds.first) / numSegments;
+                double t = parameterBounds.first + i * (parameterBounds.second - parameterBounds.first) / 1000.0;
+                auto nextTangent = computeEdgeTangentAtParameter(*edgeGeometry, t);
+
+                double angle = std::atan2(nextTangent.y(), nextTangent.x()) - std::atan2(prevTangent.y(), prevTangent.x());
+                angle = std::fabs(angle);
+                if (angle > pi)
+                    angle = 2 * pi - angle;
+
+                if (angle >= largestAngle.value())
+                {
+                    Point2D point = edgeGeometry->getPoint(t);
+
+                    // Skip if too close to start or end corners to avoid duplicate points
+                    double distToStart = std::sqrt(std::pow(point.x() - startCornerPoint.x(), 2) +
+                                                   std::pow(point.y() - startCornerPoint.y(), 2));
+                    double distToEnd = std::sqrt(std::pow(point.x() - endCornerPoint.x(), 2) +
+                                                 std::pow(point.y() - endCornerPoint.y(), 2));
+                    if (distToStart < 1e-6 || distToEnd < 1e-6)
+                    {
+                        prevTangent = nextTangent;
+                        continue;
+                    }
+
+                    size_t pointIndex = result.points.size();
+                    result.points.push_back(point);
+                    edgePointIndices.push_back(pointIndex);
+                    prevTangent = nextTangent;
+                }
+
+                if (t >= parameterBounds.second - epsilon)
+                    break;
+            }
+        }
+        else if (numSegments.has_value() && numSegments.value() > 1)
+        {
+            for (size_t i = 1; i < numSegments.value(); ++i)
+            {
+                double t = parameterBounds.first + i * (parameterBounds.second - parameterBounds.first) / numSegments.value();
                 Point2D point = edgeGeometry->getPoint(t);
 
                 size_t pointIndex = result.points.size();
@@ -74,6 +117,26 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
     }
 
     return result;
+}
+
+Eigen::Vector2d GeometryOperations2D::computeEdgeTangentAtParameter(const IEdge2D& edge,
+                                                                    double parameter) const
+{
+    double t1 = parameter - epsilon;
+    double t2 = parameter + epsilon;
+
+    // Clamp parameters to valid range
+    auto bounds = edge.getParameterBounds();
+    t1 = std::max(bounds.first, std::min(bounds.second, t1));
+    t2 = std::max(bounds.first, std::min(bounds.second, t2));
+
+    Meshing::Point2D p1 = edge.getPoint(t1);
+    Meshing::Point2D p2 = edge.getPoint(t2);
+
+    Eigen::Vector2d tangent(p2.x() - p1.x(), p2.y() - p1.y());
+    tangent.normalize();
+
+    return tangent;
 }
 
 } // namespace Geometry2D

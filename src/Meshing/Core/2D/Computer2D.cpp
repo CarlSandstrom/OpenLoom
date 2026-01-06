@@ -76,7 +76,9 @@ std::array<Point2D, 3> Computer2D::createSuperTriangle(const std::vector<Point2D
     const double midY = (minY + maxY) * 0.5;
 
     // Create node points describing a large triangle that contains all points
-    const double scale = 10.0 * dmax;
+    // Use a large scale factor to ensure all points are well within the super triangle
+    // and to avoid numerical precision issues
+    const double scale = 100.0 * dmax;
 
     Point2D p0(midX - scale, midY - scale);
     Point2D p1(midX + scale, midY - scale);

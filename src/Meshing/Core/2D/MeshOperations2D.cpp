@@ -61,6 +61,7 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
     {
         SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
                     point.x(), point.y());
+        assert(false);
         return -1;
     }
 
@@ -213,7 +214,6 @@ std::vector<size_t> MeshOperations2D::findIntersectingTriangles(size_t nodeId1, 
 
 bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
 {
-
     auto intersectingTriangles = findIntersectingTriangles(nodeId1, nodeId2);
 
     if (intersectingTriangles.empty())
@@ -259,7 +259,8 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     }
 
     // Determine which side of the constraint edge each vertex is on
-    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> double {
+    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> double
+    {
         return (q.x() - p.x()) * (r.y() - p.y()) - (q.y() - p.y()) * (r.x() - p.x());
     };
 
@@ -279,14 +280,16 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     }
 
     // Sort vertices along the constraint edge to create proper polygon ordering
-    auto sortVerticesAlongEdge = [&](std::vector<size_t>& vertices) {
+    auto sortVerticesAlongEdge = [&](std::vector<size_t>& vertices)
+    {
         if (vertices.empty()) return;
 
         // Project each vertex onto the constraint edge to get ordering parameter
         Point2D edgeDir = p2 - p1;
         double edgeLength2 = edgeDir.x() * edgeDir.x() + edgeDir.y() * edgeDir.y();
 
-        std::sort(vertices.begin(), vertices.end(), [&](size_t v1, size_t v2) {
+        std::sort(vertices.begin(), vertices.end(), [&](size_t v1, size_t v2)
+                  {
             const Point2D& pv1 = meshData_.getNode(v1)->getCoordinates();
             const Point2D& pv2 = meshData_.getNode(v2)->getCoordinates();
 
@@ -296,15 +299,15 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
             double t1 = (p1ToV1.x() * edgeDir.x() + p1ToV1.y() * edgeDir.y()) / edgeLength2;
             double t2 = (p1ToV2.x() * edgeDir.x() + p1ToV2.y() * edgeDir.y()) / edgeLength2;
 
-            return t1 < t2;
-        });
+            return t1 < t2; });
     };
 
     sortVerticesAlongEdge(leftPolygon);
     sortVerticesAlongEdge(rightPolygon);
 
     // Helper function to compute signed area for orientation checking
-    auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double {
+    auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double
+    {
         const Point2D& p1 = meshData_.getNode(n1)->getCoordinates();
         const Point2D& p2 = meshData_.getNode(n2)->getCoordinates();
         const Point2D& p3 = meshData_.getNode(n3)->getCoordinates();
@@ -414,7 +417,8 @@ bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
 {
     // Compute orientation of ordered triplet (p, q, r)
     // Returns: 0 -> colinear, 1 -> clockwise, 2 -> counterclockwise
-    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> int {
+    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> int
+    {
         double val = (q.y() - p.y()) * (r.x() - q.x()) -
                      (q.x() - p.x()) * (r.y() - q.y());
 
@@ -423,7 +427,8 @@ bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
     };
 
     // Check if point q lies on segment pr
-    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool {
+    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
+    {
         return q.x() <= std::max(p.x(), r.x()) && q.x() >= std::min(p.x(), r.x()) &&
                q.y() <= std::max(p.y(), r.y()) && q.y() >= std::min(p.y(), r.y());
     };
@@ -465,7 +470,7 @@ std::vector<std::pair<size_t, size_t>> MeshOperations2D::extractConstrainedEdges
             const auto& pointIndices = edgePointsIt->second;
 
             // Create constrained edges for each segment
-            for (size_t i = 0; i < pointIndices.size() - 1; ++i)
+            for (size_t i = 0; i < pointIndices.size() - 2; ++i)
             {
                 size_t startPointIdx = pointIndices[i];
                 size_t endPointIdx = pointIndices[i + 1];

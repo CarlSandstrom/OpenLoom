@@ -25,15 +25,14 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     meshOperations_(&context.getOperations())
 {
     // Configure discretization settings (1 segment per edge = no subdivision)
-    Geometry2D::DiscretizationSettings2D discretizationSettings(2);
+    Geometry2D::DiscretizationSettings2D discretizationSettings(1, 2 * 3.1415 / 100);
 
     // Create geometry operations for this geometry
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
 
     // Extract points from geometry with discretization
-    auto extractionResult = geometryOps.extractPointsWithEdgeDiscretization(
-        context_->getTopology(),
-        discretizationSettings);
+    auto extractionResult = geometryOps.extractPointsWithEdgeDiscretization(context_->getTopology(),
+                                                                            discretizationSettings);
 
     // Add additional points
     std::vector<Point2D> allPoints = std::move(extractionResult.points);
