@@ -2,6 +2,8 @@
 add_library(Geometry2DOpenCascade STATIC
     OpenCascade2DEdge.cpp
     OpenCascade2DCorner.cpp
+    OpenCascade2DEdgeLoop.cpp
+    OpenCascade2DFace.cpp
 )
 
 # Find OpenCASCADE

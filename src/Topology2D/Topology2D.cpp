@@ -10,8 +10,26 @@ Topology2D::Topology2D(const std::unordered_map<std::string, Corner2D>& corners,
                        const std::vector<std::string>& boundaryEdgeLoop) :
     corners_(corners),
     edges_(edges),
-    boundaryEdgeLoop_(boundaryEdgeLoop)
+    boundaryEdgeLoop_(boundaryEdgeLoop),
+    outerEdgeLoop_(boundaryEdgeLoop)
 {
+}
+
+Topology2D::Topology2D(const std::unordered_map<std::string, Corner2D>& corners,
+                       const std::unordered_map<std::string, Edge2D>& edges,
+                       const std::vector<std::string>& outerEdgeLoop,
+                       const std::vector<std::vector<std::string>>& holeEdgeLoops) :
+    corners_(corners),
+    edges_(edges),
+    outerEdgeLoop_(outerEdgeLoop),
+    holeEdgeLoops_(holeEdgeLoops)
+{
+    // Build boundaryEdgeLoop_ for backward compatibility
+    boundaryEdgeLoop_ = outerEdgeLoop_;
+    for (const auto& holeLoop : holeEdgeLoops_)
+    {
+        boundaryEdgeLoop_.insert(boundaryEdgeLoop_.end(), holeLoop.begin(), holeLoop.end());
+    }
 }
 
 const Corner2D& Topology2D::getCorner(const std::string& id) const

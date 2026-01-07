@@ -17,6 +17,7 @@ target_link_libraries(MeshingCore2D PUBLIC
     MeshingOperations
     Geometry
     Geometry2DBase
+    Geometry2DOpenCascade
     Topology
     Topology2D
     Utils

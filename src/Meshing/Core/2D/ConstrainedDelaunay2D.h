@@ -11,6 +11,11 @@
 #include <unordered_set>
 #include <vector>
 
+namespace Geometry2D
+{
+class IFace2D;
+}
+
 namespace Meshing
 {
 
@@ -37,6 +42,8 @@ public:
 
 private:
     void exportAndVerifyMesh();
+    void removeHoleTriangles();
+    std::unique_ptr<Geometry2D::IFace2D> buildDomainFace() const;
 
 private:
     size_t exportCounter_ = 0;

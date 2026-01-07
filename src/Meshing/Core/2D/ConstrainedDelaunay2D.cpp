@@ -3,6 +3,9 @@
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/DiscretizationSettings2D.h"
 #include "Geometry/2D/Base/GeometryOperations2D.h"
+#include "Geometry/2D/OpenCascade/OpenCascade2DEdgeLoop.h"
+#include "Geometry/2D/OpenCascade/OpenCascade2DFace.h"
+#include "HoleTriangleRemover.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
@@ -25,7 +28,7 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     meshOperations_(&context.getOperations())
 {
     // Configure discretization settings (1 segment per edge = no subdivision)
-    Geometry2D::DiscretizationSettings2D discretizationSettings(1, 2 * 3.1415 / 100);
+    Geometry2D::DiscretizationSettings2D discretizationSettings(1, 2 * 3.1415 / 36);
 
     // Create geometry operations for this geometry
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
@@ -60,8 +63,15 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
         {
             allConstrainedEdgesPresent = allConstrainedEdgesPresent &&
                                          meshOperations_->enforceEdge(edge.first, edge.second);
-            exportAndVerifyMesh();
         }
+    }
+    exportAndVerifyMesh();
+
+    // Remove triangles inside holes
+    if (context_->getTopology().hasHoles())
+    {
+        removeHoleTriangles();
+        exportAndVerifyMesh();
     }
 }
 
@@ -92,6 +102,37 @@ void ConstrainedDelaunay2D::exportAndVerifyMesh()
         }
         throw std::runtime_error("Mesh verification failed");
     }
+}
+
+void ConstrainedDelaunay2D::removeHoleTriangles()
+{
+    auto face = buildDomainFace();
+    HoleTriangleRemover remover(*meshData2D_, *meshMutator_, *face);
+    remover.removeInvalidTriangles();
+    spdlog::info("Removed {} triangles from holes", remover.getRemovedCount());
+}
+
+std::unique_ptr<Geometry2D::IFace2D> ConstrainedDelaunay2D::buildDomainFace() const
+{
+    const Geometry2D::GeometryCollection2D& geometry = context_->getGeometry();
+    const Topology2D::Topology2D& topology = context_->getTopology();
+
+    // Build outer edge loop
+    auto outerLoop = std::make_unique<Geometry2D::OpenCascade2DEdgeLoop>(
+        topology.getOuterEdgeLoop(), geometry);
+
+    // Build face with outer loop
+    auto face = std::make_unique<Geometry2D::OpenCascade2DFace>(std::move(outerLoop));
+
+    // Add hole loops
+    for (const auto& holeEdgeIds : topology.getHoleEdgeLoops())
+    {
+        auto holeLoop = std::make_unique<Geometry2D::OpenCascade2DEdgeLoop>(
+            holeEdgeIds, geometry);
+        face->addHole(std::move(holeLoop));
+    }
+
+    return face;
 }
 
 } // namespace Meshing
