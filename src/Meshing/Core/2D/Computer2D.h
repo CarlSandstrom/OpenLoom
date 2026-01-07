@@ -20,8 +20,17 @@ public:
     std::optional<CircumCircle2D> computeCircumcircle(const TriangleElement& tri) const;
     double computeArea(const TriangleElement& element) const;
     std::array<Point2D, 3> createSuperTriangle(const std::vector<Point2D>& points);
+    double computeShortestEdgeLength(const TriangleElement& element) const;
+    double computeLongestEdgeLength(const TriangleElement& element) const;
+    std::optional<double> computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const;
+    std::array<double, 3> computeTriangleAngles(const TriangleElement& element) const;
+    double computeMinAngle(const TriangleElement& element) const;
 
+    // Static geometric utilities
     static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);
+    static double computeEdgeLength(const Point2D& p1, const Point2D& p2);
+    static DiametralCircle2D createDiametralCircle(const Point2D& p1, const Point2D& p2);
+    static bool isPointInDiametralCircle(const DiametralCircle2D& circle, const Point2D& point);
 
 private:
     std::tuple<Point2D, Point2D, Point2D> getElementNodeCoordinates(const TriangleElement& element) const;

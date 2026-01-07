@@ -104,4 +104,81 @@ bool Computer2D::isPointInsideCircumcircle(const CircumCircle2D& circle, const P
     return distSquared < circle.radius * circle.radius - 1e-10;
 }
 
+double Computer2D::computeEdgeLength(const Point2D& p1, const Point2D& p2)
+{
+    const double dx = p2.x() - p1.x();
+    const double dy = p2.y() - p1.y();
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+double Computer2D::computeShortestEdgeLength(const TriangleElement& element) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+    const double e0 = computeEdgeLength(p0, p1);
+    const double e1 = computeEdgeLength(p1, p2);
+    const double e2 = computeEdgeLength(p2, p0);
+    return std::min({e0, e1, e2});
+}
+
+double Computer2D::computeLongestEdgeLength(const TriangleElement& element) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+    const double e0 = computeEdgeLength(p0, p1);
+    const double e1 = computeEdgeLength(p1, p2);
+    const double e2 = computeEdgeLength(p2, p0);
+    return std::max({e0, e1, e2});
+}
+
+std::optional<double> Computer2D::computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const
+{
+    auto circumcircle = computeCircumcircle(element);
+    if (!circumcircle.has_value())
+    {
+        return std::nullopt;
+    }
+    const double shortestEdge = computeShortestEdgeLength(element);
+    if (shortestEdge < 1e-10)
+    {
+        return std::nullopt;
+    }
+    return circumcircle->radius / shortestEdge;
+}
+
+std::array<double, 3> Computer2D::computeTriangleAngles(const TriangleElement& element) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+
+    const double a = computeEdgeLength(p1, p2);
+    const double b = computeEdgeLength(p0, p2);
+    const double c = computeEdgeLength(p0, p1);
+
+    const double angle0 = std::acos((b * b + c * c - a * a) / (2.0 * b * c));
+    const double angle1 = std::acos((a * a + c * c - b * b) / (2.0 * a * c));
+    const double angle2 = std::acos((a * a + b * b - c * c) / (2.0 * a * b));
+
+    return {angle0, angle1, angle2};
+}
+
+double Computer2D::computeMinAngle(const TriangleElement& element) const
+{
+    auto angles = computeTriangleAngles(element);
+    return std::min({angles[0], angles[1], angles[2]});
+}
+
+DiametralCircle2D Computer2D::createDiametralCircle(const Point2D& p1, const Point2D& p2)
+{
+    DiametralCircle2D circle;
+    circle.center = Point2D((p1.x() + p2.x()) * 0.5, (p1.y() + p2.y()) * 0.5);
+    circle.radius = computeEdgeLength(p1, p2) * 0.5;
+    return circle;
+}
+
+bool Computer2D::isPointInDiametralCircle(const DiametralCircle2D& circle, const Point2D& point)
+{
+    const double dx = point.x() - circle.center.x();
+    const double dy = point.y() - circle.center.y();
+    const double distSquared = dx * dx + dy * dy;
+    return distSquared < circle.radius * circle.radius - 1e-10;
+}
+
 } // namespace Meshing

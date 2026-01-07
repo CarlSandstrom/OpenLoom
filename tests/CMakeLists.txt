@@ -16,6 +16,8 @@ set(TEST_SOURCES
     # Meshing Core tests
     Meshing/Core/test_Delaunay3D.cpp
     Meshing/Core/test_ConstrainedDelaunay2D.cpp
+    Meshing/Core/test_Computer2D.cpp
+    Meshing/Core/test_Shewchuk2DQualityController.cpp
 
     # Meshing Operations tests
     Meshing/Operations/test_MeshTransaction.cpp

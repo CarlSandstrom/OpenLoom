@@ -9,4 +9,10 @@ struct CircumCircle2D
     double radius;
 };
 
+struct DiametralCircle2D
+{
+    Point2D center;
+    double radius;
+};
+
 } // namespace Meshing
