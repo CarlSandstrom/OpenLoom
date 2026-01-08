@@ -1,5 +1,6 @@
 #include "Computer2D.h"
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 
@@ -179,6 +180,54 @@ bool Computer2D::isPointInDiametralCircle(const DiametralCircle2D& circle, const
     const double dy = point.y() - circle.center.y();
     const double distSquared = dx * dx + dy * dy;
     return distSquared < circle.radius * circle.radius - 1e-10;
+}
+
+bool Computer2D::isSegmentEncroached(const ConstrainedSegment2D& segment, const Point2D& point) const
+{
+    const auto* node1 = mesh_.getNode(segment.nodeId1);
+    const auto* node2 = mesh_.getNode(segment.nodeId2);
+    DiametralCircle2D circle = createDiametralCircle(node1->getCoordinates(), node2->getCoordinates());
+    return isPointInDiametralCircle(circle, point);
+}
+
+std::optional<Point2D> Computer2D::computeCircumcenter(const TriangleElement& element) const
+{
+    auto circumcircle = computeCircumcircle(element);
+    if (!circumcircle.has_value())
+    {
+        return std::nullopt;
+    }
+    return circumcircle->center;
+}
+
+std::vector<size_t> Computer2D::getTrianglesSortedByQuality() const
+{
+    std::vector<std::pair<size_t, double>> trianglesWithQuality;
+
+    for (const auto& [elementId, element] : mesh_.getElements())
+    {
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (triangle == nullptr)
+        {
+            continue;
+        }
+
+        auto ratio = computeCircumradiusToShortestEdgeRatio(*triangle);
+        double quality = ratio.has_value() ? ratio.value() : std::numeric_limits<double>::max();
+        trianglesWithQuality.emplace_back(elementId, quality);
+    }
+
+    std::sort(trianglesWithQuality.begin(), trianglesWithQuality.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+
+    std::vector<size_t> result;
+    result.reserve(trianglesWithQuality.size());
+    for (const auto& [id, quality] : trianglesWithQuality)
+    {
+        result.push_back(id);
+    }
+
+    return result;
 }
 
 } // namespace Meshing

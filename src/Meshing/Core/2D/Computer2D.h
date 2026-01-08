@@ -25,6 +25,9 @@ public:
     std::optional<double> computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const;
     std::array<double, 3> computeTriangleAngles(const TriangleElement& element) const;
     double computeMinAngle(const TriangleElement& element) const;
+    bool isSegmentEncroached(const ConstrainedSegment2D& segment, const Point2D& point) const;
+    std::optional<Point2D> computeCircumcenter(const TriangleElement& element) const;
+    std::vector<size_t> getTrianglesSortedByQuality() const;
 
     // Static geometric utilities
     static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);

@@ -190,3 +190,56 @@ TEST_F(Computer2DTest, IsPointInDiametralCircleEndpointsAreOnBoundary)
     EXPECT_FALSE(Computer2D::isPointInDiametralCircle(circle, p1));
     EXPECT_FALSE(Computer2D::isPointInDiametralCircle(circle, p2));
 }
+
+TEST_F(Computer2DTest, IsSegmentEncroachedDetectsPointInDiametralCircle)
+{
+    size_t n0 = addNode(0.0, 0.0);
+    size_t n1 = addNode(4.0, 0.0);
+
+    Computer2D computer(meshData_);
+    ConstrainedSegment2D segment{n0, n1};
+
+    Point2D inside(2.0, 0.5);
+    Point2D outside(2.0, 3.0);
+
+    EXPECT_TRUE(computer.isSegmentEncroached(segment, inside));
+    EXPECT_FALSE(computer.isSegmentEncroached(segment, outside));
+}
+
+TEST_F(Computer2DTest, ComputeCircumcenterReturnsCorrectPoint)
+{
+    size_t n0 = addNode(0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0);
+    size_t n2 = addNode(0.0, 1.0);
+    addTriangle(n0, n1, n2);
+
+    Computer2D computer(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    auto circumcenter = computer.computeCircumcenter(*element);
+
+    ASSERT_TRUE(circumcenter.has_value());
+    EXPECT_NEAR(circumcenter->x(), 0.5, TOLERANCE);
+    EXPECT_NEAR(circumcenter->y(), 0.5, TOLERANCE);
+}
+
+TEST_F(Computer2DTest, GetTrianglesSortedByQualityReturnsWorstFirst)
+{
+    size_t n0 = addNode(0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0);
+    size_t n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
+    size_t goodTriId = addTriangle(n0, n1, n2);
+
+    size_t n3 = addNode(10.0, 0.0);
+    size_t n4 = addNode(20.0, 0.0);
+    size_t n5 = addNode(15.0, 0.1);
+    size_t skinnyTriId = addTriangle(n3, n4, n5);
+
+    Computer2D computer(meshData_);
+
+    auto sorted = computer.getTrianglesSortedByQuality();
+
+    ASSERT_EQ(sorted.size(), 2u);
+    EXPECT_EQ(sorted[0], skinnyTriId);
+    EXPECT_EQ(sorted[1], goodTriId);
+}

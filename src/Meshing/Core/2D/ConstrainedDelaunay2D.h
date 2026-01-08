@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -48,7 +49,7 @@ private:
 private:
     size_t exportCounter_ = 0;
 
-    std::vector<std::pair<size_t, size_t>> constrainedEdges_;
+    std::vector<ConstrainedSegment2D> constrainedEdges_;
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
     MeshMutator2D* meshMutator_ = nullptr;

@@ -15,4 +15,10 @@ struct DiametralCircle2D
     double radius;
 };
 
+struct ConstrainedSegment2D
+{
+    size_t nodeId1;
+    size_t nodeId2;
+};
+
 } // namespace Meshing

@@ -59,10 +59,10 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     while (!allConstrainedEdgesPresent)
     {
         allConstrainedEdgesPresent = true;
-        for (const auto& edge : constrainedEdges_)
+        for (const auto& segment : constrainedEdges_)
         {
             allConstrainedEdgesPresent = allConstrainedEdgesPresent &&
-                                         meshOperations_->enforceEdge(edge.first, edge.second);
+                                         meshOperations_->enforceEdge(segment.nodeId1, segment.nodeId2);
         }
     }
     exportAndVerifyMesh();

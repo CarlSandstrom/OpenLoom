@@ -1,6 +1,8 @@
 #include "MeshOperations2D.h"
 #include "Computer2D.h"
+#include "Geometry/2D/Base/IEdge2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
+#include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Edge2D.h"
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
@@ -451,25 +453,22 @@ bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
     return false;
 }
 
-std::vector<std::pair<size_t, size_t>> MeshOperations2D::extractConstrainedEdges(
+std::vector<ConstrainedSegment2D> MeshOperations2D::extractConstrainedEdges(
     const Topology2D::Topology2D& topology,
     const std::map<std::string, size_t>& cornerIdToPointIndexMap,
     const std::map<size_t, size_t>& pointIndexToNodeIdMap,
     const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
 {
-    std::vector<std::pair<size_t, size_t>> constrainedEdges;
+    std::vector<ConstrainedSegment2D> constrainedEdges;
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
-        // Check if this edge has discretization information
         auto edgePointsIt = edgeIdToPointIndicesMap.find(edgeId);
 
         if (edgePointsIt != edgeIdToPointIndicesMap.end() && edgePointsIt->second.size() >= 2)
         {
-            // Edge has been discretized into multiple segments
             const auto& pointIndices = edgePointsIt->second;
 
-            // Create constrained edges for each segment
             for (size_t i = 0; i < pointIndices.size() - 2; ++i)
             {
                 size_t startPointIdx = pointIndices[i];
@@ -478,14 +477,13 @@ std::vector<std::pair<size_t, size_t>> MeshOperations2D::extractConstrainedEdges
                 size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
                 size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
 
-                constrainedEdges.push_back({startNodeId, endNodeId});
+                constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId});
 
                 spdlog::info("Edge {} segment {}: Node IDs ({}, {})", edgeId, i, startNodeId, endNodeId);
             }
         }
         else
         {
-            // Fallback: use corner-to-corner edge (no discretization)
             const auto edgeTopology = topology.getEdge(edgeId);
 
             size_t startNodeId = pointIndexToNodeIdMap.at(
@@ -493,13 +491,54 @@ std::vector<std::pair<size_t, size_t>> MeshOperations2D::extractConstrainedEdges
             size_t endNodeId = pointIndexToNodeIdMap.at(
                 cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId()));
 
-            constrainedEdges.push_back({startNodeId, endNodeId});
+            constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId});
 
             spdlog::info("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
         }
     }
 
     return constrainedEdges;
+}
+
+std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperations2D::splitConstrainedSegment(
+    const ConstrainedSegment2D& segment,
+    const Geometry2D::IEdge2D& parentEdge)
+{
+    const Node2D* node1 = meshData_.getNode(segment.nodeId1);
+    const Node2D* node2 = meshData_.getNode(segment.nodeId2);
+
+    if (node1 == nullptr || node2 == nullptr)
+    {
+        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.nodeId1, segment.nodeId2);
+        return std::nullopt;
+    }
+
+    double t1 = node1->getEdgeParameter();
+    double t2 = node2->getEdgeParameter();
+    double tMid = (t1 + t2) * 0.5;
+
+    Point2D midPoint = parentEdge.getPoint(tMid);
+
+    size_t newNodeId = insertVertexBowyerWatson(midPoint);
+
+    Node2D* newNode = const_cast<Node2D*>(meshData_.getNode(newNodeId));
+    if (newNode == nullptr)
+    {
+        spdlog::error("splitConstrainedSegment: Failed to get new node {}", newNodeId);
+        return std::nullopt;
+    }
+
+    newNode->setBoundary(true);
+    newNode->setGeometryId(parentEdge.getId());
+    newNode->setEdgeParameter(tMid);
+
+    enforceEdge(segment.nodeId1, newNodeId);
+    enforceEdge(newNodeId, segment.nodeId2);
+
+    ConstrainedSegment2D seg1{segment.nodeId1, newNodeId};
+    ConstrainedSegment2D seg2{newNodeId, segment.nodeId2};
+
+    return std::make_pair(seg1, seg2);
 }
 
 } // namespace Meshing

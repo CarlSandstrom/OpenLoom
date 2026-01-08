@@ -13,6 +13,11 @@
 #include <unordered_map>
 #include <vector>
 
+namespace Geometry2D
+{
+class IEdge2D;
+}
+
 namespace Topology2D
 {
 class Topology2D;
@@ -76,19 +81,33 @@ public:
     bool enforceEdge(size_t nodeId1, size_t nodeId2);
 
     /**
-     * @brief Extract constrained edges from topology as mesh node pairs
+     * @brief Split a constrained segment at its parametric midpoint
      *
-     * Converts topology edge definitions into mesh node ID pairs using
+     * Uses the parent edge geometry to find the correct midpoint on curved edges.
+     * Inserts the new node via Bowyer-Watson and re-enforces both resulting segments.
+     *
+     * @param segment The constrained segment to split
+     * @param parentEdge The geometric edge the segment lies on
+     * @return Pair of new segments, or nullopt if split failed
+     */
+    std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> splitConstrainedSegment(
+        const ConstrainedSegment2D& segment,
+        const Geometry2D::IEdge2D& parentEdge);
+
+    /**
+     * @brief Extract constrained edges from topology as constrained segments
+     *
+     * Converts topology edge definitions into ConstrainedSegment2D using
      * the point-to-node mapping from triangulation. If edges have been discretized
-     * into multiple segments, creates constrained edges for each segment.
+     * into multiple segments, creates constrained segments for each.
      *
      * @param topology The topology containing edge definitions
      * @param cornerIdToPointIndexMap Maps corner IDs to point array indices
      * @param pointIndexToNodeIdMap Maps point array indices to mesh node IDs
      * @param edgeIdToPointIndicesMap Maps edge IDs to ordered point indices (including intermediate points)
-     * @return Vector of node ID pairs representing constrained edges
+     * @return Vector of constrained segments
      */
-    std::vector<std::pair<size_t, size_t>> extractConstrainedEdges(
+    std::vector<ConstrainedSegment2D> extractConstrainedEdges(
         const Topology2D::Topology2D& topology,
         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
         const std::map<size_t, size_t>& pointIndexToNodeIdMap,

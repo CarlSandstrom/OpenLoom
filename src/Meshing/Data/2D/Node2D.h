@@ -24,10 +24,14 @@ public:
     void setGeometryId(const std::string& id) { geometryId_ = id; }
     const std::string& getGeometryId() const { return geometryId_; }
 
+    void setEdgeParameter(double t) { edgeParameter_ = t; }
+    double getEdgeParameter() const { return edgeParameter_; }
+
 private:
     Point2D coordinates_;
     bool isBoundary_ = false;
     std::string geometryId_;
+    double edgeParameter_ = 0.0;
 };
 
 } // namespace Meshing
