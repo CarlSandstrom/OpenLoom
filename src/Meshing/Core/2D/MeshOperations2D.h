@@ -43,17 +43,9 @@ public:
      */
     explicit MeshOperations2D(MeshData2D& meshData);
 
-    /**
-     * @brief Insert a vertex using Bowyer-Watson algorithm
-     * @param nodeId The node ID to insert
-     * @param nodeCoords Map of all node coordinates
-     * @param activeTriangles In/out vector of active triangles
-     */
-    void insertVertexBowyerWatson(size_t nodeId,
-                                  const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                  std::vector<TriangleElement>& activeTriangles) const; // TODO: Remove this?
-    size_t insertVertexBowyerWatson(const Point2D& point);
-    size_t insertBoundaryVertexBowyerWatson(const Point2D& point, double edgeParameter, const std::string& geometryId);
+    size_t insertVertexBowyerWatson(const Point2D& point,
+                                    std::optional<double> edgeParameter = std::nullopt,
+                                    std::optional<std::string> geometryId = std::nullopt);
 
     /**
      * @brief Find triangles whose circumcircle contains the point

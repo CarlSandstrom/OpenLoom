@@ -20,7 +20,9 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
 {
 }
 
-size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
+size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
+                                                  std::optional<double> edgeParameter,
+                                                  std::optional<std::string> geometryId)
 {
     std::vector<size_t> conflicting = findConflictingTriangles(point);
 
@@ -39,37 +41,15 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
         mutator_->removeElement(conflictingElementId);
     }
 
-    size_t newVertex = mutator_->addNode(point);
-
-    for (const auto& edge : boundary)
+    size_t newVertex;
+    if (edgeParameter.has_value() && geometryId.has_value())
     {
-        auto newTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]});
-        mutator_->addElement(std::move(newTriangle));
+        newVertex = mutator_->addBoundaryNode(point, edgeParameter.value(), geometryId.value());
     }
-
-    return newVertex;
-}
-
-size_t MeshOperations2D::insertBoundaryVertexBowyerWatson(const Point2D& point, double edgeParameter, const std::string& geometryId)
-{
-    std::vector<size_t> conflicting = findConflictingTriangles(point);
-
-    if (conflicting.empty())
+    else
     {
-        SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
-                    point.x(), point.y());
-        assert(false);
-        return -1;
+        newVertex = mutator_->addNode(point);
     }
-
-    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
-
-    for (auto conflictingElementId : conflicting)
-    {
-        mutator_->removeElement(conflictingElementId);
-    }
-
-    size_t newVertex = mutator_->addBoundaryNode(point, edgeParameter, geometryId);
 
     for (const auto& edge : boundary)
     {
@@ -519,7 +499,7 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
     double tMid = (t1Opt.value() + t2Opt.value()) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
-    size_t newNodeId = insertBoundaryVertexBowyerWatson(midPoint, tMid, parentEdge.getId());
+    size_t newNodeId = insertVertexBowyerWatson(midPoint, tMid, parentEdge.getId());
 
     enforceEdge(segment.nodeId1, newNodeId);
     enforceEdge(newNodeId, segment.nodeId2);

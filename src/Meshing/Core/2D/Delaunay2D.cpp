@@ -43,8 +43,9 @@ void Delaunay2D::triangulate()
 
         if (hasTParameter && hasGeometryId)
         {
-            nodeId = meshOperations_.insertBoundaryVertexBowyerWatson(
-                point, tParameters_[index].value(), geometryIds_[index]);
+            nodeId = meshOperations_.insertVertexBowyerWatson(point,
+                                                              tParameters_[index].value(),
+                                                              geometryIds_[index]);
         }
         else
         {
