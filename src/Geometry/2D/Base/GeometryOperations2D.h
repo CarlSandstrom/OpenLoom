@@ -5,6 +5,7 @@
 #include "GeometryCollection2D.h"
 #include <Eigen/Core>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,8 @@ public:
     struct PointExtractionResult
     {
         std::vector<Meshing::Point2D> points;                               ///< Extracted point array
+        std::vector<std::optional<double>> tParameters;                     ///< Edge parameter t for each point (nullopt for corners)
+        std::vector<std::string> geometryIds;                               ///< Geometry ID for each point (empty for corners, edge ID for edge points)
         std::map<std::string, size_t> cornerIdToPointIndexMap;              ///< Maps corner IDs to indices in points vector
         std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap; ///< Maps edge IDs to ordered list of point indices along the edge (including start and end corners)
     };

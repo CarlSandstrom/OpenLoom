@@ -4,12 +4,17 @@
 namespace Meshing
 {
 
-Delaunay2D::Delaunay2D(const std::vector<Point2D>& points, MeshData2D* meshData) :
+Delaunay2D::Delaunay2D(const std::vector<Point2D>& points,
+                       MeshData2D* meshData,
+                       const std::vector<std::optional<double>>& tParameters,
+                       const std::vector<std::string>& geometryIds) :
     points_(points),
     meshData_(meshData),
     meshMutator_(*meshData_),
     meshOperations_(*meshData_),
-    computer_(*meshData_)
+    computer_(*meshData_),
+    tParameters_(tParameters),
+    geometryIds_(geometryIds)
 {
 }
 
@@ -30,7 +35,22 @@ void Delaunay2D::triangulate()
     size_t index = 0;
     for (const auto& point : points_)
     {
-        size_t nodeId = meshOperations_.insertVertexBowyerWatson(point);
+        size_t nodeId;
+
+        // Check if this is a boundary point (has edge parameter and geometry ID)
+        bool hasTParameter = index < tParameters_.size() && tParameters_[index].has_value();
+        bool hasGeometryId = index < geometryIds_.size() && !geometryIds_[index].empty();
+
+        if (hasTParameter && hasGeometryId)
+        {
+            nodeId = meshOperations_.insertBoundaryVertexBowyerWatson(
+                point, tParameters_[index].value(), geometryIds_[index]);
+        }
+        else
+        {
+            nodeId = meshOperations_.insertVertexBowyerWatson(point);
+        }
+
         pointIndexToNodeIdMap_[index] = nodeId;
         ++index;
     }

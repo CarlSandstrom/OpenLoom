@@ -21,6 +21,8 @@ GeometryOperations2D::extractCornerPoints() const
     {
         const auto* corner = geometry_.getCorner(cornerId);
         result.points.push_back(corner->getPoint());
+        result.tParameters.push_back(std::nullopt);
+        result.geometryIds.push_back("");  // Corners don't have a single edge ID
         result.cornerIdToPointIndexMap[cornerId] = result.points.size() - 1;
     }
 
@@ -88,6 +90,8 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
 
                     size_t pointIndex = result.points.size();
                     result.points.push_back(point);
+                    result.tParameters.push_back(t);
+                    result.geometryIds.push_back(edgeId);
                     edgePointIndices.push_back(pointIndex);
                     prevTangent = nextTangent;
                 }
@@ -105,6 +109,8 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
 
                 size_t pointIndex = result.points.size();
                 result.points.push_back(point);
+                result.tParameters.push_back(t);
+                result.geometryIds.push_back(edgeId);
                 edgePointIndices.push_back(pointIndex);
             }
         }

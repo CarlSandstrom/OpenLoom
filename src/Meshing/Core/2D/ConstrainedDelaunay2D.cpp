@@ -16,6 +16,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <optional>
 #include <stdexcept>
 
 namespace Meshing
@@ -34,23 +35,28 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
 
     // Extract points from geometry with discretization
-    auto extractionResult = geometryOps.extractPointsWithEdgeDiscretization(context_->getTopology(),
-                                                                            discretizationSettings);
+    auto pointsOnEdges = geometryOps.extractPointsWithEdgeDiscretization(context_->getTopology(),
+                                                                         discretizationSettings);
 
     // Add additional points
-    std::vector<Point2D> allPoints = std::move(extractionResult.points);
+    std::vector<Point2D> allPoints = std::move(pointsOnEdges.points);
+    std::vector<std::optional<double>> allTParameters = std::move(pointsOnEdges.tParameters);
+    std::vector<std::string> allGeometryIds = std::move(pointsOnEdges.geometryIds);
     allPoints.insert(allPoints.end(), additionalPoints.begin(), additionalPoints.end());
+    // Additional points don't have edge parameters or geometry IDs
+    allTParameters.insert(allTParameters.end(), additionalPoints.size(), std::nullopt);
+    allGeometryIds.insert(allGeometryIds.end(), additionalPoints.size(), "");
 
     // Create Delaunay triangulation
-    Delaunay2D delaunay(allPoints, meshData2D_);
+    Delaunay2D delaunay(allPoints, meshData2D_, allTParameters, allGeometryIds);
     delaunay.triangulate();
 
     // Extract constrained edges
     constrainedEdges_ = meshOperations_->extractConstrainedEdges(
         context_->getTopology(),
-        extractionResult.cornerIdToPointIndexMap,
+        pointsOnEdges.cornerIdToPointIndexMap,
         delaunay.getPointIndexToNodeIdMap(),
-        extractionResult.edgeIdToPointIndicesMap);
+        pointsOnEdges.edgeIdToPointIndicesMap);
 
     exportAndVerifyMesh();
 

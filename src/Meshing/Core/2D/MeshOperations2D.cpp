@@ -20,41 +20,6 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
 {
 }
 
-void MeshOperations2D::insertVertexBowyerWatson(size_t nodeId,
-                                                const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                                std::vector<TriangleElement>& activeTriangles) const
-{
-    const Point2D& point = nodeCoords.at(nodeId);
-
-    // Find conflicting triangles
-    std::vector<size_t> conflicting = findConflictingTriangles(point);
-
-    if (conflicting.empty())
-    {
-        SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
-                    point.x(), point.y());
-        return;
-    }
-
-    // Find cavity boundary
-    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
-
-    // Remove conflicting triangles
-    std::vector<TriangleElement> newActiveTriangles;
-    newActiveTriangles.reserve(activeTriangles.size());
-    for (size_t i = 0; i < activeTriangles.size(); ++i)
-    {
-        if (std::find(conflicting.begin(), conflicting.end(), i) == conflicting.end())
-        {
-            newActiveTriangles.push_back(activeTriangles[i]);
-        }
-    }
-    activeTriangles = std::move(newActiveTriangles);
-
-    // Retriangulate cavity
-    retriangulate(nodeId, boundary, activeTriangles);
-}
-
 size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
 {
     std::vector<size_t> conflicting = findConflictingTriangles(point);
@@ -82,7 +47,37 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
         mutator_->addElement(std::move(newTriangle));
     }
 
-    return newVertex; // Placeholder return value
+    return newVertex;
+}
+
+size_t MeshOperations2D::insertBoundaryVertexBowyerWatson(const Point2D& point, double edgeParameter, const std::string& geometryId)
+{
+    std::vector<size_t> conflicting = findConflictingTriangles(point);
+
+    if (conflicting.empty())
+    {
+        SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
+                    point.x(), point.y());
+        assert(false);
+        return -1;
+    }
+
+    std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
+
+    for (auto conflictingElementId : conflicting)
+    {
+        mutator_->removeElement(conflictingElementId);
+    }
+
+    size_t newVertex = mutator_->addBoundaryNode(point, edgeParameter, geometryId);
+
+    for (const auto& edge : boundary)
+    {
+        auto newTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]});
+        mutator_->addElement(std::move(newTriangle));
+    }
+
+    return newVertex;
 }
 
 std::vector<size_t> MeshOperations2D::findConflictingTriangles(const Point2D& point) const
@@ -513,24 +508,18 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
         return std::nullopt;
     }
 
-    double t1 = node1->getEdgeParameter();
-    double t2 = node2->getEdgeParameter();
-    double tMid = (t1 + t2) * 0.5;
-
-    Point2D midPoint = parentEdge.getPoint(tMid);
-
-    size_t newNodeId = insertVertexBowyerWatson(midPoint);
-
-    Node2D* newNode = const_cast<Node2D*>(meshData_.getNode(newNodeId));
-    if (newNode == nullptr)
+    auto t1Opt = node1->getEdgeParameter();
+    auto t2Opt = node2->getEdgeParameter();
+    if (!t1Opt.has_value() || !t2Opt.has_value())
     {
-        spdlog::error("splitConstrainedSegment: Failed to get new node {}", newNodeId);
+        spdlog::error("splitConstrainedSegment: Nodes {} and {} must have edge parameters", segment.nodeId1, segment.nodeId2);
         return std::nullopt;
     }
 
-    newNode->setBoundary(true);
-    newNode->setGeometryId(parentEdge.getId());
-    newNode->setEdgeParameter(tMid);
+    double tMid = (t1Opt.value() + t2Opt.value()) * 0.5;
+    Point2D midPoint = parentEdge.getPoint(tMid);
+
+    size_t newNodeId = insertBoundaryVertexBowyerWatson(midPoint, tMid, parentEdge.getId());
 
     enforceEdge(segment.nodeId1, newNodeId);
     enforceEdge(newNodeId, segment.nodeId2);

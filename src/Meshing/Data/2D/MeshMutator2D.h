@@ -3,6 +3,7 @@
 #include "../Base/IElement.h"
 #include "MeshData2D.h"
 #include <memory>
+#include <string>
 
 #include "Common/Types.h"
 
@@ -19,6 +20,7 @@ public:
 
     // Node operations
     size_t addNode(const Point2D& coordinates);
+    size_t addBoundaryNode(const Point2D& coordinates, double edgeParameter, const std::string& geometryId);
     void moveNode(size_t id, const Point2D& newCoords);
     void removeNode(size_t id);
 

@@ -51,8 +51,9 @@ public:
      */
     void insertVertexBowyerWatson(size_t nodeId,
                                   const std::unordered_map<size_t, Point2D>& nodeCoords,
-                                  std::vector<TriangleElement>& activeTriangles) const;
+                                  std::vector<TriangleElement>& activeTriangles) const; // TODO: Remove this?
     size_t insertVertexBowyerWatson(const Point2D& point);
+    size_t insertBoundaryVertexBowyerWatson(const Point2D& point, double edgeParameter, const std::string& geometryId);
 
     /**
      * @brief Find triangles whose circumcircle contains the point
