@@ -29,8 +29,8 @@ public:
     struct PointExtractionResult
     {
         std::vector<Meshing::Point2D> points;                               ///< Extracted point array
-        std::vector<std::optional<double>> tParameters;                     ///< Edge parameter t for each point (nullopt for corners)
-        std::vector<std::string> geometryIds;                               ///< Geometry ID for each point (empty for corners, edge ID for edge points)
+        std::vector<std::vector<double>> tParameters;                       ///< Edge parameter t values for each point (empty vector for interior points, one entry per edge for boundary points)
+        std::vector<std::vector<std::string>> geometryIds;                  ///< Geometry IDs for each point (empty vector for interior points, corresponding edge IDs for boundary points)
         std::map<std::string, size_t> cornerIdToPointIndexMap;              ///< Maps corner IDs to indices in points vector
         std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap; ///< Maps edge IDs to ordered list of point indices along the edge (including start and end corners)
     };

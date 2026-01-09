@@ -20,7 +20,7 @@ public:
 
     // Node operations
     size_t addNode(const Point2D& coordinates);
-    size_t addBoundaryNode(const Point2D& coordinates, double edgeParameter, const std::string& geometryId);
+    size_t addBoundaryNode(const Point2D& coordinates, const std::vector<double>& edgeParameters, const std::vector<std::string>& geometryIds);
     void moveNode(size_t id, const Point2D& newCoords);
     void removeNode(size_t id);
 

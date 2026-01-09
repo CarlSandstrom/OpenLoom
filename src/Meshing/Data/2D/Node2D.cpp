@@ -8,10 +8,10 @@ Node2D::Node2D(const Point2D& coordinates) :
 {
 }
 
-Node2D::Node2D(const Point2D& coordinates, double edgeParameter, const std::string& geometryId) :
+Node2D::Node2D(const Point2D& coordinates, const std::vector<double>& edgeParameters, const std::vector<std::string>& geometryIds) :
     coordinates_(coordinates),
-    edgeParameter_(edgeParameter),
-    geometryId_(geometryId)
+    edgeParameters_(edgeParameters),
+    geometryIds_(geometryIds)
 {
 }
 

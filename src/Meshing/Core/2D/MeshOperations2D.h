@@ -44,8 +44,8 @@ public:
     explicit MeshOperations2D(MeshData2D& meshData);
 
     size_t insertVertexBowyerWatson(const Point2D& point,
-                                    std::optional<double> edgeParameter = std::nullopt,
-                                    std::optional<std::string> geometryId = std::nullopt);
+                                    const std::vector<double>& edgeParameters = {},
+                                    const std::vector<std::string>& geometryIds = {});
 
     /**
      * @brief Find triangles whose circumcircle contains the point

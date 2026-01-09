@@ -28,13 +28,13 @@ public:
      * @brief Construct a Delaunay2D triangulator with input points
      * @param points Vector of Point2D representing the input vertices
      * @param meshData Pointer to mesh data storage
-     * @param tParameters Optional edge parameters for boundary points (nullopt for interior/corner points)
-     * @param geometryIds Geometry IDs for boundary points (empty string for interior/corner points)
+     * @param tParameters Edge parameters for each point (empty vector for interior points, one or more entries for boundary points)
+     * @param geometryIds Geometry IDs for each point (empty vector for interior points, corresponding edge IDs for boundary points)
      */
     explicit Delaunay2D(const std::vector<Point2D>& points,
                         MeshData2D* meshData,
-                        const std::vector<std::optional<double>>& tParameters = {},
-                        const std::vector<std::string>& geometryIds = {});
+                        const std::vector<std::vector<double>>& tParameters = {},
+                        const std::vector<std::vector<std::string>>& geometryIds = {});
 
     /**
      * @brief Perform the Delaunay triangulation
@@ -49,8 +49,8 @@ private:
     MeshOperations2D meshOperations_;
     Computer2D computer_;
     std::vector<Point2D> points_;
-    std::vector<std::optional<double>> tParameters_;
-    std::vector<std::string> geometryIds_;
+    std::vector<std::vector<double>> tParameters_;
+    std::vector<std::vector<std::string>> geometryIds_;
     std::map<size_t, size_t> pointIndexToNodeIdMap_;
 };
 

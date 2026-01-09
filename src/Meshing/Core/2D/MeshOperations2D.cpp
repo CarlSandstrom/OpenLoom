@@ -21,8 +21,8 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
 }
 
 size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
-                                                  std::optional<double> edgeParameter,
-                                                  std::optional<std::string> geometryId)
+                                                  const std::vector<double>& edgeParameters,
+                                                  const std::vector<std::string>& geometryIds)
 {
     std::vector<size_t> conflicting = findConflictingTriangles(point);
 
@@ -42,9 +42,9 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     }
 
     size_t newVertex;
-    if (edgeParameter.has_value() && geometryId.has_value())
+    if (!edgeParameters.empty() && !geometryIds.empty())
     {
-        newVertex = mutator_->addBoundaryNode(point, edgeParameter.value(), geometryId.value());
+        newVertex = mutator_->addBoundaryNode(point, edgeParameters, geometryIds);
     }
     else
     {
@@ -444,7 +444,7 @@ std::vector<ConstrainedSegment2D> MeshOperations2D::extractConstrainedEdges(
         {
             const auto& pointIndices = edgePointsIt->second;
 
-            for (size_t i = 0; i < pointIndices.size() - 2; ++i)
+            for (size_t i = 0; i < pointIndices.size() - 1; ++i)
             {
                 size_t startPointIdx = pointIndices[i];
                 size_t endPointIdx = pointIndices[i + 1];
@@ -488,18 +488,37 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
         return std::nullopt;
     }
 
-    auto t1Opt = node1->getEdgeParameter();
-    auto t2Opt = node2->getEdgeParameter();
-    if (!t1Opt.has_value() || !t2Opt.has_value())
+    const auto& t1Params = node1->getEdgeParameters();
+    const auto& t2Params = node2->getEdgeParameters();
+    const auto& geometryIds1 = node1->getGeometryIds();
+    const auto& geometryIds2 = node2->getGeometryIds();
+
+    if (t1Params.empty() || t2Params.empty())
     {
         spdlog::error("splitConstrainedSegment: Nodes {} and {} must have edge parameters", segment.nodeId1, segment.nodeId2);
         return std::nullopt;
     }
 
-    double tMid = (t1Opt.value() + t2Opt.value()) * 0.5;
+    // Find the edge parameter index that corresponds to the parent edge
+    std::string edgeId = parentEdge.getId();
+    auto it1 = std::find(geometryIds1.begin(), geometryIds1.end(), edgeId);
+    auto it2 = std::find(geometryIds2.begin(), geometryIds2.end(), edgeId);
+
+    if (it1 == geometryIds1.end() || it2 == geometryIds2.end())
+    {
+        spdlog::error("splitConstrainedSegment: Parent edge {} not found in node geometry IDs", edgeId);
+        return std::nullopt;
+    }
+
+    size_t idx1 = std::distance(geometryIds1.begin(), it1);
+    size_t idx2 = std::distance(geometryIds2.begin(), it2);
+
+    double t1 = t1Params[idx1];
+    double t2 = t2Params[idx2];
+    double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
-    size_t newNodeId = insertVertexBowyerWatson(midPoint, tMid, parentEdge.getId());
+    size_t newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
 
     enforceEdge(segment.nodeId1, newNodeId);
     enforceEdge(newNodeId, segment.nodeId2);

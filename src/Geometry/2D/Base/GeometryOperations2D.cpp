@@ -21,8 +21,8 @@ GeometryOperations2D::extractCornerPoints() const
     {
         const auto* corner = geometry_.getCorner(cornerId);
         result.points.push_back(corner->getPoint());
-        result.tParameters.push_back(std::nullopt);
-        result.geometryIds.push_back("");  // Corners don't have a single edge ID
+        result.tParameters.push_back({});  // Empty vector - will be populated with t values for each connected edge
+        result.geometryIds.push_back({});  // Empty vector - will be populated with edge IDs
         result.cornerIdToPointIndexMap[cornerId] = result.points.size() - 1;
     }
 
@@ -50,6 +50,12 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
         // Get start and end corner point indices
         size_t startCornerIdx = result.cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
         size_t endCornerIdx = result.cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
+
+        // Add t values and geometry IDs for corners on this edge
+        result.tParameters[startCornerIdx].push_back(parameterBounds.first);
+        result.geometryIds[startCornerIdx].push_back(edgeId);
+        result.tParameters[endCornerIdx].push_back(parameterBounds.second);
+        result.geometryIds[endCornerIdx].push_back(edgeId);
 
         // Initialize the edge point indices list with the start corner
         std::vector<size_t> edgePointIndices;
@@ -90,8 +96,8 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
 
                     size_t pointIndex = result.points.size();
                     result.points.push_back(point);
-                    result.tParameters.push_back(t);
-                    result.geometryIds.push_back(edgeId);
+                    result.tParameters.push_back({t});
+                    result.geometryIds.push_back({edgeId});
                     edgePointIndices.push_back(pointIndex);
                     prevTangent = nextTangent;
                 }
@@ -109,8 +115,8 @@ GeometryOperations2D::extractPointsWithEdgeDiscretization(
 
                 size_t pointIndex = result.points.size();
                 result.points.push_back(point);
-                result.tParameters.push_back(t);
-                result.geometryIds.push_back(edgeId);
+                result.tParameters.push_back({t});
+                result.geometryIds.push_back({edgeId});
                 edgePointIndices.push_back(pointIndex);
             }
         }

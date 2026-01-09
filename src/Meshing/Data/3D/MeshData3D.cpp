@@ -19,7 +19,12 @@ MeshData3D::MeshData3D(const MeshData2D& mesh2D)
         Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
         auto node3D = std::make_unique<Node3D>(coords3D);
         node3D->setBoundary(node2D->isBoundary());
-        node3D->setGeometryId(node2D->getGeometryId());
+        // If node has multiple geometry IDs (corner), use the first one for 3D representation
+        const auto& geometryIds = node2D->getGeometryIds();
+        if (!geometryIds.empty())
+        {
+            node3D->setGeometryId(geometryIds[0]);
+        }
         addNodeInternal(id, std::move(node3D));
     }
 

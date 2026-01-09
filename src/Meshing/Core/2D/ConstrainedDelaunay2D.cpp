@@ -40,12 +40,12 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
 
     // Add additional points
     std::vector<Point2D> allPoints = std::move(pointsOnEdges.points);
-    std::vector<std::optional<double>> allTParameters = std::move(pointsOnEdges.tParameters);
-    std::vector<std::string> allGeometryIds = std::move(pointsOnEdges.geometryIds);
+    std::vector<std::vector<double>> allTParameters = std::move(pointsOnEdges.tParameters);
+    std::vector<std::vector<std::string>> allGeometryIds = std::move(pointsOnEdges.geometryIds);
     allPoints.insert(allPoints.end(), additionalPoints.begin(), additionalPoints.end());
-    // Additional points don't have edge parameters or geometry IDs
-    allTParameters.insert(allTParameters.end(), additionalPoints.size(), std::nullopt);
-    allGeometryIds.insert(allGeometryIds.end(), additionalPoints.size(), "");
+    // Additional points don't have edge parameters or geometry IDs (empty vectors)
+    allTParameters.insert(allTParameters.end(), additionalPoints.size(), std::vector<double>{});
+    allGeometryIds.insert(allGeometryIds.end(), additionalPoints.size(), std::vector<std::string>{});
 
     // Create Delaunay triangulation
     Delaunay2D delaunay(allPoints, meshData2D_, allTParameters, allGeometryIds);

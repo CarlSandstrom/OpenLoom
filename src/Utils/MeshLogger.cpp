@@ -23,9 +23,19 @@ void MeshLogger::logMeshData2D(const MeshData2D& meshData)
                   << ", " << std::setw(12) << coords.y() << ")"
                   << (node->isBoundary() ? " [Boundary]" : "");
 
-        if (!node->getGeometryId().empty())
+        const auto& geometryIds = node->getGeometryIds();
+        if (!geometryIds.empty())
         {
-            std::cout << " GeomID: " << node->getGeometryId();
+            std::cout << " GeomIDs: [";
+            for (size_t i = 0; i < geometryIds.size(); ++i)
+            {
+                std::cout << geometryIds[i];
+                if (i < geometryIds.size() - 1)
+                {
+                    std::cout << ", ";
+                }
+            }
+            std::cout << "]";
         }
         std::cout << std::endl;
     }
