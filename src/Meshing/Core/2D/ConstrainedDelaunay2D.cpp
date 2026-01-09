@@ -89,6 +89,11 @@ void ConstrainedDelaunay2D::triangulate()
 {
 }
 
+std::vector<ConstrainedSegment2D> ConstrainedDelaunay2D::getConstrainedEdges() const
+{
+    return constrainedEdges_;
+}
+
 void ConstrainedDelaunay2D::exportAndVerifyMesh()
 {
     Export::VtkExporter exporter;

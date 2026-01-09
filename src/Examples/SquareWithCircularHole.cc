@@ -4,8 +4,11 @@
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
+#include "Meshing/Core/2D/Computer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -140,6 +143,14 @@ int main()
 
     spdlog::info("Generating constrained Delaunay triangulation with circular hole...");
     mesher.triangulate();
+
+    spdlog::info("Refining mesh with ShewchukRefiner2D...");
+    Shewchuk2DQualityController qualityController(Computer2D(context.getMeshData()),
+                                                  2.0,        // Max circumradius to shortest edge ratio
+                                                  M_PI / 6.0, // Min angle 30 degrees
+                                                  10000);     // Max elements
+    ShewchukRefiner2D refiner(context, qualityController, mesher.getConstrainedEdges());
+    refiner.refine();
 
     spdlog::info("Square with circular hole mesh generation complete!");
 
