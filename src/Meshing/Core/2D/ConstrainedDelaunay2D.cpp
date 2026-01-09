@@ -29,7 +29,7 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
     meshOperations_(&context.getOperations())
 {
     // Configure discretization settings (1 segment per edge = no subdivision)
-    Geometry2D::DiscretizationSettings2D discretizationSettings(1, 2 * 3.1415 / 36);
+    Geometry2D::DiscretizationSettings2D discretizationSettings(1, 2 * 3.1415 / 8);
 
     // Create geometry operations for this geometry
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
@@ -72,6 +72,7 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const st
         }
     }
     exportAndVerifyMesh();
+    return; // TODO: Fix bug in hole detection before proceeding
 
     // Remove triangles inside holes
     if (context_->getTopology().hasHoles())
@@ -85,7 +86,7 @@ ConstrainedDelaunay2D::~ConstrainedDelaunay2D() {
 
 };
 
-void ConstrainedDelaunay2D::triangulate()
+void ConstrainedDelaunay2D::triangulate() // TODO: Move code from constructor to here
 {
 }
 
@@ -101,7 +102,7 @@ void ConstrainedDelaunay2D::exportAndVerifyMesh()
     exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(exportCounter_++) + ".vtu");
 
     bool allConstrinedEdgesPresent = false;
-    MeshLogger::logMeshData2D(*meshData2D_);
+    // MeshLogger::logMeshData2D(*meshData2D_);
     MeshVerifier verifier(*meshData2D_);
 
     auto result = verifier.verify();

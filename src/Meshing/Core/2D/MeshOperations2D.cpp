@@ -51,8 +51,30 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         newVertex = mutator_->addNode(point);
     }
 
+    // Helper to compute signed area for degenerate triangle detection
+    auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double
+    {
+        const Point2D& p1 = meshData_.getNode(n1)->getCoordinates();
+        const Point2D& p2 = meshData_.getNode(n2)->getCoordinates();
+        const Point2D& p3 = meshData_.getNode(n3)->getCoordinates();
+        return 0.5 * ((p2.x() - p1.x()) * (p3.y() - p1.y()) -
+                      (p3.x() - p1.x()) * (p2.y() - p1.y()));
+    };
+
+    const double MIN_TRIANGLE_AREA = 1e-10;
+
     for (const auto& edge : boundary)
     {
+        // Check if triangle would be degenerate before creating it
+        double area = computeSignedArea(newVertex, edge[0], edge[1]);
+
+        if (std::abs(area) < MIN_TRIANGLE_AREA)
+        {
+            spdlog::debug("Skipping degenerate triangle in Bowyer-Watson: ({}, {}, {})",
+                         newVertex, edge[0], edge[1]);
+            continue;
+        }
+
         auto newTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]});
         mutator_->addElement(std::move(newTriangle));
     }
@@ -191,11 +213,32 @@ std::vector<size_t> MeshOperations2D::findIntersectingTriangles(size_t nodeId1, 
 
 bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
 {
+    // First check if the edge already exists in the mesh
+    for (const auto& [id, element] : meshData_.getElements())
+    {
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (!triangle)
+            continue;
+
+        // Check all three edges of the triangle
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = triangle->getEdge(i);
+            if ((edge[0] == nodeId1 && edge[1] == nodeId2) ||
+                (edge[0] == nodeId2 && edge[1] == nodeId1))
+            {
+                spdlog::debug("Edge ({}, {}) already exists in mesh", nodeId1, nodeId2);
+                return true; // Edge already exists
+            }
+        }
+    }
+
     auto intersectingTriangles = findIntersectingTriangles(nodeId1, nodeId2);
 
     if (intersectingTriangles.empty())
     {
-        return true; // Edge already enforced
+        spdlog::warn("Edge ({}, {}) does not exist but no intersecting triangles found", nodeId1, nodeId2);
+        return true; // No triangles to remove, edge might already be enforced
     }
 
     // Find the cavity boundary
@@ -295,12 +338,23 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     // Triangulate left polygon using fan triangulation from nodeId1
     // Creates triangles: (nodeId1, leftPolygon[i], leftPolygon[i+1])
     // and final edge triangle (nodeId1, leftPolygon.back(), nodeId2)
+    const double MIN_TRIANGLE_AREA = 1e-10;
+
     if (!leftPolygon.empty())
     {
         for (size_t i = 0; i < leftPolygon.size() - 1; ++i)
         {
             // Check orientation and adjust if needed
             double area = computeSignedArea(nodeId1, leftPolygon[i], leftPolygon[i + 1]);
+
+            // Skip degenerate triangles (collinear or nearly collinear points)
+            if (std::abs(area) < MIN_TRIANGLE_AREA)
+            {
+                spdlog::debug("Skipping degenerate triangle in left polygon: ({}, {}, {})",
+                             nodeId1, leftPolygon[i], leftPolygon[i + 1]);
+                continue;
+            }
+
             if (area > 0)
             {
                 auto newTriangle = std::make_unique<TriangleElement>(
@@ -316,17 +370,27 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         }
         // Final triangle connects to nodeId2
         double area = computeSignedArea(nodeId1, leftPolygon.back(), nodeId2);
-        if (area > 0)
+
+        // Skip degenerate triangles
+        if (std::abs(area) >= MIN_TRIANGLE_AREA)
         {
-            auto newTriangle = std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{nodeId1, leftPolygon.back(), nodeId2});
-            mutator_->addElement(std::move(newTriangle));
+            if (area > 0)
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, leftPolygon.back(), nodeId2});
+                mutator_->addElement(std::move(newTriangle));
+            }
+            else
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, nodeId2, leftPolygon.back()});
+                mutator_->addElement(std::move(newTriangle));
+            }
         }
         else
         {
-            auto newTriangle = std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{nodeId1, nodeId2, leftPolygon.back()});
-            mutator_->addElement(std::move(newTriangle));
+            spdlog::debug("Skipping degenerate final triangle in left polygon: ({}, {}, {})",
+                         nodeId1, leftPolygon.back(), nodeId2);
         }
     }
     else
@@ -343,6 +407,15 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         {
             // Check orientation and adjust if needed
             double area = computeSignedArea(nodeId1, rightPolygon[i + 1], rightPolygon[i]);
+
+            // Skip degenerate triangles (collinear or nearly collinear points)
+            if (std::abs(area) < MIN_TRIANGLE_AREA)
+            {
+                spdlog::debug("Skipping degenerate triangle in right polygon: ({}, {}, {})",
+                             nodeId1, rightPolygon[i + 1], rightPolygon[i]);
+                continue;
+            }
+
             if (area > 0)
             {
                 auto newTriangle = std::make_unique<TriangleElement>(
@@ -358,17 +431,27 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         }
         // Final triangle connects to nodeId2
         double area = computeSignedArea(nodeId1, nodeId2, rightPolygon.back());
-        if (area > 0)
+
+        // Skip degenerate triangles
+        if (std::abs(area) >= MIN_TRIANGLE_AREA)
         {
-            auto newTriangle = std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{nodeId1, nodeId2, rightPolygon.back()});
-            mutator_->addElement(std::move(newTriangle));
+            if (area > 0)
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, nodeId2, rightPolygon.back()});
+                mutator_->addElement(std::move(newTriangle));
+            }
+            else
+            {
+                auto newTriangle = std::make_unique<TriangleElement>(
+                    std::array<size_t, 3>{nodeId1, rightPolygon.back(), nodeId2});
+                mutator_->addElement(std::move(newTriangle));
+            }
         }
         else
         {
-            auto newTriangle = std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{nodeId1, rightPolygon.back(), nodeId2});
-            mutator_->addElement(std::move(newTriangle));
+            spdlog::debug("Skipping degenerate final triangle in right polygon: ({}, {}, {})",
+                         nodeId1, nodeId2, rightPolygon.back());
         }
     }
     else

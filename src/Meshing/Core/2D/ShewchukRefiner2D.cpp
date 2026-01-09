@@ -1,12 +1,16 @@
 #include "ShewchukRefiner2D.h"
 #include "Computer2D.h"
+#include "Export/VtkExporter.h"
 #include "MeshOperations2D.h"
+#include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
+#include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
+#include <algorithm>
 
 namespace Meshing
 {
@@ -26,6 +30,8 @@ void ShewchukRefiner2D::refine()
 
     size_t iterationCount = 0;
     const size_t maxIterations = 10000; // Safety limit to prevent infinite loops
+    size_t consecutiveNoProgress = 0;
+    const size_t maxConsecutiveNoProgress = 10; // Exit if no progress for this many iterations
 
     while (true)
     {
@@ -47,8 +53,21 @@ void ShewchukRefiner2D::refine()
         bool refined = refineStep();
         if (!refined)
         {
-            spdlog::info("ShewchukRefiner2D: No more refinements possible");
-            break;
+            consecutiveNoProgress++;
+            spdlog::debug("ShewchukRefiner2D: No refinement in iteration {} (consecutive: {})",
+                          iterationCount, consecutiveNoProgress);
+
+            if (consecutiveNoProgress >= maxConsecutiveNoProgress)
+            {
+                spdlog::warn("ShewchukRefiner2D: Unable to make progress after {} attempts. "
+                             "Mesh may contain triangles too small to refine or quality goals may be unachievable.",
+                             maxConsecutiveNoProgress);
+                break;
+            }
+        }
+        else
+        {
+            consecutiveNoProgress = 0; // Reset counter on successful refinement
         }
 
         ++iterationCount;
@@ -73,19 +92,28 @@ bool ShewchukRefiner2D::refineStep()
     Computer2D computer(context_->getMeshData());
     auto worstTriangles = computer.getTrianglesSortedByQuality();
 
-    if (!worstTriangles.empty())
+    // Try to refine triangles in order of worst quality
+    // Skip any where circumcenter computation fails
+    for (size_t triangleId : worstTriangles)
     {
-        size_t worstTriangleId = worstTriangles[0];
-
-        // Check if this triangle is acceptable
-        const auto* element = context_->getMeshData().getElement(worstTriangleId);
+        ShewchukRefiner2D::exportAndVerifyMesh();
+        const auto* element = context_->getMeshData().getElement(triangleId);
         const auto* triangle = dynamic_cast<const TriangleElement*>(element);
 
-        if (triangle != nullptr && !qualityController_->isTriangleAcceptable(*triangle))
+        if (triangle == nullptr)
+            continue;
+
+        // Check if this triangle needs refinement
+        if (!qualityController_->isTriangleAcceptable(*triangle))
         {
-            spdlog::debug("ShewchukRefiner2D: Refining triangle {}", worstTriangleId);
-            handlePoorQualityTriangle(worstTriangleId);
-            return true;
+            spdlog::debug("ShewchukRefiner2D: Attempting to refine triangle {}", triangleId);
+
+            // Try to refine this triangle
+            if (handlePoorQualityTriangle(triangleId))
+            {
+                return true; // Successfully refined
+            }
+            // If refinement failed (e.g., couldn't compute circumcenter), try next triangle
         }
     }
 
@@ -126,15 +154,85 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
                   segment.nodeId1, segment.nodeId2);
 
-    // TODO: Need to find the parent edge geometry for this segment
-    // For now, this is a placeholder - we'll need to track edge geometry
-    // in the constrained segments or look it up from the mesh context
+    // Get the nodes to find the parent edge ID
+    const Node2D* node1 = context_->getMeshData().getNode(segment.nodeId1);
+    const Node2D* node2 = context_->getMeshData().getNode(segment.nodeId2);
 
-    // The segment splitting will be implemented once we have access to the parent edge
-    spdlog::error("ShewchukRefiner2D: Segment splitting not yet implemented - need parent edge");
+    if (node1 == nullptr || node2 == nullptr)
+    {
+        spdlog::error("ShewchukRefiner2D: Invalid segment nodes ({}, {})", segment.nodeId1, segment.nodeId2);
+        return;
+    }
+
+    // Get the geometry ID (edge ID) from the nodes
+    // Find the common edge ID between the two nodes
+    const auto& geometryIds1 = node1->getGeometryIds();
+    const auto& geometryIds2 = node2->getGeometryIds();
+
+    std::string edgeId;
+
+    // Find common geometry ID (the edge both nodes belong to)
+    for (const auto& id1 : geometryIds1)
+    {
+        for (const auto& id2 : geometryIds2)
+        {
+            if (id1 == id2)
+            {
+                edgeId = id1;
+                break;
+            }
+        }
+        if (!edgeId.empty())
+            break;
+    }
+
+    if (edgeId.empty())
+    {
+        spdlog::error("ShewchukRefiner2D: Cannot split segment - no common geometry ID found between nodes {} and {}",
+                      segment.nodeId1, segment.nodeId2);
+        return;
+    }
+
+    // Get the parent edge geometry
+    const auto* edge = context_->getGeometry().getEdge(edgeId);
+    if (edge == nullptr)
+    {
+        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", edgeId);
+        return;
+    }
+
+    // Split the segment
+    auto splitResult = context_->getOperations().splitConstrainedSegment(segment, *edge);
+
+    if (!splitResult.has_value())
+    {
+        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.nodeId1, segment.nodeId2);
+        return;
+    }
+
+    // Update constrained segments list: remove old segment, add two new ones
+    auto it = std::find_if(constrainedSegments_.begin(), constrainedSegments_.end(),
+                           [&segment](const ConstrainedSegment2D& s)
+                           {
+                               return (s.nodeId1 == segment.nodeId1 && s.nodeId2 == segment.nodeId2) ||
+                                      (s.nodeId1 == segment.nodeId2 && s.nodeId2 == segment.nodeId1);
+                           });
+
+    if (it != constrainedSegments_.end())
+    {
+        constrainedSegments_.erase(it);
+    }
+
+    constrainedSegments_.push_back(splitResult->first);
+    constrainedSegments_.push_back(splitResult->second);
+
+    spdlog::debug("ShewchukRefiner2D: Successfully split segment into ({}, {}) and ({}, {})",
+                  splitResult->first.nodeId1, splitResult->first.nodeId2,
+                  splitResult->second.nodeId1, splitResult->second.nodeId2);
+    exportAndVerifyMesh();
 }
 
-void ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
+bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
 {
     const auto* element = context_->getMeshData().getElement(triangleId);
     const auto* triangle = dynamic_cast<const TriangleElement*>(element);
@@ -142,17 +240,33 @@ void ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     if (triangle == nullptr)
     {
         spdlog::error("ShewchukRefiner2D: Triangle {} not found", triangleId);
-        return;
+        return false;
+    }
+
+    Computer2D computer(context_->getMeshData());
+
+    // Check if triangle is too small to refine reliably
+    // Attempting to refine very small triangles leads to numerical issues
+    double area = computer.computeArea(*triangle);
+    double shortestEdge = computer.computeShortestEdgeLength(*triangle);
+
+    const double MIN_REFINABLE_AREA = 1e-12; // Minimum area threshold
+    const double MIN_REFINABLE_EDGE = 1e-8;  // Minimum edge length threshold
+
+    if (area < MIN_REFINABLE_AREA || shortestEdge < MIN_REFINABLE_EDGE)
+    {
+        spdlog::debug("ShewchukRefiner2D: Triangle {} too small to refine (area={:.2e}, shortest edge={:.2e}), skipping",
+                      triangleId, area, shortestEdge);
+        return false;
     }
 
     // Compute circumcenter
-    Computer2D computer(context_->getMeshData());
     auto circumcenterOpt = computer.computeCircumcenter(*triangle);
 
     if (!circumcenterOpt.has_value())
     {
-        spdlog::error("ShewchukRefiner2D: Failed to compute circumcenter for triangle {}", triangleId);
-        return;
+        spdlog::debug("ShewchukRefiner2D: Cannot compute circumcenter for triangle {} (likely degenerate), skipping", triangleId);
+        return false;
     }
 
     Point2D circumcenter = circumcenterOpt.value();
@@ -167,7 +281,7 @@ void ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
 
         // Split the first encroached segment and defer circumcenter insertion
         handleEncroachedSegment(encroachedByCircumcenter[0]);
-        return;
+        return true; // We made progress by splitting a segment
     }
 
     // Safe to insert circumcenter
@@ -175,6 +289,7 @@ void ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
                   circumcenter.x(), circumcenter.y());
 
     context_->getOperations().insertVertexBowyerWatson(circumcenter);
+    return true; // Successfully inserted circumcenter
 }
 
 std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoint(const Point2D& point) const
@@ -192,6 +307,27 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoi
     }
 
     return encroached;
+}
+
+void ShewchukRefiner2D::exportAndVerifyMesh()
+{
+    Export::VtkExporter exporter;
+    MeshData3D meshData3D(context_->getMeshData());
+    exporter.exportMesh(meshData3D, "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
+
+    bool allConstrinedEdgesPresent = false;
+    // MeshLogger::logMeshData2D(context_->getMeshData());
+    MeshVerifier verifier(context_->getMeshData());
+
+    auto result = verifier.verify();
+    if (!result.isValid)
+    {
+        for (const auto& error : result.errors)
+        {
+            spdlog::error(" - {}", error);
+        }
+        throw std::runtime_error("Mesh verification failed");
+    }
 }
 
 } // namespace Meshing

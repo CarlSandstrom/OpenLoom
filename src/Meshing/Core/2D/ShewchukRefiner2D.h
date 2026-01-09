@@ -69,14 +69,19 @@ private:
     /**
      * @brief Handle a poor quality triangle by inserting its circumcenter
      * @param triangleId ID of the triangle to refine
+     * @return true if refinement was successful, false otherwise
      */
-    void handlePoorQualityTriangle(size_t triangleId);
+    bool handlePoorQualityTriangle(size_t triangleId);
 
     /**
      * @brief Check if a point would encroach any constrained segments
      * @param point The candidate point to check
      * @return Vector of segments that would be encroached
      */
+
+    void exportAndVerifyMesh();
+
+    size_t exportCounter_ = 0;
     std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(const Point2D& point) const;
 };
 

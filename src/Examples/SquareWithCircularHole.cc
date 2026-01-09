@@ -113,7 +113,7 @@ void addCircularHole(Geometry2D::GeometryCollection2D& geometry,
 
 int main()
 {
-    spdlog::set_level(spdlog::level::info);
+    spdlog::set_level(spdlog::level::debug);
     spdlog::set_pattern("[%H:%M:%S] %^%v%$");
 
     spdlog::info("Creating 2D square with circular hole using OpenCASCADE geometry");
@@ -153,6 +153,10 @@ int main()
     refiner.refine();
 
     spdlog::info("Square with circular hole mesh generation complete!");
+
+    Export::VtkExporter exporter;
+    MeshData3D meshData3D(context.getMeshData());
+    exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(9999) + ".vtu");
 
     return 0;
 }
