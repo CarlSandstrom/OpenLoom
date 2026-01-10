@@ -7,6 +7,7 @@
 
 namespace Meshing
 {
+class MeshData2D;
 class MeshData3D;
 class IElement;
 } // namespace Meshing
@@ -29,11 +30,18 @@ public:
     // Direct convenience method identical to exportMesh
     bool writeVtu(const Meshing::MeshData3D& mesh, const std::string& filePath) const { return exportMesh(mesh, filePath); }
 
+    // Overloaded methods for 2D meshes (exported with z=0)
+    bool exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const;
+    bool writeVtu(const Meshing::MeshData2D& mesh, const std::string& filePath) const { return exportMesh(mesh, filePath); }
+
 private:
     void writeHeader(std::ostream& os) const;
     void writePoints(std::ostream& os, const Meshing::MeshData3D& mesh) const;
     void writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) const;
     void writeFooter(std::ostream& os) const;
+
+    // Convert 2D mesh to 3D (with z=0) for export
+    static Meshing::MeshData3D convertToMeshData3D(const Meshing::MeshData2D& mesh2D);
 
     static int vtkCellTypeFor(const Meshing::IElement& element);
 };

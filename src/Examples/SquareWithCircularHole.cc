@@ -11,8 +11,6 @@
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 
@@ -154,8 +152,7 @@ int main()
     spdlog::info("Square with circular hole mesh generation complete!");
 
     Export::VtkExporter exporter;
-    MeshData3D meshData3D(context.getMeshData());
-    exporter.exportMesh(meshData3D, "SquareWithCircularHoles.vtu");
+    exporter.exportMesh(context.getMeshData(), "SquareWithCircularHoles.vtu");
 
     return 0;
 }

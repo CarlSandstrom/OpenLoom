@@ -98,8 +98,7 @@ std::vector<ConstrainedSegment2D> ConstrainedDelaunay2D::getConstrainedEdges() c
 void ConstrainedDelaunay2D::exportAndVerifyMesh()
 {
     Export::VtkExporter exporter;
-    MeshData3D meshData3D(*meshData2D_);
-    exporter.exportMesh(meshData3D, "constrained_delaunay_" + std::to_string(exportCounter_++) + ".vtu");
+    exporter.exportMesh(*meshData2D_, "constrained_delaunay_" + std::to_string(exportCounter_++) + ".vtu");
 
     bool allConstrinedEdgesPresent = false;
     // MeshLogger::logMeshData2D(*meshData2D_);

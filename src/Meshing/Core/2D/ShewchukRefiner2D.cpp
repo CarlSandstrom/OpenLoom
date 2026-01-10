@@ -317,8 +317,7 @@ void ShewchukRefiner2D::exportAndVerifyMesh()
 {
     return;
     Export::VtkExporter exporter;
-    MeshData3D meshData3D(context_->getMeshData());
-    exporter.exportMesh(meshData3D, "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
+    exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
 
     bool allConstrinedEdgesPresent = false;
     // MeshLogger::logMeshData2D(context_->getMeshData());
