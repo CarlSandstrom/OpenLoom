@@ -1,5 +1,5 @@
 #include "GeometryCollection3D.h"
-#include <stdexcept>
+#include "Common/Exceptions/GeometryException.h"
 
 namespace Geometry3D
 {
@@ -18,7 +18,7 @@ ISurface3D* GeometryCollection3D::getSurface(const std::string& id) const
     auto it = surfaces_.find(id);
     if (it == surfaces_.end())
     {
-        throw std::runtime_error("Surface with ID '" + id + "' not found");
+        CMESH_THROW_ENTITY_NOT_FOUND("Surface", id);
     }
     return it->second.get();
 }
@@ -28,7 +28,7 @@ IEdge3D* GeometryCollection3D::getEdge(const std::string& id) const
     auto it = edges_.find(id);
     if (it == edges_.end())
     {
-        throw std::runtime_error("Edge with ID '" + id + "' not found");
+        CMESH_THROW_ENTITY_NOT_FOUND("Edge", id);
     }
     return it->second.get();
 }
@@ -38,7 +38,7 @@ ICorner3D* GeometryCollection3D::getCorner(const std::string& id) const
     auto it = corners_.find(id);
     if (it == corners_.end())
     {
-        throw std::runtime_error("Corner with ID '" + id + "' not found");
+        CMESH_THROW_ENTITY_NOT_FOUND("Corner", id);
     }
     return it->second.get();
 }

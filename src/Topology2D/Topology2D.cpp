@@ -1,6 +1,6 @@
 #include "Topology2D.h"
 
-#include <stdexcept>
+#include "Common/Exceptions/TopologyException.h"
 
 namespace Topology2D
 {
@@ -37,7 +37,7 @@ const Corner2D& Topology2D::getCorner(const std::string& id) const
     auto it = corners_.find(id);
     if (it == corners_.end())
     {
-        throw std::runtime_error("Corner2D not found: " + id);
+        CMESH_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Corner2D not found: " + id);
     }
     return it->second;
 }
@@ -47,7 +47,7 @@ const Edge2D& Topology2D::getEdge(const std::string& id) const
     auto it = edges_.find(id);
     if (it == edges_.end())
     {
-        throw std::runtime_error("Edge2D not found: " + id);
+        CMESH_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Edge2D not found: " + id);
     }
     return it->second;
 }

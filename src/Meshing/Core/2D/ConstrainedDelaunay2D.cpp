@@ -11,13 +11,13 @@
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Utils/MeshLogger.h"
+#include "Common/Exceptions/MeshException.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <map>
 #include <optional>
-#include <stdexcept>
 
 namespace Meshing
 {
@@ -112,7 +112,7 @@ void ConstrainedDelaunay2D::exportAndVerifyMesh()
         {
             spdlog::error(" - {}", error);
         }
-        throw std::runtime_error("Mesh verification failed");
+        CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
     }
 }
 

@@ -11,7 +11,7 @@
 #include <TopoDS.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Pnt2d.hxx>
-#include <stdexcept>
+#include "Common/Exceptions/GeometryException.h"
 
 namespace Geometry2D
 {
@@ -20,18 +20,12 @@ OpenCascade2DFace::OpenCascade2DFace(std::unique_ptr<OpenCascade2DEdgeLoop> oute
     outerEdgeLoop_(std::move(outerEdgeLoop)),
     faceBuilt_(false)
 {
-    if (!outerEdgeLoop_)
-    {
-        throw std::runtime_error("OpenCascade2DFace: outer edge loop cannot be null");
-    }
+    CMESH_REQUIRE_NOT_NULL(outerEdgeLoop_, "outer edge loop");
 }
 
 void OpenCascade2DFace::addHole(std::unique_ptr<OpenCascade2DEdgeLoop> holeEdgeLoop)
 {
-    if (!holeEdgeLoop)
-    {
-        throw std::runtime_error("OpenCascade2DFace: hole edge loop cannot be null");
-    }
+    CMESH_REQUIRE_NOT_NULL(holeEdgeLoop, "hole edge loop");
 
     holeEdgeLoops_.push_back(std::move(holeEdgeLoop));
     faceBuilt_ = false;
@@ -51,7 +45,9 @@ const IEdgeLoop2D& OpenCascade2DFace::getHoleEdgeLoop(size_t index) const
 {
     if (index >= holeEdgeLoops_.size())
     {
-        throw std::runtime_error("OpenCascade2DFace: hole index out of range");
+        CMESH_THROW_CODE(cMesh::GeometryException,
+                        cMesh::GeometryException::ErrorCode::PARAMETER_OUT_OF_RANGE,
+                        "Hole index " + std::to_string(index) + " out of range (size: " + std::to_string(holeEdgeLoops_.size()) + ")");
     }
     return *holeEdgeLoops_[index];
 }
@@ -121,7 +117,9 @@ void OpenCascade2DFace::buildFace() const
 
     if (!faceBuilder.IsDone())
     {
-        throw std::runtime_error("OpenCascade2DFace: failed to create face from outer wire");
+        CMESH_THROW_CODE(cMesh::GeometryException,
+                        cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                        "Failed to create face from outer wire");
     }
 
     // Add hole wires.
@@ -140,7 +138,9 @@ void OpenCascade2DFace::buildFace() const
 
         if (!faceBuilder.IsDone())
         {
-            throw std::runtime_error("OpenCascade2DFace: failed to add hole wire to face");
+            CMESH_THROW_CODE(cMesh::GeometryException,
+                            cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                            "Failed to add hole wire to face");
         }
     }
 

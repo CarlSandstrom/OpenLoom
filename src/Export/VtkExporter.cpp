@@ -25,11 +25,9 @@ constexpr int VTK_QUAD = 9;
 
 bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string& filePath) const
 {
-    std::ofstream os(filePath);
-    if (!os.is_open())
-    {
-        return false;
-    }
+    std::ofstream os;
+    os.exceptions(std::ios::failbit | std::ios::badbit);
+    os.open(filePath);
 
     writeHeader(os);
     writePoints(os, mesh);

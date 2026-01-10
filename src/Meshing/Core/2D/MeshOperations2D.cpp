@@ -5,6 +5,7 @@
 #include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Edge2D.h"
 #include "Topology2D/Topology2D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
@@ -30,8 +31,9 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     {
         SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
                     point.x(), point.y());
-        assert(false);
-        return -1;
+        CMESH_THROW_CODE(cMesh::MeshException,
+                        cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+                        "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
     }
 
     std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);

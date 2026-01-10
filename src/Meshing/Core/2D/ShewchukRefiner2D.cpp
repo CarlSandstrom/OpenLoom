@@ -9,6 +9,7 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Utils/MeshLogger.h"
+#include "Common/Exceptions/MeshException.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 
@@ -327,7 +328,7 @@ void ShewchukRefiner2D::exportAndVerifyMesh()
         {
             spdlog::error(" - {}", error);
         }
-        throw std::runtime_error("Mesh verification failed");
+        CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
     }
 }
 
