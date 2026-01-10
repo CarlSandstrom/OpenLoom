@@ -16,7 +16,6 @@ namespace Meshing
 {
 
 ConstrainedDelaunay3D::ConstrainedDelaunay3D(MeshingContext3D& context) :
-    computer_(context.getMeshData()),
     context_(context),
     meshData_(context.getMeshData()),
     meshMutator_(context.getMutator())

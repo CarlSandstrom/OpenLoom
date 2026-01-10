@@ -1,5 +1,7 @@
 #include "ShewchukRefiner2D.h"
-#include "Computer2D.h"
+#include "ConstraintChecker2D.h"
+#include "ElementGeometry2D.h"
+#include "ElementQuality2D.h"
 #include "Export/VtkExporter.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
@@ -90,8 +92,8 @@ bool ShewchukRefiner2D::refineStep()
     }
 
     // Priority 2: Refine worst quality triangle
-    Computer2D computer(context_->getMeshData());
-    auto worstTriangles = computer.getTrianglesSortedByQuality();
+    ElementQuality2D quality(context_->getMeshData());
+    auto worstTriangles = quality.getTrianglesSortedByQuality();
 
     // Try to refine triangles in order of worst quality
     // Skip any where circumcenter computation fails
@@ -125,7 +127,7 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findEncroachedSegments() co
 {
     std::vector<ConstrainedSegment2D> encroached;
 
-    Computer2D computer(context_->getMeshData());
+    ConstraintChecker2D checker(context_->getMeshData());
 
     // Check each constrained segment against all nodes
     for (const auto& segment : constrainedSegments_)
@@ -139,7 +141,7 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findEncroachedSegments() co
 
             Point2D point = node->getCoordinates();
 
-            if (computer.isSegmentEncroached(segment, point))
+            if (checker.isSegmentEncroached(segment, point))
             {
                 encroached.push_back(segment);
                 break; // This segment is encroached, move to next segment
@@ -244,12 +246,13 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         return false;
     }
 
-    Computer2D computer(context_->getMeshData());
+    ElementGeometry2D geometry(context_->getMeshData());
+    ElementQuality2D quality(context_->getMeshData());
 
     // Check if triangle is too small to refine reliably
     // Attempting to refine very small triangles leads to numerical issues
-    double area = computer.computeArea(*triangle);
-    double shortestEdge = computer.computeShortestEdgeLength(*triangle);
+    double area = geometry.computeArea(*triangle);
+    double shortestEdge = quality.computeShortestEdgeLength(*triangle);
 
     const double MIN_REFINABLE_AREA = 1e-12; // Minimum area threshold
     const double MIN_REFINABLE_EDGE = 1e-8;  // Minimum edge length threshold
@@ -262,7 +265,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     }
 
     // Compute circumcenter
-    auto circumcenterOpt = computer.computeCircumcenter(*triangle);
+    auto circumcenterOpt = geometry.computeCircumcenter(*triangle);
 
     if (!circumcenterOpt.has_value())
     {
@@ -297,11 +300,11 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoi
 {
     std::vector<ConstrainedSegment2D> encroached;
 
-    Computer2D computer(context_->getMeshData());
+    ConstraintChecker2D checker(context_->getMeshData());
 
     for (const auto& segment : constrainedSegments_)
     {
-        if (computer.isSegmentEncroached(segment, point))
+        if (checker.isSegmentEncroached(segment, point))
         {
             encroached.push_back(segment);
         }

@@ -1,4 +1,5 @@
 #include "Delaunay2D.h"
+#include "GeometryUtilities2D.h"
 #include "spdlog/spdlog.h"
 
 namespace Meshing
@@ -12,7 +13,6 @@ Delaunay2D::Delaunay2D(const std::vector<Point2D>& points,
     meshData_(meshData),
     meshMutator_(*meshData_),
     meshOperations_(*meshData_),
-    computer_(*meshData_),
     tParameters_(tParameters),
     geometryIds_(geometryIds)
 {
@@ -21,7 +21,7 @@ Delaunay2D::Delaunay2D(const std::vector<Point2D>& points,
 void Delaunay2D::triangulate()
 {
     spdlog::info("Delaunay2D::triangulate() called with {} points", points_.size());
-    auto [p0, p1, p2] = computer_.createSuperTriangle(points_);
+    auto [p0, p1, p2] = GeometryUtilities2D::createSuperTriangle(points_);
     spdlog::info("Super triangle points: ({:.2f}, {:.2f}), ({:.2f}, {:.2f}), ({:.2f}, {:.2f})",
                  p0.x(), p0.y(), p1.x(), p1.y(), p2.x(), p2.y());
     size_t superNodeId0 = meshMutator_.addNode(p0);

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Computer2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
@@ -47,7 +46,6 @@ private:
     MeshData2D* meshData_;
     MeshMutator2D meshMutator_;
     MeshOperations2D meshOperations_;
-    Computer2D computer_;
     std::vector<Point2D> points_;
     std::vector<std::vector<double>> tParameters_;
     std::vector<std::vector<std::string>> geometryIds_;

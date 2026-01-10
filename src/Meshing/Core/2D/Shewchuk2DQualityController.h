@@ -1,17 +1,19 @@
 #pragma once
 
 #include "Meshing/Interfaces/IQualityController2D.h"
+#include "ElementGeometry2D.h"
+#include "ElementQuality2D.h"
 #include <cstddef>
+#include <memory>
 
 namespace Meshing
 {
 class MeshData2D;
-class Computer2D;
 
 class Shewchuk2DQualityController : public IQualityController2D
 {
 public:
-    Shewchuk2DQualityController(const Computer2D& computer,
+    Shewchuk2DQualityController(const MeshData2D& meshData,
                                 double circumradiusToShortestEdgeRatioBound,
                                 double minAngleThresholdRadians,
                                 std::size_t elementLimit);
@@ -22,7 +24,8 @@ public:
     std::size_t getElementLimit() const override;
 
 private:
-    const Computer2D& computer_;
+    std::unique_ptr<ElementGeometry2D> geometry_;
+    std::unique_ptr<ElementQuality2D> quality_;
     double circumradiusToShortestEdgeRatioBound_;
     double minAngleThreshold_;
     std::size_t elementLimit_;

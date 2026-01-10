@@ -20,7 +20,6 @@ set(TEST_SOURCES
     # Meshing Core tests
     Meshing/Core/test_Delaunay3D.cpp
     Meshing/Core/test_ConstrainedDelaunay2D.cpp
-    Meshing/Core/test_Computer2D.cpp
     Meshing/Core/test_GeometryUtilities2D.cpp
     Meshing/Core/test_ElementGeometry2D.cpp
     Meshing/Core/test_ElementQuality2D.cpp

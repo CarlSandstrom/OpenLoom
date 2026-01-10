@@ -10,7 +10,6 @@
 #include "ConstrainedDelaunayHelper.h"
 #include "Meshing/Core/ConstraintStructures.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
-#include "Meshing/Core/3D/Computer3D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -30,7 +29,6 @@ namespace Meshing
  * Integration with project architecture:
  * - Uses MeshingContext for data access
  * - Uses MeshMutator3D (friend pattern) for modifications
- * - Uses Computer for geometric calculations
  * - Respects Topology/Geometry separation
  */
 class ConstrainedDelaunay3D
@@ -47,9 +45,6 @@ public:
 
     const std::unordered_set<size_t>& getActiveTetrahedronIds() const { return activeTetrahedra_; }
     bool isElementActive(size_t elementId) const;
-
-    Computer3D& getComputer() { return computer_; }
-    const Computer3D& getComputer() const { return computer_; }
 
     const TetrahedralElement* getTetrahedralElement(size_t elementId) const;
 
@@ -157,7 +152,6 @@ private:
     std::vector<std::array<size_t, 3>> findCavityBoundary(const std::vector<size_t>& conflicting) const;
     void retriangulate(size_t vertexNodeId, const std::vector<std::array<size_t, 3>>& boundary);
 
-    Computer3D computer_;
     std::vector<size_t> superNodeIds_;
     std::unordered_set<size_t> activeTetrahedra_;
 

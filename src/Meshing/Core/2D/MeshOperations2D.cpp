@@ -1,5 +1,6 @@
 #include "MeshOperations2D.h"
-#include "Computer2D.h"
+#include "ElementGeometry2D.h"
+#include "GeometryUtilities2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -17,7 +18,7 @@ namespace Meshing
 MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
     meshData_(meshData),
     mutator_(std::make_unique<MeshMutator2D>(meshData)),
-    computer_(std::make_unique<Computer2D>(meshData))
+    geometry_(std::make_unique<ElementGeometry2D>(meshData))
 {
 }
 
@@ -97,9 +98,9 @@ std::vector<size_t> MeshOperations2D::findConflictingTriangles(const Point2D& po
             continue;
         }
 
-        auto circle = computer_->computeCircumcircle(*triangle);
+        auto circle = geometry_->computeCircumcircle(*triangle);
 
-        if (circle && Computer2D::isPointInsideCircumcircle(*circle, point))
+        if (circle && GeometryUtilities2D::isPointInsideCircumcircle(*circle, point))
         {
             conflicting.push_back(id);
         }

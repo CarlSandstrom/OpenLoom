@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/Computer2D.h"
+#include "Meshing/Core/2D/ElementGeometry2D.h"
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -115,7 +115,7 @@ public:
 private:
     MeshData2D& meshData_;
     std::unique_ptr<MeshMutator2D> mutator_;
-    std::unique_ptr<Computer2D> computer_;
+    std::unique_ptr<ElementGeometry2D> geometry_;
 
     /**
      * @brief Retriangulate the cavity with the new vertex
