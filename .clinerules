@@ -140,17 +140,23 @@
 - Exception: brief comments acceptable for algorithmic rationale or mathematical concepts
 
 ### Error Handling & Exceptions
-- **Exceptions** (`std::runtime_error`): Use for public API contract violations and unrecoverable failures
-  - Invalid inputs from users (missing IDs, null references, invalid geometry)
-  - Failed operations that cannot proceed (verification failures, topology errors)
-  - Include descriptive error messages with context (IDs, values, etc.)
-- **std::optional**: Use for operations that may legitimately produce no result
-  - Geometric computations on potentially degenerate elements (circumsphere, quality metrics)
-  - Lookup operations where "not found" is a valid outcome (findVertexId, findEdgeId)
-  - Caller must check result before using (e.g., `if (result.has_value())`)
-- **Validation policy**: Validate at public API boundaries, trust internal/private method calls within the same class
-- **Logging**: Use `spdlog::error()` before throwing exceptions to aid debugging
-- **No assertions**: Prefer exceptions for precondition checks to maintain debuggability in release builds
+**IMPORTANT: See `doc/Error_Handling.md` for complete error handling guide.**
+
+Quick reference:
+- **Exceptions** (typed): Use custom exceptions from `Common/Exceptions/` for errors
+  - Entity lookups that should succeed: `CMESH_THROW_ENTITY_NOT_FOUND("Type", id)`
+  - Null pointer validation: `CMESH_REQUIRE_NOT_NULL(ptr, "name")`
+  - Operations that fail: `CMESH_THROW_CODE(ExceptionType, ErrorCode::CODE, "message")`
+  - Mesh verification: `CMESH_THROW_VERIFICATION_FAILED("msg", errorList)`
+- **std::optional<T>**: Use for operations that may legitimately produce no result
+  - Geometric computations on degenerate elements (circumcircle, quality metrics)
+  - Query operations where "not found" is valid (findVertexId, findSurfaceAt)
+- **bool**: Use for simple success/failure or yes/no queries
+  - Try operations: `bool tryEnforceConstraint(...)`
+  - Query operations: `bool contains(...)`
+- **Structured results**: Use for validation needing error lists (`VerificationResult`)
+- **File I/O**: Enable stream exceptions (`os.exceptions(std::ios::failbit | std::ios::badbit)`)
+- **Never use**: Generic `std::runtime_error`, assertions for validation
 
 ## Implementation Tips & Best Practices
 
