@@ -1,4 +1,6 @@
 # CMake configuration for Common module
+add_subdirectory(Exceptions)
+
 add_library(Common STATIC
     MathConverter.cpp
     BoundingBox2D.cpp
@@ -9,6 +11,8 @@ target_include_directories(Common PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(Common PUBLIC Exceptions)
 
 if(TARGET Eigen3::Eigen)
     target_link_libraries(Common PUBLIC Eigen3::Eigen)

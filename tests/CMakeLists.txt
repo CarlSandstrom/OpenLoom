@@ -4,6 +4,10 @@ enable_testing()
 # Collect all test source files
 set(TEST_SOURCES
     test_main.cpp
+
+    # Common tests
+    Common/Exceptions/test_Exception.cpp
+
     # Geometry tests
     Geometry/test_Corner.cpp
     Geometry/test_Edge.cpp

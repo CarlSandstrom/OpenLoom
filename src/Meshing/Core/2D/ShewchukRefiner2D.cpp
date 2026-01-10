@@ -311,6 +311,7 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoi
 
 void ShewchukRefiner2D::exportAndVerifyMesh()
 {
+    return;
     Export::VtkExporter exporter;
     MeshData3D meshData3D(context_->getMeshData());
     exporter.exportMesh(meshData3D, "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
