@@ -9,6 +9,8 @@ set(EXAMPLE_SOURCES
     RectangleWithCrack.cc
     SimpleDelaunay2D.cc
     SquareWithCircularHole.cc
+    basic_3d_constraint_example.cpp
+    3d_mesh_with_holes_example.cpp
 )
 
 # Link external libraries
