@@ -107,6 +107,17 @@ public:
         const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const;
 
     /**
+     * @brief Classify triangles as interior/exterior using flood fill from constraint edges
+     *
+     * Uses mesh topology (constraint edges) to determine which triangles are inside
+     * the domain vs outside or in holes. Finds a seed triangle farthest from constraints,
+     * performs BFS flood fill respecting constraint boundaries, and removes unreached triangles.
+     *
+     * @param constrainedEdges Vector of constraint edges that form domain boundaries
+     */
+    void classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges);
+
+    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator2D& getMutator() { return *mutator_; }

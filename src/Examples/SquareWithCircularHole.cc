@@ -128,7 +128,7 @@ int main()
     addCircularHole(*geometry, topoCorners, topoEdges, hole1EdgeLoop, "hole1", 4.0, 5.0, 0.95, 8);
 
     std::vector<std::string> hole2EdgeLoop;
-    addCircularHole(*geometry, topoCorners, topoEdges, hole2EdgeLoop, "hole2", 6.0, 5.0, 1, 8);
+    addCircularHole(*geometry, topoCorners, topoEdges, hole2EdgeLoop, "hole2", 6.0, 5.0, 1.0, 8);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
         topoCorners, topoEdges, outerEdgeLoop,

@@ -44,7 +44,6 @@ public:
 private:
     void exportAndVerifyMesh();
     void removeHoleTriangles();
-    std::unique_ptr<Geometry2D::IFace2D> buildDomainFace() const;
 
 private:
     size_t exportCounter_ = 0;

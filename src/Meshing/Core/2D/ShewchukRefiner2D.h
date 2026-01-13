@@ -3,7 +3,14 @@
 #include "GeometryStructures2D.h"
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include "MeshingContext2D.h"
+#include <memory>
+#include <unordered_set>
 #include <vector>
+
+namespace Geometry2D
+{
+class IFace2D;
+}
 
 namespace Meshing
 {
@@ -34,6 +41,8 @@ public:
                       const IQualityController2D& qualityController,
                       const std::vector<ConstrainedSegment2D>& constrainedSegments);
 
+    ~ShewchukRefiner2D();
+
     /**
      * @brief Run the refinement algorithm until quality goals are met
      *
@@ -47,6 +56,7 @@ private:
     MeshingContext2D* context_;
     const IQualityController2D* qualityController_;
     std::vector<ConstrainedSegment2D> constrainedSegments_;
+    std::unique_ptr<Geometry2D::IFace2D> domainFace_;
 
     /**
      * @brief Perform a single refinement step
@@ -82,6 +92,7 @@ private:
     void exportAndVerifyMesh();
 
     size_t exportCounter_ = 0;
+    std::unordered_set<size_t> unrefinableTriangles_; // Triangles that can't be refined (circumcenter in hole)
     std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(const Point2D& point) const;
 };
 
