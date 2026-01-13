@@ -7,8 +7,6 @@
 #include "Geometry/2D/Base/GeometryOperations2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Geometry/2D/Base/IFace2D.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DEdgeLoop.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DFace.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Data/2D/MeshData2D.h"

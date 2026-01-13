@@ -6,9 +6,9 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
+#include "Geometry/2D/Base/IFace2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DEdgeLoop.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DFace.h"
+#include "Geometry/2D/OpenCascade/OpenCascade2DFaceBuilder.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
@@ -148,22 +148,8 @@ void MeshingContext2D::clearMesh()
 
 std::unique_ptr<Geometry2D::IFace2D> MeshingContext2D::buildDomainFace() const
 {
-    // Build outer edge loop
-    auto outerLoop = std::make_unique<Geometry2D::OpenCascade2DEdgeLoop>(
-        topology_->getOuterEdgeLoop(), *geometry_);
-
-    // Build face with outer loop
-    auto face = std::make_unique<Geometry2D::OpenCascade2DFace>(std::move(outerLoop));
-
-    // Add hole loops
-    for (const auto& holeEdgeIds : topology_->getHoleEdgeLoops())
-    {
-        auto holeLoop = std::make_unique<Geometry2D::OpenCascade2DEdgeLoop>(
-            holeEdgeIds, *geometry_);
-        face->addHole(std::move(holeLoop));
-    }
-
-    return face;
+    return Geometry2D::OpenCascade2DFaceBuilder::buildFromTopology(
+        *topology_, *geometry_);
 }
 
 void MeshingContext2D::ensureInitialized()

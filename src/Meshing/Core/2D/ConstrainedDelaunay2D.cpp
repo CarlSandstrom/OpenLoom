@@ -4,8 +4,6 @@
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/DiscretizationSettings2D.h"
 #include "Geometry/2D/Base/GeometryOperations2D.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DEdgeLoop.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DFace.h"
 #include "HoleTriangleRemover.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
