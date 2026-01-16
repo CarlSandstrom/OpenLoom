@@ -266,3 +266,79 @@ TEST_F(ConstraintChecker3DTest, IsSubfacetEncroachedWithInvalidNodeIds)
     // Should return false for invalid node IDs
     EXPECT_FALSE(checker.isSubfacetEncroached(subfacet, anyPoint));
 }
+
+// ============================================================================
+// isConstraintFace Tests (Static Method)
+// ============================================================================
+
+TEST_F(ConstraintChecker3DTest, IsConstraintFaceMatchesExactOrder)
+{
+    // Create constraint subfacets
+    std::vector<ConstrainedSubfacet3D> constraints;
+    constraints.push_back({0, 1, 2, "face1"});
+    constraints.push_back({3, 4, 5, "face2"});
+
+    // Exact match should return true
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(0, 1, 2, constraints));
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(3, 4, 5, constraints));
+}
+
+TEST_F(ConstraintChecker3DTest, IsConstraintFaceMatchesAnyOrder)
+{
+    std::vector<ConstrainedSubfacet3D> constraints;
+    constraints.push_back({0, 1, 2, "face1"});
+
+    // All permutations of {0, 1, 2} should match
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(0, 1, 2, constraints));
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(0, 2, 1, constraints));
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(1, 0, 2, constraints));
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(1, 2, 0, constraints));
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(2, 0, 1, constraints));
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(2, 1, 0, constraints));
+}
+
+TEST_F(ConstraintChecker3DTest, IsConstraintFaceReturnsFalseForNonMatch)
+{
+    std::vector<ConstrainedSubfacet3D> constraints;
+    constraints.push_back({0, 1, 2, "face1"});
+    constraints.push_back({3, 4, 5, "face2"});
+
+    // Different faces should not match
+    EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(0, 1, 3, constraints));
+    EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(6, 7, 8, constraints));
+    EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(0, 3, 4, constraints));
+}
+
+TEST_F(ConstraintChecker3DTest, IsConstraintFaceWithEmptyList)
+{
+    std::vector<ConstrainedSubfacet3D> emptyConstraints;
+
+    // No constraints means nothing matches
+    EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(0, 1, 2, emptyConstraints));
+}
+
+TEST_F(ConstraintChecker3DTest, IsConstraintFaceWithManyConstraints)
+{
+    std::vector<ConstrainedSubfacet3D> constraints;
+    for (size_t i = 0; i < 100; ++i)
+    {
+        constraints.push_back({i * 3, i * 3 + 1, i * 3 + 2, "face" + std::to_string(i)});
+    }
+
+    // Should find constraint in the middle
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(150, 151, 152, constraints));  // 50th
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(297, 298, 299, constraints));  // last
+
+    // Non-existent faces should not match
+    EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(1000, 1001, 1002, constraints));
+}
+
+TEST_F(ConstraintChecker3DTest, IsConstraintFaceWithDuplicateVertexIds)
+{
+    std::vector<ConstrainedSubfacet3D> constraints;
+    constraints.push_back({5, 5, 5, "degenerate"});  // Degenerate face (same vertex)
+
+    // This edge case - same vertex repeated - should still work with sorting
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(5, 5, 5, constraints));
+    EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(5, 5, 6, constraints));
+}

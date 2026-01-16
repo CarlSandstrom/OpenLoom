@@ -42,6 +42,16 @@ public:
                                          const Point3D& triangleP2,
                                          const Point3D& triangleP3,
                                          double tolerance = 1e-12);
+
+    /// Computes the centroid of a triangle given its three vertices.
+    static Point3D computeTriangleCentroid(const Point3D& v1, const Point3D& v2, const Point3D& v3);
+
+    /// Computes the distance from a point to the centroid of a triangle.
+    /// This is an approximate distance to triangle, useful for flood-fill seeding.
+    static double computePointToTriangleCentroidDistance(const Point3D& point,
+                                                         const Point3D& v1,
+                                                         const Point3D& v2,
+                                                         const Point3D& v3);
 };
 
 } // namespace Meshing

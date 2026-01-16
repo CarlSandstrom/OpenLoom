@@ -105,4 +105,20 @@ bool GeometryUtilities3D::isPointInEquatorialSphere(const EquatorialSphere& sphe
     return distanceSq < radiusSq - tolerance;
 }
 
+Point3D GeometryUtilities3D::computeTriangleCentroid(const Point3D& v1, const Point3D& v2, const Point3D& v3)
+{
+    return Point3D((v1.x() + v2.x() + v3.x()) / 3.0,
+                   (v1.y() + v2.y() + v3.y()) / 3.0,
+                   (v1.z() + v2.z() + v3.z()) / 3.0);
+}
+
+double GeometryUtilities3D::computePointToTriangleCentroidDistance(const Point3D& point,
+                                                                   const Point3D& v1,
+                                                                   const Point3D& v2,
+                                                                   const Point3D& v3)
+{
+    Point3D centroid = computeTriangleCentroid(v1, v2, v3);
+    return computeEdgeLength(point, centroid);
+}
+
 } // namespace Meshing

@@ -305,3 +305,76 @@ TEST(GeometryUtilities3DTest, IsPointInEquatorialSphereBothSidesOfPlane)
     EXPECT_TRUE(GeometryUtilities3D::isPointInEquatorialSphere(
         sphere, below, p1, p2, p3));
 }
+
+// ============================================================================
+// Triangle Centroid Tests
+// ============================================================================
+
+TEST(GeometryUtilities3DTest, ComputeTriangleCentroidSimple)
+{
+    Point3D v1(0.0, 0.0, 0.0);
+    Point3D v2(3.0, 0.0, 0.0);
+    Point3D v3(0.0, 3.0, 0.0);
+
+    Point3D centroid = GeometryUtilities3D::computeTriangleCentroid(v1, v2, v3);
+
+    EXPECT_NEAR(centroid.x(), 1.0, TOLERANCE);
+    EXPECT_NEAR(centroid.y(), 1.0, TOLERANCE);
+    EXPECT_NEAR(centroid.z(), 0.0, TOLERANCE);
+}
+
+TEST(GeometryUtilities3DTest, ComputeTriangleCentroid3D)
+{
+    Point3D v1(1.0, 2.0, 3.0);
+    Point3D v2(4.0, 5.0, 6.0);
+    Point3D v3(7.0, 8.0, 9.0);
+
+    Point3D centroid = GeometryUtilities3D::computeTriangleCentroid(v1, v2, v3);
+
+    EXPECT_NEAR(centroid.x(), 4.0, TOLERANCE);
+    EXPECT_NEAR(centroid.y(), 5.0, TOLERANCE);
+    EXPECT_NEAR(centroid.z(), 6.0, TOLERANCE);
+}
+
+TEST(GeometryUtilities3DTest, ComputePointToTriangleCentroidDistanceAtCentroid)
+{
+    Point3D v1(0.0, 0.0, 0.0);
+    Point3D v2(3.0, 0.0, 0.0);
+    Point3D v3(0.0, 3.0, 0.0);
+
+    // Point at centroid
+    Point3D point(1.0, 1.0, 0.0);
+
+    double distance = GeometryUtilities3D::computePointToTriangleCentroidDistance(point, v1, v2, v3);
+
+    EXPECT_NEAR(distance, 0.0, TOLERANCE);
+}
+
+TEST(GeometryUtilities3DTest, ComputePointToTriangleCentroidDistanceAbove)
+{
+    Point3D v1(0.0, 0.0, 0.0);
+    Point3D v2(3.0, 0.0, 0.0);
+    Point3D v3(0.0, 3.0, 0.0);
+
+    // Point above the centroid
+    Point3D point(1.0, 1.0, 5.0);
+
+    double distance = GeometryUtilities3D::computePointToTriangleCentroidDistance(point, v1, v2, v3);
+
+    EXPECT_NEAR(distance, 5.0, TOLERANCE);
+}
+
+TEST(GeometryUtilities3DTest, ComputePointToTriangleCentroidDistanceOffset)
+{
+    Point3D v1(0.0, 0.0, 0.0);
+    Point3D v2(3.0, 0.0, 0.0);
+    Point3D v3(0.0, 3.0, 0.0);
+    // Centroid is at (1, 1, 0)
+
+    // Point offset from centroid
+    Point3D point(4.0, 1.0, 0.0);
+
+    double distance = GeometryUtilities3D::computePointToTriangleCentroidDistance(point, v1, v2, v3);
+
+    EXPECT_NEAR(distance, 3.0, TOLERANCE); // distance from (1,1,0) to (4,1,0)
+}
