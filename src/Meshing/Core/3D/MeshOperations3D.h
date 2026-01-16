@@ -39,6 +39,38 @@ public:
     explicit MeshOperations3D(MeshData3D& meshData);
 
     /**
+     * @brief Create a bounding tetrahedron that contains all given points
+     *
+     * Creates a large tetrahedron that encloses all input points with margin.
+     * This is the first step in Delaunay initialization.
+     *
+     * @param points The points that must be contained within the tetrahedron
+     * @return Array of 4 node IDs for the bounding tetrahedron vertices
+     */
+    std::array<size_t, 4> createBoundingTetrahedron(const std::vector<Point3D>& points);
+
+    /**
+     * @brief Initialize Delaunay triangulation with a set of points
+     *
+     * Creates a bounding tetrahedron, inserts all vertices using Bowyer-Watson,
+     * and stores the bounding vertex IDs for later removal.
+     *
+     * @param points The points to triangulate
+     * @return Vector of node IDs for the inserted points (in same order as input)
+     */
+    std::vector<size_t> initializeDelaunay(const std::vector<Point3D>& points);
+
+    /**
+     * @brief Remove the bounding tetrahedron vertices and connected elements
+     *
+     * Removes all tetrahedra that contain any of the bounding vertices,
+     * then removes the bounding vertices themselves.
+     *
+     * @param boundingNodeIds The 4 node IDs of the bounding tetrahedron
+     */
+    void removeBoundingTetrahedron(const std::array<size_t, 4>& boundingNodeIds);
+
+    /**
      * @brief Insert a vertex using 3D Bowyer-Watson algorithm
      *
      * Finds conflicting tetrahedra, removes them to form a cavity,

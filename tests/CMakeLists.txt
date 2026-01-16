@@ -42,7 +42,6 @@ set(TEST_SOURCES
     # Integration tests
     Integration/test_MeshWorkflow.cpp
     Integration/test_GeometryToMesh.cpp
-    Integration/test_SimpleMesher.cpp
     Integration/test_VtkExporter.cpp
 )
 

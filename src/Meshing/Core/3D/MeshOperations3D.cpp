@@ -8,6 +8,8 @@
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <map>
 #include <unordered_set>
 
@@ -18,6 +20,145 @@ MeshOperations3D::MeshOperations3D(MeshData3D& meshData) :
     meshData_(meshData),
     mutator_(std::make_unique<MeshMutator3D>(meshData))
 {
+}
+
+std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vector<Point3D>& points)
+{
+    if (points.empty())
+    {
+        spdlog::error("MeshOperations3D::createBoundingTetrahedron: Empty point list");
+        // Return dummy IDs - caller should check for empty input
+        return {0, 0, 0, 0};
+    }
+
+    // Compute bounding box of all points
+    double minX = std::numeric_limits<double>::max();
+    double minY = std::numeric_limits<double>::max();
+    double minZ = std::numeric_limits<double>::max();
+    double maxX = std::numeric_limits<double>::lowest();
+    double maxY = std::numeric_limits<double>::lowest();
+    double maxZ = std::numeric_limits<double>::lowest();
+
+    for (const auto& p : points)
+    {
+        minX = std::min(minX, p.x());
+        minY = std::min(minY, p.y());
+        minZ = std::min(minZ, p.z());
+        maxX = std::max(maxX, p.x());
+        maxY = std::max(maxY, p.y());
+        maxZ = std::max(maxZ, p.z());
+    }
+
+    // Add margin to ensure all points are strictly inside
+    double dx = maxX - minX;
+    double dy = maxY - minY;
+    double dz = maxZ - minZ;
+    double maxDim = std::max({dx, dy, dz, 1.0}); // At least 1.0 to handle degenerate cases
+    double margin = maxDim * 10.0; // Large margin for numerical stability
+
+    // Create a super-tetrahedron that contains the bounding box
+    // Using a tetrahedron with one vertex at origin-margin and three vertices
+    // extending far along each axis
+    Point3D v0(minX - margin, minY - margin, minZ - margin);
+    Point3D v1(maxX + 3.0 * margin, minY - margin, minZ - margin);
+    Point3D v2(minX - margin, maxY + 3.0 * margin, minZ - margin);
+    Point3D v3(minX - margin, minY - margin, maxZ + 3.0 * margin);
+
+    // Add the four bounding vertices
+    size_t id0 = mutator_->addNode(v0);
+    size_t id1 = mutator_->addNode(v1);
+    size_t id2 = mutator_->addNode(v2);
+    size_t id3 = mutator_->addNode(v3);
+
+    // Create the bounding tetrahedron
+    auto boundingTet = std::make_unique<TetrahedralElement>(
+        std::array<size_t, 4>{id0, id1, id2, id3});
+    mutator_->addElement(std::move(boundingTet));
+
+    spdlog::debug("MeshOperations3D::createBoundingTetrahedron: Created with nodes ({}, {}, {}, {})",
+                  id0, id1, id2, id3);
+
+    return {id0, id1, id2, id3};
+}
+
+std::vector<size_t> MeshOperations3D::initializeDelaunay(const std::vector<Point3D>& points)
+{
+    if (points.empty())
+    {
+        spdlog::warn("MeshOperations3D::initializeDelaunay: Empty point list");
+        return {};
+    }
+
+    spdlog::info("MeshOperations3D::initializeDelaunay: Initializing with {} points", points.size());
+
+    // Create the bounding tetrahedron
+    std::array<size_t, 4> boundingIds = createBoundingTetrahedron(points);
+
+    // Insert each point using Bowyer-Watson
+    std::vector<size_t> nodeIds;
+    nodeIds.reserve(points.size());
+
+    for (size_t i = 0; i < points.size(); ++i)
+    {
+        size_t nodeId = insertVertexBowyerWatson(points[i]);
+        nodeIds.push_back(nodeId);
+
+        if ((i + 1) % 100 == 0)
+        {
+            spdlog::debug("MeshOperations3D::initializeDelaunay: Inserted {}/{} points",
+                          i + 1, points.size());
+        }
+    }
+
+    spdlog::info("MeshOperations3D::initializeDelaunay: Inserted {} points, {} tetrahedra",
+                 nodeIds.size(), meshData_.getElementCount());
+
+    return nodeIds;
+}
+
+void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& boundingNodeIds)
+{
+    spdlog::debug("MeshOperations3D::removeBoundingTetrahedron: Removing bounding nodes ({}, {}, {}, {})",
+                  boundingNodeIds[0], boundingNodeIds[1], boundingNodeIds[2], boundingNodeIds[3]);
+
+    // Create a set of bounding node IDs for fast lookup
+    std::unordered_set<size_t> boundingSet(boundingNodeIds.begin(), boundingNodeIds.end());
+
+    // Find all tetrahedra that contain any bounding vertex
+    std::vector<size_t> tetsToRemove;
+    for (const auto& [tetId, element] : meshData_.getElements())
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet)
+        {
+            continue;
+        }
+
+        const auto& nodes = tet->getNodeIds();
+        for (size_t nodeId : nodes)
+        {
+            if (boundingSet.count(nodeId) > 0)
+            {
+                tetsToRemove.push_back(tetId);
+                break;
+            }
+        }
+    }
+
+    // Remove the tetrahedra
+    for (size_t tetId : tetsToRemove)
+    {
+        mutator_->removeElement(tetId);
+    }
+
+    // Remove the bounding nodes
+    for (size_t nodeId : boundingNodeIds)
+    {
+        mutator_->removeNode(nodeId);
+    }
+
+    spdlog::info("MeshOperations3D::removeBoundingTetrahedron: Removed {} tetrahedra and 4 bounding nodes",
+                 tetsToRemove.size());
 }
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
