@@ -18,20 +18,28 @@ void SimpleMesher::generate(MeshingContext3D& context)
     // Start with a clean mesh for this simple example
     context.clearMesh();
 
+    // Ensure we have geometry and topology
+    const auto* topology = context.getTopology();
+    const auto* geometry = context.getGeometry();
+    if (topology == nullptr || geometry == nullptr)
+    {
+        return; // Cannot generate without geometry and topology
+    }
+
     auto& ops = context.getMutator();
 
     // Begin transaction to ensure rollback on any failure
     std::vector<Point3D> points;
-    for (auto cornerId : context.getTopology().getAllCornerIds())
+    for (auto cornerId : topology->getAllCornerIds())
     {
-        auto geometryCorner = context.getGeometry().getCorner(cornerId);
+        auto geometryCorner = geometry->getCorner(cornerId);
         auto point = geometryCorner->getPoint();
         points.push_back(point);
     }
 
-    for (auto edgeId : context.getTopology().getAllEdgeIds())
+    for (auto edgeId : topology->getAllEdgeIds())
     {
-        auto geometryEdge = context.getGeometry().getEdge(edgeId);
+        auto geometryEdge = geometry->getEdge(edgeId);
         auto parameterRange = geometryEdge->getParameterBounds();
         const size_t numSamples = 10; // Simple uniform sampling
         for (size_t i = 0; i <= numSamples; ++i)
