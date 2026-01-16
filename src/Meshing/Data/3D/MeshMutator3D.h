@@ -3,6 +3,8 @@
 #include "../Base/IElement.h"
 #include "MeshData3D.h"
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "Common/Types.h"
 
@@ -21,6 +23,9 @@ public:
 
     // Node operations
     size_t addNode(const Point3D& coordinates);
+    size_t addBoundaryNode(const Point3D& coordinates,
+                           const std::vector<double>& edgeParameters,
+                           const std::vector<std::string>& geometryIds);
     void moveNode(size_t id, const Point3D& newCoords);
     void removeNode(size_t id);
 

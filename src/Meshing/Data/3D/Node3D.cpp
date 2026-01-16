@@ -4,7 +4,16 @@ namespace Meshing
 {
 
 Node3D::Node3D(const Point3D& coordinates) :
-    coordinates_(coordinates), isBoundary_(false), geometryId_("")
+    coordinates_(coordinates)
+{
+}
+
+Node3D::Node3D(const Point3D& coordinates,
+               const std::vector<double>& edgeParameters,
+               const std::vector<std::string>& geometryIds) :
+    coordinates_(coordinates),
+    edgeParameters_(edgeParameters),
+    geometryIds_(geometryIds)
 {
 }
 
@@ -20,22 +29,27 @@ void Node3D::setCoordinates(const Point3D& coords)
 
 bool Node3D::isBoundary() const
 {
-    return isBoundary_;
+    return !edgeParameters_.empty();
 }
 
-void Node3D::setBoundary(bool boundary)
+const std::vector<std::string>& Node3D::getGeometryIds() const
 {
-    isBoundary_ = boundary;
+    return geometryIds_;
 }
 
-void Node3D::setGeometryId(const std::string& id)
+void Node3D::addGeometryId(const std::string& id)
 {
-    geometryId_ = id;
+    geometryIds_.push_back(id);
 }
 
-const std::string& Node3D::getGeometryId() const
+const std::vector<double>& Node3D::getEdgeParameters() const
 {
-    return geometryId_;
+    return edgeParameters_;
+}
+
+void Node3D::addEdgeParameter(double param)
+{
+    edgeParameters_.push_back(param);
 }
 
 } // namespace Meshing

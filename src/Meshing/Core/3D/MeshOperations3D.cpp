@@ -1,11 +1,11 @@
 #include "MeshOperations3D.h"
 #include "ElementGeometry3D.h"
+#include "Geometry/3D/Base/IEdge3D.h"
+#include "Geometry/3D/Base/ISurface3D.h"
 #include "GeometryUtilities3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
-#include "Geometry/3D/Base/IEdge3D.h"
-#include "Geometry/3D/Base/ISurface3D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <map>
@@ -22,12 +22,13 @@ MeshOperations3D::MeshOperations3D(MeshData3D& meshData) :
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
                                                   const std::vector<double>& edgeParameters,
-                                                  const std::vector<std::string>& geometryIds)
+                                                  const std::vector<std::string>& edgeIds)
 {
     // Find conflicting tetrahedra (those whose circumsphere contains the point)
     std::vector<size_t> conflicting = findConflictingTetrahedra(point);
 
-    if (conflicting.empty()) {
+    if (conflicting.empty())
+    {
         spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found");
         // Just add the vertex without removing any tetrahedra
         size_t nodeId = mutator_->addNode(point);
@@ -38,15 +39,21 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     std::vector<std::array<size_t, 3>> boundary = findCavityBoundary(conflicting);
 
     // Remove conflicting tetrahedra
-    for (size_t tetId : conflicting) {
+    for (size_t tetId : conflicting)
+    {
         mutator_->removeElement(tetId);
     }
 
-    // Insert the new vertex
-    size_t nodeId = mutator_->addNode(point);
-
-    // TODO: Set geometry IDs on the node when MeshMutator3D supports addBoundaryNode
-    // For now, geometry IDs are not stored (unused parameters: edgeParameters, geometryIds)
+    // Insert the new vertex (use boundary node if geometry IDs provided)
+    size_t nodeId;
+    if (!edgeParameters.empty() || !edgeIds.empty())
+    {
+        nodeId = mutator_->addBoundaryNode(point, edgeParameters, edgeIds);
+    }
+    else
+    {
+        nodeId = mutator_->addNode(point);
+    }
 
     // Retriangulate the cavity with the new vertex
     retriangulate(nodeId, boundary);
@@ -60,14 +67,17 @@ std::vector<size_t> MeshOperations3D::findConflictingTetrahedra(const Point3D& p
     ElementGeometry3D geometry(meshData_);
 
     // Check all tetrahedra
-    for (const auto& [tetId, element] : meshData_.getElements()) {
+    for (const auto& [tetId, element] : meshData_.getElements())
+    {
         const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet) {
+        if (!tet)
+        {
             continue;
         }
 
         // Check if point is inside the circumsphere
-        if (geometry.isPointInsideCircumscribingSphere(*tet, point)) {
+        if (geometry.isPointInsideCircumscribingSphere(*tet, point))
+        {
             conflicting.push_back(tetId);
         }
     }
@@ -85,23 +95,24 @@ MeshOperations3D::findCavityBoundary(const std::vector<size_t>& conflictingIndic
     std::map<std::array<size_t, 3>, size_t> faceCount;
 
     // Iterate through all conflicting tetrahedra and count their faces
-    for (size_t tetId : conflictingIndices) {
+    for (size_t tetId : conflictingIndices)
+    {
         const auto* element = meshData_.getElement(tetId);
         const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-        if (!tet) {
+        if (!tet)
+        {
             continue;
         }
 
         // Get the four faces of the tetrahedron
         const auto& nodes = tet->getNodeIds();
-        std::array<std::array<size_t, 3>, 4> faces = {{
-            {nodes[0], nodes[1], nodes[2]},
-            {nodes[0], nodes[1], nodes[3]},
-            {nodes[0], nodes[2], nodes[3]},
-            {nodes[1], nodes[2], nodes[3]}
-        }};
+        std::array<std::array<size_t, 3>, 4> faces = {{{nodes[0], nodes[1], nodes[2]},
+                                                       {nodes[0], nodes[1], nodes[3]},
+                                                       {nodes[0], nodes[2], nodes[3]},
+                                                       {nodes[1], nodes[2], nodes[3]}}};
 
-        for (auto& face : faces) {
+        for (auto& face : faces)
+        {
             // Normalize face ordering
             std::array<size_t, 3> sortedFace = makeTriangleKey(face[0], face[1], face[2]);
             faceCount[sortedFace]++;
@@ -110,8 +121,10 @@ MeshOperations3D::findCavityBoundary(const std::vector<size_t>& conflictingIndic
 
     // Boundary faces appear exactly once (not shared with another conflicting tet)
     std::vector<std::array<size_t, 3>> boundary;
-    for (const auto& [face, count] : faceCount) {
-        if (count == 1) {
+    for (const auto& [face, count] : faceCount)
+    {
+        if (count == 1)
+        {
             boundary.push_back(face);
         }
     }
@@ -123,23 +136,24 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
                                      const std::vector<std::array<size_t, 3>>& boundary)
 {
     // Create a new tetrahedron for each boundary face
-    for (const auto& face : boundary) {
+    for (const auto& face : boundary)
+    {
         auto tet = std::make_unique<TetrahedralElement>(
-            std::array<size_t, 4>{vertexNodeId, face[0], face[1], face[2]}
-        );
+            std::array<size_t, 4>{vertexNodeId, face[0], face[1], face[2]});
         mutator_->addElement(std::move(tet));
     }
 }
 
 std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>>
 MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment,
-                                            const Geometry3D::IEdge3D& parentEdge)
+                                             const Geometry3D::IEdge3D& parentEdge)
 {
     // Get the two endpoint nodes
     const auto* node1 = meshData_.getNode(subsegment.nodeId1);
     const auto* node2 = meshData_.getNode(subsegment.nodeId2);
 
-    if (!node1 || !node2) {
+    if (!node1 || !node2)
+    {
         spdlog::error("MeshOperations3D::splitConstrainedSubsegment: Invalid node IDs");
         return std::nullopt;
     }
@@ -150,11 +164,14 @@ MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subs
     Point3D midpoint = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
 
     // Try to get parametric midpoint from edge if possible
-    try {
+    try
+    {
         auto [tMin, tMax] = parentEdge.getParameterBounds();
         double tMid = (tMin + tMax) * 0.5;
         midpoint = parentEdge.getPoint(tMid);
-    } catch (...) {
+    }
+    catch (...)
+    {
         // Fall back to Euclidean midpoint (already computed)
     }
 
@@ -178,14 +195,15 @@ MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subs
 
 std::optional<size_t>
 MeshOperations3D::splitConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet,
-                                          const Geometry3D::ISurface3D& parentSurface)
+                                           const Geometry3D::ISurface3D& parentSurface)
 {
     // Get the three vertices of the subfacet
     const auto* node1 = meshData_.getNode(subfacet.nodeId1);
     const auto* node2 = meshData_.getNode(subfacet.nodeId2);
     const auto* node3 = meshData_.getNode(subfacet.nodeId3);
 
-    if (!node1 || !node2 || !node3) {
+    if (!node1 || !node2 || !node3)
+    {
         spdlog::error("MeshOperations3D::splitConstrainedSubfacet: Invalid node IDs");
         return std::nullopt;
     }
@@ -215,20 +233,24 @@ bool MeshOperations3D::removeTetrahedraContainingNode(size_t nodeId)
     std::vector<size_t> tetsToRemove;
 
     // Find all tetrahedra containing the node
-    for (const auto& [tetId, element] : meshData_.getElements()) {
+    for (const auto& [tetId, element] : meshData_.getElements())
+    {
         const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet) {
+        if (!tet)
+        {
             continue;
         }
 
         const auto& nodes = tet->getNodeIds();
-        if (std::find(nodes.begin(), nodes.end(), nodeId) != nodes.end()) {
+        if (std::find(nodes.begin(), nodes.end(), nodeId) != nodes.end())
+        {
             tetsToRemove.push_back(tetId);
         }
     }
 
     // Remove the tetrahedra
-    for (size_t tetId : tetsToRemove) {
+    for (size_t tetId : tetsToRemove)
+    {
         mutator_->removeElement(tetId);
         anyRemoved = true;
     }

@@ -14,7 +14,7 @@ namespace Geometry3D
 {
 class IEdge3D;
 class ISurface3D;
-}
+} // namespace Geometry3D
 
 namespace Meshing
 {
@@ -46,12 +46,12 @@ public:
      *
      * @param point The 3D point to insert
      * @param edgeParameters Optional parametric coordinates on parent edges
-     * @param geometryIds Optional geometry entity IDs this vertex belongs to
+     * @param edgeIds Optional geometry entity IDs this vertex belongs to
      * @return Node ID of the inserted vertex
      */
     size_t insertVertexBowyerWatson(const Point3D& point,
                                     const std::vector<double>& edgeParameters = {},
-                                    const std::vector<std::string>& geometryIds = {});
+                                    const std::vector<std::string>& edgeIds = {});
 
     /**
      * @brief Find tetrahedra whose circumsphere contains the point
@@ -80,7 +80,7 @@ public:
      */
     std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>>
     splitConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment,
-                              const Geometry3D::IEdge3D& parentEdge);
+                               const Geometry3D::IEdge3D& parentEdge);
 
     /**
      * @brief Split a constrained subfacet at its circumcenter
@@ -136,7 +136,7 @@ private:
      * @param boundary The triangular faces forming the cavity boundary
      */
     void retriangulate(size_t vertexNodeId,
-                      const std::vector<std::array<size_t, 3>>& boundary);
+                       const std::vector<std::array<size_t, 3>>& boundary);
 
     /**
      * @brief Create ordered edge key for lookups

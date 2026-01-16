@@ -1,12 +1,12 @@
 #include "MeshOperations2D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "ElementGeometry2D.h"
-#include "GeometryUtilities2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
+#include "GeometryUtilities2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Edge2D.h"
 #include "Topology2D/Topology2D.h"
-#include "Common/Exceptions/MeshException.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
 
 size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
                                                   const std::vector<double>& edgeParameters,
-                                                  const std::vector<std::string>& geometryIds)
+                                                  const std::vector<std::string>& edgeIds)
 {
     std::vector<size_t> conflicting = findConflictingTriangles(point);
 
@@ -37,8 +37,8 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
                     point.x(), point.y());
         CMESH_THROW_CODE(cMesh::MeshException,
-                        cMesh::MeshException::ErrorCode::INVALID_OPERATION,
-                        "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
+                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+                         "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
     }
 
     std::vector<std::array<size_t, 2>> boundary = findCavityBoundary(conflicting);
@@ -49,9 +49,9 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     }
 
     size_t newVertex;
-    if (!edgeParameters.empty() && !geometryIds.empty())
+    if (!edgeParameters.empty() && !edgeIds.empty())
     {
-        newVertex = mutator_->addBoundaryNode(point, edgeParameters, geometryIds);
+        newVertex = mutator_->addBoundaryNode(point, edgeParameters, edgeIds);
     }
     else
     {
@@ -78,7 +78,7 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         if (std::abs(area) < MIN_TRIANGLE_AREA)
         {
             spdlog::debug("Skipping degenerate triangle in Bowyer-Watson: ({}, {}, {})",
-                         newVertex, edge[0], edge[1]);
+                          newVertex, edge[0], edge[1]);
             continue;
         }
 
@@ -358,7 +358,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
             if (std::abs(area) < MIN_TRIANGLE_AREA)
             {
                 spdlog::debug("Skipping degenerate triangle in left polygon: ({}, {}, {})",
-                             nodeId1, leftPolygon[i], leftPolygon[i + 1]);
+                              nodeId1, leftPolygon[i], leftPolygon[i + 1]);
                 continue;
             }
 
@@ -397,7 +397,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         else
         {
             spdlog::debug("Skipping degenerate final triangle in left polygon: ({}, {}, {})",
-                         nodeId1, leftPolygon.back(), nodeId2);
+                          nodeId1, leftPolygon.back(), nodeId2);
         }
     }
     else
@@ -419,7 +419,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
             if (std::abs(area) < MIN_TRIANGLE_AREA)
             {
                 spdlog::debug("Skipping degenerate triangle in right polygon: ({}, {}, {})",
-                             nodeId1, rightPolygon[i + 1], rightPolygon[i]);
+                              nodeId1, rightPolygon[i + 1], rightPolygon[i]);
                 continue;
             }
 
@@ -458,7 +458,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         else
         {
             spdlog::debug("Skipping degenerate final triangle in right polygon: ({}, {}, {})",
-                         nodeId1, nodeId2, rightPolygon.back());
+                          nodeId1, nodeId2, rightPolygon.back());
         }
     }
     else
