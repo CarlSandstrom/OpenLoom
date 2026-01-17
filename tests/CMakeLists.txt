@@ -30,6 +30,7 @@ set(TEST_SOURCES
     Meshing/Core/test_ConstraintChecker3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
+    Meshing/Core/test_ShewchukRefiner3D.cpp
 
     # Meshing Operations tests
     Meshing/Operations/test_MeshTransaction.cpp
