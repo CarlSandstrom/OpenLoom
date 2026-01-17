@@ -3,6 +3,7 @@
 #include "GeometryStructures3D.h"
 #include "Meshing/Interfaces/IQualityController3D.h"
 #include "MeshingContext3D.h"
+#include <unordered_set>
 #include <vector>
 
 namespace Geometry3D
@@ -59,14 +60,6 @@ public:
 
     /**
      * @brief Run the refinement algorithm until quality goals are met
-     *
-     * Iteratively refines the mesh by:
-     * 1. Splitting encroached subsegments (highest priority)
-     * 2. Splitting encroached subfacets
-     * 3. Inserting circumcenters of skinny tetrahedra (lowest priority)
-     *
-     * Continues until the quality controller is satisfied, the element limit
-     * is reached, or no further progress can be made.
      */
     void refine();
 
@@ -75,6 +68,24 @@ private:
     const IQualityController3D* qualityController_;
     std::vector<ConstrainedSubsegment3D>& constrainedSubsegments_;
     std::vector<ConstrainedSubfacet3D>& constrainedSubfacets_;
+
+    // Track tetrahedra that cannot be refined
+    std::unordered_set<size_t> unrefinableTetrahedra_;
+
+    /**
+     * @brief Perform a single refinement step
+     * @return true if a refinement was performed
+     */
+    bool refineStep();
+
+    // ========== Priority 3: Skinny tetrahedra handling ==========
+
+    /**
+     * @brief Handle a skinny tetrahedron by inserting its circumcenter
+     * @param tetId ID of the tetrahedron to refine
+     * @return true if refinement was successful
+     */
+    bool handleSkinnyTetrahedron(size_t tetId);
 };
 
 } // namespace Meshing

@@ -46,6 +46,13 @@ public:
      * @return The element count limit
      */
     virtual std::size_t getElementLimit() const = 0;
+
+    /**
+     * @brief Check if a tetrahedron is too small to refine reliably
+     * @param element The tetrahedron to check
+     * @return true if the tetrahedron is below minimum refinable size
+     */
+    virtual bool isTetrahedronTooSmall(const TetrahedralElement& element) const = 0;
 };
 
 } // namespace Meshing

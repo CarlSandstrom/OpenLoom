@@ -97,8 +97,7 @@ public:
      * @param conflictingIndices Indices of conflicting tetrahedra
      * @return Boundary triangular faces of the cavity (as node ID triplets)
      */
-    std::vector<std::array<size_t, 3>> findCavityBoundary(
-        const std::vector<size_t>& conflictingIndices) const;
+    std::vector<std::array<size_t, 3>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
 
     /**
      * @brief Split a constrained subsegment at its parametric midpoint
@@ -110,9 +109,8 @@ public:
      * @param parentEdge The geometric edge the subsegment lies on
      * @return Pair of new subsegments, or nullopt if split failed
      */
-    std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>>
-    splitConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment,
-                               const Geometry3D::IEdge3D& parentEdge);
+    std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>> splitConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment,
+                                                                                                          const Geometry3D::IEdge3D& parentEdge);
 
     /**
      * @brief Split a constrained subfacet at its circumcenter
@@ -124,9 +122,8 @@ public:
      * @param parentSurface The geometric surface the subfacet lies on
      * @return ID of the inserted vertex, or nullopt if split failed
      */
-    std::optional<size_t> splitConstrainedSubfacet(
-        const ConstrainedSubfacet3D& subfacet,
-        const Geometry3D::ISurface3D& parentSurface);
+    std::optional<size_t> splitConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet,
+                                                   const Geometry3D::ISurface3D& parentSurface);
 
     /**
      * @brief Remove tetrahedra that contain a specific node
@@ -146,8 +143,7 @@ public:
      *
      * @param constrainedSubfacets Vector of constraint faces forming domain boundaries
      */
-    void classifyTetrahedraInteriorExterior(
-        const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets);
+    void classifyTetrahedraInteriorExterior(const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets);
 
     /**
      * @brief Check if an edge exists in the mesh
@@ -234,9 +230,8 @@ public:
      * @param subsegments The subsegments to check
      * @return Vector of subsegments encroached by the point
      */
-    std::vector<ConstrainedSubsegment3D> findEncroachingSubsegments(
-        const Point3D& point,
-        const std::vector<ConstrainedSubsegment3D>& subsegments) const;
+    std::vector<ConstrainedSubsegment3D> findEncroachingSubsegments(const Point3D& point,
+                                                                    const std::vector<ConstrainedSubsegment3D>& subsegments) const;
 
     /**
      * @brief Find encroached subfacets for a given point
@@ -248,9 +243,8 @@ public:
      * @param subfacets The subfacets to check
      * @return Vector of subfacets encroached by the point
      */
-    std::vector<ConstrainedSubfacet3D> findEncroachingSubfacets(
-        const Point3D& point,
-        const std::vector<ConstrainedSubfacet3D>& subfacets) const;
+    std::vector<ConstrainedSubfacet3D> findEncroachingSubfacets(const Point3D& point,
+                                                                const std::vector<ConstrainedSubfacet3D>& subfacets) const;
 
     /**
      * @brief Get the mesh mutator for primitive operations

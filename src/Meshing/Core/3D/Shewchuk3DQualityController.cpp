@@ -6,6 +6,7 @@
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "spdlog/spdlog.h"
+#include <cmath>
 
 namespace Meshing
 {
@@ -89,6 +90,25 @@ double Shewchuk3DQualityController::getTargetElementQuality() const
 std::size_t Shewchuk3DQualityController::getElementLimit() const
 {
     return elementLimit_;
+}
+
+bool Shewchuk3DQualityController::isTetrahedronTooSmall(const TetrahedralElement& element) const
+{
+    // Check minimum volume threshold
+    double volume = geometry_->computeVolume(element);
+    if (std::abs(volume) < MIN_REFINABLE_VOLUME)
+    {
+        return true;
+    }
+
+    // Check minimum edge length threshold
+    double shortestEdge = quality_->getShortestEdgeLength(element);
+    if (shortestEdge < MIN_REFINABLE_EDGE)
+    {
+        return true;
+    }
+
+    return false;
 }
 
 } // namespace Meshing

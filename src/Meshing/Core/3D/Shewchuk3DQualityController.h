@@ -48,6 +48,17 @@ public:
      */
     double getCircumradiusToShortestEdgeRatioBound() const { return circumradiusToShortestEdgeRatioBound_; }
 
+    /**
+     * @brief Check if a tetrahedron is too small to refine reliably
+     * @param element The tetrahedron to check
+     * @return true if the tetrahedron is below minimum refinable size
+     */
+    bool isTetrahedronTooSmall(const TetrahedralElement& element) const override;
+
+    // Minimum thresholds for refinable tetrahedra
+    static constexpr double MIN_REFINABLE_VOLUME = 1e-18;
+    static constexpr double MIN_REFINABLE_EDGE = 1e-10;
+
 private:
     std::unique_ptr<ElementGeometry3D> geometry_;
     std::unique_ptr<ElementQuality3D> quality_;
