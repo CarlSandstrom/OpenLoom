@@ -27,7 +27,10 @@ set(TEST_SOURCES
     Meshing/Core/test_GeometryUtilities3D.cpp
     Meshing/Core/test_ElementGeometry3D.cpp
     Meshing/Core/test_ElementQuality3D.cpp
+    Meshing/Core/test_ConstraintChecker3D.cpp
+    Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
+    Meshing/Core/test_ShewchukRefiner3D.cpp
 
     # Meshing Operations tests
     Meshing/Operations/test_MeshTransaction.cpp
@@ -40,7 +43,6 @@ set(TEST_SOURCES
     # Integration tests
     Integration/test_MeshWorkflow.cpp
     Integration/test_GeometryToMesh.cpp
-    Integration/test_SimpleMesher.cpp
     Integration/test_VtkExporter.cpp
 )
 

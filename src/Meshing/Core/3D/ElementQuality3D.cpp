@@ -1,6 +1,7 @@
 #include "ElementQuality3D.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace Meshing
@@ -67,6 +68,40 @@ bool ElementQuality3D::isSkinny(const TetrahedralElement& element, double thresh
     }
 
     return ratio > threshold;
+}
+
+std::vector<std::pair<size_t, double>> ElementQuality3D::getSkinnyTetrahedraSortedByQuality(double threshold) const
+{
+    std::vector<std::pair<size_t, double>> result;
+
+    for (const auto& [tetId, element] : mesh_.getElements())
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet)
+        {
+            continue;
+        }
+
+        double ratio = getCircumradiusToShortestEdgeRatio(*tet);
+
+        // Skip invalid ratios
+        if (!std::isfinite(ratio) || ratio <= 0.0)
+        {
+            continue;
+        }
+
+        if (ratio > threshold)
+        {
+            result.emplace_back(tetId, ratio);
+        }
+    }
+
+    // Sort by ratio descending (worst quality first)
+    std::sort(result.begin(), result.end(),
+              [](const auto& a, const auto& b)
+              { return a.second > b.second; });
+
+    return result;
 }
 
 } // namespace Meshing

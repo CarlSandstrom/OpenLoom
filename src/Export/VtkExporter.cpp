@@ -1,7 +1,10 @@
 #include "VtkExporter.h"
 
 #include "Meshing/Data/Base/IElement.h"
+#include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 
 #include <algorithm>
@@ -34,6 +37,13 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     writeCells(os, mesh);
     writeFooter(os);
     return true;
+}
+
+bool VtkExporter::exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const
+{
+    // Convert 2D mesh to 3D (with z=0) and use the existing 3D export
+    Meshing::MeshData3D meshData3D = convertToMeshData3D(mesh);
+    return exportMesh(meshData3D, filePath);
 }
 
 void VtkExporter::writeHeader(std::ostream& os) const
@@ -184,6 +194,12 @@ int VtkExporter::vtkCellTypeFor(const Meshing::IElement& element)
     default:
         return -1;
     }
+}
+
+Meshing::MeshData3D VtkExporter::convertToMeshData3D(const Meshing::MeshData2D& mesh2D)
+{
+    // Simply use the MeshData3D constructor that handles the conversion
+    return Meshing::MeshData3D(mesh2D);
 }
 
 } // namespace Export

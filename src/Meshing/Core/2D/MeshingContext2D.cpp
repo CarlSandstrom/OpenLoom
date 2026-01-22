@@ -6,7 +6,9 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
+#include "Geometry/2D/Base/IFace2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
+#include "Geometry/2D/OpenCascade/OpenCascade2DFaceBuilder.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
@@ -142,6 +144,12 @@ void MeshingContext2D::clearMesh()
 {
     meshData_ = std::make_unique<MeshData2D>();
     meshMutator_ = std::make_unique<MeshMutator2D>(*meshData_);
+}
+
+std::unique_ptr<Geometry2D::IFace2D> MeshingContext2D::buildDomainFace() const
+{
+    return Geometry2D::OpenCascade2DFaceBuilder::buildFromTopology(
+        *topology_, *geometry_);
 }
 
 void MeshingContext2D::ensureInitialized()

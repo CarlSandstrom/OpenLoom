@@ -9,6 +9,7 @@
 ### Geometry (2D & 3D)
 - **3D Geometry**: Lives behind interfaces in `src/Geometry/Base` (`ISurface3D`, `IEdge3D`, `ICorner3D`, `GeometryCollection3D`) while `Geometry/OpenCascade` supplies concrete OpenCascade-backed shapes; treat `GeometryCollection3D` as the single entry point for 3D geometry data.
 - **2D Geometry**: `Geometry2D/` provides 2D geometry abstractions (`Corner2D`, `LinearEdge2D`, `IEdge2D`, `GeometryCollection2D`); use `GeometryOperations2D` for extracting points and discretizing edges with `DiscretizationSettings2D`.
+- **Usage**: In the code, use ONLY THE INTERFACES! We do not want to be dependent on OpenCascade or any other external software. These must be kept optional.
 
 ### Topology (2D & 3D)
 - **3D Topology**: `Topology/Topology3D` mirrors geometry IDs and provides validation helpers (`isValid`, `isManifold`) that meshing code calls before generating elements.

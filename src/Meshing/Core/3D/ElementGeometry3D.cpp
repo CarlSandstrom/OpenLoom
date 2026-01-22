@@ -68,6 +68,14 @@ bool ElementGeometry3D::isPointInsideCircumscribingSphere(const TetrahedralEleme
     return false;
 }
 
+Point3D ElementGeometry3D::computeCentroid(const TetrahedralElement& element) const
+{
+    auto [v0, v1, v2, v3] = getElementNodeCoordinates(element);
+    return Point3D((v0.x() + v1.x() + v2.x() + v3.x()) / 4.0,
+                   (v0.y() + v1.y() + v2.y() + v3.y()) / 4.0,
+                   (v0.z() + v1.z() + v2.z() + v3.z()) / 4.0);
+}
+
 std::tuple<Point3D, Point3D, Point3D, Point3D> ElementGeometry3D::getElementNodeCoordinates(const TetrahedralElement& element) const
 {
     auto nodeIds = element.getNodeIds();

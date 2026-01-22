@@ -1,26 +1,41 @@
 #include "MeshingContext3D.h"
 
-#include "../../Geometry/3D/Base/GeometryCollection3D.h"
-#include "../../Topology/Topology3D.h"
-#include "../Data/Base/MeshConnectivity.h"
-#include "../Data/3D/MeshData3D.h"
-#include "../Data/3D/MeshMutator3D.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
+#include "MeshOperations3D.h"
+#include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/Base/MeshConnectivity.h"
+#include "Topology/Topology3D.h"
 
 namespace Meshing
 {
 
 MeshingContext3D::MeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
                                    const Topology3D::Topology3D& topology) :
-    geometry_(geometry), topology_(topology)
+    geometry_(&geometry), topology_(&topology)
+{
+    ensureInitialized();
+}
+
+MeshingContext3D::MeshingContext3D() :
+    geometry_(nullptr), topology_(nullptr)
 {
     ensureInitialized();
 }
 
 MeshingContext3D::~MeshingContext3D() = default;
 
+MeshingContext3D::MeshingContext3D(MeshingContext3D&&) noexcept = default;
+MeshingContext3D& MeshingContext3D::operator=(MeshingContext3D&&) noexcept = default;
+
 MeshData3D& MeshingContext3D::getMeshData()
 {
     ensureInitialized();
+    return *meshData_;
+}
+
+const MeshData3D& MeshingContext3D::getMeshData() const
+{
     return *meshData_;
 }
 
@@ -36,6 +51,12 @@ MeshMutator3D& MeshingContext3D::getMutator()
     return *meshMutator_;
 }
 
+MeshOperations3D& MeshingContext3D::getOperations()
+{
+    ensureInitialized();
+    return *meshOperations_;
+}
+
 void MeshingContext3D::rebuildConnectivity()
 {
     ensureInitialized();
@@ -49,7 +70,56 @@ void MeshingContext3D::clearMesh()
     connectivity_ = std::make_unique<MeshConnectivity>(*meshData_);
     meshMutator_ = std::make_unique<MeshMutator3D>(*meshData_);
     meshMutator_->setConnectivity(connectivity_.get());
+    meshOperations_ = std::make_unique<MeshOperations3D>(*meshData_);
+
+    // Clear constraints
+    constrainedSubsegments_.clear();
+    constrainedSubfacets_.clear();
 }
+
+// ========== Constraint Management ==========
+
+const std::vector<ConstrainedSubsegment3D>& MeshingContext3D::getConstrainedSubsegments() const
+{
+    return constrainedSubsegments_;
+}
+
+std::vector<ConstrainedSubsegment3D>& MeshingContext3D::getConstrainedSubsegments()
+{
+    return constrainedSubsegments_;
+}
+
+const std::vector<ConstrainedSubfacet3D>& MeshingContext3D::getConstrainedSubfacets() const
+{
+    return constrainedSubfacets_;
+}
+
+std::vector<ConstrainedSubfacet3D>& MeshingContext3D::getConstrainedSubfacets()
+{
+    return constrainedSubfacets_;
+}
+
+void MeshingContext3D::addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment)
+{
+    constrainedSubsegments_.push_back(subsegment);
+}
+
+void MeshingContext3D::addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet)
+{
+    constrainedSubfacets_.push_back(subfacet);
+}
+
+void MeshingContext3D::setConstrainedSubsegments(std::vector<ConstrainedSubsegment3D> subsegments)
+{
+    constrainedSubsegments_ = std::move(subsegments);
+}
+
+void MeshingContext3D::setConstrainedSubfacets(std::vector<ConstrainedSubfacet3D> subfacets)
+{
+    constrainedSubfacets_ = std::move(subfacets);
+}
+
+// ========== Private Methods ==========
 
 void MeshingContext3D::ensureInitialized()
 {
@@ -65,6 +135,10 @@ void MeshingContext3D::ensureInitialized()
     {
         meshMutator_ = std::make_unique<MeshMutator3D>(*meshData_);
         meshMutator_->setConnectivity(connectivity_.get());
+    }
+    if (!meshOperations_)
+    {
+        meshOperations_ = std::make_unique<MeshOperations3D>(*meshData_);
     }
 }
 

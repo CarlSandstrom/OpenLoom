@@ -1,5 +1,6 @@
 #include "GeometryOperations2D.h"
 #include "Common/MathConstants.h"
+#include "IFace2D.h"
 #include "Topology2D/Topology2D.h"
 
 namespace Geometry2D
@@ -149,6 +150,13 @@ Eigen::Vector2d GeometryOperations2D::computeEdgeTangentAtParameter(const IEdge2
     tangent.normalize();
 
     return tangent;
+}
+
+bool GeometryOperations2D::isPointInsideDomain(const Meshing::Point2D& point, const IFace2D& domainFace)
+{
+    PointLocation location = domainFace.classify(point);
+    return location == PointLocation::Inside ||
+           location == PointLocation::OnBoundary;
 }
 
 } // namespace Geometry2D

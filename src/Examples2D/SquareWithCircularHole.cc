@@ -11,8 +11,6 @@
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 
@@ -130,7 +128,7 @@ int main()
     addCircularHole(*geometry, topoCorners, topoEdges, hole1EdgeLoop, "hole1", 4.0, 5.0, 0.95, 8);
 
     std::vector<std::string> hole2EdgeLoop;
-    addCircularHole(*geometry, topoCorners, topoEdges, hole2EdgeLoop, "hole2", 6.0, 5.0, 1, 8);
+    addCircularHole(*geometry, topoCorners, topoEdges, hole2EdgeLoop, "hole2", 6.0, 5.0, 1.0, 8);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
         topoCorners, topoEdges, outerEdgeLoop,
@@ -154,8 +152,7 @@ int main()
     spdlog::info("Square with circular hole mesh generation complete!");
 
     Export::VtkExporter exporter;
-    MeshData3D meshData3D(context.getMeshData());
-    exporter.exportMesh(meshData3D, "SquareWithCircularHoles.vtu");
+    exporter.exportMesh(context.getMeshData(), "SquareWithCircularHoles.vtu");
 
     return 0;
 }

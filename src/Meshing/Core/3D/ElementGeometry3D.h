@@ -33,6 +33,9 @@ public:
                                           const Point3D& point,
                                           double tolerance = 1e-12) const;
 
+    /// Computes the centroid (center of mass) of a tetrahedral element.
+    Point3D computeCentroid(const TetrahedralElement& element) const;
+
 private:
     std::tuple<Point3D, Point3D, Point3D, Point3D> getElementNodeCoordinates(const TetrahedralElement& element) const;
     std::tuple<Point3D, Point3D, Point3D> getElementNodeCoordinates(const TriangleElement& element) const;

@@ -4,6 +4,8 @@
 #include "Meshing/Core/3D/ElementGeometry3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include <utility>
+#include <vector>
 
 namespace Meshing
 {
@@ -24,6 +26,11 @@ public:
 
     /// Tests if a tetrahedral element is skinny based on the circumradius-to-edge ratio.
     bool isSkinny(const TetrahedralElement& element, double threshold) const;
+
+    /// Gets all skinny tetrahedra sorted by quality (worst first).
+    /// @param threshold The circumradius-to-shortest-edge ratio bound
+    /// @return Vector of (tetId, ratio) pairs sorted by ratio descending
+    std::vector<std::pair<size_t, double>> getSkinnyTetrahedraSortedByQuality(double threshold) const;
 
 private:
     const MeshData3D& mesh_;
