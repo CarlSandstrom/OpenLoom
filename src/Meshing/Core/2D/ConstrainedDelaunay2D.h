@@ -15,7 +15,8 @@
 namespace Geometry2D
 {
 class IFace2D;
-}
+class DiscretizationSettings2D;
+} // namespace Geometry2D
 
 namespace Meshing
 {
@@ -55,6 +56,9 @@ private:
 
     std::vector<ConstrainedSegment2D> constrainedEdges_;
     MeshingContext2D* context_ = nullptr;
+    const Geometry2D::DiscretizationSettings2D& discretizationSettings_;
+    const std::vector<Point2D>& additionalPoints_;
+
     MeshData2D* meshData2D_ = nullptr;
     MeshMutator2D* meshMutator_ = nullptr;
     MeshOperations2D* meshOperations_ = nullptr;
