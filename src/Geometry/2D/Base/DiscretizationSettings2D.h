@@ -15,7 +15,16 @@ namespace Geometry2D
 class DiscretizationSettings2D
 {
 public:
-    DiscretizationSettings2D() = default;
+    /**
+     * @brief Default constructor with sensible defaults
+     *
+     * Initializes with 1 segment per edge and max angle of π/4 radians (45°)
+     */
+    DiscretizationSettings2D() :
+        numSegmentsPerEdge_(1),
+        maxAngleBetweenSegments_(2 * 3.14159265358979323846 / 8)
+    {
+    }
 
     explicit DiscretizationSettings2D(std::optional<size_t> numSegmentsPerEdge,
                                       std::optional<double> maxAngleBetweenSegments) :

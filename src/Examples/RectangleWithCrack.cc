@@ -85,7 +85,7 @@ int main()
     MeshingContext2D context(std::move(geometry), std::move(topology));
 
     // Create constrained Delaunay triangulator
-    ConstrainedDelaunay2D mesher(context, {Point2D(5.0, 3.9)});
+    ConstrainedDelaunay2D mesher(context, {}, {Point2D(5.0, 3.9)});
 
     // Generate constrained mesh with 15 samples per edge
     spdlog::info("Generating constrained Delaunay triangulation...");

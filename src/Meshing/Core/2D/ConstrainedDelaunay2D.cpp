@@ -22,15 +22,14 @@
 namespace Meshing
 {
 
-ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context, const std::vector<Point2D>& additionalPoints) :
+ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context,
+                                             const Geometry2D::DiscretizationSettings2D& discretizationSettings,
+                                             const std::vector<Point2D>& additionalPoints) :
     context_(&context),
     meshData2D_(&context.getMeshData()),
     meshMutator_(&context.getMutator()),
     meshOperations_(&context.getOperations())
 {
-    // Configure discretization settings (1 segment per edge = no subdivision)
-    Geometry2D::DiscretizationSettings2D discretizationSettings(1, 2 * 3.1415 / 8);
-
     // Create geometry operations for this geometry
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
 

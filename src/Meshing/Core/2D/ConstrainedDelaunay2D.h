@@ -15,6 +15,7 @@
 namespace Geometry2D
 {
 class IFace2D;
+class DiscretizationSettings2D;
 }
 
 namespace Meshing
@@ -34,8 +35,12 @@ public:
      * similar to ConstrainedDelaunay3D.
      *
      * @param context The 2D meshing context containing geometry and topology
+     * @param discretizationSettings Settings for discretizing geometry (optional)
+     * @param additionalPoints Additional points to include in triangulation (optional)
      */
-    explicit ConstrainedDelaunay2D(MeshingContext2D& context, const std::vector<Point2D>& additionalPoints = {});
+    explicit ConstrainedDelaunay2D(MeshingContext2D& context,
+                                   const Geometry2D::DiscretizationSettings2D& discretizationSettings = {},
+                                   const std::vector<Point2D>& additionalPoints = {});
 
     ~ConstrainedDelaunay2D();
 
