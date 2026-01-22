@@ -4,6 +4,7 @@ add_library(Geometry2DOpenCascade STATIC
     OpenCascade2DCorner.cpp
     OpenCascade2DEdgeLoop.cpp
     OpenCascade2DFace.cpp
+    OpenCascade2DFaceBuilder.cpp
 )
 
 # Find OpenCASCADE
@@ -19,6 +20,7 @@ target_include_directories(Geometry2DOpenCascade PUBLIC
 target_link_libraries(Geometry2DOpenCascade PUBLIC
     Common
     Geometry2DBase
+    Topology2D
     TKernel
     TKMath
     TKG3d

@@ -22,4 +22,10 @@ ConstrainedDelaunay3D::ConstrainedDelaunay3D(MeshingContext3D& context) :
 {
 }
 
+const TetrahedralElement* ConstrainedDelaunay3D::getTetrahedralElement(size_t id) const
+{
+    const auto* element = meshData_.getElement(id);
+    return dynamic_cast<const TetrahedralElement*>(element);
+}
+
 } // namespace Meshing

@@ -6,6 +6,11 @@
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Topology2D/Topology2D.h"
 
+namespace Geometry2D
+{
+class IFace2D;
+}
+
 namespace Geometry3D
 {
 class ISurface3D;
@@ -81,6 +86,16 @@ public:
 
     // Clear mesh (data only, keeps geometry/topology)
     void clearMesh();
+
+    /**
+     * @brief Build a face representing the 2D domain including holes
+     *
+     * Creates a face from the topology and geometry, useful for point-in-domain
+     * classification and other geometric queries.
+     *
+     * @return Face representing the domain with outer boundary and holes
+     */
+    std::unique_ptr<Geometry2D::IFace2D> buildDomainFace() const;
 
 private:
     std::unique_ptr<Geometry2D::GeometryCollection2D> geometry_;

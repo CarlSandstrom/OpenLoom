@@ -43,9 +43,20 @@ public:
      */
     explicit MeshOperations2D(MeshData2D& meshData);
 
+    /**
+     * @brief Insert a vertex using 2D Bowyer-Watson algorithm
+     *
+     * Finds conflicting triangles, removes them to form a cavity,
+     * and retriangulates with the new vertex. Maintains Delaunay property.
+     *
+     * @param point The 2D point to insert
+     * @param edgeParameters Optional parametric coordinates on parent edges
+     * @param edgeIds Optional edge IDs this vertex belongs to
+     * @return Node ID of the inserted vertex
+     */
     size_t insertVertexBowyerWatson(const Point2D& point,
                                     const std::vector<double>& edgeParameters = {},
-                                    const std::vector<std::string>& geometryIds = {});
+                                    const std::vector<std::string>& edgeIds = {});
 
     /**
      * @brief Find triangles whose circumcircle contains the point
@@ -105,6 +116,17 @@ public:
         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
         const std::map<size_t, size_t>& pointIndexToNodeIdMap,
         const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const;
+
+    /**
+     * @brief Classify triangles as interior/exterior using flood fill from constraint edges
+     *
+     * Uses mesh topology (constraint edges) to determine which triangles are inside
+     * the domain vs outside or in holes. Finds a seed triangle farthest from constraints,
+     * performs BFS flood fill respecting constraint boundaries, and removes unreached triangles.
+     *
+     * @param constrainedEdges Vector of constraint edges that form domain boundaries
+     */
+    void classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges);
 
     /**
      * @brief Get the mesh mutator for primitive operations

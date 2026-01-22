@@ -13,6 +13,8 @@ class MeshData3D
 {
 public:
     MeshData3D();
+    // Temporary: Constructor for MeshConnectivity usage
+    // TODO: Remove once MeshConnectivity supports MeshData2D directly
     explicit MeshData3D(const MeshData2D& mesh2D);
 
     // Read-only access to mesh data

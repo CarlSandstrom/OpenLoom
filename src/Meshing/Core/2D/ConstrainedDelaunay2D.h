@@ -4,7 +4,6 @@
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/3D/MeshData3D.h"
 #include <array>
 #include <memory>
 #include <optional>
@@ -45,7 +44,6 @@ public:
 private:
     void exportAndVerifyMesh();
     void removeHoleTriangles();
-    std::unique_ptr<Geometry2D::IFace2D> buildDomainFace() const;
 
 private:
     size_t exportCounter_ = 0;

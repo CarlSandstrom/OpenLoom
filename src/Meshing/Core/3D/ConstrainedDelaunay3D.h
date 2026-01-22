@@ -6,12 +6,11 @@
 #include <vector>
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
-#include "ConstrainedDelaunayHelper.h"
-#include "Meshing/Core/ConstraintStructures.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
+#include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"
+#include "Meshing/Core/ConstraintStructures.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
@@ -20,141 +19,15 @@
 namespace Meshing
 {
 
-/**
- * @brief Constrained 3D Delaunay triangulation
- *
- * Provides unconstrained and constrained 3D Delaunay triangulation.
- * Uses classical CDT approach: directly force segments into the mesh.
- *
- * Integration with project architecture:
- * - Uses MeshingContext for data access
- * - Uses MeshMutator3D (friend pattern) for modifications
- * - Respects Topology/Geometry separation
- */
 class ConstrainedDelaunay3D
 {
 public:
     explicit ConstrainedDelaunay3D(MeshingContext3D& context);
-    ~ConstrainedDelaunay3D() = default;
 
-    void initialize(const std::vector<Point3D>& points);
-    void insertVertex(const Point3D& point);
-
-    const MeshData3D& getMeshData() const { return meshData_; }
-    MeshData3D& getMeshData() { return meshData_; }
-
-    const std::unordered_set<size_t>& getActiveTetrahedronIds() const { return activeTetrahedra_; }
-    bool isElementActive(size_t elementId) const;
-
-    const TetrahedralElement* getTetrahedralElement(size_t elementId) const;
-
-    bool isDelaunay() const;
-
-    /**
-     * @brief Generate constrained mesh from topology
-     *
-     * Process:
-     * 1. Insert corner nodes from topology
-     * 2. Sample and insert edge nodes
-     * 3. Sample and triangulate surface nodes
-     * 4. Create initial Delaunay triangulation
-     * 5. Force each constraint segment into mesh
-     * 6. Force each constraint subfacet into mesh
-     */
-    void generateConstrained(size_t samplesPerEdge = 10,
-                             size_t samplesPerSurface = 5);
-
-    /**
-     * @brief Force a segment to appear in the mesh
-     */
-    void forceSegment(size_t startNodeId, size_t endNodeId);
-
-    /**
-     * @brief Force a triangular facet to appear in the mesh
-     */
-    void forceFacet(size_t n0, size_t n1, size_t n2);
+    /// Get a tetrahedron by ID (returns nullptr if not found or not a tetrahedron)
+    const TetrahedralElement* getTetrahedralElement(size_t id) const;
 
 private:
-    ConstraintSet constraints_;
-
-    // Maps topology IDs to mesh node IDs
-    std::unordered_map<std::string, size_t> topologyToNodeId_;
-
-    // Track which constraints have been satisfied
-    std::unordered_set<std::pair<size_t, size_t>, PairHash> satisfiedSegments_;
-    std::unordered_set<std::array<size_t, 3>, TriangleHash> satisfiedFacets_;
-
-    /**
-     * @brief Extract constraints from topology/geometry
-     */
-    void extractConstraints(const Topology3D::Topology3D& topology,
-                            const Geometry3D::GeometryCollection3D& geometry,
-                            size_t samplesPerEdge,
-                            size_t samplesPerSurface); // TODO: Is this used?
-
-    /**
-     * @brief Insert nodes for all corners in topology
-     */
-    void insertCornerNodes(const Topology3D::Topology3D& topology,
-                           const Geometry3D::GeometryCollection3D& geometry);
-
-    /**
-     * @brief Sample and insert nodes along edges
-     */
-    void insertEdgeNodes(const Topology3D::Topology3D& topology,
-                         const Geometry3D::GeometryCollection3D& geometry,
-                         size_t samplesPerEdge);
-
-    /**
-     * @brief Sample and triangulate surface nodes
-     */
-    void triangulateSurfaces(const Topology3D::Topology3D& topology,
-                             const Geometry3D::GeometryCollection3D& geometry,
-                             size_t samplesPerSurface);
-
-    /**
-     * @brief Recover all constraint segments in the mesh
-     */
-    void recoverSegments();
-
-    /**
-     * @brief Recover all constraint facets in the mesh
-     */
-    void recoverFacets();
-
-    /**
-     * @brief Triangulate a surface in 2D parametric space using constrained Delaunay
-     */
-    std::vector<std::array<size_t, 3>> triangulateSurface2D(
-        const std::vector<size_t>& boundaryNodeIds,
-        const std::vector<size_t>& interiorNodeIds,
-        const Geometry3D::ISurface3D* surface);
-
-    /**
-     * @brief Triangulate a surface using MeshingContext2D
-     *
-     * Alternative method that creates a MeshingContext2D from the surface
-     * and uses ConstrainedDelaunay2D with the context-based workflow.
-     *
-     * @param surface The 3D surface geometry
-     * @param topoSurface The 3D surface topology
-     * @param samplesPerEdge Number of sample points per edge
-     * @return Vector of triangles (node ID triplets)
-     */
-    std::vector<std::array<size_t, 3>> triangulateSurfaceWithContext(
-        const Geometry3D::ISurface3D* surface,
-        const Topology3D::Surface3D& topoSurface,
-        size_t samplesPerEdge);
-
-    void createSuperTetrahedron(const std::vector<Point3D>& points);
-    void removeSuperTetrahedron();
-    std::vector<size_t> findConflictingTetrahedra(const Point3D& p) const;
-    std::vector<std::array<size_t, 3>> findCavityBoundary(const std::vector<size_t>& conflicting) const;
-    void retriangulate(size_t vertexNodeId, const std::vector<std::array<size_t, 3>>& boundary);
-
-    std::vector<size_t> superNodeIds_;
-    std::unordered_set<size_t> activeTetrahedra_;
-
     MeshingContext3D& context_;
     MeshData3D& meshData_;
     MeshMutator3D& meshMutator_;

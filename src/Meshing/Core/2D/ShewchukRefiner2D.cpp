@@ -1,8 +1,12 @@
 #include "ShewchukRefiner2D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "ConstraintChecker2D.h"
 #include "ElementGeometry2D.h"
 #include "ElementQuality2D.h"
 #include "Export/VtkExporter.h"
+#include "Geometry/2D/Base/GeometryOperations2D.h"
+#include "Geometry/2D/Base/IEdge2D.h"
+#include "Geometry/2D/Base/IFace2D.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Data/2D/MeshData2D.h"
@@ -10,8 +14,8 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
+#include "Topology2D/Topology2D.h"
 #include "Utils/MeshLogger.h"
-#include "Common/Exceptions/MeshException.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 
@@ -23,9 +27,12 @@ ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
                                      const std::vector<ConstrainedSegment2D>& constrainedSegments) :
     context_(&context),
     qualityController_(&qualityController),
-    constrainedSegments_(constrainedSegments)
+    constrainedSegments_(constrainedSegments),
+    domainFace_(context.buildDomainFace())
 {
 }
+
+ShewchukRefiner2D::~ShewchukRefiner2D() = default;
 
 void ShewchukRefiner2D::refine()
 {
@@ -71,12 +78,25 @@ void ShewchukRefiner2D::refine()
         else
         {
             consecutiveNoProgress = 0; // Reset counter on successful refinement
+
+            // Periodically re-classify triangles to remove any that ended up in holes
+            // This prevents accumulation of invalid triangles during refinement
+            if (iterationCount % 10 == 0)
+            {
+                spdlog::debug("ShewchukRefiner2D: Periodic triangle re-classification at iteration {}", iterationCount);
+                context_->getOperations().classifyTrianglesInteriorExterior(constrainedSegments_);
+            }
         }
 
         ++iterationCount;
     }
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);
+
+    // Re-classify triangles after refinement to remove any that ended up in holes
+    // Refinement can create triangles that cross constraint boundaries
+    spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
+    context_->getOperations().classifyTrianglesInteriorExterior(constrainedSegments_);
 }
 
 bool ShewchukRefiner2D::refineStep()
@@ -96,14 +116,18 @@ bool ShewchukRefiner2D::refineStep()
     auto worstTriangles = quality.getTrianglesSortedByQuality();
 
     // Try to refine triangles in order of worst quality
-    // Skip any where circumcenter computation fails
+    // Skip any where circumcenter computation fails or are known to be unrefinable
     for (size_t triangleId : worstTriangles)
     {
-        ShewchukRefiner2D::exportAndVerifyMesh();
+        // ShewchukRefiner2D::exportAndVerifyMesh(); // Disabled during refinement - flood fill at end will clean up
         const auto* element = context_->getMeshData().getElement(triangleId);
         const auto* triangle = dynamic_cast<const TriangleElement*>(element);
 
         if (triangle == nullptr)
+            continue;
+
+        // Skip triangles we've already determined can't be refined
+        if (unrefinableTriangles_.find(triangleId) != unrefinableTriangles_.end())
             continue;
 
         // Check if this triangle needs refinement
@@ -116,7 +140,9 @@ bool ShewchukRefiner2D::refineStep()
             {
                 return true; // Successfully refined
             }
-            // If refinement failed (e.g., couldn't compute circumcenter), try next triangle
+            // If refinement failed, mark as unrefinable (likely circumcenter in hole)
+            // This prevents infinite loops trying to refine the same triangle
+            unrefinableTriangles_.insert(triangleId);
         }
     }
 
@@ -232,7 +258,7 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     spdlog::debug("ShewchukRefiner2D: Successfully split segment into ({}, {}) and ({}, {})",
                   splitResult->first.nodeId1, splitResult->first.nodeId2,
                   splitResult->second.nodeId1, splitResult->second.nodeId2);
-    exportAndVerifyMesh();
+    // exportAndVerifyMesh(); // Disabled during refinement - flood fill at end will clean up
 }
 
 bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
@@ -275,6 +301,14 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
 
     Point2D circumcenter = circumcenterOpt.value();
 
+    // Check if circumcenter is inside the domain (not in a hole)
+    if (!domainFace_ || !Geometry2D::GeometryOperations2D::isPointInsideDomain(circumcenter, *domainFace_))
+    {
+        spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) is outside domain or in hole, skipping",
+                      circumcenter.x(), circumcenter.y());
+        return false;
+    }
+
     // Check if circumcenter would encroach any segments
     auto encroachedByCircumcenter = findSegmentsEncroachedByPoint(circumcenter);
 
@@ -292,8 +326,19 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     spdlog::debug("ShewchukRefiner2D: Inserting circumcenter at ({:.2f}, {:.2f})",
                   circumcenter.x(), circumcenter.y());
 
-    context_->getOperations().insertVertexBowyerWatson(circumcenter);
-    return true; // Successfully inserted circumcenter
+    try
+    {
+        context_->getOperations().insertVertexBowyerWatson(circumcenter);
+        return true; // Successfully inserted circumcenter
+    }
+    catch (const std::exception& e)
+    {
+        // Circumcenter insertion failed (likely because it's inside a hole or creates invalid triangles)
+        spdlog::debug("ShewchukRefiner2D: Failed to insert circumcenter at ({:.2f}, {:.2f}): {}",
+                      circumcenter.x(), circumcenter.y(), e.what());
+        // Note: Mesh state might be partially modified. The final flood fill will clean up.
+        return false; // Skip this triangle
+    }
 }
 
 std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoint(const Point2D& point) const
@@ -315,10 +360,8 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoi
 
 void ShewchukRefiner2D::exportAndVerifyMesh()
 {
-    return;
     Export::VtkExporter exporter;
-    MeshData3D meshData3D(context_->getMeshData());
-    exporter.exportMesh(meshData3D, "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
+    exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
 
     bool allConstrinedEdgesPresent = false;
     // MeshLogger::logMeshData2D(context_->getMeshData());

@@ -1,7 +1,5 @@
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/2D/Delaunay2D.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "spdlog/spdlog.h"
 
@@ -42,11 +40,9 @@ int main()
     const auto& triangles = meshData2D.getElements();
     const auto& nodes = meshData2D.getNodes();
 
-    // Create 3D mesh data for export (with z=0)
-    MeshData3D meshData3D(meshData2D);
     // Export to VTK
     Export::VtkExporter exporter;
-    exporter.writeVtu(meshData3D, "simple_delaunay_2d.vtu");
+    exporter.writeVtu(meshData2D, "simple_delaunay_2d.vtu");
 
     spdlog::info("");
     spdlog::info("Mesh exported to simple_delaunay_2d.vtu");

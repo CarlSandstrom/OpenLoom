@@ -32,6 +32,24 @@ size_t MeshMutator3D::addNode(const Point3D& coordinates)
     return id;
 }
 
+size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
+                                       const std::vector<double>& edgeParameters,
+                                       const std::vector<std::string>& geometryIds)
+{
+    size_t id = nextNodeId_++;
+
+    auto node = std::make_unique<Node3D>(coordinates, edgeParameters, geometryIds);
+    geometry_.addNodeInternal(id, std::move(node));
+
+    // Notify transaction listener
+    if (transactionListener_)
+    {
+        transactionListener_->onNodeAdded(id);
+    }
+
+    return id;
+}
+
 void MeshMutator3D::moveNode(size_t id, const Point3D& newCoords)
 {
     Node3D* node = geometry_.getNodeMutable(id);

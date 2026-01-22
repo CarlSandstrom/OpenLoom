@@ -117,3 +117,63 @@ TEST_F(ElementGeometry3DTest, IsPointInsideCircumscribingSphereDetectsContainmen
     EXPECT_TRUE(geometry.isPointInsideCircumscribingSphere(*element, inside));
     EXPECT_FALSE(geometry.isPointInsideCircumscribingSphere(*element, outside));
 }
+
+TEST_F(ElementGeometry3DTest, ComputeCentroidForUnitTetrahedron)
+{
+    // Unit tetrahedron with vertices at (0,0,0), (1,0,0), (0,1,0), (0,0,1)
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0, 0.0);
+    size_t n2 = addNode(0.0, 1.0, 0.0);
+    size_t n3 = addNode(0.0, 0.0, 1.0);
+    addTetrahedron(n0, n1, n2, n3);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+
+    Point3D centroid = geometry.computeCentroid(*element);
+
+    // Centroid is average of vertices: (0+1+0+0)/4, (0+0+1+0)/4, (0+0+0+1)/4 = (0.25, 0.25, 0.25)
+    EXPECT_NEAR(centroid.x(), 0.25, TOLERANCE);
+    EXPECT_NEAR(centroid.y(), 0.25, TOLERANCE);
+    EXPECT_NEAR(centroid.z(), 0.25, TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeCentroidForTranslatedTetrahedron)
+{
+    // Tetrahedron translated by (1, 2, 3)
+    size_t n0 = addNode(1.0, 2.0, 3.0);
+    size_t n1 = addNode(2.0, 2.0, 3.0);
+    size_t n2 = addNode(1.0, 3.0, 3.0);
+    size_t n3 = addNode(1.0, 2.0, 4.0);
+    addTetrahedron(n0, n1, n2, n3);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+
+    Point3D centroid = geometry.computeCentroid(*element);
+
+    // Centroid: (1+2+1+1)/4, (2+2+3+2)/4, (3+3+3+4)/4 = (1.25, 2.25, 3.25)
+    EXPECT_NEAR(centroid.x(), 1.25, TOLERANCE);
+    EXPECT_NEAR(centroid.y(), 2.25, TOLERANCE);
+    EXPECT_NEAR(centroid.z(), 3.25, TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeCentroidForCubicTetrahedron)
+{
+    // Tetrahedron with vertices at corners of a unit cube
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 1.0, 0.0);
+    size_t n2 = addNode(1.0, 0.0, 1.0);
+    size_t n3 = addNode(0.0, 1.0, 1.0);
+    addTetrahedron(n0, n1, n2, n3);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+
+    Point3D centroid = geometry.computeCentroid(*element);
+
+    // Centroid: (0+1+1+0)/4, (0+1+0+1)/4, (0+0+1+1)/4 = (0.5, 0.5, 0.5)
+    EXPECT_NEAR(centroid.x(), 0.5, TOLERANCE);
+    EXPECT_NEAR(centroid.y(), 0.5, TOLERANCE);
+    EXPECT_NEAR(centroid.z(), 0.5, TOLERANCE);
+}
