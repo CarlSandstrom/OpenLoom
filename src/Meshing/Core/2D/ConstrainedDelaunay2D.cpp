@@ -1,7 +1,7 @@
 #include "ConstrainedDelaunay2D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "Delaunay2D.h"
 #include "Export/VtkExporter.h"
-#include "Geometry/2D/Base/DiscretizationSettings2D.h"
 #include "Geometry/2D/Base/GeometryOperations2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdgeLoop.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DFace.h"
@@ -11,7 +11,6 @@
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Utils/MeshLogger.h"
-#include "Common/Exceptions/MeshException.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>

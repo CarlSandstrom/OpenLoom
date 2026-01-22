@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Geometry/2D/Base/DiscretizationSettings2D.h"
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -15,7 +16,6 @@
 namespace Geometry2D
 {
 class IFace2D;
-class DiscretizationSettings2D;
 }
 
 namespace Meshing
