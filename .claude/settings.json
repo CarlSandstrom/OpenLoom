@@ -1,0 +1,64 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake:*)",
+      "Bash(cmake --build:*)",
+      "Bash(ctest:*)",
+      "Bash(./build/src/Examples/*:*)",
+      "Bash(./build/tests/runTests:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(clang-format:*)",
+      "Bash(cloc:*)",
+      "Bash(paraview:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(timeout:*)",
+      "Read",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "Write",
+      "Edit",
+      "FileExists",
+      "ListDir",
+      "GetFileStats"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)"
+    ]
+  },
+  "env": {
+    "SPDLOG_LEVEL": "debug"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(jq -r '.tool_input.file_path' 2>/dev/null); if echo \"$file_path\" | grep -qE '\\.(cpp|hpp|h|cc)$'; then clang-format -i \"$file_path\" 2>/dev/null || true; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file_path=$(jq -r '.tool_input.file_path' 2>/dev/null); if echo \"$file_path\" | grep -qE '\\.(cpp|hpp|h|cc)$'; then clang-format -i \"$file_path\" 2>/dev/null || true; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -49,6 +49,9 @@ BinPackParameters: true
 BinPackArguments: true
 AlignAfterOpenBracket: Align
 
+# Penalties - discourage breaking right after opening parenthesis
+PenaltyBreakOpenParenthesis: 300
+
 # Braces (Microsoft style)
 BreakBeforeBraces: Allman
 
