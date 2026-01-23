@@ -5,11 +5,8 @@
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include <array>
 #include <memory>
 #include <optional>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace Geometry2D
@@ -42,23 +39,23 @@ public:
                                    const Geometry2D::DiscretizationSettings2D& discretizationSettings = {},
                                    const std::vector<Point2D>& additionalPoints = {});
 
-    ~ConstrainedDelaunay2D();
+    ~ConstrainedDelaunay2D() = default;
 
     void triangulate();
-    std::vector<ConstrainedSegment2D> getConstrainedEdges() const;
+    const std::vector<ConstrainedSegment2D>& getConstrainedEdges() const;
 
 private:
     void exportAndVerifyMesh();
-    void removeHoleTriangles();
 
 private:
     size_t exportCounter_ = 0;
 
     std::vector<ConstrainedSegment2D> constrainedEdges_;
-    MeshingContext2D* context_ = nullptr;
-    const Geometry2D::DiscretizationSettings2D& discretizationSettings_;
-    const std::vector<Point2D>& additionalPoints_;
+    Geometry2D::DiscretizationSettings2D discretizationSettings_;
+    std::vector<Point2D> additionalPoints_;
 
+    // Non-owning pointers, obtained from context_
+    MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
     MeshMutator2D* meshMutator_ = nullptr;
     MeshOperations2D* meshOperations_ = nullptr;

@@ -1,9 +1,9 @@
 #include "ConstrainedDelaunay2D.h"
+#include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Delaunay2D.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/GeometryOperations2D.h"
-#include "HoleTriangleRemover.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
@@ -16,7 +16,6 @@
 #include <map>
 #include <optional>
 #include <queue>
-#include <unordered_set>
 
 namespace Meshing
 {
@@ -33,11 +32,7 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context,
 {
 }
 
-ConstrainedDelaunay2D::~ConstrainedDelaunay2D()
-{
-}
-
-void ConstrainedDelaunay2D::triangulate() // TODO: Move code from constructor to here
+void ConstrainedDelaunay2D::triangulate()
 {
     // Create geometry operations for this geometry
     Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
@@ -88,35 +83,33 @@ void ConstrainedDelaunay2D::triangulate() // TODO: Move code from constructor to
     exportAndVerifyMesh();
 }
 
-std::vector<ConstrainedSegment2D> ConstrainedDelaunay2D::getConstrainedEdges() const
+const std::vector<ConstrainedSegment2D>& ConstrainedDelaunay2D::getConstrainedEdges() const
 {
     return constrainedEdges_;
 }
 
 void ConstrainedDelaunay2D::exportAndVerifyMesh()
 {
-    Export::VtkExporter exporter;
-    exporter.exportMesh(*meshData2D_, "constrained_delaunay_" + std::to_string(exportCounter_++) + ".vtu");
-
-    MeshVerifier verifier(*meshData2D_);
-
-    auto result = verifier.verify();
-    if (!result.isValid)
+    if (CMESH_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
-        for (const auto& error : result.errors)
-        {
-            spdlog::error(" - {}", error);
-        }
-        CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
+        Export::VtkExporter exporter;
+        exporter.exportMesh(*meshData2D_, "constrained_delaunay_" + std::to_string(exportCounter_++) + ".vtu");
     }
-}
 
-void ConstrainedDelaunay2D::removeHoleTriangles()
-{
-    auto face = context_->buildDomainFace();
-    HoleTriangleRemover remover(*meshData2D_, *meshMutator_, *face);
-    remover.removeInvalidTriangles();
-    spdlog::info("Removed {} triangles from holes", remover.getRemovedCount());
+    if (CMESH_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+    {
+        MeshVerifier verifier(*meshData2D_);
+
+        auto result = verifier.verify();
+        if (!result.isValid)
+        {
+            for (const auto& error : result.errors)
+            {
+                spdlog::error(" - {}", error);
+            }
+            CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
+        }
+    }
 }
 
 } // namespace Meshing
