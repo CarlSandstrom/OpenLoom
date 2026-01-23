@@ -57,8 +57,8 @@ std::optional<CircumscribedSphere> ElementGeometry3D::computeCircumscribingSpher
 }
 
 bool ElementGeometry3D::isPointInsideCircumscribingSphere(const TetrahedralElement& element,
-                                                         const Point3D& point,
-                                                         double tolerance) const
+                                                          const Point3D& point,
+                                                          double tolerance) const
 {
     if (const auto sphere = computeCircumscribingSphere(element))
     {

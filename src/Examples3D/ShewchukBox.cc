@@ -13,8 +13,8 @@
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Core/3D/MeshOperations3D.h"
+#include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Core/3D/Shewchuk3DQualityController.h"
 #include "Meshing/Core/3D/ShewchukRefiner3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"

@@ -5,8 +5,8 @@ namespace Meshing
 {
 
 bool GeometryUtilities3D::isPointInsideCircumscribingSphere(const CircumscribedSphere& sphere,
-                                                           const Point3DRef point,
-                                                           double tolerance)
+                                                            const Point3DRef point,
+                                                            double tolerance)
 {
     const double radiusSq = sphere.radius * sphere.radius;
     const double distanceSq = (point - sphere.center).squaredNorm();
@@ -53,7 +53,8 @@ EquatorialSphere GeometryUtilities3D::createEquatorialSphere(const Point3D& p1,
     double normalLengthSq = normal.squaredNorm();
 
     // Check for degenerate triangle
-    if (normalLengthSq < 1e-24) {
+    if (normalLengthSq < 1e-24)
+    {
         // Triangle is degenerate, return sphere at centroid with zero radius
         EquatorialSphere sphere;
         sphere.center = (p1 + p2 + p3) / 3.0;
@@ -77,11 +78,11 @@ EquatorialSphere GeometryUtilities3D::createEquatorialSphere(const Point3D& p1,
 }
 
 bool GeometryUtilities3D::isPointInEquatorialSphere(const EquatorialSphere& sphere,
-                                                   const Point3D& point,
-                                                   const Point3D& triangleP1,
-                                                   const Point3D& triangleP2,
-                                                   const Point3D& triangleP3,
-                                                   double tolerance)
+                                                    const Point3D& point,
+                                                    const Point3D& triangleP1,
+                                                    const Point3D& triangleP2,
+                                                    const Point3D& triangleP3,
+                                                    double tolerance)
 {
     // First check if point is coplanar with the triangle
     // If coplanar, it doesn't encroach (by definition in Shewchuk's paper)
@@ -94,7 +95,8 @@ bool GeometryUtilities3D::isPointInEquatorialSphere(const EquatorialSphere& sphe
     double dotProduct = std::abs(toPoint.dot(normal));
     double normalLength = normal.norm();
 
-    if (dotProduct < tolerance * normalLength) {
+    if (dotProduct < tolerance * normalLength)
+    {
         // Point is coplanar, not encroaching
         return false;
     }

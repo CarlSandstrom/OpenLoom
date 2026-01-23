@@ -1,8 +1,8 @@
 #include "Common/Types.h"
-#include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Operations/MeshTransaction.h"
 #include "Meshing/Operations/ScopedTransaction.h"
 #include <array>

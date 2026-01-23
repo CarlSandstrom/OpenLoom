@@ -7,7 +7,8 @@
 namespace Meshing
 {
 
-MeshVerifier::MeshVerifier(const MeshData2D& meshData) : meshData_(meshData)
+MeshVerifier::MeshVerifier(const MeshData2D& meshData) :
+    meshData_(meshData)
 {
 }
 
@@ -36,14 +37,14 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
         {
             result.isValid = false;
             result.errors.push_back("Element " + std::to_string(id) +
-                                   " has clockwise orientation (signed area: " +
-                                   std::to_string(area) + ")");
+                                    " has clockwise orientation (signed area: " +
+                                    std::to_string(area) + ")");
         }
         else if (std::abs(area) < 1e-10)
         {
             result.isValid = false;
             result.errors.push_back("Element " + std::to_string(id) +
-                                   " is degenerate (area near zero)");
+                                    " is degenerate (area near zero)");
         }
     }
 
@@ -63,8 +64,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
         std::array<Point2D, 3> coords = {
             meshData_.getNode(nodeIds[0])->getCoordinates(),
             meshData_.getNode(nodeIds[1])->getCoordinates(),
-            meshData_.getNode(nodeIds[2])->getCoordinates()
-        };
+            meshData_.getNode(nodeIds[2])->getCoordinates()};
 
         elementIds.push_back(id);
         triangleCoords.push_back(coords);
@@ -79,8 +79,8 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
             {
                 result.isValid = false;
                 result.errors.push_back("Elements " + std::to_string(elementIds[i]) +
-                                       " and " + std::to_string(elementIds[j]) +
-                                       " overlap");
+                                        " and " + std::to_string(elementIds[j]) +
+                                        " overlap");
             }
         }
     }
@@ -138,8 +138,7 @@ bool MeshVerifier::verifyNoOverlaps() const
         std::array<Point2D, 3> coords = {
             meshData_.getNode(nodeIds[0])->getCoordinates(),
             meshData_.getNode(nodeIds[1])->getCoordinates(),
-            meshData_.getNode(nodeIds[2])->getCoordinates()
-        };
+            meshData_.getNode(nodeIds[2])->getCoordinates()};
 
         triangleCoords.push_back(coords);
     }
@@ -167,7 +166,7 @@ double MeshVerifier::computeSignedArea(const Point2D& p1, const Point2D& p2, con
 }
 
 bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
-                                   const std::array<Point2D, 3>& tri2Nodes)
+                                    const std::array<Point2D, 3>& tri2Nodes)
 {
     // Two triangles overlap if:
     // 1. Any vertex of one triangle is inside the other triangle
@@ -249,19 +248,21 @@ bool MeshVerifier::isPointInsideTriangle(const Point2D& point, const std::array<
 }
 
 bool MeshVerifier::segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                    const Point2D& b1, const Point2D& b2)
+                                     const Point2D& b1, const Point2D& b2)
 {
     // Compute orientation of ordered triplet (p, q, r)
-    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> int {
+    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> int
+    {
         double val = (q.y() - p.y()) * (r.x() - q.x()) -
                      (q.x() - p.x()) * (r.y() - q.y());
 
-        if (std::abs(val) < 1e-10) return 0;  // Collinear
-        return (val > 0) ? 1 : 2;  // Clockwise or counterclockwise
+        if (std::abs(val) < 1e-10) return 0; // Collinear
+        return (val > 0) ? 1 : 2;            // Clockwise or counterclockwise
     };
 
     // Check if point q lies on segment pr
-    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool {
+    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
+    {
         return q.x() <= std::max(p.x(), r.x()) + 1e-10 &&
                q.x() >= std::min(p.x(), r.x()) - 1e-10 &&
                q.y() <= std::max(p.y(), r.y()) + 1e-10 &&

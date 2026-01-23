@@ -92,8 +92,7 @@ TEST(GeometryUtilities2DTest, CreateSuperTriangleContainsAllPoints)
         Point2D(0.0, 0.0),
         Point2D(1.0, 0.0),
         Point2D(0.5, 0.5),
-        Point2D(0.2, 0.8)
-    };
+        Point2D(0.2, 0.8)};
 
     auto superTri = GeometryUtilities2D::createSuperTriangle(points);
 

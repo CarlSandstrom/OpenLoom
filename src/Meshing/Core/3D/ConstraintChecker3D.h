@@ -32,7 +32,7 @@ public:
      * @return true if the point encroaches the subsegment
      */
     bool isSubsegmentEncroached(const ConstrainedSubsegment3D& subsegment,
-                               const Point3D& point) const;
+                                const Point3D& point) const;
 
     /**
      * @brief Tests if a subfacet is encroached by a point
@@ -45,7 +45,7 @@ public:
      * @return true if the point encroaches the subfacet
      */
     bool isSubfacetEncroached(const ConstrainedSubfacet3D& subfacet,
-                             const Point3D& point) const;
+                              const Point3D& point) const;
 
     /**
      * @brief Check if a triangular face matches any constraint face in a list

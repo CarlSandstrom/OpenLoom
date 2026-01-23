@@ -22,8 +22,8 @@ GeometryOperations2D::extractCornerPoints() const
     {
         const auto* corner = geometry_.getCorner(cornerId);
         result.points.push_back(corner->getPoint());
-        result.tParameters.push_back({});  // Empty vector - will be populated with t values for each connected edge
-        result.geometryIds.push_back({});  // Empty vector - will be populated with edge IDs
+        result.tParameters.push_back({}); // Empty vector - will be populated with t values for each connected edge
+        result.geometryIds.push_back({}); // Empty vector - will be populated with edge IDs
         result.cornerIdToPointIndexMap[cornerId] = result.points.size() - 1;
     }
 

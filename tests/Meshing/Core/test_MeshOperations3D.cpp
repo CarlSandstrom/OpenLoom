@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <cmath>
+#include <gtest/gtest.h>
 #include <memory>
 
 #include "Common/Types.h"
@@ -34,8 +34,7 @@ protected:
     size_t addTetrahedron(size_t n0, size_t n1, size_t n2, size_t n3)
     {
         auto tet = std::make_unique<TetrahedralElement>(
-            std::array<size_t, 4>{n0, n1, n2, n3}
-        );
+            std::array<size_t, 4>{n0, n1, n2, n3});
         return mutator_->addElement(std::move(tet));
     }
 
@@ -94,8 +93,8 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraMultipleTets)
     size_t n3 = addNode(1.0, 0.5, 2.0);
     size_t n4 = addNode(1.0, 0.5, -2.0);
 
-    addTetrahedron(n0, n1, n2, n3);  // Above XY plane
-    addTetrahedron(n0, n1, n2, n4);  // Below XY plane
+    addTetrahedron(n0, n1, n2, n3); // Above XY plane
+    addTetrahedron(n0, n1, n2, n4); // Below XY plane
 
     MeshOperations3D operations(meshData_);
 
@@ -168,8 +167,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
     size_t n3 = operations.getMutator().addNode(Point3D(1.0, 0.5, 2.0));
 
     auto tet = std::make_unique<TetrahedralElement>(
-        std::array<size_t, 4>{n0, n1, n2, n3}
-    );
+        std::array<size_t, 4>{n0, n1, n2, n3});
     operations.getMutator().addElement(std::move(tet));
 
     size_t initialNodes = meshData_.getNodeCount();
@@ -331,8 +329,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronCreatesValidTet)
         Point3D(0.0, 0.0, 0.0),
         Point3D(1.0, 0.0, 0.0),
         Point3D(0.0, 1.0, 0.0),
-        Point3D(0.0, 0.0, 1.0)
-    };
+        Point3D(0.0, 0.0, 1.0)};
 
     auto boundingIds = operations.createBoundingTetrahedron(points);
 
@@ -355,8 +352,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronContainsAllPoints)
         Point3D(1.0, 2.0, 3.0),
         Point3D(4.0, 5.0, 6.0),
         Point3D(-1.0, -2.0, -3.0),
-        Point3D(2.0, 1.0, 0.5)
-    };
+        Point3D(2.0, 1.0, 0.5)};
 
     auto boundingIds = operations.createBoundingTetrahedron(points);
 
@@ -424,8 +420,7 @@ TEST_F(MeshOperations3DTest, InitializeDelaunayInsertsAllPoints)
         Point3D(0.5, 0.5, 0.5),
         Point3D(1.5, 0.5, 0.5),
         Point3D(1.0, 1.5, 0.5),
-        Point3D(1.0, 1.0, 1.5)
-    };
+        Point3D(1.0, 1.0, 1.5)};
 
     auto nodeIds = operations.initializeDelaunay(points);
 
@@ -450,8 +445,7 @@ TEST_F(MeshOperations3DTest, InitializeDelaunayCreatesTetrahedra)
         Point3D(0.5, 0.5, 0.5),
         Point3D(1.5, 0.5, 0.5),
         Point3D(1.0, 1.5, 0.5),
-        Point3D(1.0, 1.0, 1.5)
-    };
+        Point3D(1.0, 1.0, 1.5)};
 
     operations.initializeDelaunay(points);
 
@@ -478,8 +472,7 @@ TEST_F(MeshOperations3DTest, InitializeDelaunayPreservesPointOrder)
     std::vector<Point3D> points = {
         Point3D(1.0, 2.0, 3.0),
         Point3D(4.0, 5.0, 6.0),
-        Point3D(7.0, 8.0, 9.0)
-    };
+        Point3D(7.0, 8.0, 9.0)};
 
     auto nodeIds = operations.initializeDelaunay(points);
 
@@ -506,8 +499,7 @@ TEST_F(MeshOperations3DTest, RemoveBoundingTetrahedronRemovesBoundingNodes)
         Point3D(0.5, 0.5, 0.5),
         Point3D(1.5, 0.5, 0.5),
         Point3D(1.0, 1.5, 0.5),
-        Point3D(1.0, 1.0, 1.5)
-    };
+        Point3D(1.0, 1.0, 1.5)};
 
     // Create bounding tetrahedron and insert points
     auto boundingIds = operations.createBoundingTetrahedron(points);
@@ -539,8 +531,7 @@ TEST_F(MeshOperations3DTest, RemoveBoundingTetrahedronRemovesConnectedTetrahedra
         Point3D(0.5, 0.5, 0.5),
         Point3D(1.5, 0.5, 0.5),
         Point3D(1.0, 1.5, 0.5),
-        Point3D(1.0, 1.0, 1.5)
-    };
+        Point3D(1.0, 1.0, 1.5)};
 
     auto boundingIds = operations.createBoundingTetrahedron(points);
     for (const auto& p : points)
@@ -570,8 +561,7 @@ TEST_F(MeshOperations3DTest, FullDelaunayWorkflow)
         Point3D(0.0, 0.0, 1.0),
         Point3D(1.0, 0.0, 1.0),
         Point3D(0.0, 1.0, 1.0),
-        Point3D(1.0, 1.0, 1.0)
-    };
+        Point3D(1.0, 1.0, 1.0)};
 
     // Create bounding tetrahedron
     auto boundingIds = operations.createBoundingTetrahedron(points);
@@ -936,11 +926,11 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
 TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraReturnsEmptyForGoodMesh)
 {
     // Create a well-shaped tetrahedron (regular)
-    double h = std::sqrt(2.0/3.0);
+    double h = std::sqrt(2.0 / 3.0);
     size_t n0 = addNode(0.0, 0.0, 0.0);
     size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, std::sqrt(3.0)/2.0, 0.0);
-    size_t n3 = addNode(0.5, std::sqrt(3.0)/6.0, h);
+    size_t n2 = addNode(0.5, std::sqrt(3.0) / 2.0, 0.0);
+    size_t n3 = addNode(0.5, std::sqrt(3.0) / 6.0, h);
     addTetrahedron(n0, n1, n2, n3);
 
     MeshOperations3D operations(meshData_);

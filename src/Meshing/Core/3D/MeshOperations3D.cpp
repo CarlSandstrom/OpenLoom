@@ -58,7 +58,7 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     double dy = maxY - minY;
     double dz = maxZ - minZ;
     double maxDim = std::max({dx, dy, dz, 1.0}); // At least 1.0 to handle degenerate cases
-    double margin = maxDim * 10.0; // Large margin for numerical stability
+    double margin = maxDim * 10.0;               // Large margin for numerical stability
 
     // Create a super-tetrahedron that contains the bounding box
     // Using a tetrahedron with one vertex at origin-margin and three vertices
@@ -489,9 +489,9 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior(
         const auto& nodes = tet->getNodeIds();
         // Four faces of the tetrahedron
         std::array<std::array<size_t, 3>, 4> faces = {{{nodes[0], nodes[1], nodes[2]},
-                                                        {nodes[0], nodes[1], nodes[3]},
-                                                        {nodes[0], nodes[2], nodes[3]},
-                                                        {nodes[1], nodes[2], nodes[3]}}};
+                                                       {nodes[0], nodes[1], nodes[3]},
+                                                       {nodes[0], nodes[2], nodes[3]},
+                                                       {nodes[1], nodes[2], nodes[3]}}};
 
         for (const auto& face : faces)
         {
@@ -525,9 +525,9 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior(
         // Check all four faces of the current tetrahedron
         const auto& nodes = tet->getNodeIds();
         std::array<std::array<size_t, 3>, 4> faces = {{{nodes[0], nodes[1], nodes[2]},
-                                                        {nodes[0], nodes[1], nodes[3]},
-                                                        {nodes[0], nodes[2], nodes[3]},
-                                                        {nodes[1], nodes[2], nodes[3]}}};
+                                                       {nodes[0], nodes[1], nodes[3]},
+                                                       {nodes[0], nodes[2], nodes[3]},
+                                                       {nodes[1], nodes[2], nodes[3]}}};
 
         for (const auto& face : faces)
         {

@@ -5,8 +5,8 @@
 #include "Meshing/Core/3D/ElementGeometry3D.h"
 #include "Meshing/Core/3D/ElementQuality3D.h"
 #include "Meshing/Core/3D/GeometryStructures3D.h"
-#include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Core/3D/MeshOperations3D.h"
+#include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Core/3D/Shewchuk3DQualityController.h"
 #include "Meshing/Core/3D/ShewchukRefiner3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -64,7 +64,7 @@ protected:
         n0_ = addNode(0.0, 0.0, 0.0);
         n1_ = addNode(10.0, 0.0, 0.0);
         n2_ = addNode(5.0, 10.0, 0.0);
-        n3_ = addNode(5.0, 3.0, 0.1);  // Very small z offset = skinny
+        n3_ = addNode(5.0, 3.0, 0.1); // Very small z offset = skinny
         addTetrahedron(n0_, n1_, n2_, n3_);
     }
 
@@ -169,7 +169,7 @@ TEST_F(ShewchukRefiner3DTest, RefinesSkinnyTetrahedron)
 
     ElementQuality3D quality(context_->getMeshData());
     double ratio = quality.getCircumradiusToShortestEdgeRatio(*tet);
-    EXPECT_GT(ratio, 2.5);  // Should be skinny
+    EXPECT_GT(ratio, 2.5); // Should be skinny
 
     ShewchukRefiner3D refiner(*context_, controller, constrainedSubsegments_, constrainedSubfacets_);
     refiner.refine();
@@ -187,7 +187,7 @@ TEST_F(ShewchukRefiner3DTest, DetectsEncroachedSubsegment)
     // Create a segment and a point that encroaches it
     size_t n0 = addNode(0.0, 0.0, 0.0);
     size_t n1 = addNode(4.0, 0.0, 0.0);
-    size_t n2 = addNode(2.0, 0.5, 0.0);  // Point inside diametral sphere
+    size_t n2 = addNode(2.0, 0.5, 0.0); // Point inside diametral sphere
 
     // Create a tetrahedron containing all three
     size_t n3 = addNode(2.0, 1.0, 2.0);
@@ -207,7 +207,7 @@ TEST_F(ShewchukRefiner3DTest, SplitsEncroachedSubsegmentDuringRefinement)
     // Create mesh with an encroached subsegment
     size_t n0 = addNode(0.0, 0.0, 0.0);
     size_t n1 = addNode(4.0, 0.0, 0.0);
-    size_t n2 = addNode(2.0, 0.3, 0.0);  // Encroaching point
+    size_t n2 = addNode(2.0, 0.3, 0.0); // Encroaching point
     size_t n3 = addNode(2.0, -0.3, 0.0);
     size_t n4 = addNode(2.0, 0.0, 1.0);
 
@@ -258,7 +258,7 @@ TEST_F(ShewchukRefiner3DTest, SplitsEncroachedSubfacetDuringRefinement)
     size_t n0 = addNode(0.0, 0.0, 0.0);
     size_t n1 = addNode(4.0, 0.0, 0.0);
     size_t n2 = addNode(2.0, 4.0, 0.0);
-    size_t n3 = addNode(2.0, 1.0, 0.5);  // Encroaching point
+    size_t n3 = addNode(2.0, 1.0, 0.5); // Encroaching point
     size_t n4 = addNode(2.0, 1.0, -0.5);
 
     addTetrahedron(n0, n1, n2, n3);
@@ -288,14 +288,14 @@ TEST_F(ShewchukRefiner3DTest, DefersCircumcenterInsertionWhenItWouldEncroachSubs
     size_t n0 = addNode(0.0, 0.0, 0.0);
     size_t n1 = addNode(10.0, 0.0, 0.0);
     size_t n2 = addNode(5.0, 10.0, 0.0);
-    size_t n3 = addNode(5.0, 5.0, 0.5);  // Skinny
+    size_t n3 = addNode(5.0, 5.0, 0.5); // Skinny
 
     // A constraint edge nearby that the circumcenter might encroach
     size_t n4 = addNode(4.0, 4.0, 5.0);
     size_t n5 = addNode(6.0, 6.0, 5.0);
 
     addTetrahedron(n0, n1, n2, n3);
-    addTetrahedron(n3, n4, n5, n2);  // Connect to constraint edge
+    addTetrahedron(n3, n4, n5, n2); // Connect to constraint edge
 
     constrainedSubsegments_.push_back({n4, n5, "constraint_edge"});
 
@@ -391,10 +391,10 @@ TEST_F(ShewchukRefiner3DTest, RefinementPreservesConstraints)
     // The total endpoint connectivity should be preserved
 
     // Count total subsegments - should have increased or stayed same
-    EXPECT_GE(constrainedSubsegments_.size(), 12);  // Original 12 edges
+    EXPECT_GE(constrainedSubsegments_.size(), 12); // Original 12 edges
 
     // Count total subfacets - should have increased or stayed same
-    EXPECT_GE(constrainedSubfacets_.size(), 12);  // Original 12 triangles (2 per face)
+    EXPECT_GE(constrainedSubfacets_.size(), 12); // Original 12 triangles (2 per face)
 }
 
 TEST_F(ShewchukRefiner3DTest, RefinementProducesValidMesh)
@@ -430,8 +430,7 @@ TEST_F(ShewchukRefiner3DTest, RefinementWithDelaunayInitialization)
         Point3D(1.0, 1.0, 0.0),
         Point3D(1.0, 0.0, 1.0),
         Point3D(0.0, 1.0, 1.0),
-        Point3D(1.0, 1.0, 1.0)
-    };
+        Point3D(1.0, 1.0, 1.0)};
 
     // Initialize using Bowyer-Watson
     auto nodeIds = context_->getOperations().initializeDelaunay(points);
@@ -487,4 +486,3 @@ TEST_F(ShewchukRefiner3DTest, HandlesNoConstraints)
 
     EXPECT_NO_THROW(refiner.refine());
 }
-

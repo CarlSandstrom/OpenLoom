@@ -21,9 +21,9 @@ struct CircumscribedSphere
  */
 struct ConstrainedSubsegment3D
 {
-    size_t nodeId1;           // First endpoint node ID
-    size_t nodeId2;           // Second endpoint node ID
-    std::string geometryId;   // Parent edge geometry ID
+    size_t nodeId1;         // First endpoint node ID
+    size_t nodeId2;         // Second endpoint node ID
+    std::string geometryId; // Parent edge geometry ID
 };
 
 /**
@@ -35,10 +35,10 @@ struct ConstrainedSubsegment3D
  */
 struct ConstrainedSubfacet3D
 {
-    size_t nodeId1;           // First vertex node ID
-    size_t nodeId2;           // Second vertex node ID
-    size_t nodeId3;           // Third vertex node ID
-    std::string geometryId;   // Parent surface geometry ID
+    size_t nodeId1;         // First vertex node ID
+    size_t nodeId2;         // Second vertex node ID
+    size_t nodeId3;         // Third vertex node ID
+    std::string geometryId; // Parent surface geometry ID
 };
 
 /**

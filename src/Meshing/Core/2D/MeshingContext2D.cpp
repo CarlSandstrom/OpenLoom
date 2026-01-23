@@ -1,20 +1,20 @@
 #include "MeshingContext2D.h"
-#include <set>
-#include "Geometry/3D/Base/ICorner3D.h"
-#include "Geometry/3D/Base/IEdge3D.h"
-#include "Geometry/3D/Base/GeometryCollection3D.h"
-#include "Geometry/3D/Base/ISurface3D.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Geometry/2D/Base/IFace2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DFaceBuilder.h"
+#include "Geometry/3D/Base/GeometryCollection3D.h"
+#include "Geometry/3D/Base/ICorner3D.h"
+#include "Geometry/3D/Base/IEdge3D.h"
+#include "Geometry/3D/Base/ISurface3D.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Topology/Edge3D.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
+#include <set>
 
 namespace Meshing
 {

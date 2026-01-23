@@ -1,10 +1,11 @@
 #include "OpenCascade2DFaceBuilder.h"
+#include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "OpenCascade2DEdgeLoop.h"
 #include "OpenCascade2DFace.h"
-#include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Topology2D/Topology2D.h"
 
-namespace Geometry2D {
+namespace Geometry2D
+{
 
 std::unique_ptr<IFace2D> OpenCascade2DFaceBuilder::buildFromTopology(
     const Topology2D::Topology2D& topology,

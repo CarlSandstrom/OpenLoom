@@ -3,17 +3,17 @@
 #include "../Base/GeometryCollection2D.h"
 #include "OpenCascade2DEdge.h"
 
+#include "Common/Exceptions/GeometryException.h"
 #include <BRepBuilderAPI_MakeEdge.hxx>
 #include <BRepBuilderAPI_MakeEdge2d.hxx>
 #include <BRepBuilderAPI_MakeWire.hxx>
 #include <BRep_Builder.hxx>
 #include <Geom2d_Line.hxx>
 #include <Geom_Plane.hxx>
+#include <cmath>
 #include <gp_Pln.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Pnt2d.hxx>
-#include "Common/Exceptions/GeometryException.h"
-#include <cmath>
 
 namespace Geometry2D
 {
@@ -27,8 +27,8 @@ OpenCascade2DEdgeLoop::OpenCascade2DEdgeLoop(const std::vector<std::string>& edg
     if (edgeIds_.empty())
     {
         CMESH_THROW_CODE(cMesh::GeometryException,
-                        cMesh::GeometryException::ErrorCode::EMPTY_COLLECTION,
-                        "Edge list cannot be empty");
+                         cMesh::GeometryException::ErrorCode::EMPTY_COLLECTION,
+                         "Edge list cannot be empty");
     }
 
     buildWire(geometry);
@@ -94,8 +94,8 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
             if (!edgeBuilder.IsDone())
             {
                 CMESH_THROW_CODE(cMesh::GeometryException,
-                                cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
-                                "Failed to create edge: " + edgeId);
+                                 cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                                 "Failed to create edge: " + edgeId);
             }
 
             wireBuilder.Add(edgeBuilder.Edge());
@@ -114,8 +114,8 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
             if (!edgeBuilder.IsDone())
             {
                 CMESH_THROW_CODE(cMesh::GeometryException,
-                                cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
-                                "Failed to create linear edge: " + edgeId);
+                                 cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                                 "Failed to create linear edge: " + edgeId);
             }
 
             wireBuilder.Add(edgeBuilder.Edge());
@@ -125,8 +125,8 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
     if (!wireBuilder.IsDone())
     {
         CMESH_THROW_CODE(cMesh::GeometryException,
-                        cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
-                        "Failed to build wire");
+                         cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                         "Failed to build wire");
     }
 
     wire_ = wireBuilder.Wire();

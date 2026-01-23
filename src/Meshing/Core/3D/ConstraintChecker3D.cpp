@@ -18,15 +18,15 @@ bool ConstraintChecker3D::isSubsegmentEncroached(const ConstrainedSubsegment3D& 
     const auto* node1 = mesh_.getNode(subsegment.nodeId1);
     const auto* node2 = mesh_.getNode(subsegment.nodeId2);
 
-    if (!node1 || !node2) {
+    if (!node1 || !node2)
+    {
         return false;
     }
 
     // Create diametral sphere
     DiametralSphere sphere = GeometryUtilities3D::createDiametralSphere(
         node1->getCoordinates(),
-        node2->getCoordinates()
-    );
+        node2->getCoordinates());
 
     // Test if point is inside the diametral sphere
     return GeometryUtilities3D::isPointInDiametralSphere(sphere, point);
@@ -40,7 +40,8 @@ bool ConstraintChecker3D::isSubfacetEncroached(const ConstrainedSubfacet3D& subf
     const auto* node2 = mesh_.getNode(subfacet.nodeId2);
     const auto* node3 = mesh_.getNode(subfacet.nodeId3);
 
-    if (!node1 || !node2 || !node3) {
+    if (!node1 || !node2 || !node3)
+    {
         return false;
     }
 

@@ -69,8 +69,8 @@ TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedForDiagonalSegment)
     ConstraintChecker2D checker(meshData_);
     ConstrainedSegment2D segment{n0, n1};
 
-    Point2D inside(1.0, 1.0);    // Center of segment, definitely inside
-    Point2D outside(3.0, 0.0);   // Far from segment
+    Point2D inside(1.0, 1.0);  // Center of segment, definitely inside
+    Point2D outside(3.0, 0.0); // Far from segment
 
     EXPECT_TRUE(checker.isSegmentEncroached(segment, inside));
     EXPECT_FALSE(checker.isSegmentEncroached(segment, outside));

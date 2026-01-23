@@ -64,7 +64,8 @@ std::vector<size_t> ElementQuality2D::getTrianglesSortedByQuality() const
     }
 
     std::sort(trianglesWithQuality.begin(), trianglesWithQuality.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
+              [](const auto& a, const auto& b)
+              { return a.second > b.second; });
 
     std::vector<size_t> result;
     result.reserve(trianglesWithQuality.size());

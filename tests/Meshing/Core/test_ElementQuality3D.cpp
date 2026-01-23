@@ -97,7 +97,7 @@ TEST_F(ElementQuality3DTest, IsSkinnyDetectsSkinnyTetrahedron)
     size_t n0 = addNode(0.0, 0.0, 0.0);
     size_t n1 = addNode(10.0, 0.0, 0.0);
     size_t n2 = addNode(5.0, 10.0, 0.0);
-    size_t n3 = addNode(5.0, 5.0, 0.1);  // Very small height
+    size_t n3 = addNode(5.0, 5.0, 0.1); // Very small height
     addTetrahedron(n0, n1, n2, n3);
 
     ElementQuality3D quality(meshData_);

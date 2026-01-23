@@ -1,7 +1,7 @@
 #include "MeshMutator3D.h"
 #include "../Base/MeshConnectivity.h"
-#include "Node3D.h"
 #include "Common/Exceptions/MeshException.h"
+#include "Node3D.h"
 
 namespace Meshing
 {
@@ -33,8 +33,8 @@ size_t MeshMutator3D::addNode(const Point3D& coordinates)
 }
 
 size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
-                                       const std::vector<double>& edgeParameters,
-                                       const std::vector<std::string>& geometryIds)
+                                      const std::vector<double>& edgeParameters,
+                                      const std::vector<std::string>& geometryIds)
 {
     size_t id = nextNodeId_++;
 
@@ -173,9 +173,9 @@ void MeshMutator3D::validateNodeRemoval(size_t nodeId) const
     {
         const auto& elements = connectivity_->getNodeElements(nodeId);
         CMESH_THROW_CODE(cMesh::MeshException,
-                        cMesh::MeshException::ErrorCode::INVALID_OPERATION,
-                        "Cannot remove node " + std::to_string(nodeId) +
-                        ": still referenced by " + std::to_string(elements.size()) + " element(s)");
+                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+                         "Cannot remove node " + std::to_string(nodeId) +
+                             ": still referenced by " + std::to_string(elements.size()) + " element(s)");
     }
 }
 

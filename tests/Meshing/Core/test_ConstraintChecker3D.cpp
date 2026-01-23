@@ -137,9 +137,9 @@ TEST_F(ConstraintChecker3DTest, IsSubfacetEncroachedReturnsFalseForCoplanarPoint
     ConstrainedSubfacet3D subfacet{n0, n1, n2, "test_face"};
 
     // Coplanar points should NEVER encroach (per Shewchuk's definition)
-    Point3D coplanarCenter(1.0, 0.67, 0.0);  // Centroid
-    Point3D coplanarInside(1.0, 0.5, 0.0);   // Inside triangle
-    Point3D coplanarOutside(5.0, 5.0, 0.0);  // Outside triangle but coplanar
+    Point3D coplanarCenter(1.0, 0.67, 0.0); // Centroid
+    Point3D coplanarInside(1.0, 0.5, 0.0);  // Inside triangle
+    Point3D coplanarOutside(5.0, 5.0, 0.0); // Outside triangle but coplanar
 
     EXPECT_FALSE(checker.isSubfacetEncroached(subfacet, coplanarCenter));
     EXPECT_FALSE(checker.isSubfacetEncroached(subfacet, coplanarInside));
@@ -219,7 +219,7 @@ TEST_F(ConstraintChecker3DTest, IsSubfacetEncroachedArbitraryPlane)
     ConstrainedSubfacet3D subfacet{n0, n1, n2, "test_face"};
 
     // Centroid of this triangle
-    Point3D centroid(1.0/3.0, 1.0/3.0, 1.0/3.0);
+    Point3D centroid(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0);
 
     // Point along normal from centroid (non-coplanar)
     // Normal direction is (1,1,1) normalized
@@ -227,8 +227,7 @@ TEST_F(ConstraintChecker3DTest, IsSubfacetEncroachedArbitraryPlane)
     Point3D aboveCentroid(
         centroid.x() + offset,
         centroid.y() + offset,
-        centroid.z() + offset
-    );
+        centroid.z() + offset);
 
     // This should encroach since it's close and non-coplanar
     EXPECT_TRUE(checker.isSubfacetEncroached(subfacet, aboveCentroid));
@@ -326,8 +325,8 @@ TEST_F(ConstraintChecker3DTest, IsConstraintFaceWithManyConstraints)
     }
 
     // Should find constraint in the middle
-    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(150, 151, 152, constraints));  // 50th
-    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(297, 298, 299, constraints));  // last
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(150, 151, 152, constraints)); // 50th
+    EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(297, 298, 299, constraints)); // last
 
     // Non-existent faces should not match
     EXPECT_FALSE(ConstraintChecker3D::isConstraintFace(1000, 1001, 1002, constraints));
@@ -336,7 +335,7 @@ TEST_F(ConstraintChecker3DTest, IsConstraintFaceWithManyConstraints)
 TEST_F(ConstraintChecker3DTest, IsConstraintFaceWithDuplicateVertexIds)
 {
     std::vector<ConstrainedSubfacet3D> constraints;
-    constraints.push_back({5, 5, 5, "degenerate"});  // Degenerate face (same vertex)
+    constraints.push_back({5, 5, 5, "degenerate"}); // Degenerate face (same vertex)
 
     // This edge case - same vertex repeated - should still work with sorting
     EXPECT_TRUE(ConstraintChecker3D::isConstraintFace(5, 5, 5, constraints));

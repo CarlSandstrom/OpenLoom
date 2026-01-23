@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Meshing/Interfaces/IQualityController3D.h"
 #include "ElementGeometry3D.h"
 #include "ElementQuality3D.h"
+#include "Meshing/Interfaces/IQualityController3D.h"
 #include <cstddef>
 #include <memory>
 

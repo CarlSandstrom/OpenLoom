@@ -1,5 +1,6 @@
 #include "OpenCascade2DFace.h"
 
+#include "Common/Exceptions/GeometryException.h"
 #include <BRepBuilderAPI_MakeFace.hxx>
 #include <BRepTopAdaptor_FClass2d.hxx>
 #include <BRep_Tool.hxx>
@@ -11,7 +12,6 @@
 #include <TopoDS.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Pnt2d.hxx>
-#include "Common/Exceptions/GeometryException.h"
 
 namespace Geometry2D
 {
@@ -46,8 +46,8 @@ const IEdgeLoop2D& OpenCascade2DFace::getHoleEdgeLoop(size_t index) const
     if (index >= holeEdgeLoops_.size())
     {
         CMESH_THROW_CODE(cMesh::GeometryException,
-                        cMesh::GeometryException::ErrorCode::PARAMETER_OUT_OF_RANGE,
-                        "Hole index " + std::to_string(index) + " out of range (size: " + std::to_string(holeEdgeLoops_.size()) + ")");
+                         cMesh::GeometryException::ErrorCode::PARAMETER_OUT_OF_RANGE,
+                         "Hole index " + std::to_string(index) + " out of range (size: " + std::to_string(holeEdgeLoops_.size()) + ")");
     }
     return *holeEdgeLoops_[index];
 }
@@ -118,8 +118,8 @@ void OpenCascade2DFace::buildFace() const
     if (!faceBuilder.IsDone())
     {
         CMESH_THROW_CODE(cMesh::GeometryException,
-                        cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
-                        "Failed to create face from outer wire");
+                         cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                         "Failed to create face from outer wire");
     }
 
     // Add hole wires.
@@ -139,8 +139,8 @@ void OpenCascade2DFace::buildFace() const
         if (!faceBuilder.IsDone())
         {
             CMESH_THROW_CODE(cMesh::GeometryException,
-                            cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
-                            "Failed to add hole wire to face");
+                             cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                             "Failed to add hole wire to face");
         }
     }
 

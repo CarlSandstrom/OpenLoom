@@ -9,8 +9,6 @@
  * 4. Using Bowyer-Watson vertex insertion
  */
 
-#include <iostream>
-#include <memory>
 #include "Common/Types.h"
 #include "Meshing/Core/3D/ConstraintChecker3D.h"
 #include "Meshing/Core/3D/GeometryStructures3D.h"
@@ -19,6 +17,8 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include <iostream>
+#include <memory>
 
 using namespace Meshing;
 
@@ -146,7 +146,8 @@ int main()
 
     // Verify the new node was added
     const auto* newNode = meshData.getNode(newNodeId);
-    if (newNode) {
+    if (newNode)
+    {
         std::cout << "New node coordinates: " << newNode->getCoordinates().transpose() << "\n";
     }
 

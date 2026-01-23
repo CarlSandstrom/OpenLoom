@@ -9,9 +9,6 @@
  * 4. Handling mesh domains with holes (interior voids)
  */
 
-#include <iostream>
-#include <memory>
-#include <vector>
 #include "Common/Types.h"
 #include "Meshing/Core/3D/ConstraintChecker3D.h"
 #include "Meshing/Core/3D/GeometryStructures3D.h"
@@ -20,6 +17,9 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include <iostream>
+#include <memory>
+#include <vector>
 
 using namespace Meshing;
 
@@ -34,7 +34,8 @@ void printSeparator(const std::string& title)
 class MockEdge
 {
 public:
-    MockEdge(const Point3D& start, const Point3D& end) : start_(start), end_(end) {}
+    MockEdge(const Point3D& start, const Point3D& end) :
+        start_(start), end_(end) {}
 
     Point3D getPoint(double t) const
     {
@@ -71,17 +72,18 @@ int main()
     // Outer cube vertices (2x2x2 cube centered at origin)
     std::vector<Point3D> outerVertices = {
         Point3D(-1.0, -1.0, -1.0), // 0
-        Point3D( 1.0, -1.0, -1.0), // 1
-        Point3D( 1.0,  1.0, -1.0), // 2
-        Point3D(-1.0,  1.0, -1.0), // 3
-        Point3D(-1.0, -1.0,  1.0), // 4
-        Point3D( 1.0, -1.0,  1.0), // 5
-        Point3D( 1.0,  1.0,  1.0), // 6
-        Point3D(-1.0,  1.0,  1.0)  // 7
+        Point3D(1.0, -1.0, -1.0),  // 1
+        Point3D(1.0, 1.0, -1.0),   // 2
+        Point3D(-1.0, 1.0, -1.0),  // 3
+        Point3D(-1.0, -1.0, 1.0),  // 4
+        Point3D(1.0, -1.0, 1.0),   // 5
+        Point3D(1.0, 1.0, 1.0),    // 6
+        Point3D(-1.0, 1.0, 1.0)    // 7
     };
 
     std::vector<size_t> outerNodeIds;
-    for (size_t i = 0; i < outerVertices.size(); ++i) {
+    for (size_t i = 0; i < outerVertices.size(); ++i)
+    {
         size_t nodeId = mutator.addNode(outerVertices[i]);
         outerNodeIds.push_back(nodeId);
         std::cout << "  Outer node " << nodeId << ": " << outerVertices[i].transpose() << "\n";
@@ -92,17 +94,18 @@ int main()
     // Inner cavity vertices (0.5x0.5x0.5 cube centered at origin)
     std::vector<Point3D> innerVertices = {
         Point3D(-0.25, -0.25, -0.25), // 8
-        Point3D( 0.25, -0.25, -0.25), // 9
-        Point3D( 0.25,  0.25, -0.25), // 10
-        Point3D(-0.25,  0.25, -0.25), // 11
-        Point3D(-0.25, -0.25,  0.25), // 12
-        Point3D( 0.25, -0.25,  0.25), // 13
-        Point3D( 0.25,  0.25,  0.25), // 14
-        Point3D(-0.25,  0.25,  0.25)  // 15
+        Point3D(0.25, -0.25, -0.25),  // 9
+        Point3D(0.25, 0.25, -0.25),   // 10
+        Point3D(-0.25, 0.25, -0.25),  // 11
+        Point3D(-0.25, -0.25, 0.25),  // 12
+        Point3D(0.25, -0.25, 0.25),   // 13
+        Point3D(0.25, 0.25, 0.25),    // 14
+        Point3D(-0.25, 0.25, 0.25)    // 15
     };
 
     std::vector<size_t> innerNodeIds;
-    for (size_t i = 0; i < innerVertices.size(); ++i) {
+    for (size_t i = 0; i < innerVertices.size(); ++i)
+    {
         size_t nodeId = mutator.addNode(innerVertices[i]);
         innerNodeIds.push_back(nodeId);
         std::cout << "  Inner node " << nodeId << ": " << innerVertices[i].transpose() << "\n";
@@ -116,7 +119,8 @@ int main()
     std::vector<ConstrainedSubsegment3D> subsegments;
 
     // Define some edges of the outer cube
-    auto addSubsegment = [&](size_t n1, size_t n2, const std::string& id) {
+    auto addSubsegment = [&](size_t n1, size_t n2, const std::string& id)
+    {
         ConstrainedSubsegment3D seg;
         seg.nodeId1 = outerNodeIds[n1];
         seg.nodeId2 = outerNodeIds[n2];
@@ -215,13 +219,16 @@ int main()
     // Test if any inner vertices encroach on outer boundary segments
     std::cout << "Checking if inner cavity vertices encroach outer boundary:\n";
 
-    for (size_t i = 0; i < innerNodeIds.size(); ++i) {
+    for (size_t i = 0; i < innerNodeIds.size(); ++i)
+    {
         const auto* innerNode = meshData.getNode(innerNodeIds[i]);
         Point3D innerPoint = innerNode->getCoordinates();
 
         bool encroachesAny = false;
-        for (const auto& seg : subsegments) {
-            if (checker.isSubsegmentEncroached(seg, innerPoint)) {
+        for (const auto& seg : subsegments)
+        {
+            if (checker.isSubsegmentEncroached(seg, innerPoint))
+            {
                 encroachesAny = true;
                 break;
             }

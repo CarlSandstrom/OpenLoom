@@ -1,6 +1,6 @@
 #include "MeshLogger.h"
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 
 namespace Meshing
 {
@@ -51,24 +51,24 @@ void MeshLogger::logMeshData2D(const MeshData2D& meshData)
         // Log element type
         switch (element->getType())
         {
-            case ElementType::TRIANGLE:
-                std::cout << " [Triangle]";
-                break;
-            case ElementType::QUADRILATERAL:
-                std::cout << " [Quadrilateral]";
-                break;
-            case ElementType::TETRAHEDRON:
-                std::cout << " [Tetrahedron]";
-                break;
-            case ElementType::HEXAHEDRON:
-                std::cout << " [Hexahedron]";
-                break;
-            case ElementType::PRISM:
-                std::cout << " [Prism]";
-                break;
-            case ElementType::PYRAMID:
-                std::cout << " [Pyramid]";
-                break;
+        case ElementType::TRIANGLE:
+            std::cout << " [Triangle]";
+            break;
+        case ElementType::QUADRILATERAL:
+            std::cout << " [Quadrilateral]";
+            break;
+        case ElementType::TETRAHEDRON:
+            std::cout << " [Tetrahedron]";
+            break;
+        case ElementType::HEXAHEDRON:
+            std::cout << " [Hexahedron]";
+            break;
+        case ElementType::PRISM:
+            std::cout << " [Prism]";
+            break;
+        case ElementType::PYRAMID:
+            std::cout << " [Pyramid]";
+            break;
         }
 
         // Log node IDs

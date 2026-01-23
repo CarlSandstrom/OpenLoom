@@ -3,11 +3,14 @@
 #include "Common/Exceptions/Exception.h"
 #include <string>
 
-namespace cMesh {
+namespace cMesh
+{
 
-class TopologyException : public Exception {
+class TopologyException : public Exception
+{
 public:
-    enum class ErrorCode {
+    enum class ErrorCode
+    {
         ENTITY_NOT_FOUND = 4000,
         INVALID_CONNECTION,
         INCONSISTENT_TOPOLOGY
@@ -16,21 +19,23 @@ public:
     TopologyException(
         ErrorCode code,
         std::string message,
-        std::string location = ""
-    )
-        : Exception(std::move(message), std::move(location))
-        , code_(code)
-    {}
+        std::string location = "") :
+        Exception(std::move(message), std::move(location)), code_(code)
+    {
+    }
 
-    ErrorCode code() const noexcept {
+    ErrorCode code() const noexcept
+    {
         return code_;
     }
 
-    int errorCode() const noexcept override {
+    int errorCode() const noexcept override
+    {
         return static_cast<int>(code_);
     }
 
-    const char* typeName() const noexcept override {
+    const char* typeName() const noexcept override
+    {
         return "cMesh::TopologyException";
     }
 

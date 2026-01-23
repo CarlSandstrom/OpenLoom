@@ -25,8 +25,8 @@ public:
     /// Tests if a point is inside the diametral sphere (encroaches the subsegment).
     /// Excludes the segment endpoints themselves.
     static bool isPointInDiametralSphere(const DiametralSphere& sphere,
-                                        const Point3D& point,
-                                        double tolerance = 1e-12);
+                                         const Point3D& point,
+                                         double tolerance = 1e-12);
 
     /// Creates an equatorial sphere passing through three points of a triangle.
     /// The center lies in the plane of the triangle.
@@ -37,11 +37,11 @@ public:
     /// Tests if a point is inside the equatorial sphere (encroaches the subfacet).
     /// Point must be non-coplanar with the triangle for encroachment.
     static bool isPointInEquatorialSphere(const EquatorialSphere& sphere,
-                                         const Point3D& point,
-                                         const Point3D& triangleP1,
-                                         const Point3D& triangleP2,
-                                         const Point3D& triangleP3,
-                                         double tolerance = 1e-12);
+                                          const Point3D& point,
+                                          const Point3D& triangleP1,
+                                          const Point3D& triangleP2,
+                                          const Point3D& triangleP3,
+                                          double tolerance = 1e-12);
 
     /// Computes the centroid of a triangle given its three vertices.
     static Point3D computeTriangleCentroid(const Point3D& v1, const Point3D& v2, const Point3D& v3);

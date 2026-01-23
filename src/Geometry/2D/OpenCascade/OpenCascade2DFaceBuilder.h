@@ -2,18 +2,22 @@
 
 #include <memory>
 
-namespace Geometry2D {
-    class IFace2D;
-    class GeometryCollection2D;
+namespace Geometry2D
+{
+class IFace2D;
+class GeometryCollection2D;
+} // namespace Geometry2D
+
+namespace Topology2D
+{
+class Topology2D;
 }
 
-namespace Topology2D {
-    class Topology2D;
-}
+namespace Geometry2D
+{
 
-namespace Geometry2D {
-
-class OpenCascade2DFaceBuilder {
+class OpenCascade2DFaceBuilder
+{
 public:
     /**
      * @brief Build a face from topology and geometry

@@ -1,6 +1,6 @@
 #include "OpenCascade2DEdge.h"
-#include <Geom2dAdaptor_Curve.hxx>
 #include <GCPnts_AbscissaPoint.hxx>
+#include <Geom2dAdaptor_Curve.hxx>
 #include <Precision.hxx>
 #include <gp_Pnt2d.hxx>
 #include <sstream>
@@ -8,7 +8,7 @@
 namespace Geometry2D
 {
 
-OpenCascade2DEdge::OpenCascade2DEdge(const Handle(Geom2d_Curve)& curve,
+OpenCascade2DEdge::OpenCascade2DEdge(const Handle(Geom2d_Curve) & curve,
                                      const std::string& id) :
     curve_(curve),
     id_(id),
