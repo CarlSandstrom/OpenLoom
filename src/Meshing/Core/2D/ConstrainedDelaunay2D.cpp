@@ -7,7 +7,6 @@
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
@@ -27,7 +26,6 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context,
     discretizationSettings_(discretizationSettings),
     additionalPoints_(additionalPoints),
     meshData2D_(&context.getMeshData()),
-    meshMutator_(&context.getMutator()),
     meshOperations_(&context.getOperations())
 {
 }

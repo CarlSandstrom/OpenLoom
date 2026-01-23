@@ -19,7 +19,6 @@ namespace Meshing
 {
 
 class MeshingContext2D;
-class MeshMutator2D;
 class MeshOperations2D;
 
 class ConstrainedDelaunay2D
@@ -57,7 +56,6 @@ private:
     // Non-owning pointers, obtained from context_
     MeshingContext2D* context_ = nullptr;
     MeshData2D* meshData2D_ = nullptr;
-    MeshMutator2D* meshMutator_ = nullptr;
     MeshOperations2D* meshOperations_ = nullptr;
 };
 
