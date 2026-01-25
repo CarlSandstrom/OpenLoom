@@ -3,6 +3,7 @@
     "allow": [
       "Bash(cmake:*)",
       "Bash(cmake --build:*)",
+      "Bash(cmake --build build -j:*)",
       "Bash(ctest:*)",
       "Bash(./build/src/Examples/*:*)",
       "Bash(./build/tests/runTests:*)",

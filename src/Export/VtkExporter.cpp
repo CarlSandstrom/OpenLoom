@@ -32,9 +32,13 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     os.exceptions(std::ios::failbit | std::ios::badbit);
     os.open(filePath);
 
+    std::vector<std::size_t> nodeIds;
+    std::vector<std::size_t> elementIds;
     writeHeader(os);
-    writePoints(os, mesh);
-    writeCells(os, mesh);
+    writePoints(os, mesh, nodeIds);
+    writePointData(os, nodeIds);
+    writeCells(os, mesh, elementIds);
+    writeCellData(os, elementIds);
     writeFooter(os);
     return true;
 }
@@ -59,23 +63,24 @@ void VtkExporter::writeFooter(std::ostream& os) const
     os << "</VTKFile>\n";
 }
 
-void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh) const
+void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
+                              std::vector<std::size_t>& outNodeIds) const
 {
     // For a deterministic index mapping, sort node IDs
-    std::vector<std::size_t> nodeIds;
-    nodeIds.reserve(mesh.getNodes().size());
+    outNodeIds.clear();
+    outNodeIds.reserve(mesh.getNodes().size());
     for (const auto& kv : mesh.getNodes())
     {
-        nodeIds.push_back(kv.first);
+        outNodeIds.push_back(kv.first);
     }
-    std::sort(nodeIds.begin(), nodeIds.end());
+    std::sort(outNodeIds.begin(), outNodeIds.end());
 
-    os << "    <Piece NumberOfPoints=\"" << nodeIds.size() << "\" NumberOfCells=\"" << mesh.getElements().size() << "\">\n";
+    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size() << "\" NumberOfCells=\"" << mesh.getElements().size() << "\">\n";
 
     os << "      <Points>\n";
     os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
 
-    for (std::size_t id : nodeIds)
+    for (std::size_t id : outNodeIds)
     {
         const auto* node = mesh.getNode(id);
         const auto& p = node->getCoordinates();
@@ -84,6 +89,18 @@ void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh)
 
     os << "        </DataArray>\n";
     os << "      </Points>\n";
+}
+
+void VtkExporter::writePointData(std::ostream& os, const std::vector<std::size_t>& nodeIds) const
+{
+    os << "      <PointData>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < nodeIds.size(); ++i)
+    {
+        os << nodeIds[i] << (i + 1 == nodeIds.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+    os << "      </PointData>\n";
 }
 
 static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData3D& mesh)
@@ -98,7 +115,8 @@ static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData3D& mesh
     return ids;
 }
 
-void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) const
+void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
+                             std::vector<std::size_t>& outElementIds) const
 {
     // Build node ID -> contiguous index mapping (sorted by ID to match points order)
     std::vector<std::size_t> nodeIds;
@@ -123,6 +141,8 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) 
     connectivity.reserve(elemIds.size() * 4); // rough reserve for tets
     offsets.reserve(elemIds.size());
     types.reserve(elemIds.size());
+    outElementIds.clear();
+    outElementIds.reserve(elemIds.size());
 
     unsigned int runningOffset = 0;
 
@@ -143,6 +163,7 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) 
         runningOffset += static_cast<unsigned int>(nodes.size());
         offsets.push_back(runningOffset);
         types.push_back(static_cast<unsigned char>(vtkType));
+        outElementIds.push_back(eid);
     }
 
     os << "      <Cells>\n";
@@ -169,6 +190,18 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) 
     os << "        </DataArray>\n";
 
     os << "      </Cells>\n";
+}
+
+void VtkExporter::writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds) const
+{
+    os << "      <CellData>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"ElementID\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < elementIds.size(); ++i)
+    {
+        os << elementIds[i] << (i + 1 == elementIds.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+    os << "      </CellData>\n";
 
     // Close Piece tag started in writePoints
     os << "    </Piece>\n";

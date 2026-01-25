@@ -36,8 +36,12 @@ public:
 
 private:
     void writeHeader(std::ostream& os) const;
-    void writePoints(std::ostream& os, const Meshing::MeshData3D& mesh) const;
-    void writeCells(std::ostream& os, const Meshing::MeshData3D& mesh) const;
+    void writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
+                     std::vector<std::size_t>& outNodeIds) const;
+    void writePointData(std::ostream& os, const std::vector<std::size_t>& nodeIds) const;
+    void writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
+                    std::vector<std::size_t>& outElementIds) const;
+    void writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds) const;
     void writeFooter(std::ostream& os) const;
 
     // Convert 2D mesh to 3D (with z=0) for export
