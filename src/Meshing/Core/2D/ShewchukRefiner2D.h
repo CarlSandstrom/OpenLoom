@@ -65,12 +65,6 @@ private:
     bool refineStep();
 
     /**
-     * @brief Find all segments encroached by existing mesh vertices
-     * @return Vector of encroached constrained segments
-     */
-    std::vector<ConstrainedSegment2D> findEncroachedSegments() const;
-
-    /**
      * @brief Handle an encroached segment by splitting it
      * @param segment The encroached segment to split
      */
@@ -83,17 +77,10 @@ private:
      */
     bool handlePoorQualityTriangle(size_t triangleId);
 
-    /**
-     * @brief Check if a point would encroach any constrained segments
-     * @param point The candidate point to check
-     * @return Vector of segments that would be encroached
-     */
-
     void exportAndVerifyMesh();
 
     size_t exportCounter_ = 0;
     std::unordered_set<size_t> unrefinableTriangles_; // Triangles that can't be refined (circumcenter in hole)
-    std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(const Point2D& point) const;
 };
 
 } // namespace Meshing

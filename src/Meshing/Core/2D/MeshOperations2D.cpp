@@ -1,5 +1,6 @@
 #include "MeshOperations2D.h"
 #include "Common/Exceptions/MeshException.h"
+#include "ConstraintChecker2D.h"
 #include "ElementGeometry2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "GeometryUtilities2D.h"
@@ -833,6 +834,52 @@ void MeshOperations2D::classifyTrianglesInteriorExterior(const std::vector<Const
 
     spdlog::info("classifyTrianglesInteriorExterior: Complete - {} triangles remaining",
                  meshData_.getElements().size());
+}
+
+std::vector<ConstrainedSegment2D> MeshOperations2D::findEncroachedSegments(
+    const std::vector<ConstrainedSegment2D>& constrainedSegments) const
+{
+    std::vector<ConstrainedSegment2D> encroached;
+
+    ConstraintChecker2D checker(meshData_);
+
+    for (const auto& segment : constrainedSegments)
+    {
+        for (const auto& [nodeId, node] : meshData_.getNodes())
+        {
+            if (nodeId == segment.nodeId1 || nodeId == segment.nodeId2)
+                continue;
+
+            Point2D point = node->getCoordinates();
+
+            if (checker.isSegmentEncroached(segment, point))
+            {
+                encroached.push_back(segment);
+                break;
+            }
+        }
+    }
+
+    return encroached;
+}
+
+std::vector<ConstrainedSegment2D> MeshOperations2D::findSegmentsEncroachedByPoint(
+    const Point2D& point,
+    const std::vector<ConstrainedSegment2D>& constrainedSegments) const
+{
+    std::vector<ConstrainedSegment2D> encroached;
+
+    ConstraintChecker2D checker(meshData_);
+
+    for (const auto& segment : constrainedSegments)
+    {
+        if (checker.isSegmentEncroached(segment, point))
+        {
+            encroached.push_back(segment);
+        }
+    }
+
+    return encroached;
 }
 
 } // namespace Meshing

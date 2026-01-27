@@ -1,7 +1,6 @@
 #include "ShewchukRefiner2D.h"
 #include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
-#include "ConstraintChecker2D.h"
 #include "ElementGeometry2D.h"
 #include "ElementQuality2D.h"
 #include "Export/VtkExporter.h"
@@ -40,8 +39,8 @@ void ShewchukRefiner2D::refine()
     spdlog::info("ShewchukRefiner2D: Starting mesh refinement");
 
     size_t iterationCount = 0;
-    const size_t maxIterations = 10000; // Safety limit to prevent infinite loops
     size_t consecutiveNoProgress = 0;
+    const size_t maxIterations = 10000;         // Safety limit to prevent infinite loops
     const size_t maxConsecutiveNoProgress = 10; // Exit if no progress for this many iterations
 
     while (true)
@@ -103,7 +102,7 @@ void ShewchukRefiner2D::refine()
 bool ShewchukRefiner2D::refineStep()
 {
     // Priority 1: Handle encroached segments first
-    auto encroachedSegments = findEncroachedSegments();
+    auto encroachedSegments = context_->getOperations().findEncroachedSegments(constrainedSegments_);
 
     if (!encroachedSegments.empty())
     {
@@ -148,35 +147,6 @@ bool ShewchukRefiner2D::refineStep()
     }
 
     return false;
-}
-
-std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findEncroachedSegments() const
-{
-    std::vector<ConstrainedSegment2D> encroached;
-
-    ConstraintChecker2D checker(context_->getMeshData());
-
-    // Check each constrained segment against all nodes
-    for (const auto& segment : constrainedSegments_)
-    {
-        // Check if any node encroaches this segment
-        for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
-        {
-            // Skip the segment endpoints
-            if (nodeId == segment.nodeId1 || nodeId == segment.nodeId2)
-                continue;
-
-            Point2D point = node->getCoordinates();
-
-            if (checker.isSegmentEncroached(segment, point))
-            {
-                encroached.push_back(segment);
-                break; // This segment is encroached, move to next segment
-            }
-        }
-    }
-
-    return encroached;
 }
 
 void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segment)
@@ -311,7 +281,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     }
 
     // Check if circumcenter would encroach any segments
-    auto encroachedByCircumcenter = findSegmentsEncroachedByPoint(circumcenter);
+    auto encroachedByCircumcenter = context_->getOperations().findSegmentsEncroachedByPoint(circumcenter, constrainedSegments_);
 
     if (!encroachedByCircumcenter.empty())
     {
@@ -340,23 +310,6 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         // Note: Mesh state might be partially modified. The final flood fill will clean up.
         return false; // Skip this triangle
     }
-}
-
-std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoint(const Point2D& point) const
-{
-    std::vector<ConstrainedSegment2D> encroached;
-
-    ConstraintChecker2D checker(context_->getMeshData());
-
-    for (const auto& segment : constrainedSegments_)
-    {
-        if (checker.isSegmentEncroached(segment, point))
-        {
-            encroached.push_back(segment);
-        }
-    }
-
-    return encroached;
 }
 
 void ShewchukRefiner2D::exportAndVerifyMesh()

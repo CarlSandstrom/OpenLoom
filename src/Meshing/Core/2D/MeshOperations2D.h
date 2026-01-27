@@ -129,6 +129,31 @@ public:
     void classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges);
 
     /**
+     * @brief Find all segments encroached by existing mesh vertices
+     *
+     * A segment is encroached if any mesh vertex (other than the segment endpoints)
+     * lies within the segment's diametral circle.
+     *
+     * @param constrainedSegments The constrained segments to check
+     * @return Vector of encroached constrained segments
+     */
+    std::vector<ConstrainedSegment2D> findEncroachedSegments(
+        const std::vector<ConstrainedSegment2D>& constrainedSegments) const;
+
+    /**
+     * @brief Check if a point would encroach any constrained segments
+     *
+     * A point encroaches a segment if it lies within the segment's diametral circle.
+     *
+     * @param point The candidate point to check
+     * @param constrainedSegments The constrained segments to check against
+     * @return Vector of segments that would be encroached by the point
+     */
+    std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(
+        const Point2D& point,
+        const std::vector<ConstrainedSegment2D>& constrainedSegments) const;
+
+    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator2D& getMutator() { return *mutator_; }
