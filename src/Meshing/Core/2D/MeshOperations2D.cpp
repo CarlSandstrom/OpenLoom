@@ -457,16 +457,6 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     return true;
 }
 
-void MeshOperations2D::retriangulate(size_t vertexNodeId,
-                                     const std::vector<std::array<size_t, 2>>& boundary,
-                                     std::vector<TriangleElement>& activeTriangles) const
-{
-    for (const auto& edge : boundary)
-    {
-        activeTriangles.emplace_back(std::array<size_t, 3>{vertexNodeId, edge[0], edge[1]});
-    }
-}
-
 bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
                                          const Point2D& b1, const Point2D& b2) const
 {

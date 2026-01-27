@@ -37,18 +37,6 @@ public:
      */
     VerificationResult verify() const;
 
-    /**
-     * @brief Check if all elements have counter-clockwise orientation
-     * @return True if all elements are correctly oriented
-     */
-    bool verifyOrientation() const;
-
-    /**
-     * @brief Check if any elements overlap
-     * @return True if no elements overlap
-     */
-    bool verifyNoOverlaps() const;
-
 private:
     const MeshData2D& meshData_;
 

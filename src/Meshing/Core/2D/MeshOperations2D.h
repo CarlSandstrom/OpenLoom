@@ -165,13 +165,6 @@ private:
     std::unique_ptr<ElementGeometry2D> geometry_;
 
     /**
-     * @brief Retriangulate the cavity with the new vertex
-     */
-    void retriangulate(size_t vertexNodeId,
-                       const std::vector<std::array<size_t, 2>>& boundary,
-                       std::vector<TriangleElement>& activeTriangles) const;
-
-    /**
      * @brief Check if two 2D segments intersect
      */
     bool segmentsIntersect(const Point2D& a1, const Point2D& a2,

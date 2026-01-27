@@ -98,66 +98,6 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
     return result;
 }
 
-bool MeshVerifier::verifyOrientation() const
-{
-    for (const auto& [id, element] : meshData_.getElements())
-    {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (!triangle)
-        {
-            continue;
-        }
-
-        const auto& nodeIds = triangle->getNodeIdArray();
-        const Point2D& p1 = meshData_.getNode(nodeIds[0])->getCoordinates();
-        const Point2D& p2 = meshData_.getNode(nodeIds[1])->getCoordinates();
-        const Point2D& p3 = meshData_.getNode(nodeIds[2])->getCoordinates();
-
-        double area = GeometryUtilities2D::computeSignedArea(p1, p2, p3);
-        if (area <= 1e-10)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool MeshVerifier::verifyNoOverlaps() const
-{
-    std::vector<std::array<Point2D, 3>> triangleCoords;
-
-    for (const auto& [id, element] : meshData_.getElements())
-    {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (!triangle)
-        {
-            continue;
-        }
-
-        const auto& nodeIds = triangle->getNodeIdArray();
-        std::array<Point2D, 3> coords = {
-            meshData_.getNode(nodeIds[0])->getCoordinates(),
-            meshData_.getNode(nodeIds[1])->getCoordinates(),
-            meshData_.getNode(nodeIds[2])->getCoordinates()};
-
-        triangleCoords.push_back(coords);
-    }
-
-    for (size_t i = 0; i < triangleCoords.size(); ++i)
-    {
-        for (size_t j = i + 1; j < triangleCoords.size(); ++j)
-        {
-            if (trianglesOverlap(triangleCoords[i], triangleCoords[j]))
-            {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
 bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
                                     const std::array<Point2D, 3>& tri2Nodes)
 {
