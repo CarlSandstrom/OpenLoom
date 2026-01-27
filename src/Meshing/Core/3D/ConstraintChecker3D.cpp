@@ -1,7 +1,7 @@
 #include "ConstraintChecker3D.h"
 #include "GeometryUtilities3D.h"
+#include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/Node3D.h"
-#include <algorithm>
 
 namespace Meshing
 {
@@ -62,24 +62,15 @@ bool ConstraintChecker3D::isConstraintFace(size_t nodeId1,
                                            size_t nodeId3,
                                            const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets)
 {
-    std::array<size_t, 3> faceKey = makeFaceKey(nodeId1, nodeId2, nodeId3);
+    FaceKey faceKey(nodeId1, nodeId2, nodeId3);
     for (const auto& subfacet : constrainedSubfacets)
     {
-        std::array<size_t, 3> constraintKey =
-            makeFaceKey(subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3);
-        if (faceKey == constraintKey)
+        if (faceKey == FaceKey(subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3))
         {
             return true;
         }
     }
     return false;
-}
-
-std::array<size_t, 3> ConstraintChecker3D::makeFaceKey(size_t a, size_t b, size_t c)
-{
-    std::array<size_t, 3> key = {a, b, c};
-    std::sort(key.begin(), key.end());
-    return key;
 }
 
 } // namespace Meshing

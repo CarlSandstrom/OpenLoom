@@ -66,11 +66,6 @@ public:
 
 private:
     const MeshData3D& mesh_;
-
-    /**
-     * @brief Create a sorted key for face comparison (order-independent)
-     */
-    static std::array<size_t, 3> makeFaceKey(size_t a, size_t b, size_t c);
 };
 
 } // namespace Meshing
