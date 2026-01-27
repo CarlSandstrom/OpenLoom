@@ -105,7 +105,7 @@ std::vector<size_t> MeshOperations2D::findConflictingTriangles(const Point2D& po
 
         auto circle = geometry_->computeCircumcircle(*triangle);
 
-        if (circle && GeometryUtilities2D::isPointInsideCircumcircle(*circle, point))
+        if (circle && GeometryUtilities2D::isPointInsideCircle(*circle, point))
         {
             conflicting.push_back(id);
         }

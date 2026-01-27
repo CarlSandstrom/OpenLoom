@@ -19,7 +19,7 @@ public:
 
     /// Computes the circumcircle of a triangle element.
     /// Returns nullopt if the triangle is degenerate.
-    std::optional<CircumCircle2D> computeCircumcircle(const TriangleElement& element) const;
+    std::optional<Circle2D> computeCircumcircle(const TriangleElement& element) const;
 
     /// Computes the circumcenter of a triangle element.
     /// Returns nullopt if the triangle is degenerate.

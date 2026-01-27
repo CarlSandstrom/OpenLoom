@@ -13,8 +13,8 @@ bool ConstraintChecker2D::isSegmentEncroached(const ConstrainedSegment2D& segmen
 {
     const auto* node1 = mesh_.getNode(segment.nodeId1);
     const auto* node2 = mesh_.getNode(segment.nodeId2);
-    DiametralCircle2D circle = GeometryUtilities2D::createDiametralCircle(node1->getCoordinates(), node2->getCoordinates());
-    return GeometryUtilities2D::isPointInDiametralCircle(circle, point);
+    Circle2D circle = GeometryUtilities2D::createDiametralCircle(node1->getCoordinates(), node2->getCoordinates());
+    return GeometryUtilities2D::isPointInsideCircle(circle, point);
 }
 
 } // namespace Meshing

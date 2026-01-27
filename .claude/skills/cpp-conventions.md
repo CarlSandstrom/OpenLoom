@@ -25,7 +25,7 @@ globs:
 - Getters: `get...()`, Setters: `set...()`
 
 ## Class Design
-- No public data members (except data-only structs like `CircumCircle2D`)
+- No public data members (except data-only structs like `Circle2D`)
 - Use `std::unique_ptr` for heap-allocated objects
 - Use `explicit` on single-argument constructors
 - Default constructors: `= default` when appropriate

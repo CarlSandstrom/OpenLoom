@@ -38,41 +38,41 @@ TEST(GeometryUtilities2DTest, CreateDiametralCircleFromSegment)
     Point2D p1(0.0, 0.0);
     Point2D p2(4.0, 0.0);
 
-    DiametralCircle2D circle = GeometryUtilities2D::createDiametralCircle(p1, p2);
+    Circle2D circle = GeometryUtilities2D::createDiametralCircle(p1, p2);
 
     EXPECT_NEAR(circle.center.x(), 2.0, TOLERANCE);
     EXPECT_NEAR(circle.center.y(), 0.0, TOLERANCE);
     EXPECT_NEAR(circle.radius, 2.0, TOLERANCE);
 }
 
-TEST(GeometryUtilities2DTest, IsPointInDiametralCircleDetectsEncroachment)
+TEST(GeometryUtilities2DTest, IsPointInsideCircleDetectsEncroachment)
 {
     Point2D p1(0.0, 0.0);
     Point2D p2(4.0, 0.0);
-    DiametralCircle2D circle = GeometryUtilities2D::createDiametralCircle(p1, p2);
+    Circle2D circle = GeometryUtilities2D::createDiametralCircle(p1, p2);
 
     Point2D inside(2.0, 0.5);
     Point2D outside(2.0, 3.0);
     Point2D onCircle(2.0, 2.0);
 
-    EXPECT_TRUE(GeometryUtilities2D::isPointInDiametralCircle(circle, inside));
-    EXPECT_FALSE(GeometryUtilities2D::isPointInDiametralCircle(circle, outside));
-    EXPECT_FALSE(GeometryUtilities2D::isPointInDiametralCircle(circle, onCircle));
+    EXPECT_TRUE(GeometryUtilities2D::isPointInsideCircle(circle, inside));
+    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircle(circle, outside));
+    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircle(circle, onCircle));
 }
 
-TEST(GeometryUtilities2DTest, IsPointInDiametralCircleEndpointsAreOnBoundary)
+TEST(GeometryUtilities2DTest, IsPointInsideCircleEndpointsAreOnBoundary)
 {
     Point2D p1(0.0, 0.0);
     Point2D p2(4.0, 0.0);
-    DiametralCircle2D circle = GeometryUtilities2D::createDiametralCircle(p1, p2);
+    Circle2D circle = GeometryUtilities2D::createDiametralCircle(p1, p2);
 
-    EXPECT_FALSE(GeometryUtilities2D::isPointInDiametralCircle(circle, p1));
-    EXPECT_FALSE(GeometryUtilities2D::isPointInDiametralCircle(circle, p2));
+    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircle(circle, p1));
+    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircle(circle, p2));
 }
 
-TEST(GeometryUtilities2DTest, IsPointInsideCircumcircleDetectsContainment)
+TEST(GeometryUtilities2DTest, IsPointInsideCircleDetectsContainment)
 {
-    CircumCircle2D circle;
+    Circle2D circle;
     circle.center = Point2D(0.0, 0.0);
     circle.radius = 5.0;
 
@@ -80,10 +80,10 @@ TEST(GeometryUtilities2DTest, IsPointInsideCircumcircleDetectsContainment)
     Point2D outside(6.0, 0.0);
     Point2D onCircle(5.0, 0.0);
 
-    EXPECT_TRUE(GeometryUtilities2D::isPointInsideCircumcircle(circle, inside));
-    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircumcircle(circle, outside));
+    EXPECT_TRUE(GeometryUtilities2D::isPointInsideCircle(circle, inside));
+    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircle(circle, outside));
     // On the circle should be considered outside due to tolerance
-    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircumcircle(circle, onCircle));
+    EXPECT_FALSE(GeometryUtilities2D::isPointInsideCircle(circle, onCircle));
 }
 
 TEST(GeometryUtilities2DTest, CreateSuperTriangleContainsAllPoints)

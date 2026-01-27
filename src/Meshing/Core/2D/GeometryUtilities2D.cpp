@@ -14,28 +14,19 @@ double GeometryUtilities2D::computeEdgeLength(const Point2D& p1, const Point2D& 
     return std::sqrt(dx * dx + dy * dy);
 }
 
-DiametralCircle2D GeometryUtilities2D::createDiametralCircle(const Point2D& p1, const Point2D& p2)
+Circle2D GeometryUtilities2D::createDiametralCircle(const Point2D& p1, const Point2D& p2)
 {
-    DiametralCircle2D circle;
+    Circle2D circle;
     circle.center = Point2D((p1.x() + p2.x()) * 0.5, (p1.y() + p2.y()) * 0.5);
     circle.radius = computeEdgeLength(p1, p2) * 0.5;
     return circle;
 }
 
-bool GeometryUtilities2D::isPointInDiametralCircle(const DiametralCircle2D& circle, const Point2D& point)
+bool GeometryUtilities2D::isPointInsideCircle(const Circle2D& circle, const Point2D& point)
 {
     const double dx = point.x() - circle.center.x();
     const double dy = point.y() - circle.center.y();
     const double distSquared = dx * dx + dy * dy;
-    return distSquared < circle.radius * circle.radius - 1e-10;
-}
-
-bool GeometryUtilities2D::isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point)
-{
-    const double dx = point.x() - circle.center.x();
-    const double dy = point.y() - circle.center.y();
-    const double distSquared = dx * dx + dy * dy;
-
     return distSquared < circle.radius * circle.radius - 1e-10;
 }
 

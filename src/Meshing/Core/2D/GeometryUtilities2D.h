@@ -16,13 +16,10 @@ public:
     static double computeEdgeLength(const Point2D& p1, const Point2D& p2);
 
     /// Creates a diametral circle with the given segment as diameter.
-    static DiametralCircle2D createDiametralCircle(const Point2D& p1, const Point2D& p2);
+    static Circle2D createDiametralCircle(const Point2D& p1, const Point2D& p2);
 
-    /// Tests if a point is inside the diametral circle.
-    static bool isPointInDiametralCircle(const DiametralCircle2D& circle, const Point2D& point);
-
-    /// Tests if a point is inside the circumcircle.
-    static bool isPointInsideCircumcircle(const CircumCircle2D& circle, const Point2D& point);
+    /// Tests if a point is inside the circle.
+    static bool isPointInsideCircle(const Circle2D& circle, const Point2D& point);
 
     /// Creates a super triangle that contains all given points.
     /// Used for Delaunay triangulation initialization.

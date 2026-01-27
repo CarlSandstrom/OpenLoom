@@ -12,7 +12,7 @@ ElementGeometry2D::ElementGeometry2D(const MeshData2D& mesh) :
 {
 }
 
-std::optional<CircumCircle2D> ElementGeometry2D::computeCircumcircle(const TriangleElement& tri) const
+std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(const TriangleElement& tri) const
 {
     auto [p0, p1, p2] = getElementNodeCoordinates(tri);
 
@@ -35,7 +35,7 @@ std::optional<CircumCircle2D> ElementGeometry2D::computeCircumcircle(const Trian
     const double cx = (by * aSq - ay * bSq) / d;
     const double cy = (ax * bSq - bx * aSq) / d;
 
-    CircumCircle2D circle;
+    Circle2D circle;
     circle.center = Point2D(p0.x() + cx, p0.y() + cy);
     circle.radius = std::sqrt(cx * cx + cy * cy);
 

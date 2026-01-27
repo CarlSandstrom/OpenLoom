@@ -95,7 +95,7 @@
 
 ### Classes & Access Control
 - No public or protected data members (use getters/setters)
-  - Exception: `struct` types used as plain data containers (e.g., `CircumCircle2D`, `PointExtractionResult`) may have public members
+  - Exception: `struct` types used as plain data containers (e.g., `Circle2D`, `PointExtractionResult`) may have public members
   - Rationale: Structs are semantically data containers; forcing getters/setters adds boilerplate without encapsulation benefit
 - **Friend classes**: General rule is NO friend classes
   - Exception: `MeshData2D` ↔ `MeshMutator2D` and `MeshData3D` ↔ `MeshMutator3D` for controlled mutation access

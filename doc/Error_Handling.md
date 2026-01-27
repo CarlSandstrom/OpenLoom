@@ -7,7 +7,7 @@ Quick reference for standardized error handling in cMesh.
 | Situation | Use | Example |
 |-----------|-----|---------|
 | Entity should exist (programming error if not) | **Exception** | `CMESH_THROW_ENTITY_NOT_FOUND("Surface", id)` |
-| Geometric computation may fail (degenerate) | **`std::optional<T>`** | `std::optional<CircumCircle2D> computeCircumcircle(...)` |
+| Geometric computation may fail (degenerate) | **`std::optional<T>`** | `std::optional<Circle2D> computeCircumcircle(...)` |
 | Query where "not found" is valid | **`std::optional<T>`** or `nullptr` | `std::optional<std::string> findVertexId(...)` |
 | Simple yes/no or try operation | **`bool`** | `bool tryEnforceConstraint(...)` |
 | Operation with multiple failure modes | **Exception** with error code | `CMESH_THROW_MAX_ITERATIONS(...)` |
@@ -113,11 +113,11 @@ ISurface3D* getSurface(const std::string& id) const {
 
 ### Optional Result (may not exist)
 ```cpp
-std::optional<CircumCircle2D> computeCircumcircle(const Triangle& tri) const {
+std::optional<Circle2D> computeCircumcircle(const Triangle& tri) const {
     if (std::abs(determinant) < 1e-10) {
         return std::nullopt;  // Degenerate
     }
-    return CircumCircle2D{center, radius};
+    return Circle2D{center, radius};
 }
 ```
 
