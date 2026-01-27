@@ -1,4 +1,5 @@
 #include "ShewchukRefiner2D.h"
+#include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "ConstraintChecker2D.h"
 #include "ElementGeometry2D.h"
@@ -360,21 +361,26 @@ std::vector<ConstrainedSegment2D> ShewchukRefiner2D::findSegmentsEncroachedByPoi
 
 void ShewchukRefiner2D::exportAndVerifyMesh()
 {
-    Export::VtkExporter exporter;
-    exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
-
-    bool allConstrinedEdgesPresent = false;
-    // MeshLogger::logMeshData2D(context_->getMeshData());
-    MeshVerifier verifier(context_->getMeshData());
-
-    auto result = verifier.verify();
-    if (!result.isValid)
+    if (CMESH_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
-        for (const auto& error : result.errors)
+        Export::VtkExporter exporter;
+        exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
+    }
+
+    if (CMESH_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+    {
+        spdlog::info("ShewchukRefiner2D: Verifying mesh at export step {}", exportCounter_ - 1);
+        MeshVerifier verifier(context_->getMeshData());
+
+        auto result = verifier.verify();
+        if (!result.isValid)
         {
-            spdlog::error(" - {}", error);
+            for (const auto& error : result.errors)
+            {
+                spdlog::error(" - {}", error);
+            }
+            CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
         }
-        CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
     }
 }
 
