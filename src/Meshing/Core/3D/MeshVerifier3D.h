@@ -54,51 +54,6 @@ public:
     MeshVerificationResult verify() const;
 
     /**
-     * @brief Verify only node references (fast check)
-     * @return true if all node references are valid
-     */
-    bool verifyNodeReferences() const;
-
-    /**
-     * @brief Verify no degenerate tetrahedra exist
-     * @return true if no degenerate elements found
-     */
-    bool verifyNoDegenerateElements() const;
-
-    /**
-     * @brief Verify no inverted tetrahedra exist
-     * @return true if no inverted elements found
-     */
-    bool verifyNoInvertedElements() const;
-
-    /**
-     * @brief Verify all nodes are referenced by at least one element
-     * @return true if no orphan nodes found
-     */
-    bool verifyNoOrphanNodes() const;
-
-    /**
-     * @brief Verify node coordinates are valid (no NaN or Inf)
-     * @return true if all coordinates are finite
-     */
-    bool verifyValidCoordinates() const;
-
-    /**
-     * @brief Get the count of degenerate elements found during last verify()
-     */
-    size_t getDegenerateElementCount() const { return lastResult_.degenerateElementCount; }
-
-    /**
-     * @brief Get the count of inverted elements found during last verify()
-     */
-    size_t getInvertedElementCount() const { return lastResult_.invertedElementCount; }
-
-    /**
-     * @brief Get the count of orphan nodes found during last verify()
-     */
-    size_t getOrphanNodeCount() const { return lastResult_.orphanNodeCount; }
-
-    /**
      * @brief Minimum volume threshold for degenerate detection
      */
     static constexpr double MIN_VALID_VOLUME = 1e-20;
@@ -107,9 +62,11 @@ private:
     const MeshData3D& meshData_;
     mutable MeshVerificationResult lastResult_;
 
-    /**
-     * @brief Compute signed volume of a tetrahedron
-     */
+    bool verifyNodeReferences() const;
+    bool verifyNoDegenerateElements() const;
+    bool verifyNoInvertedElements() const;
+    bool verifyNoOrphanNodes() const;
+    bool verifyValidCoordinates() const;
     double computeSignedVolume(size_t nodeId1, size_t nodeId2,
                                size_t nodeId3, size_t nodeId4) const;
 };

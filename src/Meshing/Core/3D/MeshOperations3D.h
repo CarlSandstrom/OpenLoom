@@ -267,18 +267,6 @@ private:
     void retriangulate(size_t vertexNodeId,
                        const std::vector<std::array<size_t, 3>>& boundary);
 
-    /**
-     * @brief Create ordered edge key for lookups
-     */
-    static std::pair<size_t, size_t> makeEdgeKey(size_t a, size_t b)
-    {
-        return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
-    }
-
-    /**
-     * @brief Create ordered triangle key for lookups
-     */
-    static std::array<size_t, 3> makeTriangleKey(size_t a, size_t b, size_t c);
 };
 
 } // namespace Meshing

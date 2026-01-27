@@ -5,6 +5,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "GeometryUtilities3D.h"
+#include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
@@ -237,7 +238,7 @@ MeshOperations3D::findCavityBoundary(const std::vector<size_t>& conflictingIndic
     std::unordered_set<size_t> conflictingSet(conflictingIndices.begin(), conflictingIndices.end());
 
     // Map to count how many times each face appears
-    std::map<std::array<size_t, 3>, size_t> faceCount;
+    std::map<FaceKey, size_t> faceCount;
 
     // Iterate through all conflicting tetrahedra and count their faces
     for (size_t tetId : conflictingIndices)
@@ -256,21 +257,19 @@ MeshOperations3D::findCavityBoundary(const std::vector<size_t>& conflictingIndic
                                                        {nodes[0], nodes[2], nodes[3]},
                                                        {nodes[1], nodes[2], nodes[3]}}};
 
-        for (auto& face : faces)
+        for (const auto& face : faces)
         {
-            // Normalize face ordering
-            std::array<size_t, 3> sortedFace = makeTriangleKey(face[0], face[1], face[2]);
-            faceCount[sortedFace]++;
+            faceCount[FaceKey(face[0], face[1], face[2])]++;
         }
     }
 
     // Boundary faces appear exactly once (not shared with another conflicting tet)
     std::vector<std::array<size_t, 3>> boundary;
-    for (const auto& [face, count] : faceCount)
+    for (const auto& [faceKey, count] : faceCount)
     {
         if (count == 1)
         {
-            boundary.push_back(face);
+            boundary.push_back(faceKey.nodeIds);
         }
     }
 
@@ -468,16 +467,6 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior(
                  seedTetId, maxMinDistance);
 
     // Step 2: Build face-to-tetrahedra adjacency map
-    using FaceKey = std::array<size_t, 3>;
-    struct FaceKeyHash
-    {
-        std::size_t operator()(const FaceKey& key) const
-        {
-            return std::hash<size_t>{}(key[0]) ^
-                   (std::hash<size_t>{}(key[1]) << 1) ^
-                   (std::hash<size_t>{}(key[2]) << 2);
-        }
-    };
     std::unordered_map<FaceKey, std::vector<size_t>, FaceKeyHash> faceToTets;
 
     for (const auto& [elemId, element] : meshData_.getElements())
@@ -495,8 +484,7 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior(
 
         for (const auto& face : faces)
         {
-            FaceKey key = makeTriangleKey(face[0], face[1], face[2]);
-            faceToTets[key].push_back(elemId);
+            faceToTets[FaceKey(face[0], face[1], face[2])].push_back(elemId);
         }
     }
 
@@ -542,8 +530,7 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior(
             }
 
             // Find adjacent tetrahedron through this face
-            FaceKey faceKey = makeTriangleKey(node1, node2, node3);
-            auto it = faceToTets.find(faceKey);
+            auto it = faceToTets.find(FaceKey(node1, node2, node3));
             if (it == faceToTets.end())
             {
                 continue;
@@ -754,14 +741,6 @@ std::vector<ConstrainedSubfacet3D> MeshOperations3D::findEncroachingSubfacets(
     }
 
     return encroached;
-}
-
-std::array<size_t, 3> MeshOperations3D::makeTriangleKey(size_t a, size_t b, size_t c)
-{
-    // Sort the three node IDs to create a canonical ordering
-    std::array<size_t, 3> key = {a, b, c};
-    std::sort(key.begin(), key.end());
-    return key;
 }
 
 } // namespace Meshing

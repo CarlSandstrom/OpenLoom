@@ -202,15 +202,8 @@ double MeshVerifier3D::computeSignedVolume(size_t nodeId1, size_t nodeId2,
     Point3D v2 = p3 - p1;
     Point3D v3 = p4 - p1;
 
-    // Signed volume = (1/6) * det([v1, v2, v3])
-    // = (1/6) * v1 . (v2 x v3)
-    double crossX = v2.y() * v3.z() - v2.z() * v3.y();
-    double crossY = v2.z() * v3.x() - v2.x() * v3.z();
-    double crossZ = v2.x() * v3.y() - v2.y() * v3.x();
-
-    double dotProduct = v1.x() * crossX + v1.y() * crossY + v1.z() * crossZ;
-
-    return dotProduct / 6.0;
+    // Signed volume = (1/6) * v1 . (v2 x v3)
+    return v1.dot(v2.cross(v3)) / 6.0;
 }
 
 } // namespace Meshing
