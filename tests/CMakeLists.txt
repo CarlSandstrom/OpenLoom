@@ -18,7 +18,6 @@ set(TEST_SOURCES
     Meshing/Data/test_TetrahedralElement.cpp
     
     # Meshing Core tests
-    Meshing/Core/test_Delaunay3D.cpp
     Meshing/Core/test_ConstrainedDelaunay2D.cpp
     Meshing/Core/test_GeometryUtilities2D.cpp
     Meshing/Core/test_ElementGeometry2D.cpp

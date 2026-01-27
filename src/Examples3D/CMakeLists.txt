@@ -4,7 +4,6 @@
 set(EXAMPLE_SOURCES_3D
     CreateBox.cc
     BoxWithHole.cc
-    ConstrainedBoxExample.cc
     basic_3d_constraint_example.cpp
     3d_mesh_with_holes_example.cpp
     ShewchukBox.cc

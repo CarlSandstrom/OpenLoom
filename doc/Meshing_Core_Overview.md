@@ -17,12 +17,17 @@ src/Meshing/Core/
 │   ├── MeshOperations2D.{h,cpp}
 │   └── MeshVerifier.{h,cpp}
 ├── 3D/                      # 3D meshing algorithms
-│   ├── ConstrainedDelaunay3D.{h,cpp}
-│   ├── ConstrainedMesher.{h,cpp}
-│   ├── SimpleMesher.{h,cpp}
-│   ├── Computer3D.{h,cpp}
-│   ├── QualityComputer.{h,cpp}
-│   └── ConstrainedDelaunayHelper.h
+│   ├── MeshingContext3D.{h,cpp}
+│   ├── MeshOperations3D.{h,cpp}
+│   ├── ShewchukRefiner3D.{h,cpp}
+│   ├── Shewchuk3DQualityController.{h,cpp}
+│   ├── ElementGeometry3D.{h,cpp}
+│   ├── ElementQuality3D.{h,cpp}
+│   ├── ConstraintChecker3D.{h,cpp}
+│   ├── GeometryUtilities3D.{h,cpp}
+│   ├── GeometryStructures3D.h
+│   ├── MeshVerifier3D.{h,cpp}
+│   └── QualityComputer.{h,cpp}
 ├── Interfaces/              # Abstract interfaces
 │   ├── IMesher.h
 │   └── IQualityController.h
@@ -49,12 +54,15 @@ src/Meshing/Core/
 - **MeshVerifier**: Validates mesh orientation and detects overlaps
 
 ### 3D Algorithms
-- **ConstrainedDelaunay3D**: Full 3D constrained Delaunay with segment and facet recovery
-- **ConstrainedMesher**: High-level wrapper implementing IMesher interface
-- **SimpleMesher**: Basic placeholder mesher for testing
-- **Computer3D**: Geometric computations for 3D (circumspheres, volumes, quality)
-- **QualityComputer**: Quality metrics for tetrahedral elements
-- **ConstrainedDelaunayHelper**: Static utilities for constraint recovery
+- **MeshOperations3D**: High-level operations (Bowyer-Watson insertion, cavity finding, constraint operations)
+- **ShewchukRefiner3D**: Implements Shewchuk's 3D Delaunay refinement algorithm
+- **Shewchuk3DQualityController**: Quality controller implementing Shewchuk's criteria
+- **ElementGeometry3D**: Geometric computations for tetrahedral elements (circumspheres, volumes)
+- **ElementQuality3D**: Quality metrics for tetrahedral elements
+- **ConstraintChecker3D**: Encroachment checking for constrained segments and facets
+- **GeometryUtilities3D**: Pure geometric utilities (sphere tests, edge length, etc.)
+- **MeshVerifier3D**: Validates mesh integrity (degenerate elements, orphan nodes)
+- **QualityComputer**: Helper functions for quality computations
 
 ### Data Structures
 - **ConstraintStructures.h**: Defines constraint segments and facets from CAD geometry
@@ -62,7 +70,7 @@ src/Meshing/Core/
 ## Design Patterns
 
 ### Strategy Pattern
-IMesher interface with multiple implementations (ConstrainedMesher, SimpleMesher) enables pluggable meshing algorithms.
+IQualityController interface with implementations (Shewchuk2DQualityController, Shewchuk3DQualityController) enables pluggable quality metrics.
 
 ### Context Pattern
 MeshingContext2D/3D centralize access to geometry, topology, and mutable mesh data with clear ownership semantics.
@@ -74,15 +82,11 @@ ConstrainedDelaunay2D supports both context-based (integrated with topology) and
 
 ### 3D Mesh Generation
 1. Create `MeshingContext3D` with geometry and topology
-2. Instantiate mesher (e.g., `ConstrainedMesher`)
-3. Call `mesher.generate(context)`
-4. Mesher extracts constraints from topology
-5. For each surface, creates `MeshingContext2D` for parametric triangulation
-6. `ConstrainedDelaunay2D` triangulates surface
-7. Surface triangles become constraint facets in 3D mesh
-8. Bowyer-Watson insertion of remaining points
-9. Constraint recovery forces segments and facets
-10. Final mesh accessible via `context.getMeshData()`
+2. Initialize Delaunay with bounding tetrahedron via `MeshOperations3D`
+3. Insert vertices using Bowyer-Watson algorithm
+4. Add constraint subsegments and subfacets to context
+5. Use `ShewchukRefiner3D` for quality-driven refinement
+6. Final mesh accessible via `context.getMeshData()`
 
 ### 2D Mesh Generation
 1. Create `MeshingContext2D` (standalone or from surface)

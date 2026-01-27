@@ -20,7 +20,7 @@
 - **Contexts**: `MeshingContext2D` and `MeshingContext3D` tie geometry + topology to mutable mesh state; call `getMeshData()/getConnectivity()` through the context instead of caching pointers.
 - **Algorithms**: Located in `Meshing/Core/2D/` and `Meshing/Core/3D/`
   - **2D**: `ConstrainedDelaunay2D` (dual-mode: context-based or standalone), `Delaunay2D`, `Computer2D` (geometric computations), `MeshOperations2D` (high-level operations), `MeshVerifier` (validation)
-  - **3D**: `ConstrainedDelaunay3D`, `SimpleMesher`, `ConstrainedMesher`, `Computer3D`, `QualityComputer`
+  - **3D**: `MeshOperations3D`, `ShewchukRefiner3D`, `ElementGeometry3D`, `ElementQuality3D`, `ConstraintChecker3D`, `GeometryUtilities3D`, `QualityComputer`
 - **Mutators**: `MeshMutator2D` and `MeshMutator3D` provide low-level mutation operations; use `MeshOperations` helpers for higher-level transactions.
 - **Interfaces**: `Meshing/Interfaces/` contains `IMesher` and `IQualityController`.
 - See `Meshing/Core/DIRECTORY_OVERVIEW.md` for comprehensive organization details.
