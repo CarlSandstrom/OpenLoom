@@ -34,9 +34,10 @@ public:
     /// Computes the minimum angle of a triangle element (in radians).
     double computeMinAngle(const TriangleElement& element) const;
 
-private:
+    /// Gets the coordinates of the three nodes of a triangle element.
     std::tuple<Point2D, Point2D, Point2D> getElementNodeCoordinates(const TriangleElement& element) const;
 
+private:
     const MeshData2D& mesh_;
 };
 

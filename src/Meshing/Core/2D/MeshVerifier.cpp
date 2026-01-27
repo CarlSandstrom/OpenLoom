@@ -1,4 +1,5 @@
 #include "MeshVerifier.h"
+#include "GeometryUtilities2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
@@ -32,7 +33,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
         const Point2D& p2 = meshData_.getNode(nodeIds[1])->getCoordinates();
         const Point2D& p3 = meshData_.getNode(nodeIds[2])->getCoordinates();
 
-        double area = computeSignedArea(p1, p2, p3);
+        double area = GeometryUtilities2D::computeSignedArea(p1, p2, p3);
         if (area < -1e-10)
         {
             result.isValid = false;
@@ -112,7 +113,7 @@ bool MeshVerifier::verifyOrientation() const
         const Point2D& p2 = meshData_.getNode(nodeIds[1])->getCoordinates();
         const Point2D& p3 = meshData_.getNode(nodeIds[2])->getCoordinates();
 
-        double area = computeSignedArea(p1, p2, p3);
+        double area = GeometryUtilities2D::computeSignedArea(p1, p2, p3);
         if (area <= 1e-10)
         {
             return false;
@@ -155,14 +156,6 @@ bool MeshVerifier::verifyNoOverlaps() const
     }
 
     return true;
-}
-
-double MeshVerifier::computeSignedArea(const Point2D& p1, const Point2D& p2, const Point2D& p3)
-{
-    // Using the cross product formula: 0.5 * ((p2-p1) x (p3-p1))
-    // Positive area means counter-clockwise orientation
-    return 0.5 * ((p2.x() - p1.x()) * (p3.y() - p1.y()) -
-                  (p3.x() - p1.x()) * (p2.y() - p1.y()));
 }
 
 bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
@@ -250,95 +243,55 @@ bool MeshVerifier::isPointInsideTriangle(const Point2D& point, const std::array<
 bool MeshVerifier::segmentsIntersect(const Point2D& a1, const Point2D& a2,
                                      const Point2D& b1, const Point2D& b2)
 {
-    // Compute orientation of ordered triplet (p, q, r)
-    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> int
+    const double tolerance = 1e-10;
+
+    // Exclude segments that share an endpoint (common in adjacent triangles)
+    bool shareEndpoint =
+        (a1 - b1).norm() < tolerance || (a1 - b2).norm() < tolerance ||
+        (a2 - b1).norm() < tolerance || (a2 - b2).norm() < tolerance;
+
+    if (shareEndpoint)
     {
-        double val = (q.y() - p.y()) * (r.x() - q.x()) -
-                     (q.x() - p.x()) * (r.y() - q.y());
+        // For shared endpoints, only report intersection if segments overlap in interior
+        int o1 = GeometryUtilities2D::computeOrientationSign(a1, a2, b1);
+        int o2 = GeometryUtilities2D::computeOrientationSign(a1, a2, b2);
+        int o3 = GeometryUtilities2D::computeOrientationSign(b1, b2, a1);
+        int o4 = GeometryUtilities2D::computeOrientationSign(b1, b2, a2);
 
-        if (std::abs(val) < 1e-10) return 0; // Collinear
-        return (val > 0) ? 1 : 2;            // Clockwise or counterclockwise
-    };
+        auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
+        {
+            return q.x() <= std::max(p.x(), r.x()) + 1e-10 &&
+                   q.x() >= std::min(p.x(), r.x()) - 1e-10 &&
+                   q.y() <= std::max(p.y(), r.y()) + 1e-10 &&
+                   q.y() >= std::min(p.y(), r.y()) - 1e-10;
+        };
 
-    // Check if point q lies on segment pr
-    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
-    {
-        return q.x() <= std::max(p.x(), r.x()) + 1e-10 &&
-               q.x() >= std::min(p.x(), r.x()) - 1e-10 &&
-               q.y() <= std::max(p.y(), r.y()) + 1e-10 &&
-               q.y() >= std::min(p.y(), r.y()) - 1e-10;
-    };
-
-    int o1 = orientation(a1, a2, b1);
-    int o2 = orientation(a1, a2, b2);
-    int o3 = orientation(b1, b2, a1);
-    int o4 = orientation(b1, b2, a2);
-
-    // General case - segments intersect if they straddle each other
-    if (o1 != o2 && o3 != o4)
-    {
-        // Exclude the case where segments only touch at endpoints
-        const double tolerance = 1e-10;
-        bool shareEndpoint =
-            (a1 - b1).norm() < tolerance || (a1 - b2).norm() < tolerance ||
-            (a2 - b1).norm() < tolerance || (a2 - b2).norm() < tolerance;
-
-        if (!shareEndpoint)
+        // Check collinear cases - only interior overlap counts
+        if (o1 == 0 && onSegment(a1, b1, a2) &&
+            (b1 - a1).norm() > tolerance && (b1 - a2).norm() > tolerance)
         {
             return true;
         }
-    }
-
-    // Special cases for collinear points
-    // We only consider it an intersection if segments overlap in their interior
-    if (o1 == 0 && onSegment(a1, b1, a2))
-    {
-        // b1 is on segment a1-a2
-        const double tolerance = 1e-10;
-        if ((b1 - a1).norm() > tolerance && (b1 - a2).norm() > tolerance)
+        if (o2 == 0 && onSegment(a1, b2, a2) &&
+            (b2 - a1).norm() > tolerance && (b2 - a2).norm() > tolerance)
         {
             return true;
         }
-    }
-
-    if (o2 == 0 && onSegment(a1, b2, a2))
-    {
-        // b2 is on segment a1-a2
-        const double tolerance = 1e-10;
-        if ((b2 - a1).norm() > tolerance && (b2 - a2).norm() > tolerance)
+        if (o3 == 0 && onSegment(b1, a1, b2) &&
+            (a1 - b1).norm() > tolerance && (a1 - b2).norm() > tolerance)
         {
             return true;
         }
-    }
-
-    if (o3 == 0 && onSegment(b1, a1, b2))
-    {
-        // a1 is on segment b1-b2
-        const double tolerance = 1e-10;
-        if ((a1 - b1).norm() > tolerance && (a1 - b2).norm() > tolerance)
+        if (o4 == 0 && onSegment(b1, a2, b2) &&
+            (a2 - b1).norm() > tolerance && (a2 - b2).norm() > tolerance)
         {
             return true;
         }
+
+        return false;
     }
 
-    if (o4 == 0 && onSegment(b1, a2, b2))
-    {
-        // a2 is on segment b1-b2
-        const double tolerance = 1e-10;
-        if ((a2 - b1).norm() > tolerance && (a2 - b2).norm() > tolerance)
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-int MeshVerifier::sign(double val, double tolerance)
-{
-    if (val > tolerance) return 1;
-    if (val < -tolerance) return -1;
-    return 0;
+    return GeometryUtilities2D::segmentsIntersect(a1, a2, b1, b2);
 }
 
 } // namespace Meshing

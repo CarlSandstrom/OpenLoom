@@ -53,15 +53,6 @@ private:
     const MeshData2D& meshData_;
 
     /**
-     * @brief Compute the signed area of a triangle
-     * @param p1 First vertex
-     * @param p2 Second vertex
-     * @param p3 Third vertex
-     * @return Signed area (positive for CCW, negative for CW)
-     */
-    static double computeSignedArea(const Point2D& p1, const Point2D& p2, const Point2D& p3);
-
-    /**
      * @brief Check if two triangles overlap
      * @param tri1Nodes Coordinates of first triangle's vertices
      * @param tri2Nodes Coordinates of second triangle's vertices
@@ -79,23 +70,15 @@ private:
     static bool isPointInsideTriangle(const Point2D& point, const std::array<Point2D, 3>& tri);
 
     /**
-     * @brief Check if two line segments intersect
+     * @brief Check if two line segments intersect (excluding shared endpoints)
      * @param a1 First point of first segment
      * @param a2 Second point of first segment
      * @param b1 First point of second segment
      * @param b2 Second point of second segment
-     * @return True if segments intersect (excluding endpoints)
+     * @return True if segments intersect in their interior
      */
     static bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
                                   const Point2D& b1, const Point2D& b2);
-
-    /**
-     * @brief Compute the sign of a value with tolerance
-     * @param val Value to check
-     * @param tolerance Numerical tolerance
-     * @return 1 for positive, -1 for negative, 0 for near-zero
-     */
-    static int sign(double val, double tolerance = 1e-10);
 };
 
 } // namespace Meshing

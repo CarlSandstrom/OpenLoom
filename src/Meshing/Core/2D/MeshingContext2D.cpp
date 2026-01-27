@@ -134,18 +134,6 @@ MeshOperations2D& MeshingContext2D::getOperations()
     return *meshOperations_;
 }
 
-MeshMutator2D& MeshingContext2D::getMutator()
-{
-    ensureInitialized();
-    return *meshMutator_;
-}
-
-void MeshingContext2D::clearMesh()
-{
-    meshData_ = std::make_unique<MeshData2D>();
-    meshMutator_ = std::make_unique<MeshMutator2D>(*meshData_);
-}
-
 std::unique_ptr<Geometry2D::IFace2D> MeshingContext2D::buildDomainFace() const
 {
     return Geometry2D::OpenCascade2DFaceBuilder::buildFromTopology(

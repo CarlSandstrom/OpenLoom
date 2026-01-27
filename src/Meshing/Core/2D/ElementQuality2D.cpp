@@ -15,7 +15,7 @@ ElementQuality2D::ElementQuality2D(const MeshData2D& mesh) :
 
 double ElementQuality2D::computeShortestEdgeLength(const TriangleElement& element) const
 {
-    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+    auto [p0, p1, p2] = geometry_.getElementNodeCoordinates(element);
     const double e0 = GeometryUtilities2D::computeEdgeLength(p0, p1);
     const double e1 = GeometryUtilities2D::computeEdgeLength(p1, p2);
     const double e2 = GeometryUtilities2D::computeEdgeLength(p2, p0);
@@ -24,7 +24,7 @@ double ElementQuality2D::computeShortestEdgeLength(const TriangleElement& elemen
 
 double ElementQuality2D::computeLongestEdgeLength(const TriangleElement& element) const
 {
-    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+    auto [p0, p1, p2] = geometry_.getElementNodeCoordinates(element);
     const double e0 = GeometryUtilities2D::computeEdgeLength(p0, p1);
     const double e1 = GeometryUtilities2D::computeEdgeLength(p1, p2);
     const double e2 = GeometryUtilities2D::computeEdgeLength(p2, p0);
@@ -75,15 +75,6 @@ std::vector<size_t> ElementQuality2D::getTrianglesSortedByQuality() const
     }
 
     return result;
-}
-
-std::tuple<Point2D, Point2D, Point2D> ElementQuality2D::getElementNodeCoordinates(const TriangleElement& element) const
-{
-    auto nodeIds = element.getNodeIds();
-    const auto* n0 = mesh_.getNode(nodeIds[0]);
-    const auto* n1 = mesh_.getNode(nodeIds[1]);
-    const auto* n2 = mesh_.getNode(nodeIds[2]);
-    return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
 }
 
 } // namespace Meshing

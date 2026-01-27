@@ -5,7 +5,6 @@
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include <optional>
-#include <tuple>
 #include <vector>
 
 namespace Meshing
@@ -32,8 +31,6 @@ public:
     std::vector<size_t> getTrianglesSortedByQuality() const;
 
 private:
-    std::tuple<Point2D, Point2D, Point2D> getElementNodeCoordinates(const TriangleElement& element) const;
-
     const MeshData2D& mesh_;
     ElementGeometry2D geometry_;
 };

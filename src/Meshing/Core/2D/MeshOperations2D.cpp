@@ -59,22 +59,15 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         newVertex = mutator_->addNode(point);
     }
 
-    // Helper to compute signed area for degenerate triangle detection
-    auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double
-    {
-        const Point2D& p1 = meshData_.getNode(n1)->getCoordinates();
-        const Point2D& p2 = meshData_.getNode(n2)->getCoordinates();
-        const Point2D& p3 = meshData_.getNode(n3)->getCoordinates();
-        return 0.5 * ((p2.x() - p1.x()) * (p3.y() - p1.y()) -
-                      (p3.x() - p1.x()) * (p2.y() - p1.y()));
-    };
-
     const double MIN_TRIANGLE_AREA = 1e-10;
 
     for (const auto& edge : boundary)
     {
         // Check if triangle would be degenerate before creating it
-        double area = computeSignedArea(newVertex, edge[0], edge[1]);
+        const Point2D& pNew = meshData_.getNode(newVertex)->getCoordinates();
+        const Point2D& pE0 = meshData_.getNode(edge[0])->getCoordinates();
+        const Point2D& pE1 = meshData_.getNode(edge[1])->getCoordinates();
+        double area = GeometryUtilities2D::computeSignedArea(pNew, pE0, pE1);
 
         if (std::abs(area) < MIN_TRIANGLE_AREA)
         {
@@ -287,15 +280,10 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     }
 
     // Determine which side of the constraint edge each vertex is on
-    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> double
-    {
-        return (q.x() - p.x()) * (r.y() - p.y()) - (q.y() - p.y()) * (r.x() - p.x());
-    };
-
     for (size_t v : boundaryVertices)
     {
         const Point2D& point = meshData_.getNode(v)->getCoordinates();
-        double orient = orientation(p1, p2, point);
+        double orient = GeometryUtilities2D::computeOrientation(p1, p2, point);
 
         if (orient > 1e-10)
         {
@@ -336,11 +324,10 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     // Helper function to compute signed area for orientation checking
     auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double
     {
-        const Point2D& p1 = meshData_.getNode(n1)->getCoordinates();
-        const Point2D& p2 = meshData_.getNode(n2)->getCoordinates();
-        const Point2D& p3 = meshData_.getNode(n3)->getCoordinates();
-        return 0.5 * ((p2.x() - p1.x()) * (p3.y() - p1.y()) -
-                      (p3.x() - p1.x()) * (p2.y() - p1.y()));
+        const Point2D& pt1 = meshData_.getNode(n1)->getCoordinates();
+        const Point2D& pt2 = meshData_.getNode(n2)->getCoordinates();
+        const Point2D& pt3 = meshData_.getNode(n3)->getCoordinates();
+        return GeometryUtilities2D::computeSignedArea(pt1, pt2, pt3);
     };
 
     // Triangulate left polygon using fan triangulation from nodeId1
@@ -483,40 +470,7 @@ void MeshOperations2D::retriangulate(size_t vertexNodeId,
 bool MeshOperations2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
                                          const Point2D& b1, const Point2D& b2) const
 {
-    // Compute orientation of ordered triplet (p, q, r)
-    // Returns: 0 -> colinear, 1 -> clockwise, 2 -> counterclockwise
-    auto orientation = [](const Point2D& p, const Point2D& q, const Point2D& r) -> int
-    {
-        double val = (q.y() - p.y()) * (r.x() - q.x()) -
-                     (q.x() - p.x()) * (r.y() - q.y());
-
-        if (std::abs(val) < 1e-10) return 0;
-        return (val > 0) ? 1 : 2;
-    };
-
-    // Check if point q lies on segment pr
-    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
-    {
-        return q.x() <= std::max(p.x(), r.x()) && q.x() >= std::min(p.x(), r.x()) &&
-               q.y() <= std::max(p.y(), r.y()) && q.y() >= std::min(p.y(), r.y());
-    };
-
-    int o1 = orientation(a1, a2, b1);
-    int o2 = orientation(a1, a2, b2);
-    int o3 = orientation(b1, b2, a1);
-    int o4 = orientation(b1, b2, a2);
-
-    // General case
-    if (o1 != o2 && o3 != o4)
-        return true;
-
-    // Special cases for collinear points
-    if (o1 == 0 && onSegment(a1, b1, a2)) return true;
-    if (o2 == 0 && onSegment(a1, b2, a2)) return true;
-    if (o3 == 0 && onSegment(b1, a1, b2)) return true;
-    if (o4 == 0 && onSegment(b1, a2, b2)) return true;
-
-    return false;
+    return GeometryUtilities2D::segmentsIntersect(a1, a2, b1, b2);
 }
 
 std::vector<ConstrainedSegment2D> MeshOperations2D::extractConstrainedEdges(

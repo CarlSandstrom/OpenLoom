@@ -81,11 +81,7 @@ public:
 
     // Access to mesh data structures
     MeshData2D& getMeshData();
-    MeshMutator2D& getMutator();
     MeshOperations2D& getOperations();
-
-    // Clear mesh (data only, keeps geometry/topology)
-    void clearMesh();
 
     /**
      * @brief Build a face representing the 2D domain including holes
