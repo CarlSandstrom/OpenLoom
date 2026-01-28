@@ -102,7 +102,7 @@ void ShewchukRefiner2D::refine()
 bool ShewchukRefiner2D::refineStep()
 {
     // Priority 1: Handle encroached segments first
-    auto encroachedSegments = context_->getOperations().findEncroachedSegments(constrainedSegments_);
+    auto encroachedSegments = context_->getOperations().getQueries().findEncroachedSegments(constrainedSegments_);
 
     if (!encroachedSegments.empty())
     {
@@ -281,7 +281,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     }
 
     // Check if circumcenter would encroach any segments
-    auto encroachedByCircumcenter = context_->getOperations().findSegmentsEncroachedByPoint(circumcenter, constrainedSegments_);
+    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter, constrainedSegments_);
 
     if (!encroachedByCircumcenter.empty())
     {

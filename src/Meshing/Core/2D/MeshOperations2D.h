@@ -3,6 +3,7 @@
 #include "Common/Types.h"
 #include "Meshing/Core/2D/ElementGeometry2D.h"
 #include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Core/2D/MeshQueries2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include <array>
@@ -10,7 +11,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace Geometry2D
@@ -29,10 +29,11 @@ namespace Meshing
 class MeshMutator2D;
 
 /**
- * @brief General mesh operations for 2D meshes
+ * @brief Mutation operations for 2D meshes
  *
- * Provides high-level mesh operations that build upon MeshMutator2D.
- * Handles algorithms like Bowyer-Watson, cavity finding, and triangle intersection.
+ * Provides high-level mesh operations that modify the mesh, building upon MeshMutator2D.
+ * Handles algorithms like Bowyer-Watson insertion, edge enforcement, and triangle classification.
+ * Uses MeshQueries2D for read-only query operations.
  */
 class MeshOperations2D
 {
@@ -59,29 +60,22 @@ public:
                                     const std::vector<std::string>& edgeIds = {});
 
     /**
-     * @brief Find triangles whose circumcircle contains the point
-     * @param point The point to test
-     * @return Ids of conflicting triangles
+     * @brief Remove all triangles containing a specific node
+     * @param nodeId The node ID to search for
+     * @return True if any triangles were removed
      */
-    std::vector<size_t> findConflictingTriangles(const Point2D& point) const;
-
-    /**
-     * @brief Find the boundary of the cavity formed by conflicting triangles
-     * @param conflictingIndices Indices of conflicting triangles
-     * @return Boundary edges of the cavity
-     */
-    std::vector<std::array<size_t, 2>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
-
     bool removeTrianglesContainingNode(size_t nodeId);
 
     /**
-     * @brief Find triangles that intersect with an edge
+     * @brief Enforce an edge in the mesh
+     *
+     * Ensures the edge exists in the triangulation by removing intersecting
+     * triangles and retriangulating the cavity.
+     *
      * @param nodeId1 First node ID of the edge
      * @param nodeId2 Second node ID of the edge
-     * @return Indices of intersecting triangles
+     * @return True if edge was successfully enforced
      */
-    std::vector<size_t> findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const;
-
     bool enforceEdge(size_t nodeId1, size_t nodeId2);
 
     /**
@@ -99,25 +93,6 @@ public:
         const Geometry2D::IEdge2D& parentEdge);
 
     /**
-     * @brief Extract constrained edges from topology as constrained segments
-     *
-     * Converts topology edge definitions into ConstrainedSegment2D using
-     * the point-to-node mapping from triangulation. If edges have been discretized
-     * into multiple segments, creates constrained segments for each.
-     *
-     * @param topology The topology containing edge definitions
-     * @param cornerIdToPointIndexMap Maps corner IDs to point array indices
-     * @param pointIndexToNodeIdMap Maps point array indices to mesh node IDs
-     * @param edgeIdToPointIndicesMap Maps edge IDs to ordered point indices (including intermediate points)
-     * @return Vector of constrained segments
-     */
-    std::vector<ConstrainedSegment2D> extractConstrainedEdges(
-        const Topology2D::Topology2D& topology,
-        const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const;
-
-    /**
      * @brief Classify triangles as interior/exterior using flood fill from constraint edges
      *
      * Uses mesh topology (constraint edges) to determine which triangles are inside
@@ -129,54 +104,22 @@ public:
     void classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges);
 
     /**
-     * @brief Find all segments encroached by existing mesh vertices
-     *
-     * A segment is encroached if any mesh vertex (other than the segment endpoints)
-     * lies within the segment's diametral circle.
-     *
-     * @param constrainedSegments The constrained segments to check
-     * @return Vector of encroached constrained segments
-     */
-    std::vector<ConstrainedSegment2D> findEncroachedSegments(
-        const std::vector<ConstrainedSegment2D>& constrainedSegments) const;
-
-    /**
-     * @brief Check if a point would encroach any constrained segments
-     *
-     * A point encroaches a segment if it lies within the segment's diametral circle.
-     *
-     * @param point The candidate point to check
-     * @param constrainedSegments The constrained segments to check against
-     * @return Vector of segments that would be encroached by the point
-     */
-    std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(
-        const Point2D& point,
-        const std::vector<ConstrainedSegment2D>& constrainedSegments) const;
-
-    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator2D& getMutator() { return *mutator_; }
     const MeshMutator2D& getMutator() const { return *mutator_; }
 
+    /**
+     * @brief Get the mesh queries for read-only operations
+     */
+    MeshQueries2D& getQueries() { return queries_; }
+    const MeshQueries2D& getQueries() const { return queries_; }
+
 private:
     MeshData2D& meshData_;
+    MeshQueries2D queries_;
     std::unique_ptr<MeshMutator2D> mutator_;
     std::unique_ptr<ElementGeometry2D> geometry_;
-
-    /**
-     * @brief Check if two 2D segments intersect
-     */
-    bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                           const Point2D& b1, const Point2D& b2) const;
-
-    /**
-     * @brief Create ordered edge key for lookups
-     */
-    static std::pair<size_t, size_t> makeEdgeKey(size_t a, size_t b)
-    {
-        return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
-    }
 };
 
 } // namespace Meshing

@@ -54,10 +54,10 @@ void ConstrainedDelaunay2D::triangulate()
     delaunay.triangulate();
 
     // Extract constrained edges
-    constrainedEdges_ = meshOperations_->extractConstrainedEdges(context_->getTopology(),
-                                                                 pointsOnEdges.cornerIdToPointIndexMap,
-                                                                 delaunay.getPointIndexToNodeIdMap(),
-                                                                 pointsOnEdges.edgeIdToPointIndicesMap);
+    constrainedEdges_ = meshOperations_->getQueries().extractConstrainedEdges(context_->getTopology(),
+                                                                              pointsOnEdges.cornerIdToPointIndexMap,
+                                                                              delaunay.getPointIndexToNodeIdMap(),
+                                                                              pointsOnEdges.edgeIdToPointIndicesMap);
 
     exportAndVerifyMesh();
 
