@@ -60,7 +60,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraFindsContainingTet)
 
     // Point inside the tetrahedron should be in its circumsphere
     Point3D centroid(1.0, 0.625, 0.5);
-    auto conflicting = operations.findConflictingTetrahedra(centroid);
+    auto conflicting = operations.getQueries().findConflictingTetrahedra(centroid);
 
     EXPECT_EQ(conflicting.size(), 1);
 }
@@ -79,7 +79,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraReturnsEmptyForFarPoint)
 
     // Point far from tetrahedron
     Point3D farPoint(100.0, 100.0, 100.0);
-    auto conflicting = operations.findConflictingTetrahedra(farPoint);
+    auto conflicting = operations.getQueries().findConflictingTetrahedra(farPoint);
 
     EXPECT_TRUE(conflicting.empty());
 }
@@ -100,7 +100,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraMultipleTets)
 
     // Point at the shared face centroid - might conflict with both
     Point3D sharedFaceCentroid(1.0, 0.67, 0.0);
-    auto conflicting = operations.findConflictingTetrahedra(sharedFaceCentroid);
+    auto conflicting = operations.getQueries().findConflictingTetrahedra(sharedFaceCentroid);
 
     // Should find at least one tetrahedron
     EXPECT_GE(conflicting.size(), 1);
@@ -123,7 +123,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundarySingleTet)
     MeshOperations3D operations(meshData_);
 
     std::vector<size_t> conflicting = {tetId};
-    auto boundary = operations.findCavityBoundary(conflicting);
+    auto boundary = operations.getQueries().findCavityBoundary(conflicting);
 
     // A single tetrahedron has 4 faces, all on boundary
     EXPECT_EQ(boundary.size(), 4);
@@ -144,7 +144,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundaryTwoAdjacentTets)
     MeshOperations3D operations(meshData_);
 
     std::vector<size_t> conflicting = {tetId1, tetId2};
-    auto boundary = operations.findCavityBoundary(conflicting);
+    auto boundary = operations.getQueries().findCavityBoundary(conflicting);
 
     // Two tets share one face, so boundary = 4 + 4 - 2 = 6 faces
     EXPECT_EQ(boundary.size(), 6);
@@ -287,7 +287,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraEmptyMesh)
     MeshOperations3D operations(meshData_);
 
     Point3D anyPoint(1.0, 1.0, 1.0);
-    auto conflicting = operations.findConflictingTetrahedra(anyPoint);
+    auto conflicting = operations.getQueries().findConflictingTetrahedra(anyPoint);
 
     EXPECT_TRUE(conflicting.empty());
 }
@@ -297,7 +297,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundaryEmptyList)
     MeshOperations3D operations(meshData_);
 
     std::vector<size_t> empty;
-    auto boundary = operations.findCavityBoundary(empty);
+    auto boundary = operations.getQueries().findCavityBoundary(empty);
 
     EXPECT_TRUE(boundary.empty());
 }
@@ -768,13 +768,13 @@ TEST_F(MeshOperations3DTest, EdgeExistsInMeshReturnsTrue)
     MeshOperations3D operations(meshData_);
 
     // All edges of the tetrahedron should exist
-    EXPECT_TRUE(operations.edgeExistsInMesh(n0, n1));
-    EXPECT_TRUE(operations.edgeExistsInMesh(n1, n0)); // Order should not matter
-    EXPECT_TRUE(operations.edgeExistsInMesh(n0, n2));
-    EXPECT_TRUE(operations.edgeExistsInMesh(n0, n3));
-    EXPECT_TRUE(operations.edgeExistsInMesh(n1, n2));
-    EXPECT_TRUE(operations.edgeExistsInMesh(n1, n3));
-    EXPECT_TRUE(operations.edgeExistsInMesh(n2, n3));
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n0, n1));
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n1, n0)); // Order should not matter
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n0, n2));
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n0, n3));
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n1, n2));
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n1, n3));
+    EXPECT_TRUE(operations.getQueries().edgeExistsInMesh(n2, n3));
 }
 
 TEST_F(MeshOperations3DTest, EdgeExistsInMeshReturnsFalse)
@@ -789,8 +789,8 @@ TEST_F(MeshOperations3DTest, EdgeExistsInMeshReturnsFalse)
     MeshOperations3D operations(meshData_);
 
     // Edge to isolated node should not exist
-    EXPECT_FALSE(operations.edgeExistsInMesh(n0, n4));
-    EXPECT_FALSE(operations.edgeExistsInMesh(n4, n1));
+    EXPECT_FALSE(operations.getQueries().edgeExistsInMesh(n0, n4));
+    EXPECT_FALSE(operations.getQueries().edgeExistsInMesh(n4, n1));
 }
 
 TEST_F(MeshOperations3DTest, FindTetrahedraWithEdgeReturnsCorrectTets)
@@ -807,15 +807,15 @@ TEST_F(MeshOperations3DTest, FindTetrahedraWithEdgeReturnsCorrectTets)
     MeshOperations3D operations(meshData_);
 
     // Edge n0-n1 is shared by both tetrahedra
-    auto tets = operations.findTetrahedraWithEdge(n0, n1);
+    auto tets = operations.getQueries().findTetrahedraWithEdge(n0, n1);
     EXPECT_EQ(tets.size(), 2);
 
     // Edge n2-n3 is only in the first tetrahedron
-    tets = operations.findTetrahedraWithEdge(n2, n3);
+    tets = operations.getQueries().findTetrahedraWithEdge(n2, n3);
     EXPECT_EQ(tets.size(), 1);
 
     // Edge n2-n4 is only in the second tetrahedron
-    tets = operations.findTetrahedraWithEdge(n2, n4);
+    tets = operations.getQueries().findTetrahedraWithEdge(n2, n4);
     EXPECT_EQ(tets.size(), 1);
 }
 
@@ -830,14 +830,14 @@ TEST_F(MeshOperations3DTest, FaceExistsInMeshReturnsTrue)
     MeshOperations3D operations(meshData_);
 
     // All faces of the tetrahedron should exist
-    EXPECT_TRUE(operations.faceExistsInMesh(n0, n1, n2));
-    EXPECT_TRUE(operations.faceExistsInMesh(n0, n1, n3));
-    EXPECT_TRUE(operations.faceExistsInMesh(n0, n2, n3));
-    EXPECT_TRUE(operations.faceExistsInMesh(n1, n2, n3));
+    EXPECT_TRUE(operations.getQueries().faceExistsInMesh(n0, n1, n2));
+    EXPECT_TRUE(operations.getQueries().faceExistsInMesh(n0, n1, n3));
+    EXPECT_TRUE(operations.getQueries().faceExistsInMesh(n0, n2, n3));
+    EXPECT_TRUE(operations.getQueries().faceExistsInMesh(n1, n2, n3));
 
     // Order should not matter
-    EXPECT_TRUE(operations.faceExistsInMesh(n2, n1, n0));
-    EXPECT_TRUE(operations.faceExistsInMesh(n3, n0, n1));
+    EXPECT_TRUE(operations.getQueries().faceExistsInMesh(n2, n1, n0));
+    EXPECT_TRUE(operations.getQueries().faceExistsInMesh(n3, n0, n1));
 }
 
 TEST_F(MeshOperations3DTest, FaceExistsInMeshReturnsFalse)
@@ -852,8 +852,8 @@ TEST_F(MeshOperations3DTest, FaceExistsInMeshReturnsFalse)
     MeshOperations3D operations(meshData_);
 
     // Face including isolated node should not exist
-    EXPECT_FALSE(operations.faceExistsInMesh(n0, n1, n4));
-    EXPECT_FALSE(operations.faceExistsInMesh(n4, n2, n3));
+    EXPECT_FALSE(operations.getQueries().faceExistsInMesh(n0, n1, n4));
+    EXPECT_FALSE(operations.getQueries().faceExistsInMesh(n4, n2, n3));
 }
 
 TEST_F(MeshOperations3DTest, FindTetrahedraWithFaceReturnsCorrectTets)
@@ -870,15 +870,15 @@ TEST_F(MeshOperations3DTest, FindTetrahedraWithFaceReturnsCorrectTets)
     MeshOperations3D operations(meshData_);
 
     // Face n0-n1-n2 is shared by both tetrahedra
-    auto tets = operations.findTetrahedraWithFace(n0, n1, n2);
+    auto tets = operations.getQueries().findTetrahedraWithFace(n0, n1, n2);
     EXPECT_EQ(tets.size(), 2);
 
     // Face n0-n1-n3 is only in the first tetrahedron
-    tets = operations.findTetrahedraWithFace(n0, n1, n3);
+    tets = operations.getQueries().findTetrahedraWithFace(n0, n1, n3);
     EXPECT_EQ(tets.size(), 1);
 
     // Face n0-n1-n4 is only in the second tetrahedron
-    tets = operations.findTetrahedraWithFace(n0, n1, n4);
+    tets = operations.getQueries().findTetrahedraWithFace(n0, n1, n4);
     EXPECT_EQ(tets.size(), 1);
 }
 
@@ -893,16 +893,16 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexReturnsCorrectNode)
     MeshOperations3D operations(meshData_);
 
     // n3 is opposite to face n0-n1-n2
-    EXPECT_EQ(operations.findOppositeVertex(tetId, n0, n1, n2), n3);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(tetId, n0, n1, n2), n3);
 
     // n0 is opposite to face n1-n2-n3
-    EXPECT_EQ(operations.findOppositeVertex(tetId, n1, n2, n3), n0);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(tetId, n1, n2, n3), n0);
 
     // n1 is opposite to face n0-n2-n3
-    EXPECT_EQ(operations.findOppositeVertex(tetId, n0, n2, n3), n1);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(tetId, n0, n2, n3), n1);
 
     // n2 is opposite to face n0-n1-n3
-    EXPECT_EQ(operations.findOppositeVertex(tetId, n0, n1, n3), n2);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(tetId, n0, n1, n3), n2);
 }
 
 TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
@@ -916,7 +916,7 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
     MeshOperations3D operations(meshData_);
 
     // Invalid tetrahedron ID
-    EXPECT_EQ(operations.findOppositeVertex(9999, n0, n1, n2), SIZE_MAX);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(9999, n0, n1, n2), SIZE_MAX);
 }
 
 // ============================================================================
@@ -936,7 +936,7 @@ TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraReturnsEmptyForGoodMesh)
     MeshOperations3D operations(meshData_);
 
     // Regular tetrahedron has B ratio around 0.61, so bound of 2 should find nothing
-    auto skinny = operations.findSkinnyTetrahedra(2.0);
+    auto skinny = operations.getQueries().findSkinnyTetrahedra(2.0);
     EXPECT_TRUE(skinny.empty());
 }
 
@@ -952,7 +952,7 @@ TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraFindsBadTets)
     MeshOperations3D operations(meshData_);
 
     // Flat tetrahedron should have high B ratio
-    auto skinny = operations.findSkinnyTetrahedra(2.0);
+    auto skinny = operations.getQueries().findSkinnyTetrahedra(2.0);
     EXPECT_FALSE(skinny.empty());
 }
 
@@ -968,11 +968,11 @@ TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraWithDifferentBounds)
     MeshOperations3D operations(meshData_);
 
     // Very permissive bound should find nothing
-    auto skinny1 = operations.findSkinnyTetrahedra(100.0);
+    auto skinny1 = operations.getQueries().findSkinnyTetrahedra(100.0);
     EXPECT_TRUE(skinny1.empty());
 
     // Very strict bound might find the tet
-    auto skinny2 = operations.findSkinnyTetrahedra(0.5);
+    auto skinny2 = operations.getQueries().findSkinnyTetrahedra(0.5);
     // Either finds it or doesn't depending on actual quality
     // Just verify it doesn't crash and returns a vector
     EXPECT_GE(skinny2.size(), 0);
@@ -1006,7 +1006,7 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubsegmentsDetectsEncroachment)
     // Check a point on the diametral sphere boundary (shouldn't encroach)
     // The midpoint IS the center of the diametral sphere
     Point3D nearMidpoint(1.0, 0.5, 0.0); // Inside diametral sphere
-    auto encroached = operations.findEncroachingSubsegments(nearMidpoint, subsegments);
+    auto encroached = operations.getQueries().findEncroachingSubsegments(nearMidpoint, subsegments);
     EXPECT_EQ(encroached.size(), 1);
 }
 
@@ -1029,7 +1029,7 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubsegmentsNoEncroachment)
 
     // Point far from subsegment
     Point3D farPoint(10.0, 10.0, 10.0);
-    auto encroached = operations.findEncroachingSubsegments(farPoint, subsegments);
+    auto encroached = operations.getQueries().findEncroachingSubsegments(farPoint, subsegments);
     EXPECT_TRUE(encroached.empty());
 }
 
@@ -1058,7 +1058,7 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubfacetsDetectsEncroachment)
 
     // Non-coplanar point close to the face (inside equatorial sphere)
     Point3D nearPoint(1.0, 0.5, 0.3);
-    auto encroached = operations.findEncroachingSubfacets(nearPoint, subfacets);
+    auto encroached = operations.getQueries().findEncroachingSubfacets(nearPoint, subfacets);
     EXPECT_EQ(encroached.size(), 1);
 }
 
@@ -1082,6 +1082,6 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubfacetsNoEncroachment)
 
     // Point far from subfacet
     Point3D farPoint(100.0, 100.0, 100.0);
-    auto encroached = operations.findEncroachingSubfacets(farPoint, subfacets);
+    auto encroached = operations.getQueries().findEncroachingSubfacets(farPoint, subfacets);
     EXPECT_TRUE(encroached.empty());
 }
