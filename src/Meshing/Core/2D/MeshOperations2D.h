@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace Geometry2D
@@ -93,15 +94,23 @@ public:
         const Geometry2D::IEdge2D& parentEdge);
 
     /**
-     * @brief Classify triangles as interior/exterior using flood fill from constraint edges
+     * @brief Classify and remove exterior triangles using flood fill from constraint edges
      *
-     * Uses mesh topology (constraint edges) to determine which triangles are inside
-     * the domain vs outside or in holes. Finds a seed triangle farthest from constraints,
-     * performs BFS flood fill respecting constraint boundaries, and removes unreached triangles.
+     * Convenience method that combines classification and removal. Uses MeshQueries2D to
+     * classify triangles, then removes those outside the domain or in holes.
      *
      * @param constrainedEdges Vector of constraint edges that form domain boundaries
      */
     void classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges);
+
+    /**
+     * @brief Remove all triangles outside the domain or in holes
+     *
+     * Removes all triangles that are not in the provided set of interior triangles.
+     *
+     * @param interiorTriangles Set of triangle IDs that should be kept (are inside the domain)
+     */
+    void removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles);
 
     /**
      * @brief Get the mesh mutator for primitive operations

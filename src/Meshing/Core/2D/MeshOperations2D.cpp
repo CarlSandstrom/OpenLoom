@@ -398,211 +398,24 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
     return std::make_pair(seg1, seg2);
 }
 
-// Flood fill-based triangle classification
 void MeshOperations2D::classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges)
 {
-    if (meshData_.getElements().empty())
-    {
-        spdlog::warn("classifyTrianglesInteriorExterior: No triangles in mesh");
-        return;
-    }
+    std::unordered_set<size_t> interiorTriangles = queries_.classifyTrianglesInteriorExterior(constrainedEdges);
+    removeExteriorTriangles(interiorTriangles);
+}
 
-    if (constrainedEdges.empty())
-    {
-        spdlog::warn("classifyTrianglesInteriorExterior: No constraint edges, skipping classification");
-        return;
-    }
-
-    // Helper: Check if an edge is a constraint edge
-    auto isConstraintEdge = [&](size_t nodeId1, size_t nodeId2) -> bool
-    {
-        for (const auto& segment : constrainedEdges)
-        {
-            if ((segment.nodeId1 == nodeId1 && segment.nodeId2 == nodeId2) ||
-                (segment.nodeId1 == nodeId2 && segment.nodeId2 == nodeId1))
-            {
-                return true;
-            }
-        }
-        return false;
-    };
-
-    // Helper: Compute distance from point to line segment
-    auto pointToSegmentDistance = [](const Point2D& p, const Point2D& a, const Point2D& b) -> double
-    {
-        Point2D ab = b - a;
-        Point2D ap = p - a;
-
-        double abLengthSq = ab.x() * ab.x() + ab.y() * ab.y();
-        if (abLengthSq < 1e-12)
-        {
-            return std::sqrt(ap.x() * ap.x() + ap.y() * ap.y());
-        }
-
-        double t = (ap.x() * ab.x() + ap.y() * ab.y()) / abLengthSq;
-        t = std::max(0.0, std::min(1.0, t));
-
-        Point2D projection = a + Point2D(ab.x() * t, ab.y() * t);
-        Point2D diff = p - projection;
-        return std::sqrt(diff.x() * diff.x() + diff.y() * diff.y());
-    };
-
-    // Helper: Compute centroid of triangle
-    auto computeCentroid = [&](const TriangleElement* triangle) -> Point2D
-    {
-        const auto& nodeIds = triangle->getNodeIdArray();
-        Point2D p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
-        Point2D p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
-        Point2D p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
-        return Point2D((p0.x() + p1.x() + p2.x()) / 3.0,
-                       (p0.y() + p1.y() + p2.y()) / 3.0);
-    };
-
-    // Step 1: Find seed triangle (farthest from all constraint edges)
-    TriangleElement* seedTriangle = nullptr;
-    size_t seedTriangleId = SIZE_MAX;
-    double maxMinDistance = -1.0;
-
-    for (const auto& [elemId, element] : meshData_.getElements())
-    {
-        auto* triangle = dynamic_cast<TriangleElement*>(element.get());
-        if (!triangle)
-            continue;
-
-        Point2D centroid = computeCentroid(triangle);
-        double minDistToConstraint = std::numeric_limits<double>::max();
-
-        for (const auto& segment : constrainedEdges)
-        {
-            const Node2D* node1 = meshData_.getNode(segment.nodeId1);
-            const Node2D* node2 = meshData_.getNode(segment.nodeId2);
-
-            if (!node1 || !node2)
-                continue;
-
-            Point2D p1 = node1->getCoordinates();
-            Point2D p2 = node2->getCoordinates();
-            double dist = pointToSegmentDistance(centroid, p1, p2);
-            minDistToConstraint = std::min(minDistToConstraint, dist);
-        }
-
-        if (minDistToConstraint > maxMinDistance)
-        {
-            maxMinDistance = minDistToConstraint;
-            seedTriangle = triangle;
-            seedTriangleId = elemId;
-        }
-    }
-
-    if (!seedTriangle || seedTriangleId == SIZE_MAX)
-    {
-        spdlog::error("classifyTrianglesInteriorExterior: Could not find seed triangle");
-        return;
-    }
-
-    spdlog::info("classifyTrianglesInteriorExterior: Found seed triangle {} with min distance {} to constraints",
-                 seedTriangleId, maxMinDistance);
-
-    // Step 2: Build edge-to-triangles adjacency map
-    using EdgeKey = std::pair<size_t, size_t>;
-    struct EdgeKeyHash
-    {
-        std::size_t operator()(const EdgeKey& key) const
-        {
-            return std::hash<size_t>{}(key.first) ^ (std::hash<size_t>{}(key.second) << 1);
-        }
-    };
-    std::unordered_map<EdgeKey, std::vector<size_t>, EdgeKeyHash> edgeToTriangles;
-
-    for (const auto& [elemId, element] : meshData_.getElements())
-    {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (!triangle)
-            continue;
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-            auto edge = triangle->getEdge(i);
-            EdgeKey key = MeshQueries2D::makeEdgeKey(edge[0], edge[1]);
-            edgeToTriangles[key].push_back(elemId);
-        }
-    }
-
-    // Step 3: Perform BFS flood fill starting from seed triangle
-    std::unordered_set<size_t> insideTriangles;
-    std::queue<size_t> queue;
-
-    queue.push(seedTriangleId);
-    insideTriangles.insert(seedTriangleId);
-
-    size_t visitedCount = 0;
-    while (!queue.empty())
-    {
-        size_t currentTriId = queue.front();
-        queue.pop();
-        visitedCount++;
-
-        const IElement* elem = meshData_.getElement(currentTriId);
-        if (!elem)
-            continue;
-
-        const auto* triangle = dynamic_cast<const TriangleElement*>(elem);
-        if (!triangle)
-            continue;
-
-        // Check all three edges of the current triangle
-        for (size_t i = 0; i < 3; ++i)
-        {
-            auto edge = triangle->getEdge(i);
-            size_t node1 = edge[0];
-            size_t node2 = edge[1];
-
-            // Don't cross constraint edges
-            if (isConstraintEdge(node1, node2))
-            {
-                continue;
-            }
-
-            // Find adjacent triangle through this edge
-            EdgeKey edgeKey = MeshQueries2D::makeEdgeKey(node1, node2);
-            auto it = edgeToTriangles.find(edgeKey);
-            if (it == edgeToTriangles.end())
-            {
-                continue;
-            }
-
-            const auto& adjacentTriangles = it->second;
-
-            // Find the neighbor (the triangle that is not currentTriId)
-            for (size_t neighborId : adjacentTriangles)
-            {
-                if (neighborId == currentTriId)
-                    continue;
-
-                // If we haven't visited this neighbor yet, add it to the flood fill
-                if (insideTriangles.find(neighborId) == insideTriangles.end())
-                {
-                    insideTriangles.insert(neighborId);
-                    queue.push(neighborId);
-                }
-            }
-        }
-    }
-
-    spdlog::info("classifyTrianglesInteriorExterior: Flood fill visited {} triangles", visitedCount);
-    spdlog::info("classifyTrianglesInteriorExterior: Marked {} triangles as inside", insideTriangles.size());
-
-    // Step 4: Remove triangles that were not reached (outside or in holes)
+void MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles)
+{
     std::vector<size_t> trianglesToRemove;
     for (const auto& [elemId, element] : meshData_.getElements())
     {
-        if (insideTriangles.find(elemId) == insideTriangles.end())
+        if (interiorTriangles.find(elemId) == interiorTriangles.end())
         {
             trianglesToRemove.push_back(elemId);
         }
     }
 
-    spdlog::info("classifyTrianglesInteriorExterior: Removing {} triangles (outside or in holes)",
+    spdlog::info("removeExteriorTriangles: Removing {} triangles (outside or in holes)",
                  trianglesToRemove.size());
 
     for (size_t elemId : trianglesToRemove)
@@ -610,7 +423,7 @@ void MeshOperations2D::classifyTrianglesInteriorExterior(const std::vector<Const
         mutator_->removeElement(elemId);
     }
 
-    spdlog::info("classifyTrianglesInteriorExterior: Complete - {} triangles remaining",
+    spdlog::info("removeExteriorTriangles: Complete - {} triangles remaining",
                  meshData_.getElements().size());
 }
 

@@ -7,6 +7,7 @@
 #include <array>
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace Geometry2D
@@ -125,6 +126,19 @@ public:
     {
         return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
     }
+
+    /**
+     * @brief Classify triangles as interior using flood fill from constraint edges
+     *
+     * Uses mesh topology (constraint edges) to determine which triangles are inside
+     * the domain. Finds a seed triangle farthest from constraints, performs BFS flood
+     * fill respecting constraint boundaries, and returns the set of interior triangles.
+     *
+     * @param constrainedEdges Vector of constraint edges that form domain boundaries
+     * @return Set of triangle IDs that are inside the domain
+     */
+    std::unordered_set<size_t> classifyTrianglesInteriorExterior(
+        const std::vector<ConstrainedSegment2D>& constrainedEdges) const;
 
 private:
     const MeshData2D& meshData_;
