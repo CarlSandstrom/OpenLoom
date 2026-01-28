@@ -3,7 +3,6 @@
 #include "Common/Exceptions/MeshException.h"
 #include "Delaunay2D.h"
 #include "Export/VtkExporter.h"
-#include "Geometry/2D/Base/GeometryOperations2D.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
@@ -20,10 +19,10 @@ namespace Meshing
 {
 
 ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context,
-                                             const Geometry2D::DiscretizationSettings2D& discretizationSettings,
+                                             const DiscretizationResult2D& discretization,
                                              const std::vector<Point2D>& additionalPoints) :
     context_(&context),
-    discretizationSettings_(discretizationSettings),
+    discretization_(discretization),
     additionalPoints_(additionalPoints),
     meshData2D_(&context.getMeshData()),
     meshOperations_(&context.getOperations())
@@ -32,17 +31,10 @@ ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context,
 
 void ConstrainedDelaunay2D::triangulate()
 {
-    // Create geometry operations for this geometry
-    Geometry2D::GeometryOperations2D geometryOps(context_->getGeometry());
-
-    // Extract points from geometry with discretization
-    auto pointsOnEdges = geometryOps.extractPointsWithEdgeDiscretization(context_->getTopology(),
-                                                                         discretizationSettings_);
-
-    // Add additional points
-    std::vector<Point2D> allPoints = pointsOnEdges.points;
-    std::vector<std::vector<double>> allTParameters = pointsOnEdges.tParameters;
-    std::vector<std::vector<std::string>> allGeometryIds = pointsOnEdges.geometryIds;
+    // Add additional points to the discretized points
+    std::vector<Point2D> allPoints = discretization_.points;
+    std::vector<std::vector<double>> allTParameters = discretization_.tParameters;
+    std::vector<std::vector<std::string>> allGeometryIds = discretization_.geometryIds;
 
     allPoints.insert(allPoints.end(), additionalPoints_.begin(), additionalPoints_.end());
     // Additional points don't have edge parameters or geometry IDs (empty vectors)
@@ -55,9 +47,9 @@ void ConstrainedDelaunay2D::triangulate()
 
     // Extract constrained edges
     constrainedEdges_ = meshOperations_->getQueries().extractConstrainedEdges(context_->getTopology(),
-                                                                              pointsOnEdges.cornerIdToPointIndexMap,
+                                                                              discretization_.cornerIdToPointIndexMap,
                                                                               delaunay.getPointIndexToNodeIdMap(),
-                                                                              pointsOnEdges.edgeIdToPointIndicesMap);
+                                                                              discretization_.edgeIdToPointIndicesMap);
 
     exportAndVerifyMesh();
 

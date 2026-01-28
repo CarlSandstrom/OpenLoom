@@ -1,19 +1,13 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Geometry/2D/Base/DiscretizationSettings2D.h"
+#include "DiscretizationResult2D.h"
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include <memory>
 #include <optional>
 #include <vector>
-
-namespace Geometry2D
-{
-class IFace2D;
-class DiscretizationSettings2D;
-} // namespace Geometry2D
 
 namespace Meshing
 {
@@ -27,15 +21,12 @@ public:
     /**
      * @brief Construct 2D Delaunay triangulator with MeshingContext2D
      *
-     * This constructor enables the generateConstrained() workflow,
-     * similar to ConstrainedDelaunay3D.
-     *
      * @param context The 2D meshing context containing geometry and topology
-     * @param discretizationSettings Settings for discretizing geometry (optional)
+     * @param discretization Pre-computed edge discretization from EdgeDiscretizer2D
      * @param additionalPoints Additional points to include in triangulation (optional)
      */
     explicit ConstrainedDelaunay2D(MeshingContext2D& context,
-                                   const Geometry2D::DiscretizationSettings2D& discretizationSettings = {},
+                                   const DiscretizationResult2D& discretization,
                                    const std::vector<Point2D>& additionalPoints = {});
 
     ~ConstrainedDelaunay2D() = default;
@@ -50,7 +41,7 @@ private:
     size_t exportCounter_ = 0;
 
     std::vector<ConstrainedSegment2D> constrainedEdges_;
-    Geometry2D::DiscretizationSettings2D discretizationSettings_;
+    DiscretizationResult2D discretization_;
     std::vector<Point2D> additionalPoints_;
 
     // Non-owning pointers, obtained from context_

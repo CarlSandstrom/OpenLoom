@@ -5,6 +5,7 @@
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
+#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Shewchuk2DQualityController.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
@@ -136,11 +137,17 @@ int main()
 
     // Create meshing context and triangulate
     MeshingContext2D context(std::move(geometry), std::move(topology));
-    ConstrainedDelaunay2D mesher(context);
 
+    // Discretize edges
+    EdgeDiscretizer2D discretizer(context);
+    auto discretization = discretizer.discretize();
+
+    // Create constrained Delaunay triangulator
+    ConstrainedDelaunay2D mesher(context, discretization);
     spdlog::info("Generating constrained Delaunay triangulation with circular hole...");
     mesher.triangulate();
 
+    // Refine mesh with ShewchukRefiner2D
     spdlog::info("Refining mesh with ShewchukRefiner2D...");
     Shewchuk2DQualityController qualityController(context.getMeshData(),
                                                   2.0,        // Max circumradius to shortest edge ratio

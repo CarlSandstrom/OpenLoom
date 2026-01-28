@@ -1,6 +1,8 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"
+#include "Meshing/Core/3D/Shewchuk3DQualityController.h"
+#include "Meshing/Core/3D/ShewchukRefiner3D.h"
 #include "spdlog/spdlog.h"
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopoDS_Shape.hxx>
@@ -17,6 +19,17 @@ int main()
         converter.getTopology());
 
     // TODO: Implement 3D meshing algorithm
+    Meshing::Shewchuk3DQualityController qualityController(
+        context.getMeshData(),
+        2.5,  // Min radius-edge ratio
+        10000 // Max elements
+    );
+    std::vector<Meshing::ConstrainedSubsegment3D> constrainedSubsegments;
+    std::vector<Meshing::ConstrainedSubfacet3D> constrainedSubfacets;
+    Meshing::ShewchukRefiner3D refiner(context,
+                                       qualityController,
+                                       constrainedSubsegments,
+                                       constrainedSubfacets);
     // Meshing::SimpleMesher mesher;
     // mesher.generate(context);
 

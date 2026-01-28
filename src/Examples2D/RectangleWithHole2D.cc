@@ -3,6 +3,7 @@
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
+#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -92,7 +93,9 @@ int main()
     MeshingContext2D context(std::move(geometry), std::move(topology));
 
     // Create constrained Delaunay triangulator
-    ConstrainedDelaunay2D mesher(context);
+    EdgeDiscretizer2D discretizer(context);
+    auto discretization = discretizer.discretize();
+    ConstrainedDelaunay2D mesher(context, discretization);
 
     // Generate constrained mesh with 15 samples per edge
     spdlog::info("Generating constrained Delaunay triangulation...");
