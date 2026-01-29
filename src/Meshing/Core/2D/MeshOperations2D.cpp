@@ -398,13 +398,7 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
     return std::make_pair(seg1, seg2);
 }
 
-void MeshOperations2D::classifyTrianglesInteriorExterior(const std::vector<ConstrainedSegment2D>& constrainedEdges)
-{
-    std::unordered_set<size_t> interiorTriangles = queries_.classifyTrianglesInteriorExterior(constrainedEdges);
-    removeExteriorTriangles(interiorTriangles);
-}
-
-void MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles)
+std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles)
 {
     std::vector<size_t> trianglesToRemove;
     for (const auto& [elemId, element] : meshData_.getElements())
@@ -425,6 +419,8 @@ void MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>&
 
     spdlog::info("removeExteriorTriangles: Complete - {} triangles remaining",
                  meshData_.getElements().size());
+
+    return trianglesToRemove;
 }
 
 } // namespace Meshing
