@@ -10,6 +10,7 @@
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -48,6 +49,11 @@ void ShewchukRefiner2D::refine()
         // Check mesh quality
         MeshData3D meshData3D(context_->getMeshData());
         MeshConnectivity connectivity(meshData3D);
+        /*
+                {
+                    Export::VtkExporter exporter;
+                    exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_Iteration" + std::to_string(iterationCount) + ".vtu");
+                } */
 
         if (qualityController_->isMeshAcceptable(context_->getMeshData(), connectivity))
         {
@@ -84,7 +90,14 @@ void ShewchukRefiner2D::refine()
             if (iterationCount % 10 == 0)
             {
                 spdlog::debug("ShewchukRefiner2D: Periodic triangle re-classification at iteration {}", iterationCount);
-                context_->getOperations().classifyTrianglesInteriorExterior(constrainedSegments_);
+                auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior(constrainedSegments_);
+                auto removedIds = context_->getOperations().removeExteriorTriangles(interiorTriangles);
+
+                // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
+                for (size_t id : removedIds)
+                {
+                    unrefinableTriangles_.erase(id);
+                }
             }
         }
 
@@ -96,7 +109,14 @@ void ShewchukRefiner2D::refine()
     // Re-classify triangles after refinement to remove any that ended up in holes
     // Refinement can create triangles that cross constraint boundaries
     spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
-    context_->getOperations().classifyTrianglesInteriorExterior(constrainedSegments_);
+    auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior(constrainedSegments_);
+    auto removedIds = context_->getOperations().removeExteriorTriangles(interiorTriangles);
+
+    // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
+    for (size_t id : removedIds)
+    {
+        unrefinableTriangles_.erase(id);
+    }
 }
 
 bool ShewchukRefiner2D::refineStep()
@@ -202,7 +222,7 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     }
 
     // Split the segment
-    auto splitResult = context_->getOperations().splitConstrainedSegment(segment, *edge);
+    auto splitResult = context_->getOperations().splitConstrainedSegment(segment, *edge, constrainedSegments_);
 
     if (!splitResult.has_value())
     {
@@ -229,7 +249,6 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     spdlog::debug("ShewchukRefiner2D: Successfully split segment into ({}, {}) and ({}, {})",
                   splitResult->first.nodeId1, splitResult->first.nodeId2,
                   splitResult->second.nodeId1, splitResult->second.nodeId2);
-    // exportAndVerifyMesh(); // Disabled during refinement - flood fill at end will clean up
 }
 
 bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)

@@ -130,7 +130,7 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
 }
 
 bool MeshQueries2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                       const Point2D& b1, const Point2D& b2) const
+                                      const Point2D& b1, const Point2D& b2) const
 {
     return GeometryUtilities2D::segmentsIntersect(a1, a2, b1, b2);
 }
@@ -226,6 +226,31 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
     }
 
     return encroached;
+}
+
+std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const
+{
+    std::vector<size_t> adjacent;
+    auto edgeKey = makeEdgeKey(nodeId1, nodeId2);
+
+    for (const auto& [elemId, element] : meshData_.getElements())
+    {
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (!triangle)
+            continue;
+
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = triangle->getEdge(i);
+            if (makeEdgeKey(edge[0], edge[1]) == edgeKey)
+            {
+                adjacent.push_back(elemId);
+                break;
+            }
+        }
+    }
+
+    return adjacent;
 }
 
 std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior(

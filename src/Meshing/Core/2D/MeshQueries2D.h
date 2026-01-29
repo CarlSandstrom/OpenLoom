@@ -128,6 +128,15 @@ public:
     }
 
     /**
+     * @brief Find the 1 or 2 triangles sharing a given edge
+     *
+     * @param nodeId1 First node ID of the edge
+     * @param nodeId2 Second node ID of the edge
+     * @return Vector of triangle IDs adjacent to the edge (0, 1, or 2)
+     */
+    std::vector<size_t> findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const;
+
+    /**
      * @brief Classify triangles as interior using flood fill from constraint edges
      *
      * Uses mesh topology (constraint edges) to determine which triangles are inside

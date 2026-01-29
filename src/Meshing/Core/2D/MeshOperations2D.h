@@ -83,15 +83,17 @@ public:
      * @brief Split a constrained segment at its parametric midpoint
      *
      * Uses the parent edge geometry to find the correct midpoint on curved edges.
-     * Inserts the new node via Bowyer-Watson and re-enforces both resulting segments.
+     * Splits adjacent triangles directly and restores Delaunay property via Lawson flipping.
      *
      * @param segment The constrained segment to split
      * @param parentEdge The geometric edge the segment lies on
+     * @param constrainedSegments All constrained segments (to avoid flipping them)
      * @return Pair of new segments, or nullopt if split failed
      */
     std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> splitConstrainedSegment(
         const ConstrainedSegment2D& segment,
-        const Geometry2D::IEdge2D& parentEdge);
+        const Geometry2D::IEdge2D& parentEdge,
+        const std::vector<ConstrainedSegment2D>& constrainedSegments);
 
     /**
      * @brief Remove all triangles outside the domain or in holes
@@ -116,6 +118,31 @@ public:
     const MeshQueries2D& getQueries() const { return queries_; }
 
 private:
+    /**
+     * @brief Split the triangles adjacent to an edge by inserting a midpoint node
+     *
+     * For each triangle sharing edge (edgeNode1, edgeNode2), replaces it with two
+     * triangles connecting the new midpoint to the opposite vertex.
+     *
+     * @param edgeNode1 First node of the edge to split
+     * @param edgeNode2 Second node of the edge to split
+     * @param midNodeId ID of the already-inserted midpoint node
+     * @return IDs of the newly created triangles
+     */
+    std::vector<size_t> splitTrianglesAtEdge(size_t edgeNode1, size_t edgeNode2, size_t midNodeId);
+
+    /**
+     * @brief Restore Delaunay property via Lawson edge flipping
+     *
+     * Checks edges of the given triangles and flips any that violate the
+     * Delaunay criterion. Constrained edges are never flipped.
+     *
+     * @param newTriangleIds IDs of triangles to start checking from
+     * @param constrainedSegments Constrained segments that must not be flipped
+     */
+    void lawsonFlip(const std::vector<size_t>& newTriangleIds,
+                    const std::vector<ConstrainedSegment2D>& constrainedSegments);
+
     MeshData2D& meshData_;
     MeshQueries2D queries_;
     std::unique_ptr<MeshMutator2D> mutator_;

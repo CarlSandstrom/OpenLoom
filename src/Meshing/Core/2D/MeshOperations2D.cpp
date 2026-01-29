@@ -344,9 +344,159 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     return true;
 }
 
+std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, size_t edgeNode2, size_t midNodeId)
+{
+    auto adjacentTriangles = queries_.findTrianglesAdjacentToEdge(edgeNode1, edgeNode2);
+    std::vector<size_t> newTriangleIds;
+
+    for (size_t triId : adjacentTriangles)
+    {
+        const auto* element = meshData_.getElement(triId);
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element);
+        if (!triangle)
+            continue;
+
+        // Find the opposite vertex (the one not on the split edge)
+        const auto& nodes = triangle->getNodeIdArray();
+        size_t opposite = 0;
+        for (size_t n : nodes)
+        {
+            if (n != edgeNode1 && n != edgeNode2)
+            {
+                opposite = n;
+                break;
+            }
+        }
+
+        mutator_->removeElement(triId);
+
+        size_t t1 = mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{edgeNode1, midNodeId, opposite}));
+        size_t t2 = mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{midNodeId, edgeNode2, opposite}));
+
+        newTriangleIds.push_back(t1);
+        newTriangleIds.push_back(t2);
+    }
+
+    return newTriangleIds;
+}
+
+void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds,
+                                   const std::vector<ConstrainedSegment2D>& constrainedSegments)
+{
+    // Build set of constrained edge keys for fast lookup
+    using EdgeKey = std::pair<size_t, size_t>;
+    struct EdgeKeyHash
+    {
+        std::size_t operator()(const EdgeKey& key) const
+        {
+            return std::hash<size_t>{}(key.first) ^ (std::hash<size_t>{}(key.second) << 1);
+        }
+    };
+
+    std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
+    for (const auto& seg : constrainedSegments)
+    {
+        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(seg.nodeId1, seg.nodeId2));
+    }
+
+    auto isConstrained = [&](size_t a, size_t b) -> bool
+    {
+        return constrainedEdgeKeys.count(MeshQueries2D::makeEdgeKey(a, b)) > 0;
+    };
+
+    // Collect initial edges to check from new triangles
+    std::vector<EdgeKey> edgeStack;
+
+    for (size_t triId : newTriangleIds)
+    {
+        const auto* element = meshData_.getElement(triId);
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element);
+        if (!triangle)
+            continue;
+
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = triangle->getEdge(i);
+            if (!isConstrained(edge[0], edge[1]))
+            {
+                edgeStack.push_back(MeshQueries2D::makeEdgeKey(edge[0], edge[1]));
+            }
+        }
+    }
+
+    ElementGeometry2D geom(meshData_);
+
+    while (!edgeStack.empty())
+    {
+        auto [a, b] = edgeStack.back();
+        edgeStack.pop_back();
+
+        // Find the two triangles sharing this edge
+        auto adjacent = queries_.findTrianglesAdjacentToEdge(a, b);
+        if (adjacent.size() != 2)
+            continue;
+
+        const auto* elem1 = dynamic_cast<const TriangleElement*>(meshData_.getElement(adjacent[0]));
+        const auto* elem2 = dynamic_cast<const TriangleElement*>(meshData_.getElement(adjacent[1]));
+        if (!elem1 || !elem2)
+            continue;
+
+        // Find opposite vertices
+        size_t c = 0, d = 0;
+        for (size_t n : elem1->getNodeIdArray())
+        {
+            if (n != a && n != b) { c = n; break; }
+        }
+        for (size_t n : elem2->getNodeIdArray())
+        {
+            if (n != a && n != b) { d = n; break; }
+        }
+
+        // Check Delaunay criterion: is d inside circumcircle of (a, b, c)?
+        auto circle = geom.computeCircumcircle(*elem1);
+        if (!circle.has_value())
+            continue;
+
+        const Node2D* nodeD = meshData_.getNode(d);
+        if (!nodeD)
+            continue;
+
+        if (!GeometryUtilities2D::isPointInsideCircle(*circle, nodeD->getCoordinates()))
+            continue;
+
+        // Flip: remove (a,b,c) and (a,b,d), add (a,c,d) and (b,d,c)
+        mutator_->removeElement(adjacent[0]);
+        mutator_->removeElement(adjacent[1]);
+
+        mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{a, c, d}));
+        mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{b, d, c}));
+
+        // Push the 4 outer edges of the flipped quad for further checking
+        std::array<EdgeKey, 4> outerEdges = {
+            MeshQueries2D::makeEdgeKey(a, c),
+            MeshQueries2D::makeEdgeKey(a, d),
+            MeshQueries2D::makeEdgeKey(b, c),
+            MeshQueries2D::makeEdgeKey(b, d)
+        };
+
+        for (const auto& edgeKey : outerEdges)
+        {
+            if (!isConstrained(edgeKey.first, edgeKey.second))
+            {
+                edgeStack.push_back(edgeKey);
+            }
+        }
+    }
+}
+
 std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperations2D::splitConstrainedSegment(
     const ConstrainedSegment2D& segment,
-    const Geometry2D::IEdge2D& parentEdge)
+    const Geometry2D::IEdge2D& parentEdge,
+    const std::vector<ConstrainedSegment2D>& constrainedSegments)
 {
     const Node2D* node1 = meshData_.getNode(segment.nodeId1);
     const Node2D* node2 = meshData_.getNode(segment.nodeId2);
@@ -387,10 +537,10 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
     double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
-    size_t newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
-
-    enforceEdge(segment.nodeId1, newNodeId);
-    enforceEdge(newNodeId, segment.nodeId2);
+    // Direct split: add node, split adjacent triangles, restore Delaunay
+    size_t newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
+    auto newTriIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+    lawsonFlip(newTriIds, constrainedSegments);
 
     ConstrainedSegment2D seg1{segment.nodeId1, newNodeId};
     ConstrainedSegment2D seg2{newNodeId, segment.nodeId2};
