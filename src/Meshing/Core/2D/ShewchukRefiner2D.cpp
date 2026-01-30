@@ -174,39 +174,11 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
                   segment.nodeId1, segment.nodeId2);
 
-    // Get the nodes to find the parent edge ID
-    const Node2D* node1 = context_->getMeshData().getNode(segment.nodeId1);
-    const Node2D* node2 = context_->getMeshData().getNode(segment.nodeId2);
+    // Find the common geometry ID (edge ID) between the two segment nodes
+    auto commonGeometryId = context_->getOperations().getQueries().findCommonGeometryId(
+        segment.nodeId1, segment.nodeId2);
 
-    if (node1 == nullptr || node2 == nullptr)
-    {
-        spdlog::error("ShewchukRefiner2D: Invalid segment nodes ({}, {})", segment.nodeId1, segment.nodeId2);
-        return;
-    }
-
-    // Get the geometry ID (edge ID) from the nodes
-    // Find the common edge ID between the two nodes
-    const auto& geometryIds1 = node1->getGeometryIds();
-    const auto& geometryIds2 = node2->getGeometryIds();
-
-    std::string edgeId;
-
-    // Find common geometry ID (the edge both nodes belong to)
-    for (const auto& id1 : geometryIds1)
-    {
-        for (const auto& id2 : geometryIds2)
-        {
-            if (id1 == id2)
-            {
-                edgeId = id1;
-                break;
-            }
-        }
-        if (!edgeId.empty())
-            break;
-    }
-
-    if (edgeId.empty())
+    if (!commonGeometryId.has_value())
     {
         spdlog::error("ShewchukRefiner2D: Cannot split segment - no common geometry ID found between nodes {} and {}",
                       segment.nodeId1, segment.nodeId2);
@@ -214,10 +186,10 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     }
 
     // Get the parent edge geometry
-    const auto* edge = context_->getGeometry().getEdge(edgeId);
+    const auto* edge = context_->getGeometry().getEdge(commonGeometryId.value());
     if (edge == nullptr)
     {
-        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", edgeId);
+        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", commonGeometryId.value());
         return;
     }
 

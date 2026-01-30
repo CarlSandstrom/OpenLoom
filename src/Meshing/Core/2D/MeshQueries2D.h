@@ -6,6 +6,7 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 #include <array>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -135,6 +136,14 @@ public:
      * @return Vector of triangle IDs adjacent to the edge (0, 1, or 2)
      */
     std::vector<size_t> findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const;
+
+    /**
+     * @brief Find the common geometry ID shared by two nodes
+     * @param nodeId1 First node ID
+     * @param nodeId2 Second node ID
+     * @return The common geometry ID, or std::nullopt if none found
+     */
+    std::optional<std::string> findCommonGeometryId(size_t nodeId1, size_t nodeId2) const;
 
     /**
      * @brief Classify triangles as interior using flood fill from constraint edges

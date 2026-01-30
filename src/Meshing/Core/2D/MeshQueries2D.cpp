@@ -228,6 +228,33 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
     return encroached;
 }
 
+std::optional<std::string> MeshQueries2D::findCommonGeometryId(size_t nodeId1, size_t nodeId2) const
+{
+    const Node2D* node1 = meshData_.getNode(nodeId1);
+    const Node2D* node2 = meshData_.getNode(nodeId2);
+
+    if (node1 == nullptr || node2 == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    const auto& geometryIds1 = node1->getGeometryIds();
+    const auto& geometryIds2 = node2->getGeometryIds();
+
+    for (const auto& id1 : geometryIds1)
+    {
+        for (const auto& id2 : geometryIds2)
+        {
+            if (id1 == id2)
+            {
+                return id1;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
 std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const
 {
     std::vector<size_t> adjacent;
