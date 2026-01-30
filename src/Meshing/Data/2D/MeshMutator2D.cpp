@@ -49,4 +49,26 @@ void MeshMutator2D::removeElement(size_t id)
     meshData_.removeElementInternal(id);
 }
 
+void MeshMutator2D::addConstrainedSegment(const ConstrainedSegment2D& segment)
+{
+    meshData_.addConstrainedSegmentInternal(segment);
+}
+
+void MeshMutator2D::removeConstrainedSegment(size_t nodeId1, size_t nodeId2)
+{
+    meshData_.removeConstrainedSegmentInternal(nodeId1, nodeId2);
+}
+
+void MeshMutator2D::replaceConstrainedSegment(const ConstrainedSegment2D& oldSegment,
+                                               const ConstrainedSegment2D& newSeg1,
+                                               const ConstrainedSegment2D& newSeg2)
+{
+    meshData_.replaceConstrainedSegmentInternal(oldSegment, newSeg1, newSeg2);
+}
+
+void MeshMutator2D::clearConstrainedSegments()
+{
+    meshData_.clearConstrainedSegmentsInternal();
+}
+
 } // namespace Meshing

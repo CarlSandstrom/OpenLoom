@@ -2,7 +2,6 @@
 
 #include "Common/Types.h"
 #include "DiscretizationResult2D.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include <memory>
@@ -32,7 +31,6 @@ public:
     ~ConstrainedDelaunay2D() = default;
 
     void triangulate();
-    const std::vector<ConstrainedSegment2D>& getConstrainedEdges() const;
 
 private:
     void exportAndVerifyMesh();
@@ -40,7 +38,6 @@ private:
 private:
     size_t exportCounter_ = 0;
 
-    std::vector<ConstrainedSegment2D> constrainedEdges_;
     DiscretizationResult2D discretization_;
     std::vector<Point2D> additionalPoints_;
 

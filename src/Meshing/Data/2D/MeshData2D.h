@@ -1,9 +1,11 @@
 #pragma once
 
 #include "../Base/IElement.h"
+#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Node2D.h"
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 namespace Meshing
 {
@@ -26,12 +28,16 @@ public:
     size_t getNodeCount() const { return nodes_.size(); }
     size_t getElementCount() const { return elements_.size(); }
 
+    const std::vector<ConstrainedSegment2D>& getConstrainedSegments() const { return constrainedSegments_; }
+    size_t getConstrainedSegmentCount() const { return constrainedSegments_.size(); }
+
     // Internal access for operations classes (friends)
     friend class MeshMutator2D;
 
 private:
     std::unordered_map<size_t, std::unique_ptr<Node2D>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
+    std::vector<ConstrainedSegment2D> constrainedSegments_;
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
 
@@ -41,6 +47,13 @@ private:
     void removeNodeInternal(size_t id);
     void removeElementInternal(size_t id);
     Node2D* getNodeMutable(size_t id);
+
+    void addConstrainedSegmentInternal(const ConstrainedSegment2D& segment);
+    void removeConstrainedSegmentInternal(size_t nodeId1, size_t nodeId2);
+    void replaceConstrainedSegmentInternal(const ConstrainedSegment2D& oldSegment,
+                                           const ConstrainedSegment2D& newSeg1,
+                                           const ConstrainedSegment2D& newSeg2);
+    void clearConstrainedSegmentsInternal();
 };
 
 } // namespace Meshing

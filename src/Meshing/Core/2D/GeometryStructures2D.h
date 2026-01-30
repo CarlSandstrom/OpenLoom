@@ -9,10 +9,17 @@ struct Circle2D
     double radius;
 };
 
+enum class EdgeRole
+{
+    BOUNDARY,
+    INTERIOR
+};
+
 struct ConstrainedSegment2D
 {
     size_t nodeId1;
     size_t nodeId2;
+    EdgeRole role = EdgeRole::BOUNDARY;
 };
 
 } // namespace Meshing

@@ -84,16 +84,15 @@ public:
      *
      * Uses the parent edge geometry to find the correct midpoint on curved edges.
      * Splits adjacent triangles directly and restores Delaunay property via Lawson flipping.
+     * Updates the constrained segments in MeshData2D (removes old, adds two new).
      *
      * @param segment The constrained segment to split
      * @param parentEdge The geometric edge the segment lies on
-     * @param constrainedSegments All constrained segments (to avoid flipping them)
-     * @return Pair of new segments, or nullopt if split failed
+     * @return ID of the new midpoint node, or nullopt if split failed
      */
-    std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> splitConstrainedSegment(
+    std::optional<size_t> splitConstrainedSegment(
         const ConstrainedSegment2D& segment,
-        const Geometry2D::IEdge2D& parentEdge,
-        const std::vector<ConstrainedSegment2D>& constrainedSegments);
+        const Geometry2D::IEdge2D& parentEdge);
 
     /**
      * @brief Remove all triangles outside the domain or in holes
@@ -138,10 +137,8 @@ private:
      * Delaunay criterion. Constrained edges are never flipped.
      *
      * @param newTriangleIds IDs of triangles to start checking from
-     * @param constrainedSegments Constrained segments that must not be flipped
      */
-    void lawsonFlip(const std::vector<size_t>& newTriangleIds,
-                    const std::vector<ConstrainedSegment2D>& constrainedSegments);
+    void lawsonFlip(const std::vector<size_t>& newTriangleIds);
 
     MeshData2D& meshData_;
     MeshQueries2D queries_;

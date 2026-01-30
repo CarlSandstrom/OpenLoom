@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <queue>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace Meshing
 {
@@ -143,8 +144,24 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(
 {
     std::vector<ConstrainedSegment2D> constrainedEdges;
 
+    // Build set of boundary edge IDs (outer loop + hole loops)
+    std::unordered_set<std::string> boundaryEdgeIds;
+    for (const auto& edgeId : topology.getOuterEdgeLoop())
+    {
+        boundaryEdgeIds.insert(edgeId);
+    }
+    for (const auto& holeLoop : topology.getHoleEdgeLoops())
+    {
+        for (const auto& edgeId : holeLoop)
+        {
+            boundaryEdgeIds.insert(edgeId);
+        }
+    }
+
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
+        EdgeRole role = boundaryEdgeIds.count(edgeId) ? EdgeRole::BOUNDARY : EdgeRole::INTERIOR;
+
         auto edgePointsIt = edgeIdToPointIndicesMap.find(edgeId);
 
         if (edgePointsIt != edgeIdToPointIndicesMap.end() && edgePointsIt->second.size() >= 2)
@@ -159,9 +176,11 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(
                 size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
                 size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
 
-                constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId});
+                constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId, role});
 
-                spdlog::info("Edge {} segment {}: Node IDs ({}, {})", edgeId, i, startNodeId, endNodeId);
+                spdlog::info("Edge {} segment {}: Node IDs ({}, {}), role: {}",
+                             edgeId, i, startNodeId, endNodeId,
+                             role == EdgeRole::BOUNDARY ? "boundary" : "interior");
             }
         }
         else
@@ -173,23 +192,24 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(
             size_t endNodeId = pointIndexToNodeIdMap.at(
                 cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId()));
 
-            constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId});
+            constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId, role});
 
-            spdlog::info("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
+            spdlog::info("Edge {}: Node IDs ({}, {}), role: {}",
+                         edgeId, startNodeId, endNodeId,
+                         role == EdgeRole::BOUNDARY ? "boundary" : "interior");
         }
     }
 
     return constrainedEdges;
 }
 
-std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments(
-    const std::vector<ConstrainedSegment2D>& constrainedSegments) const
+std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments() const
 {
     std::vector<ConstrainedSegment2D> encroached;
 
     ConstraintChecker2D checker(meshData_);
 
-    for (const auto& segment : constrainedSegments)
+    for (const auto& segment : meshData_.getConstrainedSegments())
     {
         for (const auto& [nodeId, node] : meshData_.getNodes())
         {
@@ -210,14 +230,13 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments(
 }
 
 std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
-    const Point2D& point,
-    const std::vector<ConstrainedSegment2D>& constrainedSegments) const
+    const Point2D& point) const
 {
     std::vector<ConstrainedSegment2D> encroached;
 
     ConstraintChecker2D checker(meshData_);
 
-    for (const auto& segment : constrainedSegments)
+    for (const auto& segment : meshData_.getConstrainedSegments())
     {
         if (checker.isSegmentEncroached(segment, point))
         {
@@ -280,8 +299,7 @@ std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, s
     return adjacent;
 }
 
-std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior(
-    const std::vector<ConstrainedSegment2D>& constrainedEdges) const
+std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() const
 {
     std::unordered_set<size_t> insideTriangles;
 
@@ -291,17 +309,22 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior(
         return insideTriangles;
     }
 
+    const auto& constrainedEdges = meshData_.getConstrainedSegments();
+
     if (constrainedEdges.empty())
     {
         spdlog::warn("classifyTrianglesInteriorExterior: No constraint edges, skipping classification");
         return insideTriangles;
     }
 
-    // Helper: Check if an edge is a constraint edge
-    auto isConstraintEdge = [&](size_t nodeId1, size_t nodeId2) -> bool
+    // Helper: Check if an edge is a boundary constraint edge (blocks flood fill)
+    auto isBoundaryConstraintEdge = [&](size_t nodeId1, size_t nodeId2) -> bool
     {
         for (const auto& segment : constrainedEdges)
         {
+            if (segment.role != EdgeRole::BOUNDARY)
+                continue;
+
             if ((segment.nodeId1 == nodeId1 && segment.nodeId2 == nodeId2) ||
                 (segment.nodeId1 == nodeId2 && segment.nodeId2 == nodeId1))
             {
@@ -440,8 +463,8 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior(
             size_t node1 = edge[0];
             size_t node2 = edge[1];
 
-            // Don't cross constraint edges
-            if (isConstraintEdge(node1, node2))
+            // Don't cross boundary constraint edges (interior edges are permeable)
+            if (isBoundaryConstraintEdge(node1, node2))
             {
                 continue;
             }

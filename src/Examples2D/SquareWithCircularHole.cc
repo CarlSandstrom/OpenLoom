@@ -153,7 +153,7 @@ int main()
                                                   2.0,        // Max circumradius to shortest edge ratio
                                                   M_PI / 6.0, // Min angle 30 degrees
                                                   10000);     // Max elements
-    ShewchukRefiner2D refiner(context, qualityController, mesher.getConstrainedEdges());
+    ShewchukRefiner2D refiner(context, qualityController);
     refiner.refine();
 
     spdlog::info("Square with circular hole mesh generation complete!");

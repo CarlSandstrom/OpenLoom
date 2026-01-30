@@ -87,11 +87,9 @@ public:
      * A segment is encroached if any mesh vertex (other than the segment endpoints)
      * lies within the segment's diametral circle.
      *
-     * @param constrainedSegments The constrained segments to check
      * @return Vector of encroached constrained segments
      */
-    std::vector<ConstrainedSegment2D> findEncroachedSegments(
-        const std::vector<ConstrainedSegment2D>& constrainedSegments) const;
+    std::vector<ConstrainedSegment2D> findEncroachedSegments() const;
 
     /**
      * @brief Check if a point would encroach any constrained segments
@@ -99,12 +97,10 @@ public:
      * A point encroaches a segment if it lies within the segment's diametral circle.
      *
      * @param point The candidate point to check
-     * @param constrainedSegments The constrained segments to check against
      * @return Vector of segments that would be encroached by the point
      */
     std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(
-        const Point2D& point,
-        const std::vector<ConstrainedSegment2D>& constrainedSegments) const;
+        const Point2D& point) const;
 
     /**
      * @brief Check if two 2D segments intersect
@@ -152,11 +148,9 @@ public:
      * the domain. Finds a seed triangle farthest from constraints, performs BFS flood
      * fill respecting constraint boundaries, and returns the set of interior triangles.
      *
-     * @param constrainedEdges Vector of constraint edges that form domain boundaries
      * @return Set of triangle IDs that are inside the domain
      */
-    std::unordered_set<size_t> classifyTrianglesInteriorExterior(
-        const std::vector<ConstrainedSegment2D>& constrainedEdges) const;
+    std::unordered_set<size_t> classifyTrianglesInteriorExterior() const;
 
 private:
     const MeshData2D& meshData_;

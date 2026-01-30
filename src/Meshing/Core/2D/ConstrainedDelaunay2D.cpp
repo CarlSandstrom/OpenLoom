@@ -45,11 +45,17 @@ void ConstrainedDelaunay2D::triangulate()
     Delaunay2D delaunay(allPoints, meshData2D_, allTParameters, allGeometryIds);
     delaunay.triangulate();
 
-    // Extract constrained edges
-    constrainedEdges_ = meshOperations_->getQueries().extractConstrainedEdges(context_->getTopology(),
-                                                                              discretization_.cornerIdToPointIndexMap,
-                                                                              delaunay.getPointIndexToNodeIdMap(),
-                                                                              discretization_.edgeIdToPointIndicesMap);
+    // Extract constrained edges and store in MeshData2D
+    auto constrainedEdges = meshOperations_->getQueries().extractConstrainedEdges(
+        context_->getTopology(),
+        discretization_.cornerIdToPointIndexMap,
+        delaunay.getPointIndexToNodeIdMap(),
+        discretization_.edgeIdToPointIndicesMap);
+
+    for (const auto& segment : constrainedEdges)
+    {
+        meshOperations_->getMutator().addConstrainedSegment(segment);
+    }
 
     exportAndVerifyMesh();
 
@@ -58,7 +64,7 @@ void ConstrainedDelaunay2D::triangulate()
     while (!allConstrainedEdgesPresent)
     {
         allConstrainedEdgesPresent = true;
-        for (const auto& segment : constrainedEdges_)
+        for (const auto& segment : meshData2D_->getConstrainedSegments())
         {
             allConstrainedEdgesPresent = allConstrainedEdgesPresent &&
                                          meshOperations_->enforceEdge(segment.nodeId1, segment.nodeId2);
@@ -69,14 +75,9 @@ void ConstrainedDelaunay2D::triangulate()
     // Classify triangles as interior/exterior using flood fill algorithm
     // This approach uses mesh topology (constraint edges) instead of geometry queries,
     // making it robust regardless of mesh coarseness relative to geometry features
-    auto interiorTriangles = meshOperations_->getQueries().classifyTrianglesInteriorExterior(constrainedEdges_);
+    auto interiorTriangles = meshOperations_->getQueries().classifyTrianglesInteriorExterior();
     meshOperations_->removeExteriorTriangles(interiorTriangles);
     exportAndVerifyMesh();
-}
-
-const std::vector<ConstrainedSegment2D>& ConstrainedDelaunay2D::getConstrainedEdges() const
-{
-    return constrainedEdges_;
 }
 
 void ConstrainedDelaunay2D::exportAndVerifyMesh()

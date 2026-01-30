@@ -2,6 +2,7 @@
 
 #include "../Base/IElement.h"
 #include "MeshData2D.h"
+#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include <memory>
 #include <string>
 
@@ -27,6 +28,14 @@ public:
     // Element operations
     size_t addElement(std::unique_ptr<IElement> element);
     void removeElement(size_t id);
+
+    // Constrained segment operations
+    void addConstrainedSegment(const ConstrainedSegment2D& segment);
+    void removeConstrainedSegment(size_t nodeId1, size_t nodeId2);
+    void replaceConstrainedSegment(const ConstrainedSegment2D& oldSegment,
+                                   const ConstrainedSegment2D& newSeg1,
+                                   const ConstrainedSegment2D& newSeg2);
+    void clearConstrainedSegments();
 
 private:
     MeshData2D& meshData_;

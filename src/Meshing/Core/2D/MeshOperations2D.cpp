@@ -382,8 +382,7 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
     return newTriangleIds;
 }
 
-void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds,
-                                   const std::vector<ConstrainedSegment2D>& constrainedSegments)
+void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
 {
     // Build set of constrained edge keys for fast lookup
     using EdgeKey = std::pair<size_t, size_t>;
@@ -396,7 +395,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds,
     };
 
     std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
-    for (const auto& seg : constrainedSegments)
+    for (const auto& seg : meshData_.getConstrainedSegments())
     {
         constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(seg.nodeId1, seg.nodeId2));
     }
@@ -493,10 +492,9 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds,
     }
 }
 
-std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperations2D::splitConstrainedSegment(
+std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     const ConstrainedSegment2D& segment,
-    const Geometry2D::IEdge2D& parentEdge,
-    const std::vector<ConstrainedSegment2D>& constrainedSegments)
+    const Geometry2D::IEdge2D& parentEdge)
 {
     const Node2D* node1 = meshData_.getNode(segment.nodeId1);
     const Node2D* node2 = meshData_.getNode(segment.nodeId2);
@@ -537,15 +535,21 @@ std::optional<std::pair<ConstrainedSegment2D, ConstrainedSegment2D>> MeshOperati
     double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
+    // Update constrained segments: replace old with two new
+    ConstrainedSegment2D seg1{segment.nodeId1, 0, segment.role}; // nodeId2 set after node creation
+    ConstrainedSegment2D seg2{0, segment.nodeId2, segment.role}; // nodeId1 set after node creation
+
     // Direct split: add node, split adjacent triangles, restore Delaunay
     size_t newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
+
+    seg1.nodeId2 = newNodeId;
+    seg2.nodeId1 = newNodeId;
+    mutator_->replaceConstrainedSegment(segment, seg1, seg2);
+
     auto newTriIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
-    lawsonFlip(newTriIds, constrainedSegments);
+    lawsonFlip(newTriIds);
 
-    ConstrainedSegment2D seg1{segment.nodeId1, newNodeId};
-    ConstrainedSegment2D seg2{newNodeId, segment.nodeId2};
-
-    return std::make_pair(seg1, seg2);
+    return newNodeId;
 }
 
 std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles)

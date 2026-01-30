@@ -24,11 +24,9 @@ namespace Meshing
 {
 
 ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
-                                     const IQualityController2D& qualityController,
-                                     const std::vector<ConstrainedSegment2D>& constrainedSegments) :
+                                     const IQualityController2D& qualityController) :
     context_(&context),
     qualityController_(&qualityController),
-    constrainedSegments_(constrainedSegments),
     domainFace_(context.buildDomainFace())
 {
 }
@@ -90,7 +88,7 @@ void ShewchukRefiner2D::refine()
             if (iterationCount % 10 == 0)
             {
                 spdlog::debug("ShewchukRefiner2D: Periodic triangle re-classification at iteration {}", iterationCount);
-                auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior(constrainedSegments_);
+                auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior();
                 auto removedIds = context_->getOperations().removeExteriorTriangles(interiorTriangles);
 
                 // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
@@ -109,7 +107,7 @@ void ShewchukRefiner2D::refine()
     // Re-classify triangles after refinement to remove any that ended up in holes
     // Refinement can create triangles that cross constraint boundaries
     spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
-    auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior(constrainedSegments_);
+    auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior();
     auto removedIds = context_->getOperations().removeExteriorTriangles(interiorTriangles);
 
     // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
@@ -122,7 +120,7 @@ void ShewchukRefiner2D::refine()
 bool ShewchukRefiner2D::refineStep()
 {
     // Priority 1: Handle encroached segments first
-    auto encroachedSegments = context_->getOperations().getQueries().findEncroachedSegments(constrainedSegments_);
+    auto encroachedSegments = context_->getOperations().getQueries().findEncroachedSegments();
 
     if (!encroachedSegments.empty())
     {
@@ -193,34 +191,17 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
         return;
     }
 
-    // Split the segment
-    auto splitResult = context_->getOperations().splitConstrainedSegment(segment, *edge, constrainedSegments_);
+    // Split the segment (also updates constrained segments in MeshData2D)
+    auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge);
 
-    if (!splitResult.has_value())
+    if (!newNodeId.has_value())
     {
         spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.nodeId1, segment.nodeId2);
         return;
     }
 
-    // Update constrained segments list: remove old segment, add two new ones
-    auto it = std::find_if(constrainedSegments_.begin(), constrainedSegments_.end(),
-                           [&segment](const ConstrainedSegment2D& s)
-                           {
-                               return (s.nodeId1 == segment.nodeId1 && s.nodeId2 == segment.nodeId2) ||
-                                      (s.nodeId1 == segment.nodeId2 && s.nodeId2 == segment.nodeId1);
-                           });
-
-    if (it != constrainedSegments_.end())
-    {
-        constrainedSegments_.erase(it);
-    }
-
-    constrainedSegments_.push_back(splitResult->first);
-    constrainedSegments_.push_back(splitResult->second);
-
-    spdlog::debug("ShewchukRefiner2D: Successfully split segment into ({}, {}) and ({}, {})",
-                  splitResult->first.nodeId1, splitResult->first.nodeId2,
-                  splitResult->second.nodeId1, splitResult->second.nodeId2);
+    spdlog::debug("ShewchukRefiner2D: Successfully split segment ({}, {}) at node {}",
+                  segment.nodeId1, segment.nodeId2, newNodeId.value());
 }
 
 bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
@@ -272,7 +253,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     }
 
     // Check if circumcenter would encroach any segments
-    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter, constrainedSegments_);
+    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
 
     if (!encroachedByCircumcenter.empty())
     {

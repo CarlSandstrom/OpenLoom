@@ -5,7 +5,6 @@
 #include "MeshingContext2D.h"
 #include <memory>
 #include <unordered_set>
-#include <vector>
 
 namespace Geometry2D
 {
@@ -35,11 +34,9 @@ public:
      * @brief Construct a Shewchuk refiner
      * @param context The meshing context containing mesh data and operations
      * @param qualityController Quality controller defining acceptable mesh quality
-     * @param constrainedSegments List of constrained boundary segments
      */
     ShewchukRefiner2D(MeshingContext2D& context,
-                      const IQualityController2D& qualityController,
-                      const std::vector<ConstrainedSegment2D>& constrainedSegments);
+                      const IQualityController2D& qualityController);
 
     ~ShewchukRefiner2D();
 
@@ -55,7 +52,6 @@ public:
 private:
     MeshingContext2D* context_;
     const IQualityController2D* qualityController_;
-    std::vector<ConstrainedSegment2D> constrainedSegments_;
     std::unique_ptr<Geometry2D::IFace2D> domainFace_;
 
     /**
