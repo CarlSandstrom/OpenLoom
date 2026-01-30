@@ -542,19 +542,16 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
+    // Insert midpoint via Bowyer-Watson and re-enforce constraint edges
+    size_t newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
+
+    enforceEdge(segment.nodeId1, newNodeId);
+    enforceEdge(newNodeId, segment.nodeId2);
+
     // Update constrained segments: replace old with two new
-    ConstrainedSegment2D seg1{segment.nodeId1, 0, segment.role}; // nodeId2 set after node creation
-    ConstrainedSegment2D seg2{0, segment.nodeId2, segment.role}; // nodeId1 set after node creation
-
-    // Direct split: add node, split adjacent triangles, restore Delaunay
-    size_t newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
-
-    seg1.nodeId2 = newNodeId;
-    seg2.nodeId1 = newNodeId;
+    ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
+    ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
     mutator_->replaceConstrainedSegment(segment, seg1, seg2);
-
-    auto newTriIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
-    // lawsonFlip(newTriIds);
 
     return newNodeId;
 }
