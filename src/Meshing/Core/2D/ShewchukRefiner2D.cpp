@@ -47,11 +47,11 @@ void ShewchukRefiner2D::refine()
         // Check mesh quality
         MeshData3D meshData3D(context_->getMeshData());
         MeshConnectivity connectivity(meshData3D);
-        /*
-                {
-                    Export::VtkExporter exporter;
-                    exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_Iteration" + std::to_string(iterationCount) + ".vtu");
-                } */
+
+        {
+            Export::VtkExporter exporter;
+            exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_Iteration" + std::to_string(iterationCount) + ".vtu");
+        }
 
         if (qualityController_->isMeshAcceptable(context_->getMeshData(), connectivity))
         {

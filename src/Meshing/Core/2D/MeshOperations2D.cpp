@@ -446,11 +446,19 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         size_t c = 0, d = 0;
         for (size_t n : elem1->getNodeIdArray())
         {
-            if (n != a && n != b) { c = n; break; }
+            if (n != a && n != b)
+            {
+                c = n;
+                break;
+            }
         }
         for (size_t n : elem2->getNodeIdArray())
         {
-            if (n != a && n != b) { d = n; break; }
+            if (n != a && n != b)
+            {
+                d = n;
+                break;
+            }
         }
 
         // Check Delaunay criterion: is d inside circumcircle of (a, b, c)?
@@ -479,8 +487,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
             MeshQueries2D::makeEdgeKey(a, c),
             MeshQueries2D::makeEdgeKey(a, d),
             MeshQueries2D::makeEdgeKey(b, c),
-            MeshQueries2D::makeEdgeKey(b, d)
-        };
+            MeshQueries2D::makeEdgeKey(b, d)};
 
         for (const auto& edgeKey : outerEdges)
         {
@@ -547,7 +554,7 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     mutator_->replaceConstrainedSegment(segment, seg1, seg2);
 
     auto newTriIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
-    lawsonFlip(newTriIds);
+    // lawsonFlip(newTriIds);
 
     return newNodeId;
 }
