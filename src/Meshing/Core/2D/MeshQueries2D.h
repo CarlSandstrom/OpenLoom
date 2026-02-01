@@ -167,11 +167,22 @@ public:
     EdgeToTrianglesMap buildEdgeToTrianglesMap() const;
 
     /**
-     * @brief Classify triangles as interior using flood fill from constraint edges
+     * @brief Test if a point is inside the domain using ray casting
      *
-     * Uses mesh topology (constraint edges) to determine which triangles are inside
-     * the domain. Finds a seed triangle farthest from constraints, performs BFS flood
-     * fill respecting constraint boundaries, and returns the set of interior triangles.
+     * Casts a horizontal ray in the +X direction from the point and counts
+     * crossings with boundary constraint segments. Odd = inside, even = outside.
+     *
+     * @param point The point to test
+     * @return True if the point is inside the domain boundary
+     */
+    bool isPointInsideDomain(const Point2D& point) const;
+
+    /**
+     * @brief Classify triangles as interior using ray casting and flood fill
+     *
+     * Uses ray casting to find a seed triangle guaranteed to be inside the
+     * domain, then performs BFS flood fill respecting constraint boundaries
+     * to find all interior triangles.
      *
      * @return Set of triangle IDs that are inside the domain
      */

@@ -461,16 +461,31 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
             }
         }
 
+        // Get coordinates of the quad vertices
+        const Node2D* nodeA = meshData_.getNode(a);
+        const Node2D* nodeB = meshData_.getNode(b);
+        const Node2D* nodeC = meshData_.getNode(c);
+        const Node2D* nodeD = meshData_.getNode(d);
+        if (!nodeA || !nodeB || !nodeC || !nodeD)
+            continue;
+
+        const Point2D& pA = nodeA->getCoordinates();
+        const Point2D& pB = nodeB->getCoordinates();
+        const Point2D& pC = nodeC->getCoordinates();
+        const Point2D& pD = nodeD->getCoordinates();
+
+        // Skip if quad is not convex — flipping a non-convex quad produces invalid triangles
+        double orientC = GeometryUtilities2D::computeOrientation(pA, pB, pC);
+        double orientD = GeometryUtilities2D::computeOrientation(pA, pB, pD);
+        if (orientC * orientD >= 0.0)
+            continue;
+
         // Check Delaunay criterion: is d inside circumcircle of (a, b, c)?
         auto circle = geom.computeCircumcircle(*elem1);
         if (!circle.has_value())
             continue;
 
-        const Node2D* nodeD = meshData_.getNode(d);
-        if (!nodeD)
-            continue;
-
-        if (!GeometryUtilities2D::isPointInsideCircle(*circle, nodeD->getCoordinates()))
+        if (!GeometryUtilities2D::isPointInsideCircle(*circle, pD))
             continue;
 
         // Flip: remove (a,b,c) and (a,b,d), add (a,c,d) and (b,d,c)

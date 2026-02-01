@@ -299,6 +299,44 @@ std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, s
     return adjacent;
 }
 
+bool MeshQueries2D::isPointInsideDomain(const Point2D& point) const
+{
+    int crossings = 0;
+    double px = point.x();
+    double py = point.y();
+
+    for (const auto& segment : meshData_.getConstrainedSegments())
+    {
+        if (segment.role != EdgeRole::BOUNDARY)
+            continue;
+
+        const Node2D* n1 = meshData_.getNode(segment.nodeId1);
+        const Node2D* n2 = meshData_.getNode(segment.nodeId2);
+        if (!n1 || !n2)
+            continue;
+
+        Point2D a = n1->getCoordinates();
+        Point2D b = n2->getCoordinates();
+        double ay = a.y();
+        double by = b.y();
+
+        // Check if the segment straddles the ray's Y coordinate
+        if ((ay <= py && by > py) || (by <= py && ay > py))
+        {
+            // Compute X coordinate of intersection with the horizontal ray
+            double t = (py - ay) / (by - ay);
+            double ix = a.x() + t * (b.x() - a.x());
+
+            if (px < ix)
+            {
+                crossings++;
+            }
+        }
+    }
+
+    return (crossings % 2) == 1;
+}
+
 std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() const
 {
     std::unordered_set<size_t> insideTriangles;
@@ -317,32 +355,9 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         return insideTriangles;
     }
 
-    // Helper: Compute distance from point to line segment
-    auto pointToSegmentDistance = [](const Point2D& p, const Point2D& a, const Point2D& b) -> double
-    {
-        Point2D ab = b - a;
-        Point2D ap = p - a;
-
-        double abLengthSq = ab.x() * ab.x() + ab.y() * ab.y();
-        if (abLengthSq < 1e-12)
-        {
-            return std::sqrt(ap.x() * ap.x() + ap.y() * ap.y());
-        }
-
-        double t = (ap.x() * ab.x() + ap.y() * ab.y()) / abLengthSq;
-        t = std::max(0.0, std::min(1.0, t));
-
-        Point2D projection = a + Point2D(ab.x() * t, ab.y() * t);
-        Point2D diff = p - projection;
-        return std::sqrt(diff.x() * diff.x() + diff.y() * diff.y());
-    };
-
+    // Step 1: Find an interior seed triangle using ray casting
     ElementGeometry2D geometry(meshData_);
-
-    // Step 1: Find seed triangle (farthest from all constraint edges)
-    const TriangleElement* seedTriangle = nullptr;
     size_t seedTriangleId = SIZE_MAX;
-    double maxMinDistance = -1.0;
 
     for (const auto& [elemId, element] : meshData_.getElements())
     {
@@ -351,54 +366,33 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
             continue;
 
         Point2D centroid = geometry.computeCentroid(*triangle);
-        double minDistToConstraint = std::numeric_limits<double>::max();
-
-        for (const auto& segment : constrainedEdges)
+        if (isPointInsideDomain(centroid))
         {
-            const Node2D* node1 = meshData_.getNode(segment.nodeId1);
-            const Node2D* node2 = meshData_.getNode(segment.nodeId2);
-
-            if (!node1 || !node2)
-                continue;
-
-            Point2D p1 = node1->getCoordinates();
-            Point2D p2 = node2->getCoordinates();
-            double dist = pointToSegmentDistance(centroid, p1, p2);
-            minDistToConstraint = std::min(minDistToConstraint, dist);
-        }
-
-        if (minDistToConstraint > maxMinDistance)
-        {
-            maxMinDistance = minDistToConstraint;
-            seedTriangle = triangle;
             seedTriangleId = elemId;
+            break;
         }
     }
 
-    if (!seedTriangle || seedTriangleId == SIZE_MAX)
+    if (seedTriangleId == SIZE_MAX)
     {
-        spdlog::error("classifyTrianglesInteriorExterior: Could not find seed triangle");
+        spdlog::error("classifyTrianglesInteriorExterior: Ray casting found no interior triangle");
         return insideTriangles;
     }
 
-    spdlog::info("classifyTrianglesInteriorExterior: Found seed triangle {} with min distance {} to constraints",
-                 seedTriangleId, maxMinDistance);
+    spdlog::info("classifyTrianglesInteriorExterior: Ray casting found interior seed triangle {}", seedTriangleId);
 
     // Step 2: Build edge-to-triangles adjacency map
     EdgeToTrianglesMap edgeToTriangles = buildEdgeToTrianglesMap();
 
-    // Step 3: Perform BFS flood fill starting from seed triangle
+    // Step 3: Flood fill from the interior seed, stopping at boundary constraints
     std::queue<size_t> queue;
-
     queue.push(seedTriangleId);
     insideTriangles.insert(seedTriangleId);
 
-    size_t visitedCount = 0;
     while (!queue.empty())
     {
         size_t currentTriId = queue.front();
         queue.pop();
-        visitedCount++;
 
         const IElement* elem = meshData_.getElement(currentTriId);
         if (!elem)
@@ -408,37 +402,21 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         if (!triangle)
             continue;
 
-        // Check all three edges of the current triangle
         for (size_t i = 0; i < 3; ++i)
         {
             auto edge = triangle->getEdge(i);
-            size_t node1 = edge[0];
-            size_t node2 = edge[1];
-
-            // Don't cross boundary constraint edges (interior edges are permeable)
             if (isBoundaryConstraintEdge(edge))
-            {
                 continue;
-            }
 
-            // Find adjacent triangle through this edge
-            EdgeKey edgeKey = makeEdgeKey(node1, node2);
+            EdgeKey edgeKey = makeEdgeKey(edge[0], edge[1]);
             auto it = edgeToTriangles.find(edgeKey);
             if (it == edgeToTriangles.end())
-            {
                 continue;
-            }
 
-            const auto& adjacentTriangles = it->second;
-
-            // Find the neighbor (the triangle that is not currentTriId)
-            for (size_t neighborId : adjacentTriangles)
+            for (size_t neighborId : it->second)
             {
-                if (neighborId == currentTriId)
-                    continue;
-
-                // If we haven't visited this neighbor yet, add it to the flood fill
-                if (insideTriangles.find(neighborId) == insideTriangles.end())
+                if (neighborId != currentTriId &&
+                    insideTriangles.find(neighborId) == insideTriangles.end())
                 {
                     insideTriangles.insert(neighborId);
                     queue.push(neighborId);
@@ -447,8 +425,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         }
     }
 
-    spdlog::info("classifyTrianglesInteriorExterior: Flood fill visited {} triangles", visitedCount);
-    spdlog::info("classifyTrianglesInteriorExterior: Marked {} triangles as inside", insideTriangles.size());
+    spdlog::info("classifyTrianglesInteriorExterior: Flood fill found {} interior triangles", insideTriangles.size());
 
     return insideTriangles;
 }
