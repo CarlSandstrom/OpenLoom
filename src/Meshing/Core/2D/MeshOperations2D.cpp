@@ -139,207 +139,160 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         mutator_->removeElement(index);
     }
 
-    // Retriangulate the cavity
-    // The cavity boundary needs to be split into two polygons by the constraint edge
+    // Retriangulate the cavity by tracing the boundary into two sub-polygons
+    // (one on each side of the constraint edge) and ear-clipping each.
 
-    // Separate boundary edges into left and right of the constraint edge
-    std::vector<size_t> leftPolygon;
-    std::vector<size_t> rightPolygon;
-
-    const Point2D& p1 = meshData_.getNode(nodeId1)->getCoordinates();
-    const Point2D& p2 = meshData_.getNode(nodeId2)->getCoordinates();
-
-    // Collect all unique vertices on the boundary
-    std::vector<size_t> boundaryVertices;
+    // Build adjacency map: for each vertex, which other vertices are connected by boundary edges
+    std::unordered_map<size_t, std::vector<size_t>> adjacency;
     for (const auto& edge : boundary)
     {
-        // Only add vertices that aren't the constraint edge endpoints
-        for (size_t v : edge)
+        adjacency[edge[0]].push_back(edge[1]);
+        adjacency[edge[1]].push_back(edge[0]);
+    }
+
+    // Trace the boundary polygon starting from nodeId1.
+    // The boundary forms a closed polygon containing nodeId1 and nodeId2.
+    // We trace from nodeId1 in one direction until we hit nodeId2 (left sub-polygon),
+    // then continue until we return to nodeId1 (right sub-polygon).
+    std::vector<size_t> fullBoundary;
+    fullBoundary.push_back(nodeId1);
+
+    std::unordered_set<size_t> visited;
+    visited.insert(nodeId1);
+
+    size_t current = nodeId1;
+    while (true)
+    {
+        bool advanced = false;
+        for (size_t neighbor : adjacency[current])
         {
-            if (v != nodeId1 && v != nodeId2)
+            if (visited.count(neighbor) == 0)
             {
-                if (std::find(boundaryVertices.begin(), boundaryVertices.end(), v) == boundaryVertices.end())
+                fullBoundary.push_back(neighbor);
+                visited.insert(neighbor);
+                current = neighbor;
+                advanced = true;
+                break;
+            }
+        }
+        if (!advanced)
+            break;
+    }
+
+    // Split the full boundary into left and right sub-polygons at nodeId1 and nodeId2
+    // Find nodeId2's position in the boundary
+    auto it = std::find(fullBoundary.begin(), fullBoundary.end(), nodeId2);
+    if (it == fullBoundary.end())
+    {
+        spdlog::warn("enforceEdge: nodeId2 ({}) not found in traced boundary for edge ({}, {})",
+                      nodeId2, nodeId1, nodeId2);
+        return false;
+    }
+    size_t splitIdx = std::distance(fullBoundary.begin(), it);
+
+    // Left sub-polygon: nodeId1 → ... → nodeId2
+    std::vector<size_t> leftPolygon(fullBoundary.begin(), fullBoundary.begin() + splitIdx + 1);
+    // Right sub-polygon: nodeId2 → ... → nodeId1
+    std::vector<size_t> rightPolygon(fullBoundary.begin() + splitIdx, fullBoundary.end());
+    rightPolygon.push_back(nodeId1);
+
+    // Triangulate each sub-polygon using ear clipping
+    const double MIN_TRIANGLE_AREA = 1e-10;
+
+    auto triangulatePolygon = [&](std::vector<size_t> polygon)
+    {
+        // Ensure CCW winding
+        double totalArea = 0.0;
+        for (size_t i = 0; i < polygon.size(); ++i)
+        {
+            const Point2D& pi = meshData_.getNode(polygon[i])->getCoordinates();
+            const Point2D& pj = meshData_.getNode(polygon[(i + 1) % polygon.size()])->getCoordinates();
+            totalArea += (pi.x() * pj.y() - pj.x() * pi.y());
+        }
+        if (totalArea < 0.0)
+        {
+            std::reverse(polygon.begin(), polygon.end());
+        }
+
+        // Ear clipping
+        while (polygon.size() > 3)
+        {
+            bool earFound = false;
+            for (size_t i = 0; i < polygon.size(); ++i)
+            {
+                size_t prev = (i + polygon.size() - 1) % polygon.size();
+                size_t next = (i + 1) % polygon.size();
+
+                const Point2D& pPrev = meshData_.getNode(polygon[prev])->getCoordinates();
+                const Point2D& pCurr = meshData_.getNode(polygon[i])->getCoordinates();
+                const Point2D& pNext = meshData_.getNode(polygon[next])->getCoordinates();
+
+                double area = GeometryUtilities2D::computeSignedArea(pPrev, pCurr, pNext);
+                if (area <= MIN_TRIANGLE_AREA)
+                    continue; // Not a convex vertex (or degenerate)
+
+                // Check that no other polygon vertex is inside this ear
+                bool isEar = true;
+                for (size_t j = 0; j < polygon.size(); ++j)
                 {
-                    boundaryVertices.push_back(v);
+                    if (j == prev || j == i || j == next)
+                        continue;
+                    const Point2D& pTest = meshData_.getNode(polygon[j])->getCoordinates();
+                    // Point-in-triangle test using orientation
+                    double d1 = GeometryUtilities2D::computeOrientation(pPrev, pCurr, pTest);
+                    double d2 = GeometryUtilities2D::computeOrientation(pCurr, pNext, pTest);
+                    double d3 = GeometryUtilities2D::computeOrientation(pNext, pPrev, pTest);
+                    bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+                    bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+                    if (!(hasNeg && hasPos))
+                    {
+                        isEar = false;
+                        break;
+                    }
+                }
+
+                if (isEar)
+                {
+                    mutator_->addElement(std::make_unique<TriangleElement>(
+                        std::array<size_t, 3>{polygon[prev], polygon[i], polygon[next]}));
+                    polygon.erase(polygon.begin() + i);
+                    earFound = true;
+                    break;
+                }
+            }
+            if (!earFound)
+            {
+                spdlog::warn("enforceEdge: ear clipping failed for polygon with {} vertices", polygon.size());
+                break;
+            }
+        }
+
+        // Final triangle
+        if (polygon.size() == 3)
+        {
+            const Point2D& p0 = meshData_.getNode(polygon[0])->getCoordinates();
+            const Point2D& p1 = meshData_.getNode(polygon[1])->getCoordinates();
+            const Point2D& p2 = meshData_.getNode(polygon[2])->getCoordinates();
+            double area = GeometryUtilities2D::computeSignedArea(p0, p1, p2);
+
+            if (std::abs(area) >= MIN_TRIANGLE_AREA)
+            {
+                if (area > 0)
+                {
+                    mutator_->addElement(std::make_unique<TriangleElement>(
+                        std::array<size_t, 3>{polygon[0], polygon[1], polygon[2]}));
+                }
+                else
+                {
+                    mutator_->addElement(std::make_unique<TriangleElement>(
+                        std::array<size_t, 3>{polygon[0], polygon[2], polygon[1]}));
                 }
             }
         }
-    }
-
-    // Determine which side of the constraint edge each vertex is on
-    for (size_t v : boundaryVertices)
-    {
-        const Point2D& point = meshData_.getNode(v)->getCoordinates();
-        double orient = GeometryUtilities2D::computeOrientation(p1, p2, point);
-
-        if (orient > 1e-10)
-        {
-            leftPolygon.push_back(v);
-        }
-        else if (orient < -1e-10)
-        {
-            rightPolygon.push_back(v);
-        }
-    }
-
-    // Sort vertices along the constraint edge to create proper polygon ordering
-    auto sortVerticesAlongEdge = [&](std::vector<size_t>& vertices)
-    {
-        if (vertices.empty()) return;
-
-        // Project each vertex onto the constraint edge to get ordering parameter
-        Point2D edgeDir = p2 - p1;
-        double edgeLength2 = edgeDir.x() * edgeDir.x() + edgeDir.y() * edgeDir.y();
-
-        std::sort(vertices.begin(), vertices.end(), [&](size_t v1, size_t v2)
-                  {
-            const Point2D& pv1 = meshData_.getNode(v1)->getCoordinates();
-            const Point2D& pv2 = meshData_.getNode(v2)->getCoordinates();
-
-            // Project onto edge direction
-            Point2D p1ToV1 = pv1 - p1;
-            Point2D p1ToV2 = pv2 - p1;
-            double t1 = (p1ToV1.x() * edgeDir.x() + p1ToV1.y() * edgeDir.y()) / edgeLength2;
-            double t2 = (p1ToV2.x() * edgeDir.x() + p1ToV2.y() * edgeDir.y()) / edgeLength2;
-
-            return t1 < t2; });
     };
 
-    sortVerticesAlongEdge(leftPolygon);
-    sortVerticesAlongEdge(rightPolygon);
-
-    // Helper function to compute signed area for orientation checking
-    auto computeSignedArea = [&](size_t n1, size_t n2, size_t n3) -> double
-    {
-        const Point2D& pt1 = meshData_.getNode(n1)->getCoordinates();
-        const Point2D& pt2 = meshData_.getNode(n2)->getCoordinates();
-        const Point2D& pt3 = meshData_.getNode(n3)->getCoordinates();
-        return GeometryUtilities2D::computeSignedArea(pt1, pt2, pt3);
-    };
-
-    // Triangulate left polygon using fan triangulation from nodeId1
-    // Creates triangles: (nodeId1, leftPolygon[i], leftPolygon[i+1])
-    // and final edge triangle (nodeId1, leftPolygon.back(), nodeId2)
-    const double MIN_TRIANGLE_AREA = 1e-10;
-
-    if (!leftPolygon.empty())
-    {
-        for (size_t i = 0; i < leftPolygon.size() - 1; ++i)
-        {
-            // Check orientation and adjust if needed
-            double area = computeSignedArea(nodeId1, leftPolygon[i], leftPolygon[i + 1]);
-
-            // Skip degenerate triangles (collinear or nearly collinear points)
-            if (std::abs(area) < MIN_TRIANGLE_AREA)
-            {
-                spdlog::debug("Skipping degenerate triangle in left polygon: ({}, {}, {})",
-                              nodeId1, leftPolygon[i], leftPolygon[i + 1]);
-                continue;
-            }
-
-            if (area > 0)
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, leftPolygon[i], leftPolygon[i + 1]});
-                mutator_->addElement(std::move(newTriangle));
-            }
-            else
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, leftPolygon[i + 1], leftPolygon[i]});
-                mutator_->addElement(std::move(newTriangle));
-            }
-        }
-        // Final triangle connects to nodeId2
-        double area = computeSignedArea(nodeId1, leftPolygon.back(), nodeId2);
-
-        // Skip degenerate triangles
-        if (std::abs(area) >= MIN_TRIANGLE_AREA)
-        {
-            if (area > 0)
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, leftPolygon.back(), nodeId2});
-                mutator_->addElement(std::move(newTriangle));
-            }
-            else
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, nodeId2, leftPolygon.back()});
-                mutator_->addElement(std::move(newTriangle));
-            }
-        }
-        else
-        {
-            spdlog::debug("Skipping degenerate final triangle in left polygon: ({}, {}, {})",
-                          nodeId1, leftPolygon.back(), nodeId2);
-        }
-    }
-    else
-    {
-        // No vertices on left side, just need one triangle for the constraint edge
-        // This case is already handled by the right polygon or is degenerate
-    }
-
-    // Triangulate right polygon using fan triangulation from nodeId1
-    // Creates triangles with correct orientation
-    if (!rightPolygon.empty())
-    {
-        for (size_t i = 0; i < rightPolygon.size() - 1; ++i)
-        {
-            // Check orientation and adjust if needed
-            double area = computeSignedArea(nodeId1, rightPolygon[i + 1], rightPolygon[i]);
-
-            // Skip degenerate triangles (collinear or nearly collinear points)
-            if (std::abs(area) < MIN_TRIANGLE_AREA)
-            {
-                spdlog::debug("Skipping degenerate triangle in right polygon: ({}, {}, {})",
-                              nodeId1, rightPolygon[i + 1], rightPolygon[i]);
-                continue;
-            }
-
-            if (area > 0)
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, rightPolygon[i + 1], rightPolygon[i]});
-                mutator_->addElement(std::move(newTriangle));
-            }
-            else
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, rightPolygon[i], rightPolygon[i + 1]});
-                mutator_->addElement(std::move(newTriangle));
-            }
-        }
-        // Final triangle connects to nodeId2
-        double area = computeSignedArea(nodeId1, nodeId2, rightPolygon.back());
-
-        // Skip degenerate triangles
-        if (std::abs(area) >= MIN_TRIANGLE_AREA)
-        {
-            if (area > 0)
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, nodeId2, rightPolygon.back()});
-                mutator_->addElement(std::move(newTriangle));
-            }
-            else
-            {
-                auto newTriangle = std::make_unique<TriangleElement>(
-                    std::array<size_t, 3>{nodeId1, rightPolygon.back(), nodeId2});
-                mutator_->addElement(std::move(newTriangle));
-            }
-        }
-        else
-        {
-            spdlog::debug("Skipping degenerate final triangle in right polygon: ({}, {}, {})",
-                          nodeId1, nodeId2, rightPolygon.back());
-        }
-    }
-    else
-    {
-        // No vertices on right side
-    }
+    triangulatePolygon(leftPolygon);
+    triangulatePolygon(rightPolygon);
 
     return true;
 }
