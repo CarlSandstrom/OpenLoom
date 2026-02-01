@@ -34,6 +34,9 @@ public:
     /// Computes the minimum angle of a triangle element (in radians).
     double computeMinAngle(const TriangleElement& element) const;
 
+    /// Computes the centroid of a triangle element.
+    Point2D computeCentroid(const TriangleElement& element) const;
+
     /// Gets the coordinates of the three nodes of a triangle element.
     std::tuple<Point2D, Point2D, Point2D> getElementNodeCoordinates(const TriangleElement& element) const;
 

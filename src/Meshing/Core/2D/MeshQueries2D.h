@@ -8,6 +8,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -34,6 +35,18 @@ namespace Meshing
 class MeshQueries2D
 {
 public:
+    using EdgeKey = std::pair<size_t, size_t>;
+
+    struct EdgeKeyHash
+    {
+        std::size_t operator()(const EdgeKey& key) const
+        {
+            return std::hash<size_t>{}(key.first) ^ (std::hash<size_t>{}(key.second) << 1);
+        }
+    };
+
+    using EdgeToTrianglesMap = std::unordered_map<EdgeKey, std::vector<size_t>, EdgeKeyHash>;
+
     /**
      * @brief Construct mesh queries with mesh data
      * @param meshData Reference to the 2D mesh data (read-only)
@@ -99,8 +112,7 @@ public:
      * @param point The candidate point to check
      * @return Vector of segments that would be encroached by the point
      */
-    std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(
-        const Point2D& point) const;
+    std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(const Point2D& point) const;
 
     /**
      * @brief Check if two 2D segments intersect
@@ -140,6 +152,19 @@ public:
      * @return The common geometry ID, or std::nullopt if none found
      */
     std::optional<std::string> findCommonGeometryId(size_t nodeId1, size_t nodeId2) const;
+
+    /**
+     * @brief Check if an edge is a boundary constraint edge
+     * @param edgeId Edge node IDs
+     * @return True if the edge is a boundary constraint edge
+     */
+    bool isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId) const;
+
+    /**
+     * @brief Build an edge-to-triangle adjacency map
+     * @return Map from edge key to adjacent triangle IDs
+     */
+    EdgeToTrianglesMap buildEdgeToTrianglesMap() const;
 
     /**
      * @brief Classify triangles as interior using flood fill from constraint edges

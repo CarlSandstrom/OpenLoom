@@ -85,6 +85,13 @@ double ElementGeometry2D::computeMinAngle(const TriangleElement& element) const
     return std::min({angles[0], angles[1], angles[2]});
 }
 
+Point2D ElementGeometry2D::computeCentroid(const TriangleElement& element) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+    return Point2D((p0.x() + p1.x() + p2.x()) / 3.0,
+                   (p0.y() + p1.y() + p2.y()) / 3.0);
+}
+
 std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(const TriangleElement& element) const
 {
     auto nodeIds = element.getNodeIds();

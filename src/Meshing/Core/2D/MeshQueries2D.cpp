@@ -317,23 +317,6 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         return insideTriangles;
     }
 
-    // Helper: Check if an edge is a boundary constraint edge (blocks flood fill)
-    auto isBoundaryConstraintEdge = [&](size_t nodeId1, size_t nodeId2) -> bool
-    {
-        for (const auto& segment : constrainedEdges)
-        {
-            if (segment.role != EdgeRole::BOUNDARY)
-                continue;
-
-            if ((segment.nodeId1 == nodeId1 && segment.nodeId2 == nodeId2) ||
-                (segment.nodeId1 == nodeId2 && segment.nodeId2 == nodeId1))
-            {
-                return true;
-            }
-        }
-        return false;
-    };
-
     // Helper: Compute distance from point to line segment
     auto pointToSegmentDistance = [](const Point2D& p, const Point2D& a, const Point2D& b) -> double
     {
@@ -354,16 +337,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         return std::sqrt(diff.x() * diff.x() + diff.y() * diff.y());
     };
 
-    // Helper: Compute centroid of triangle
-    auto computeCentroid = [&](const TriangleElement* triangle) -> Point2D
-    {
-        const auto& nodeIds = triangle->getNodeIdArray();
-        Point2D p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
-        Point2D p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
-        Point2D p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
-        return Point2D((p0.x() + p1.x() + p2.x()) / 3.0,
-                       (p0.y() + p1.y() + p2.y()) / 3.0);
-    };
+    ElementGeometry2D geometry(meshData_);
 
     // Step 1: Find seed triangle (farthest from all constraint edges)
     const TriangleElement* seedTriangle = nullptr;
@@ -376,7 +350,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         if (!triangle)
             continue;
 
-        Point2D centroid = computeCentroid(triangle);
+        Point2D centroid = geometry.computeCentroid(*triangle);
         double minDistToConstraint = std::numeric_limits<double>::max();
 
         for (const auto& segment : constrainedEdges)
@@ -411,29 +385,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
                  seedTriangleId, maxMinDistance);
 
     // Step 2: Build edge-to-triangles adjacency map
-    using EdgeKey = std::pair<size_t, size_t>;
-    struct EdgeKeyHash
-    {
-        std::size_t operator()(const EdgeKey& key) const
-        {
-            return std::hash<size_t>{}(key.first) ^ (std::hash<size_t>{}(key.second) << 1);
-        }
-    };
-    std::unordered_map<EdgeKey, std::vector<size_t>, EdgeKeyHash> edgeToTriangles;
-
-    for (const auto& [elemId, element] : meshData_.getElements())
-    {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (!triangle)
-            continue;
-
-        for (size_t i = 0; i < 3; ++i)
-        {
-            auto edge = triangle->getEdge(i);
-            EdgeKey key = makeEdgeKey(edge[0], edge[1]);
-            edgeToTriangles[key].push_back(elemId);
-        }
-    }
+    EdgeToTrianglesMap edgeToTriangles = buildEdgeToTrianglesMap();
 
     // Step 3: Perform BFS flood fill starting from seed triangle
     std::queue<size_t> queue;
@@ -464,7 +416,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
             size_t node2 = edge[1];
 
             // Don't cross boundary constraint edges (interior edges are permeable)
-            if (isBoundaryConstraintEdge(node1, node2))
+            if (isBoundaryConstraintEdge(edge))
             {
                 continue;
             }
@@ -499,6 +451,49 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
     spdlog::info("classifyTrianglesInteriorExterior: Marked {} triangles as inside", insideTriangles.size());
 
     return insideTriangles;
+}
+
+MeshQueries2D::EdgeToTrianglesMap MeshQueries2D::buildEdgeToTrianglesMap() const
+{
+    EdgeToTrianglesMap edgeToTriangles;
+
+    for (const auto& [elemId, element] : meshData_.getElements())
+    {
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (!triangle)
+        {
+            continue;
+        }
+
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = triangle->getEdge(i);
+            EdgeKey key = makeEdgeKey(edge[0], edge[1]);
+            edgeToTriangles[key].push_back(elemId);
+        }
+    }
+
+    return edgeToTriangles;
+}
+
+bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId) const
+{
+    const auto& constrainedEdges = meshData_.getConstrainedSegments();
+    for (const auto& segment : constrainedEdges)
+    {
+        if (segment.role != EdgeRole::BOUNDARY)
+        {
+            continue;
+        }
+
+        if ((segment.nodeId1 == edgeId[0] && segment.nodeId2 == edgeId[1]) ||
+            (segment.nodeId1 == edgeId[1] && segment.nodeId2 == edgeId[0]))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 } // namespace Meshing
