@@ -17,6 +17,7 @@
 namespace Geometry2D
 {
 class IEdge2D;
+class IFace2D;
 }
 
 namespace Topology2D
@@ -92,7 +93,8 @@ public:
      */
     std::optional<size_t> splitConstrainedSegment(
         const ConstrainedSegment2D& segment,
-        const Geometry2D::IEdge2D& parentEdge);
+        const Geometry2D::IEdge2D& parentEdge,
+        const Geometry2D::IFace2D& domainFace);
 
     /**
      * @brief Remove all triangles outside the domain or in holes

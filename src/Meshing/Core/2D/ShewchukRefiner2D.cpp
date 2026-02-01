@@ -192,7 +192,7 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
     }
 
     // Split the segment (also updates constrained segments in MeshData2D)
-    auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge);
+    auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge, *domainFace_);
 
     if (!newNodeId.has_value())
     {
