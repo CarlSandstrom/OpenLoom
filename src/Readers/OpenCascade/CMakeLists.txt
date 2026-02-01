@@ -12,5 +12,8 @@ target_include_directories(ReaderOpenCascade INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# Find spdlog for logging
+find_package(spdlog REQUIRED)
+
 # Link with Geometry module for shape operations
-target_link_libraries(ReaderOpenCascade PUBLIC Geometry Topology)
+target_link_libraries(ReaderOpenCascade PUBLIC Geometry Topology Topology2D spdlog::spdlog)

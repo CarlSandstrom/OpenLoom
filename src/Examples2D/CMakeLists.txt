@@ -7,6 +7,7 @@ set(EXAMPLE_SOURCES_2D
     SimpleDelaunay2D.cc
     SquareWithCircularHole.cc
     SquareWithInternalCircles.cc
+    MeshStepFile2D.cc
 )
 
 # Link external libraries
