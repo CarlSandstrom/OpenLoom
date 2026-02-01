@@ -1,8 +1,6 @@
 #include "MeshOperations2D.h"
 #include "Common/Exceptions/MeshException.h"
-#include "Geometry/2D/Base/GeometryOperations2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Geometry/2D/Base/IFace2D.h"
 #include "GeometryUtilities2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -503,8 +501,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
 
 std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     const ConstrainedSegment2D& segment,
-    const Geometry2D::IEdge2D& parentEdge,
-    const Geometry2D::IFace2D& domainFace)
+    const Geometry2D::IEdge2D& parentEdge)
 {
     const Node2D* node1 = meshData_.getNode(segment.nodeId1);
     const Node2D* node2 = meshData_.getNode(segment.nodeId2);
@@ -556,19 +553,16 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
     mutator_->replaceConstrainedSegment(segment, seg1, seg2);
 
-    // Remove artifact triangles caused by concave constrained edges.
-    // If the midpoint of the old straight-line edge (A, B) is outside the domain,
-    // any triangle still having edge (A, B) is an artifact crossing a hole.
-    Point2D oldEdgeMidpoint = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
-    if (!Geometry2D::GeometryOperations2D::isPointInsideDomain(oldEdgeMidpoint, domainFace))
+    // Remove artifact triangle caused by concave constrained edges.
+    // After splitting (A, B) at M, edge (A, B) should no longer exist in the mesh.
+    // If exactly one triangle has edge (A, B), it's an artifact of the curved edge
+    // approximation. If two triangles share it, it's an internal boundary — keep both.
+    auto artifactTriangles = queries_.findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2);
+    if (artifactTriangles.size() == 1)
     {
-        auto artifactTriangles = queries_.findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2);
-        for (size_t triId : artifactTriangles)
-        {
-            spdlog::debug("splitConstrainedSegment: Removing artifact triangle {} (old edge midpoint outside domain)",
-                          triId);
-            mutator_->removeElement(triId);
-        }
+        spdlog::debug("splitConstrainedSegment: Removing artifact triangle {} (contains old edge ({}, {}))",
+                      artifactTriangles[0], segment.nodeId1, segment.nodeId2);
+        mutator_->removeElement(artifactTriangles[0]);
     }
 
     return newNodeId;
