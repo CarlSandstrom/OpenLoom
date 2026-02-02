@@ -42,16 +42,12 @@ void ShewchukRefiner2D::refine()
     const size_t maxIterations = 10000;         // Safety limit to prevent infinite loops
     const size_t maxConsecutiveNoProgress = 10; // Exit if no progress for this many iterations
 
+    exportAndVerifyMesh();
     while (true)
     {
         // Check mesh quality
         MeshData3D meshData3D(context_->getMeshData());
         MeshConnectivity connectivity(meshData3D);
-
-        {
-            Export::VtkExporter exporter;
-            exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_Iteration" + std::to_string(iterationCount) + ".vtu");
-        }
 
         if (qualityController_->isMeshAcceptable(context_->getMeshData(), connectivity))
         {
@@ -100,6 +96,7 @@ void ShewchukRefiner2D::refine()
         }
 
         ++iterationCount;
+        exportAndVerifyMesh();
     }
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);

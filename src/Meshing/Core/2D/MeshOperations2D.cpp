@@ -185,7 +185,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     if (it == fullBoundary.end())
     {
         spdlog::warn("enforceEdge: nodeId2 ({}) not found in traced boundary for edge ({}, {})",
-                      nodeId2, nodeId1, nodeId2);
+                     nodeId2, nodeId1, nodeId2);
         return false;
     }
     size_t splitIdx = std::distance(fullBoundary.begin(), it);
