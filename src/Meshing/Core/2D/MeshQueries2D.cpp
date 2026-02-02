@@ -38,7 +38,40 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 
         if (circle && GeometryUtilities2D::isPointInsideCircle(*circle, point))
         {
-            conflicting.push_back(id);
+            // Visibility check: ensure the point can "see" this triangle
+            // without being obscured by any constrained segment
+            const auto& nodeIds = triangle->getNodeIds();
+            const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
+            const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
+            const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
+            Point2D centroid((p0.x() + p1.x() + p2.x()) / 3.0,
+                             (p0.y() + p1.y() + p2.y()) / 3.0);
+
+            bool visible = true;
+            for (const auto& segment : meshData_.getConstrainedSegments())
+            {
+                // Skip segments that share a node with this triangle
+                if (segment.nodeId1 == nodeIds[0] || segment.nodeId1 == nodeIds[1] ||
+                    segment.nodeId1 == nodeIds[2] || segment.nodeId2 == nodeIds[0] ||
+                    segment.nodeId2 == nodeIds[1] || segment.nodeId2 == nodeIds[2])
+                {
+                    continue;
+                }
+
+                const Point2D& s1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
+                const Point2D& s2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
+
+                if (GeometryUtilities2D::segmentsIntersect(point, centroid, s1, s2))
+                {
+                    visible = false;
+                    break;
+                }
+            }
+
+            if (visible)
+            {
+                conflicting.push_back(id);
+            }
         }
     }
 
