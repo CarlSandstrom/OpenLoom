@@ -1,0 +1,67 @@
+flowchart TD
+    subgraph Input
+        GEO["Geometry & Topology<br>(edges, surfaces, holes)"]
+    end
+
+    GEO --> DISC["Edge Discretization<br>Sample points along edges<br>(respects curved geometry via parametric evaluation)"]
+    DISC --> EXTRACT["Extract Constrained Segments<br>Map discretized edge points → segment pairs<br>Classify as BOUNDARY or INTERIOR"]
+
+    EXTRACT --> SUPER["Create Super Triangle<br>Bounding box × 100 scale<br>Encloses all input points"]
+    SUPER --> BW
+
+    subgraph Delaunay["Incremental Delaunay Triangulation"]
+        BW["Insert each point via<br>Bowyer-Watson"]
+        BW --> CONFLICT
+        CONFLICT["Find Conflicting Triangles<br>1. Circumcircle test: is point<br>   inside triangle's circumcircle?<br>2. BFS flood fill from seed triangle<br>3. Never cross constrained edges<br>   during traversal"]
+        CONFLICT --> CAVITY["Extract Cavity Boundary<br>Edges appearing once = boundary<br>Edges appearing twice = interior (removed)"]
+        CAVITY --> RETRI["Retriangulate Cavity<br>Fan of new triangles from<br>boundary edges to inserted point"]
+        RETRI -.->|next point| BW
+    end
+
+    RETRI --> RMSUPER["Remove Super Triangle<br>Delete all triangles sharing<br>a super triangle vertex"]
+
+    RMSUPER --> ENFORCE
+
+    subgraph Constrained["Constraint Edge Recovery"]
+        ENFORCE["For each constrained segment:<br>Is the edge already present?"]
+        ENFORCE -->|Yes| SKIP[Skip]
+        ENFORCE -->|No| INTERSECT["Find all triangles whose<br>edges intersect the constraint"]
+        INTERSECT --> POLY["Build cavity boundary polygon<br>Trace closed polygon from<br>boundary edges of removed triangles"]
+        POLY --> SPLIT["Split polygon into two<br>sub-polygons at constraint<br>edge endpoints (left & right)"]
+        SPLIT --> EAR["Triangulate each sub-polygon<br>via Ear Clipping<br>- Find convex vertex with no<br>  interior vertices in ear<br>- Clip ear, create triangle<br>- Repeat until 3 vertices remain"]
+        EAR -.->|next segment| ENFORCE
+        SKIP -.->|next segment| ENFORCE
+    end
+
+    EAR --> CLASSIFY
+
+    subgraph Classification["Interior / Exterior Classification"]
+        CLASSIFY["Find interior seed triangle<br>Ray casting: cast horizontal ray<br>from centroid, count boundary<br>crossings (odd = inside)"]
+        CLASSIFY --> FLOOD["Flood fill from seed<br>BFS traversal, never crossing<br>BOUNDARY constraint edges<br>All reached triangles = interior"]
+        FLOOD --> REMOVE["Remove all exterior triangles<br>(not reached by flood fill)"]
+    end
+
+    REMOVE --> REFINE
+
+    subgraph Refinement["Shewchuk's Refinement Algorithm"]
+        REFINE{"Any encroached<br>segments?"}
+        REFINE -->|Yes| ENCROACH["Split Encroached Segment<br>- Diametral circle test:<br>  any vertex inside circle<br>  with segment as diameter?<br>- Insert midpoint on parent<br>  curve (parametric t_mid)<br>- Enforce two new sub-segments"]
+        ENCROACH --> LAWSON["Lawson Edge Flipping<br>Restore Delaunay property:<br>- For each non-constrained edge<br>- Check if opposite vertex is<br>  inside circumcircle<br>- If quad is convex: flip diagonal<br>- Push new edges to stack<br>- Repeat until stack empty"]
+        LAWSON --> REFINE
+
+        REFINE -->|No| QUALITY{"Any triangles<br>fail quality?"}
+        QUALITY -->|Yes| QCHECK["Quality Check<br>- Circumradius / shortest edge ratio<br>- Minimum angle threshold<br>- Process worst triangle first"]
+        QCHECK --> CIRCUM["Compute circumcenter of<br>bad triangle"]
+        CIRCUM --> SAFE{"Circumcenter<br>encroaches a<br>segment?"}
+        SAFE -->|Yes| ENCROACH
+        SAFE -->|No| INSERTCC["Insert circumcenter<br>via Bowyer-Watson"]
+        INSERTCC --> REFINE
+
+        QUALITY -->|No| DONE["Mesh Complete"]
+    end
+
+    style Input fill:#e1f0ff,stroke:#4a90d9
+    style Delaunay fill:#f0ffe1,stroke:#6ab04c
+    style Constrained fill:#fff3e0,stroke:#e67e22
+    style Classification fill:#fce4ec,stroke:#e74c3c
+    style Refinement fill:#f3e5f5,stroke:#9b59b6

@@ -1,0 +1,87 @@
+flowchart TD
+    subgraph Input["Input: Piecewise Linear Complex (PLC)"]
+        PLC["Geometry & Topology<br>(vertices, constraining segments,<br>planar constraining facets)"]
+    end
+
+    PLC --> DISC["Discretize Edges & Surfaces<br>Sample vertices along edges<br>and on surface facets<br>(respects curved CAD geometry<br>via parametric evaluation)"]
+
+    DISC --> EXTRACT["Extract Constraints<br>Segments → subsegment list<br>Facets → independent 2D Delaunay<br>triangulations per facet<br>(maintained separately from<br>the tetrahedralization)"]
+
+    EXTRACT --> SUPER["Create Bounding Tetrahedron<br>Encloses all input vertices<br>with large margin"]
+
+    SUPER --> BW
+
+    subgraph Delaunay["Initial Delaunay Tetrahedralization"]
+        BW["Insert each vertex via<br>3D Bowyer-Watson"]
+        BW --> CONFLICT3D
+        CONFLICT3D["Find Conflicting Tetrahedra<br>1. Circumsphere test: is point<br>   inside tet's circumsphere?<br>2. BFS flood fill from seed tet<br>   (no constraint-crossing yet —<br>   constraints not recovered)"]
+        CONFLICT3D --> CAVITY3D["Extract Cavity Boundary<br>Triangular faces appearing once<br>= boundary of the cavity"]
+        CAVITY3D --> RETRI3D["Retriangulate Cavity<br>New tetrahedra from each<br>boundary face to inserted vertex"]
+        RETRI3D -.->|next vertex| BW
+    end
+
+    RETRI3D --> P1
+
+    subgraph SegRecovery["Priority 1: Segment Recovery<br>(Stitching)"]
+        P1{"Any subsegment<br>missing from mesh?"}
+        P1 -->|Yes| MISSEG["Missing subsegment detected<br>(if missing → it is encroached,<br>by Delaunay property)"]
+        MISSEG --> SPLITSEG["Split subsegment at midpoint<br>- Insert midpoint via Bowyer-Watson<br>- Two new subsegments created<br>- Recurse if either is still missing"]
+        SPLITSEG --> P1
+        P1 -->|No| P2
+    end
+
+    subgraph FacetRecovery["Priority 2: Facet Recovery"]
+        P2{"Any subfacet<br>missing from mesh?"}
+        P2 -->|Yes| IDENT["Identify missing subfacets<br>Compare each facet's independent<br>2D Delaunay triangulation against<br>faces of the tetrahedralization"]
+        IDENT --> PROJ["Projection Lemma check<br>If vertex p encroaches subfacet f<br>but proj_F(p) lies outside facet F<br>→ p also encroaches a boundary<br>subsegment → split that first"]
+        PROJ --> SPLITFAC["Split encroached subfacet<br>at its circumcenter<br>- Insert into both the facet<br>  triangulation AND the<br>  tetrahedralization<br>- But if circumcenter would<br>  encroach a subsegment,<br>  split that subsegment instead"]
+        SPLITFAC --> CHECKSEG{"Subsegments<br>encroached?"}
+        CHECKSEG -->|Yes| SPLITSEG2["Split encroached subsegments<br>(return to Priority 1)"]
+        SPLITSEG2 --> P1
+        CHECKSEG -->|No| P2
+        P2 -->|No| RMEXT
+    end
+
+    subgraph Classification["Interior / Exterior Classification"]
+        RMEXT["Remove exterior tetrahedra<br>Tetrahedra outside the PLC<br>boundary (in convex hull but<br>outside facet-bounded region)<br>are removed BEFORE refinement<br>→ prevents spurious small angles"]
+    end
+
+    RMEXT --> REFINE3D
+
+    subgraph Refinement["Priority 3: Shewchuk's 3D Refinement"]
+        REFINE3D{"Any encroached<br>subsegments?"}
+        REFINE3D -->|Yes| RSEG["Split encroached subsegment<br>at midpoint via Bowyer-Watson<br>(diametral sphere test:<br>vertex inside smallest sphere<br>enclosing the subsegment)"]
+        RSEG --> REFINE3D
+
+        REFINE3D -->|No| REFINE3D_F{"Any encroached<br>subfacets?"}
+        REFINE3D_F -->|Yes| RFAC["Split encroached subfacet<br>at circumcenter<br>(equatorial sphere test:<br>non-coplanar vertex inside<br>smallest sphere through<br>the 3 subfacet vertices)"]
+        RFAC --> RFAC_CHECK{"Circumcenter<br>encroaches a<br>subsegment?"}
+        RFAC_CHECK -->|Yes| RSEG
+        RFAC_CHECK -->|No| REFINE3D
+
+        REFINE3D_F -->|No| QUALITY3D{"Any skinny<br>tetrahedra?"}
+        QUALITY3D -->|Yes| QTET["Quality check<br>Circumradius / shortest edge > B<br>(B ≥ 2 for guaranteed termination)<br>Process worst ratio first"]
+        QTET --> CIRCUMTET["Compute circumcenter<br>of skinny tetrahedron"]
+        CIRCUMTET --> SAFE3D{"Circumcenter<br>encroaches<br>subsegment or<br>subfacet?"}
+        SAFE3D -->|"Encroaches subsegment"| RSEG
+        SAFE3D -->|"Encroaches subfacet<br>(but no subsegment)"| RFAC_SPLIT["Split encroached subfacets"]
+        RFAC_SPLIT --> REFINE3D
+        SAFE3D -->|No| INSERTCC3D["Insert circumcenter<br>via Bowyer-Watson<br>→ eliminates skinny tet<br>(its circumsphere is<br>no longer empty)"]
+        INSERTCC3D --> REFINE3D
+
+        QUALITY3D -->|No| SLIVER
+    end
+
+    subgraph PostProcess["Post-Processing (Practical)"]
+        SLIVER["Sliver Removal (heuristic)<br>Slivers have good circumradius-to-<br>edge ratio but near-zero volume<br>and extreme dihedral angles<br>(near 0° or 180°)<br>→ Split at circumcenter targeting<br>dihedral angle bounds<br>→ No theoretical guarantee,<br>but effective in practice"]
+        SLIVER --> SMOOTH["Mesh Smoothing & Optimization<br>(optional)<br>- Laplacian / optimization-based<br>  vertex smoothing<br>- Topological transforms<br>  (2-3, 3-2 flips)<br>- Removes remaining slivers"]
+        SMOOTH --> DONE3D["Mesh Complete"]
+    end
+
+    style Input fill:#e1f0ff,stroke:#4a90d9
+    style Delaunay fill:#f0ffe1,stroke:#6ab04c
+    style SegRecovery fill:#fff3e0,stroke:#e67e22
+    style FacetRecovery fill:#ffeaa7,stroke:#d4a017
+    style Classification fill:#fce4ec,stroke:#e74c3c
+    style Refinement fill:#f3e5f5,stroke:#9b59b6
+    style PostProcess fill:#e8f8f5,stroke:#1abc9c
