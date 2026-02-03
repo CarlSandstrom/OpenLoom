@@ -29,4 +29,5 @@ target_link_libraries(Geometry2DOpenCascade PUBLIC
     TKBRep
     TKGeomAlgo
     TKTopAlgo
+    TKShHealing
 )
