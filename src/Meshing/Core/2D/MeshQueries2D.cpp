@@ -21,10 +21,10 @@ MeshQueries2D::MeshQueries2D(const MeshData2D& meshData) :
 
 std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point) const
 {
-    std::vector<size_t> conflicting;
-
     ElementGeometry2D geometry(meshData_);
 
+    // Step 1: Find all candidate triangles whose circumcircle contains the point
+    std::unordered_set<size_t> candidates;
     for (const auto& [id, element] : meshData_.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
@@ -35,42 +35,101 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
         }
 
         auto circle = geometry.computeCircumcircle(*triangle);
-
         if (circle && GeometryUtilities2D::isPointInsideCircle(*circle, point))
         {
-            // Visibility check: ensure the point can "see" this triangle
-            // without being obscured by any constrained segment
-            const auto& nodeIds = triangle->getNodeIds();
-            const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
-            const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
-            const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
-            Point2D centroid((p0.x() + p1.x() + p2.x()) / 3.0,
-                             (p0.y() + p1.y() + p2.y()) / 3.0);
+            candidates.insert(id);
+        }
+    }
 
-            bool visible = true;
-            for (const auto& segment : meshData_.getConstrainedSegments())
+    if (candidates.empty())
+        return {};
+
+    // Step 2: Build constrained edge set for fast lookup
+    std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
+    for (const auto& seg : meshData_.getConstrainedSegments())
+    {
+        constrainedEdgeKeys.insert(makeEdgeKey(seg.nodeId1, seg.nodeId2));
+    }
+
+    // Step 3: Build edge-to-triangles adjacency among candidates
+    std::unordered_map<EdgeKey, std::vector<size_t>, EdgeKeyHash> edgeToTriangles;
+    for (size_t id : candidates)
+    {
+        const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = tri->getEdge(i);
+            edgeToTriangles[makeEdgeKey(edge[0], edge[1])].push_back(id);
+        }
+    }
+
+    // Step 4: Find the seed - the candidate triangle containing the point
+    size_t seed = SIZE_MAX;
+    for (size_t id : candidates)
+    {
+        const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
+        const auto& nodeIds = tri->getNodeIds();
+        const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
+        const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
+        const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
+
+        double d1 = GeometryUtilities2D::computeOrientation(p0, p1, point);
+        double d2 = GeometryUtilities2D::computeOrientation(p1, p2, point);
+        double d3 = GeometryUtilities2D::computeOrientation(p2, p0, point);
+
+        bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+        if (!(hasNeg && hasPos))
+        {
+            seed = id;
+            break;
+        }
+    }
+
+    if (seed == SIZE_MAX)
+    {
+        // Point is on or very near a triangle edge; pick any candidate
+        seed = *candidates.begin();
+    }
+
+    // Step 5: BFS from seed through non-constrained edges to find the
+    // connected conflict region. This ensures the cavity never crosses
+    // a constrained segment.
+    std::vector<size_t> conflicting;
+    std::unordered_set<size_t> visited;
+    std::queue<size_t> bfsQueue;
+
+    bfsQueue.push(seed);
+    visited.insert(seed);
+
+    while (!bfsQueue.empty())
+    {
+        size_t current = bfsQueue.front();
+        bfsQueue.pop();
+        conflicting.push_back(current);
+
+        const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(current));
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = tri->getEdge(i);
+            EdgeKey key = makeEdgeKey(edge[0], edge[1]);
+
+            // Do not cross constrained edges
+            if (constrainedEdgeKeys.count(key))
+                continue;
+
+            auto it = edgeToTriangles.find(key);
+            if (it == edgeToTriangles.end())
+                continue;
+
+            for (size_t neighborId : it->second)
             {
-                // Skip segments that share a node with this triangle
-                if (segment.nodeId1 == nodeIds[0] || segment.nodeId1 == nodeIds[1] ||
-                    segment.nodeId1 == nodeIds[2] || segment.nodeId2 == nodeIds[0] ||
-                    segment.nodeId2 == nodeIds[1] || segment.nodeId2 == nodeIds[2])
+                if (visited.count(neighborId) == 0)
                 {
-                    continue;
+                    visited.insert(neighborId);
+                    bfsQueue.push(neighborId);
                 }
-
-                const Point2D& s1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
-                const Point2D& s2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
-
-                if (GeometryUtilities2D::segmentsIntersect(point, centroid, s1, s2))
-                {
-                    visible = false;
-                    break;
-                }
-            }
-
-            if (visible)
-            {
-                conflicting.push_back(id);
             }
         }
     }

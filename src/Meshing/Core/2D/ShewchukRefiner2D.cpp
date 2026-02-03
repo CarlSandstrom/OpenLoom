@@ -269,6 +269,17 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     try
     {
         context_->getOperations().insertVertexBowyerWatson(circumcenter);
+
+        // If the target triangle still exists after insertion, the circumcenter was
+        // on the other side of a constrained edge and the insertion didn't help.
+        // Mark it unrefinable to avoid an infinite loop.
+        if (context_->getMeshData().getElement(triangleId) != nullptr)
+        {
+            spdlog::debug("ShewchukRefiner2D: Triangle {} survived circumcenter insertion, marking unrefinable",
+                          triangleId);
+            unrefinableTriangles_.insert(triangleId);
+        }
+
         return true; // Successfully inserted circumcenter
     }
     catch (const std::exception& e)
