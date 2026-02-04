@@ -331,9 +331,9 @@ bool MeshOperations3D::removeTetrahedraContainingNode(size_t nodeId)
     return anyRemoved;
 }
 
-void MeshOperations3D::classifyTetrahedraInteriorExterior(
-    const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets)
+void MeshOperations3D::classifyTetrahedraInteriorExterior()
 {
+    const auto& constrainedSubfacets = meshData_.getConstrainedSubfacets();
     if (meshData_.getElements().empty())
     {
         spdlog::warn("classifyTetrahedraInteriorExterior: No tetrahedra in mesh");

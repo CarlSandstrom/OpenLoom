@@ -599,9 +599,8 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraEmptyMeshDoesNothing)
 {
     MeshOperations3D operations(meshData_);
 
-    std::vector<ConstrainedSubfacet3D> constraintFaces;
-    // Should not crash on empty mesh
-    operations.classifyTetrahedraInteriorExterior(constraintFaces);
+    // Should not crash on empty mesh (no constraints in MeshData3D)
+    operations.classifyTetrahedraInteriorExterior();
 
     EXPECT_EQ(meshData_.getElementCount(), 0);
 }
@@ -617,8 +616,8 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraNoConstraintsDoesNothing)
 
     MeshOperations3D operations(meshData_);
 
-    std::vector<ConstrainedSubfacet3D> emptyConstraints;
-    operations.classifyTetrahedraInteriorExterior(emptyConstraints);
+    // No constraints added to MeshData3D
+    operations.classifyTetrahedraInteriorExterior();
 
     // Should not remove anything when no constraints given
     EXPECT_EQ(meshData_.getElementCount(), 1);
@@ -638,17 +637,16 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraWithConstraintFace)
 
     EXPECT_EQ(meshData_.getElementCount(), 2);
 
-    MeshOperations3D operations(meshData_);
-
     // Define the shared face as a constraint (boundary between inside and outside)
     ConstrainedSubfacet3D constraint;
     constraint.nodeId1 = n0;
     constraint.nodeId2 = n1;
     constraint.nodeId3 = n2;
     constraint.geometryId = "boundary";
+    mutator_->addConstrainedSubfacet(constraint);
 
-    std::vector<ConstrainedSubfacet3D> constraints = {constraint};
-    operations.classifyTetrahedraInteriorExterior(constraints);
+    MeshOperations3D operations(meshData_);
+    operations.classifyTetrahedraInteriorExterior();
 
     // One tetrahedron should remain (the one farthest from constraints)
     EXPECT_EQ(meshData_.getElementCount(), 1);
@@ -671,17 +669,16 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraPreservesInteriorChain)
 
     EXPECT_EQ(meshData_.getElementCount(), 3);
 
-    MeshOperations3D operations(meshData_);
-
     // Mark the face that separates interior from exterior
     ConstrainedSubfacet3D constraint;
     constraint.nodeId1 = n0;
     constraint.nodeId2 = n1;
     constraint.nodeId3 = n2;
     constraint.geometryId = "boundary";
+    mutator_->addConstrainedSubfacet(constraint);
 
-    std::vector<ConstrainedSubfacet3D> constraints = {constraint};
-    operations.classifyTetrahedraInteriorExterior(constraints);
+    MeshOperations3D operations(meshData_);
+    operations.classifyTetrahedraInteriorExterior();
 
     // Two interior tetrahedra should remain
     EXPECT_EQ(meshData_.getElementCount(), 2);
@@ -705,13 +702,13 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraFloodFillStopsAtConstraints)
     constraint.nodeId2 = n1;
     constraint.nodeId3 = n2;
     constraint.geometryId = "bottom";
+    mutator_->addConstrainedSubfacet(constraint);
 
     MeshOperations3D operations(meshData_);
 
     // With a constraint face that matches the tetrahedron face,
     // flood fill should still work (the single tet is either all in or all out)
-    std::vector<ConstrainedSubfacet3D> constraints = {constraint};
-    operations.classifyTetrahedraInteriorExterior(constraints);
+    operations.classifyTetrahedraInteriorExterior();
 
     // Single tetrahedron case - it becomes the seed and stays
     EXPECT_EQ(meshData_.getElementCount(), 1);
@@ -729,14 +726,13 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraHandlesMultipleConstraintFaces)
     addTetrahedron(n0, n1, n2, n3);
     addTetrahedron(n0, n1, n2, n4);
 
-    MeshOperations3D operations(meshData_);
-
     // Define multiple constraint faces
     ConstrainedSubfacet3D constraint1;
     constraint1.nodeId1 = n0;
     constraint1.nodeId2 = n1;
     constraint1.nodeId3 = n2;
     constraint1.geometryId = "face1";
+    mutator_->addConstrainedSubfacet(constraint1);
 
     // Second constraint on another face (not shared between tets)
     ConstrainedSubfacet3D constraint2;
@@ -744,9 +740,10 @@ TEST_F(MeshOperations3DTest, ClassifyTetrahedraHandlesMultipleConstraintFaces)
     constraint2.nodeId2 = n1;
     constraint2.nodeId3 = n3;
     constraint2.geometryId = "face2";
+    mutator_->addConstrainedSubfacet(constraint2);
 
-    std::vector<ConstrainedSubfacet3D> constraints = {constraint1, constraint2};
-    operations.classifyTetrahedraInteriorExterior(constraints);
+    MeshOperations3D operations(meshData_);
+    operations.classifyTetrahedraInteriorExterior();
 
     // With the shared face as constraint, flood fill stops there
     // One tetrahedron should remain

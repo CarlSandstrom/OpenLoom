@@ -13,13 +13,9 @@ namespace Meshing
 {
 
 ShewchukRefiner3D::ShewchukRefiner3D(MeshingContext3D& context,
-                                     const IQualityController3D& qualityController,
-                                     std::vector<ConstrainedSubsegment3D>& constrainedSubsegments,
-                                     std::vector<ConstrainedSubfacet3D>& constrainedSubfacets) :
+                                     const IQualityController3D& qualityController) :
     context_(&context),
-    qualityController_(&qualityController),
-    constrainedSubsegments_(constrainedSubsegments),
-    constrainedSubfacets_(constrainedSubfacets)
+    qualityController_(&qualityController)
 {
 }
 
@@ -27,12 +23,15 @@ ShewchukRefiner3D::~ShewchukRefiner3D() = default;
 
 void ShewchukRefiner3D::refine()
 {
+    const auto& meshData = context_->getMeshData();
+
     spdlog::info("ShewchukRefiner3D: Starting mesh refinement");
     spdlog::info("ShewchukRefiner3D: Initial mesh has {} nodes, {} tetrahedra",
-                 context_->getMeshData().getNodeCount(),
-                 context_->getMeshData().getElementCount());
+                 meshData.getNodeCount(),
+                 meshData.getElementCount());
     spdlog::info("ShewchukRefiner3D: Constraints: {} subsegments, {} subfacets",
-                 constrainedSubsegments_.size(), constrainedSubfacets_.size());
+                 meshData.getConstrainedSubsegmentCount(),
+                 meshData.getConstrainedSubfacetCount());
 
     size_t iterationCount = 0;
     const size_t maxIterations = 10000;

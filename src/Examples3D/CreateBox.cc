@@ -24,12 +24,9 @@ int main()
         2.5,  // Min radius-edge ratio
         10000 // Max elements
     );
-    std::vector<Meshing::ConstrainedSubsegment3D> constrainedSubsegments;
-    std::vector<Meshing::ConstrainedSubfacet3D> constrainedSubfacets;
-    Meshing::ShewchukRefiner3D refiner(context,
-                                       qualityController,
-                                       constrainedSubsegments,
-                                       constrainedSubfacets);
+
+    // Constraints are now stored in MeshData3D via MeshMutator3D
+    Meshing::ShewchukRefiner3D refiner(context, qualityController);
     // Meshing::SimpleMesher mesher;
     // mesher.generate(context);
 

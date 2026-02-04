@@ -167,6 +167,53 @@ void MeshMutator3D::restoreNode(size_t id, const Point3D& coordinates)
     }
 }
 
+// ========== Constrained Subsegment Operations ==========
+
+void MeshMutator3D::addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment)
+{
+    geometry_.addConstrainedSubsegmentInternal(subsegment);
+}
+
+void MeshMutator3D::removeConstrainedSubsegment(size_t nodeId1, size_t nodeId2)
+{
+    geometry_.removeConstrainedSubsegmentInternal(nodeId1, nodeId2);
+}
+
+void MeshMutator3D::replaceConstrainedSubsegment(const ConstrainedSubsegment3D& oldSeg,
+                                                   const ConstrainedSubsegment3D& newSeg1,
+                                                   const ConstrainedSubsegment3D& newSeg2)
+{
+    geometry_.replaceConstrainedSubsegmentInternal(oldSeg, newSeg1, newSeg2);
+}
+
+void MeshMutator3D::clearConstrainedSubsegments()
+{
+    geometry_.clearConstrainedSubsegmentsInternal();
+}
+
+// ========== Constrained Subfacet Operations ==========
+
+void MeshMutator3D::addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet)
+{
+    geometry_.addConstrainedSubfacetInternal(subfacet);
+}
+
+void MeshMutator3D::removeConstrainedSubfacet(size_t nodeId1, size_t nodeId2, size_t nodeId3)
+{
+    geometry_.removeConstrainedSubfacetInternal(nodeId1, nodeId2, nodeId3);
+}
+
+void MeshMutator3D::replaceConstrainedSubfacet(const ConstrainedSubfacet3D& oldFacet,
+                                                 const std::vector<ConstrainedSubfacet3D>& newFacets)
+{
+    geometry_.replaceConstrainedSubfacetInternal(oldFacet, newFacets);
+}
+
+void MeshMutator3D::clearConstrainedSubfacets()
+{
+    geometry_.clearConstrainedSubfacetsInternal();
+}
+
 void MeshMutator3D::validateNodeRemoval(size_t nodeId) const
 {
     if (connectivity_ && !connectivity_->canRemoveNode(nodeId))

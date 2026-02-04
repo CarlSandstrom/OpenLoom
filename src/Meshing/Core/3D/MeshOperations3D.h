@@ -127,12 +127,10 @@ public:
     /**
      * @brief Classify tetrahedra as interior/exterior using flood fill
      *
-     * Uses mesh topology (constraint faces) to determine which tetrahedra
+     * Uses constraint faces from MeshData3D to determine which tetrahedra
      * are inside the domain vs outside or in holes. Removes exterior tets.
-     *
-     * @param constrainedSubfacets Vector of constraint faces forming domain boundaries
      */
-    void classifyTetrahedraInteriorExterior(const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets);
+    void classifyTetrahedraInteriorExterior();
 
     /**
      * @brief Get the mesh mutator for primitive operations

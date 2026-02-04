@@ -71,52 +71,6 @@ void MeshingContext3D::clearMesh()
     meshMutator_ = std::make_unique<MeshMutator3D>(*meshData_);
     meshMutator_->setConnectivity(connectivity_.get());
     meshOperations_ = std::make_unique<MeshOperations3D>(*meshData_);
-
-    // Clear constraints
-    constrainedSubsegments_.clear();
-    constrainedSubfacets_.clear();
-}
-
-// ========== Constraint Management ==========
-
-const std::vector<ConstrainedSubsegment3D>& MeshingContext3D::getConstrainedSubsegments() const
-{
-    return constrainedSubsegments_;
-}
-
-std::vector<ConstrainedSubsegment3D>& MeshingContext3D::getConstrainedSubsegments()
-{
-    return constrainedSubsegments_;
-}
-
-const std::vector<ConstrainedSubfacet3D>& MeshingContext3D::getConstrainedSubfacets() const
-{
-    return constrainedSubfacets_;
-}
-
-std::vector<ConstrainedSubfacet3D>& MeshingContext3D::getConstrainedSubfacets()
-{
-    return constrainedSubfacets_;
-}
-
-void MeshingContext3D::addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment)
-{
-    constrainedSubsegments_.push_back(subsegment);
-}
-
-void MeshingContext3D::addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet)
-{
-    constrainedSubfacets_.push_back(subfacet);
-}
-
-void MeshingContext3D::setConstrainedSubsegments(std::vector<ConstrainedSubsegment3D> subsegments)
-{
-    constrainedSubsegments_ = std::move(subsegments);
-}
-
-void MeshingContext3D::setConstrainedSubfacets(std::vector<ConstrainedSubfacet3D> subfacets)
-{
-    constrainedSubfacets_ = std::move(subfacets);
 }
 
 // ========== Private Methods ==========

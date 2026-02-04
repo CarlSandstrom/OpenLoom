@@ -2,6 +2,7 @@
 #include "../Base/IElement.h"
 #include "../Operations/ITransactionListener.h"
 #include "MeshData3D.h"
+#include "Meshing/Core/3D/GeometryStructures3D.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,6 +33,21 @@ public:
     // Element operations
     size_t addElement(std::unique_ptr<IElement> element);
     void removeElement(size_t id);
+
+    // Constrained subsegment operations
+    void addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment);
+    void removeConstrainedSubsegment(size_t nodeId1, size_t nodeId2);
+    void replaceConstrainedSubsegment(const ConstrainedSubsegment3D& oldSeg,
+                                      const ConstrainedSubsegment3D& newSeg1,
+                                      const ConstrainedSubsegment3D& newSeg2);
+    void clearConstrainedSubsegments();
+
+    // Constrained subfacet operations
+    void addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet);
+    void removeConstrainedSubfacet(size_t nodeId1, size_t nodeId2, size_t nodeId3);
+    void replaceConstrainedSubfacet(const ConstrainedSubfacet3D& oldFacet,
+                                    const std::vector<ConstrainedSubfacet3D>& newFacets);
+    void clearConstrainedSubfacets();
 
     // Transaction support
     void setTransactionListener(ITransactionListener* listener);

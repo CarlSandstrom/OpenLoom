@@ -1,9 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <vector>
-
-#include "GeometryStructures3D.h"
 
 namespace Geometry3D
 {
@@ -25,8 +22,8 @@ class MeshOperations3D;
  * @brief Central orchestrator for 3D tetrahedral meshing
  *
  * Holds references to geometry and topology and owns mesh-specific mutable
- * data structures. Also manages constraint lists (subsegments and subfacets)
- * needed for Shewchuk's 3D Delaunay refinement algorithm.
+ * data structures. Constraints (subsegments, subfacets) are stored in
+ * MeshData3D and mutated via MeshMutator3D.
  */
 class MeshingContext3D
 {
@@ -68,42 +65,8 @@ public:
     // Utility: rebuild connectivity after large changes
     void rebuildConnectivity();
 
-    // Clear mesh (data + connectivity)
+    // Clear mesh (data + connectivity + constraints)
     void clearMesh();
-
-    // ========== Constraint Management for Shewchuk Refinement ==========
-
-    /**
-     * @brief Get the constrained subsegments (boundary edges)
-     */
-    const std::vector<ConstrainedSubsegment3D>& getConstrainedSubsegments() const;
-    std::vector<ConstrainedSubsegment3D>& getConstrainedSubsegments();
-
-    /**
-     * @brief Get the constrained subfacets (boundary faces)
-     */
-    const std::vector<ConstrainedSubfacet3D>& getConstrainedSubfacets() const;
-    std::vector<ConstrainedSubfacet3D>& getConstrainedSubfacets();
-
-    /**
-     * @brief Add a constrained subsegment
-     */
-    void addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment);
-
-    /**
-     * @brief Add a constrained subfacet
-     */
-    void addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet);
-
-    /**
-     * @brief Set all constrained subsegments at once
-     */
-    void setConstrainedSubsegments(std::vector<ConstrainedSubsegment3D> subsegments);
-
-    /**
-     * @brief Set all constrained subfacets at once
-     */
-    void setConstrainedSubfacets(std::vector<ConstrainedSubfacet3D> subfacets);
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_ = nullptr;
@@ -113,10 +76,6 @@ private:
     std::unique_ptr<MeshConnectivity> connectivity_;
     std::unique_ptr<MeshMutator3D> meshMutator_;
     std::unique_ptr<MeshOperations3D> meshOperations_;
-
-    // Constraint lists for Shewchuk refinement
-    std::vector<ConstrainedSubsegment3D> constrainedSubsegments_;
-    std::vector<ConstrainedSubfacet3D> constrainedSubfacets_;
 
     void ensureInitialized();
 };

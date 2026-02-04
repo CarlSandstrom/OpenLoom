@@ -1,10 +1,8 @@
 #pragma once
 
-#include "GeometryStructures3D.h"
 #include "Meshing/Interfaces/IQualityController3D.h"
 #include "MeshingContext3D.h"
 #include <unordered_set>
-#include <vector>
 
 namespace Geometry3D
 {
@@ -38,6 +36,8 @@ namespace Meshing
  *   bound B (typically B > 2). Split at the circumcenter, but if that would
  *   encroach any subsegments or subfacets, split those first.
  *
+ * Constraints (subsegments, subfacets) are read from MeshData3D via the context.
+ *
  * Reference: Shewchuk, J.R. "Tetrahedral Mesh Generation by Delaunay Refinement"
  *            Proceedings of the Fourteenth Annual Symposium on Computational Geometry, 1998.
  */
@@ -46,15 +46,11 @@ class ShewchukRefiner3D
 public:
     /**
      * @brief Construct a Shewchuk 3D refiner
-     * @param context The meshing context containing mesh data and operations
+     * @param context The meshing context containing mesh data, operations, and constraints
      * @param qualityController Quality controller defining acceptable mesh quality
-     * @param constrainedSubsegments List of constrained boundary edges
-     * @param constrainedSubfacets List of constrained boundary faces
      */
     ShewchukRefiner3D(MeshingContext3D& context,
-                      const IQualityController3D& qualityController,
-                      std::vector<ConstrainedSubsegment3D>& constrainedSubsegments,
-                      std::vector<ConstrainedSubfacet3D>& constrainedSubfacets);
+                      const IQualityController3D& qualityController);
 
     ~ShewchukRefiner3D();
 
@@ -66,8 +62,6 @@ public:
 private:
     MeshingContext3D* context_;
     const IQualityController3D* qualityController_;
-    std::vector<ConstrainedSubsegment3D>& constrainedSubsegments_;
-    std::vector<ConstrainedSubfacet3D>& constrainedSubfacets_;
 
     // Track tetrahedra that cannot be refined
     std::unordered_set<size_t> unrefinableTetrahedra_;

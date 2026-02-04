@@ -6,7 +6,7 @@
  * a box with a cylindrical hole drilled through it. The workflow shows:
  * 1. Creating box and cylinder geometry using OpenCASCADE
  * 2. Boolean subtraction to create the hole
- * 3. Sampling boundary points including curved surfaces
+ * 3. Discretizing boundaries (with more samples for curved surfaces)
  * 4. Setting up constraints for both planar and curved faces
  * 5. Applying ShewchukRefiner3D for quality mesh generation
  * 6. Exporting the refined mesh to VTK format
@@ -14,12 +14,14 @@
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/3D/MeshOperations3D.h"
+#include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/BoundaryDiscretizer3D.h"
+#include "Meshing/Core/3D/Delaunay3D.h"
 #include "Meshing/Core/3D/MeshingContext3D.h"
 #include "Meshing/Core/3D/Shewchuk3DQualityController.h"
 #include "Meshing/Core/3D/ShewchukRefiner3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/Node3D.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "spdlog/spdlog.h"
 
 #include <BRepAlgoAPI_Cut.hxx>
@@ -30,57 +32,9 @@
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 
-#include <map>
 #include <set>
-#include <vector>
 
 using namespace Meshing;
-
-/**
- * @brief Sample points along an edge from the geometry
- */
-std::vector<std::pair<double, Point3D>> sampleEdge(
-    const Geometry3D::IEdge3D& edge,
-    size_t numSamples)
-{
-    std::vector<std::pair<double, Point3D>> samples;
-    auto [tMin, tMax] = edge.getParameterBounds();
-
-    for (size_t i = 0; i <= numSamples; ++i)
-    {
-        double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(numSamples);
-        samples.emplace_back(t, edge.getPoint(t));
-    }
-    return samples;
-}
-
-/**
- * @brief Sample points on a surface in a grid pattern
- */
-std::vector<Point3D> sampleSurface(
-    const Geometry3D::ISurface3D& surface,
-    size_t uSamples,
-    size_t vSamples)
-{
-    std::vector<Point3D> samples;
-    auto bounds = surface.getParameterBounds();
-    double uMin = bounds.getUMin();
-    double uMax = bounds.getUMax();
-    double vMin = bounds.getVMin();
-    double vMax = bounds.getVMax();
-
-    // Sample interior points only (edges are sampled separately)
-    for (size_t i = 1; i < uSamples; ++i)
-    {
-        double u = uMin + (uMax - uMin) * static_cast<double>(i) / static_cast<double>(uSamples);
-        for (size_t j = 1; j < vSamples; ++j)
-        {
-            double v = vMin + (vMax - vMin) * static_cast<double>(j) / static_cast<double>(vSamples);
-            samples.push_back(surface.getPoint(u, v));
-        }
-    }
-    return samples;
-}
 
 int main()
 {
@@ -115,7 +69,6 @@ int main()
         converter.getGeometryCollection(),
         converter.getTopology());
 
-    const auto* geometry = context.getGeometry();
     const auto* topology = context.getTopology();
 
     spdlog::info("Topology: {} corners, {} edges, {} surfaces",
@@ -124,87 +77,29 @@ int main()
                  topology->getAllSurfaceIds().size());
 
     // =========================================
-    // Step 2: Sample boundary points
+    // Step 2: Discretize boundaries
     // =========================================
-    spdlog::info("Sampling boundary points...");
+    spdlog::info("Discretizing boundary points...");
 
-    std::vector<Point3D> allPoints;
-    std::map<std::string, size_t> cornerNodeIds;
+    // Use more samples for curved geometry
+    Geometry3D::DiscretizationSettings3D settings(6, 3); // 6 segments/edge, 3x3 surface grid
+    BoundaryDiscretizer3D discretizer(context, settings);
+    auto discretization = discretizer.discretize();
 
-    // Sample corner points
-    for (const auto& cornerId : topology->getAllCornerIds())
-    {
-        const auto* corner = geometry->getCorner(cornerId);
-        allPoints.push_back(corner->getPoint());
-    }
-
-    const size_t numCorners = allPoints.size();
-
-    // Sample edge points - use more samples for curved edges
-    const size_t straightEdgeSamples = 3;
-    const size_t curvedEdgeSamples = 8; // More samples for circular edges
-
-    std::map<std::string, std::vector<size_t>> edgeNodeIds;
-
-    for (const auto& edgeId : topology->getAllEdgeIds())
-    {
-        const auto* edge = geometry->getEdge(edgeId);
-        auto [tMin, tMax] = edge->getParameterBounds();
-
-        // Detect if edge is curved by checking if midpoint deviates from straight line
-        Point3D start = edge->getPoint(tMin);
-        Point3D end = edge->getPoint(tMax);
-        Point3D mid = edge->getPoint((tMin + tMax) / 2.0);
-        Point3D expectedMid = (start + end) * 0.5;
-        double deviation = (mid - expectedMid).norm();
-
-        size_t numSamples = (deviation > 0.01) ? curvedEdgeSamples : straightEdgeSamples;
-
-        auto samples = sampleEdge(*edge, numSamples + 1);
-
-        // Skip first and last (corners)
-        for (size_t i = 1; i < samples.size() - 1; ++i)
-        {
-            allPoints.push_back(samples[i].second);
-        }
-    }
-
-    // Sample surface points - more samples for curved surfaces
-    const size_t planarSurfaceSamples = 2;
-    const size_t curvedSurfaceSamples = 4;
-
-    for (const auto& surfaceId : topology->getAllSurfaceIds())
-    {
-        const auto* surface = geometry->getSurface(surfaceId);
-        auto surfBounds = surface->getParameterBounds();
-        double uMin = surfBounds.getUMin();
-        double uMax = surfBounds.getUMax();
-        double vMin = surfBounds.getVMin();
-        double vMax = surfBounds.getVMax();
-
-        // Detect if surface is curved by checking corner vs center
-        Point3D corner = surface->getPoint(uMin, vMin);
-        Point3D center = surface->getPoint((uMin + uMax) / 2.0, (vMin + vMax) / 2.0);
-        Point3D expectedCenter = (surface->getPoint(uMin, vMin) + surface->getPoint(uMax, vMax)) * 0.5;
-        double deviation = (center - expectedCenter).norm();
-
-        size_t samples = (deviation > 0.01) ? curvedSurfaceSamples : planarSurfaceSamples;
-
-        auto pts = sampleSurface(*surface, samples + 1, samples + 1);
-        for (const auto& pt : pts)
-        {
-            allPoints.push_back(pt);
-        }
-    }
-
-    spdlog::info("Total boundary points: {}", allPoints.size());
+    spdlog::info("Total boundary points: {}", discretization.points.size());
 
     // =========================================
     // Step 3: Initialize Delaunay triangulation
     // =========================================
     spdlog::info("Initializing Delaunay triangulation...");
 
-    auto nodeIds = context.getOperations().initializeDelaunay(allPoints);
+    Delaunay3D delaunay(discretization.points,
+                        &context.getMeshData(),
+                        discretization.edgeParameters,
+                        discretization.geometryIds);
+    delaunay.triangulate();
+
+    auto pointToNodeMap = delaunay.getPointIndexToNodeIdMap();
 
     spdlog::info("Initial mesh: {} nodes, {} tetrahedra",
                  context.getMeshData().getNodeCount(),
@@ -215,55 +110,24 @@ int main()
     // =========================================
     spdlog::info("Setting up boundary constraints...");
 
-    std::vector<ConstrainedSubsegment3D>& subsegments = context.getConstrainedSubsegments();
-    std::vector<ConstrainedSubfacet3D>& subfacets = context.getConstrainedSubfacets();
-
-    // Map corner IDs to node IDs
-    size_t cornerIdx = 0;
-    for (const auto& cornerId : topology->getAllCornerIds())
-    {
-        cornerNodeIds[cornerId] = nodeIds[cornerIdx++];
-    }
+    auto& mutator = context.getMutator();
 
     // Create subsegments for each edge
-    size_t edgePointIdx = numCorners;
     for (const auto& edgeId : topology->getAllEdgeIds())
     {
-        const auto& topoEdge = topology->getEdge(edgeId);
-        const auto* edge = geometry->getEdge(edgeId);
+        const auto& edgePointIndices = discretization.edgeIdToPointIndicesMap.at(edgeId);
 
-        size_t startNode = cornerNodeIds[topoEdge.getStartCornerId()];
-        size_t endNode = cornerNodeIds[topoEdge.getEndCornerId()];
-
-        // Determine number of interior samples used for this edge
-        auto [tMin, tMax] = edge->getParameterBounds();
-        Point3D start = edge->getPoint(tMin);
-        Point3D end = edge->getPoint(tMax);
-        Point3D mid = edge->getPoint((tMin + tMax) / 2.0);
-        Point3D expectedMid = (start + end) * 0.5;
-        double deviation = (mid - expectedMid).norm();
-        size_t numSamples = (deviation > 0.01) ? curvedEdgeSamples : straightEdgeSamples;
-
-        // Build chain of node IDs for this edge
-        std::vector<size_t> edgeChain;
-        edgeChain.push_back(startNode);
-        for (size_t i = 0; i < numSamples; ++i)
+        for (size_t i = 0; i + 1 < edgePointIndices.size(); ++i)
         {
-            edgeChain.push_back(nodeIds[edgePointIdx++]);
-        }
-        edgeChain.push_back(endNode);
+            size_t nodeId1 = pointToNodeMap.at(edgePointIndices[i]);
+            size_t nodeId2 = pointToNodeMap.at(edgePointIndices[i + 1]);
 
-        // Create subsegments
-        for (size_t i = 0; i + 1 < edgeChain.size(); ++i)
-        {
             ConstrainedSubsegment3D seg;
-            seg.nodeId1 = edgeChain[i];
-            seg.nodeId2 = edgeChain[i + 1];
+            seg.nodeId1 = nodeId1;
+            seg.nodeId2 = nodeId2;
             seg.geometryId = edgeId;
-            subsegments.push_back(seg);
+            mutator.addConstrainedSubsegment(seg);
         }
-
-        edgeNodeIds[edgeId] = edgeChain;
     }
 
     // Create subfacets for each surface
@@ -278,9 +142,10 @@ int main()
 
         for (const auto& edgeId : boundaryEdgeIds)
         {
-            const auto& chain = edgeNodeIds[edgeId];
-            for (size_t nodeId : chain)
+            const auto& chain = discretization.edgeIdToPointIndicesMap.at(edgeId);
+            for (size_t pointIdx : chain)
             {
+                size_t nodeId = pointToNodeMap.at(pointIdx);
                 if (seenNodes.find(nodeId) == seenNodes.end())
                 {
                     faceNodes.push_back(nodeId);
@@ -299,13 +164,14 @@ int main()
                 facet.nodeId2 = faceNodes[i];
                 facet.nodeId3 = faceNodes[i + 1];
                 facet.geometryId = surfaceId;
-                subfacets.push_back(facet);
+                mutator.addConstrainedSubfacet(facet);
             }
         }
     }
 
     spdlog::info("Constraints: {} subsegments, {} subfacets",
-                 subsegments.size(), subfacets.size());
+                 context.getMeshData().getConstrainedSubsegmentCount(),
+                 context.getMeshData().getConstrainedSubfacetCount());
 
     // =========================================
     // Step 5: Apply ShewchukRefiner3D
@@ -317,7 +183,7 @@ int main()
     // Element limit = 10000 (more elements due to complex geometry)
     Shewchuk3DQualityController qualityController(context.getMeshData(), 2.5, 10000);
 
-    ShewchukRefiner3D refiner(context, qualityController, subsegments, subfacets);
+    ShewchukRefiner3D refiner(context, qualityController);
     refiner.refine();
 
     spdlog::info("Refined mesh: {} nodes, {} tetrahedra",
