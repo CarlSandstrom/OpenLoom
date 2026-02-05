@@ -1,7 +1,7 @@
 #include "Topology3D.h"
+#include "Common/Exceptions/GeometryException.h"
 #include "Common/Types.h"
 #include <algorithm>
-#include <stdexcept>
 
 namespace Topology3D
 {
@@ -20,7 +20,7 @@ const Surface3D& Topology3D::getSurface(const std::string& id) const
     auto it = surfaces_.find(id);
     if (it == surfaces_.end())
     {
-        throw std::runtime_error("Surface with id '" + id + "' not found");
+        CMESH_THROW_ENTITY_NOT_FOUND("Surface", id);
     }
     return it->second;
 }
@@ -30,7 +30,7 @@ const Edge3D& Topology3D::getEdge(const std::string& id) const
     auto it = edges_.find(id);
     if (it == edges_.end())
     {
-        throw std::runtime_error("Edge with id '" + id + "' not found");
+        CMESH_THROW_ENTITY_NOT_FOUND("Edge", id);
     }
     return it->second;
 }
@@ -40,7 +40,7 @@ const Corner3D& Topology3D::getCorner(const std::string& id) const
     auto it = corners_.find(id);
     if (it == corners_.end())
     {
-        throw std::runtime_error("Corner with id '" + id + "' not found");
+        CMESH_THROW_ENTITY_NOT_FOUND("Corner", id);
     }
     return it->second;
 }

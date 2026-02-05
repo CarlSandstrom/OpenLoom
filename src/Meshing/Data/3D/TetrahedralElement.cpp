@@ -5,15 +5,14 @@ namespace Meshing
 {
 
 TetrahedralElement::TetrahedralElement(const std::array<size_t, 4>& nodeIds) :
-    nodeIds_(nodeIds)
+    nodeIds_(nodeIds),
+    nodeIdsVector_(nodeIds_.begin(), nodeIds_.end())
 {
 }
 
 const std::vector<size_t>& TetrahedralElement::getNodeIds() const
 {
-    static thread_local std::vector<size_t> nodeVector;
-    nodeVector.assign(nodeIds_.begin(), nodeIds_.end());
-    return nodeVector;
+    return nodeIdsVector_;
 }
 
 bool TetrahedralElement::getHasNode(size_t nodeId) const

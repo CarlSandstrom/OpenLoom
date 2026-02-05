@@ -30,6 +30,7 @@ public:
 
 private:
     std::array<size_t, 4> nodeIds_; // Ordered connectivity
+    std::vector<size_t> nodeIdsVector_;  // Cached vector for IElement interface
 };
 
 } // namespace Meshing

@@ -136,7 +136,9 @@ void MeshData3D::replaceConstrainedSubsegmentInternal(const ConstrainedSubsegmen
 {
     for (auto it = constrainedSubsegments_.begin(); it != constrainedSubsegments_.end(); ++it)
     {
-        if (it->nodeId1 == oldSeg.nodeId1 && it->nodeId2 == oldSeg.nodeId2)
+        // Match bidirectionally, consistent with removeConstrainedSubsegmentInternal
+        if ((it->nodeId1 == oldSeg.nodeId1 && it->nodeId2 == oldSeg.nodeId2) ||
+            (it->nodeId1 == oldSeg.nodeId2 && it->nodeId2 == oldSeg.nodeId1))
         {
             *it = newSeg1;
             constrainedSubsegments_.push_back(newSeg2);
@@ -172,11 +174,21 @@ void MeshData3D::removeConstrainedSubfacetInternal(size_t nodeId1, size_t nodeId
 void MeshData3D::replaceConstrainedSubfacetInternal(const ConstrainedSubfacet3D& oldFacet,
                                                       const std::vector<ConstrainedSubfacet3D>& newFacets)
 {
+    if (newFacets.empty())
+    {
+        return;
+    }
+
+    // Match using canonical (sorted) node IDs, consistent with removeConstrainedSubfacetInternal
+    std::array<size_t, 3> oldSorted = {oldFacet.nodeId1, oldFacet.nodeId2, oldFacet.nodeId3};
+    std::sort(oldSorted.begin(), oldSorted.end());
+
     for (auto it = constrainedSubfacets_.begin(); it != constrainedSubfacets_.end(); ++it)
     {
-        if (it->nodeId1 == oldFacet.nodeId1 &&
-            it->nodeId2 == oldFacet.nodeId2 &&
-            it->nodeId3 == oldFacet.nodeId3)
+        std::array<size_t, 3> currentSorted = {it->nodeId1, it->nodeId2, it->nodeId3};
+        std::sort(currentSorted.begin(), currentSorted.end());
+
+        if (currentSorted == oldSorted)
         {
             *it = newFacets[0];
             for (size_t i = 1; i < newFacets.size(); ++i)

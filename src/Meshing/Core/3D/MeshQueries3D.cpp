@@ -43,11 +43,9 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
 std::vector<std::array<size_t, 3>>
 MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices) const
 {
-    // Build a set of conflicting tetrahedra for fast lookup
-    std::unordered_set<size_t> conflictingSet(conflictingIndices.begin(), conflictingIndices.end());
-
-    // Map to count how many times each face appears
+    // Map to count how many times each face appears, and store the original oriented face
     std::map<FaceKey, size_t> faceCount;
+    std::map<FaceKey, std::array<size_t, 3>> faceOrientation;
 
     // Iterate through all conflicting tetrahedra and count their faces
     for (size_t tetId : conflictingIndices)
@@ -59,16 +57,20 @@ MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices)
             continue;
         }
 
-        // Get the four faces of the tetrahedron
-        const auto& nodes = tet->getNodeIds();
-        std::array<std::array<size_t, 3>, 4> faces = {{{nodes[0], nodes[1], nodes[2]},
-                                                       {nodes[0], nodes[1], nodes[3]},
-                                                       {nodes[0], nodes[2], nodes[3]},
-                                                       {nodes[1], nodes[2], nodes[3]}}};
+        // Get the four faces with consistent outward-pointing orientation
+        // Using standard tet face ordering (each face opposite to one node)
+        auto faces = tet->getFaces();
 
         for (const auto& face : faces)
         {
-            faceCount[FaceKey(face[0], face[1], face[2])]++;
+            FaceKey key(face[0], face[1], face[2]);
+            faceCount[key]++;
+            // Store the oriented face (first occurrence wins; for boundary faces
+            // there is only one occurrence)
+            if (faceOrientation.find(key) == faceOrientation.end())
+            {
+                faceOrientation[key] = face;
+            }
         }
     }
 
@@ -78,7 +80,7 @@ MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices)
     {
         if (count == 1)
         {
-            boundary.push_back(faceKey.nodeIds);
+            boundary.push_back(faceOrientation[faceKey]);
         }
     }
 

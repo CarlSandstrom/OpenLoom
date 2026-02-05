@@ -1,6 +1,8 @@
 #include "OpenCascadeCorner.h"
 #include <BRep_Tool.hxx>
+#include <TopoDS_Shape.hxx>
 #include <gp_Pnt.hxx>
+#include <functional>
 #include <sstream>
 
 namespace Geometry3D
@@ -20,7 +22,7 @@ Meshing::Point3D OpenCascadeCorner::getPoint() const
 std::string OpenCascadeCorner::getId() const
 {
     std::ostringstream oss;
-    oss << "OpenCascadeCorner_" << std::hex << reinterpret_cast<uintptr_t>(&vertex_);
+    oss << "OpenCascadeCorner_" << std::hex << std::hash<TopoDS_Shape>{}(vertex_);
     return oss.str();
 }
 

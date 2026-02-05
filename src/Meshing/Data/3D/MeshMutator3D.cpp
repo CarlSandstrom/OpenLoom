@@ -9,6 +9,21 @@ namespace Meshing
 MeshMutator3D::MeshMutator3D(MeshData3D& geometry) :
     geometry_(geometry)
 {
+    // Initialize ID counters from existing mesh data to avoid collisions
+    for (const auto& [id, node] : geometry_.getNodes())
+    {
+        if (id >= nextNodeId_)
+        {
+            nextNodeId_ = id + 1;
+        }
+    }
+    for (const auto& [id, element] : geometry_.getElements())
+    {
+        if (id >= nextElementId_)
+        {
+            nextElementId_ = id + 1;
+        }
+    }
 }
 
 void MeshMutator3D::setConnectivity(MeshConnectivity* connectivity)
@@ -158,6 +173,12 @@ void MeshMutator3D::restoreNode(size_t id, const Point3D& coordinates)
     if (node)
     {
         node->setCoordinates(coordinates);
+    }
+    else
+    {
+        // Node was deleted; recreate it
+        auto newNode = std::make_unique<Node3D>(coordinates);
+        geometry_.addNodeInternal(id, std::move(newNode));
     }
 
     // Ensure nextNodeId_ accounts for restored nodes

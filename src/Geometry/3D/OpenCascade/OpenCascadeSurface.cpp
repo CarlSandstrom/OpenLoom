@@ -7,6 +7,8 @@
 #include <GeomLProp_SLProps.hxx>
 #include <Precision.hxx>
 #include <ShapeAnalysis.hxx>
+#include <TopoDS_Shape.hxx>
+#include <functional>
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
 #include <limits>
@@ -28,7 +30,14 @@ std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
 
     if (props.IsNormalDefined())
     {
-        const gp_Vec& normal = props.Normal();
+        gp_Vec normal = props.Normal();
+
+        // Flip normal for reversed face orientation
+        if (face_.Orientation() == TopAbs_REVERSED)
+        {
+            normal.Reverse();
+        }
+
         return {normal.X(), normal.Y(), normal.Z()};
     }
 
@@ -89,7 +98,7 @@ Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point)
 std::string OpenCascadeSurface::getId() const
 {
     std::ostringstream oss;
-    oss << "OpenCascadeSurface_" << std::hex << reinterpret_cast<uintptr_t>(&face_);
+    oss << "OpenCascadeSurface_" << std::hex << std::hash<TopoDS_Shape>{}(face_);
     return oss.str();
 }
 

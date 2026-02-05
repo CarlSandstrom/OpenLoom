@@ -150,6 +150,10 @@ bool ShewchukRefiner3D::handleSkinnyTetrahedron(size_t tetId)
         context_->getOperations().insertVertexBowyerWatson(circumcenter);
         spdlog::debug("ShewchukRefiner3D: Inserted circumcenter at ({:.4f}, {:.4f}, {:.4f})",
                       circumcenter.x(), circumcenter.y(), circumcenter.z());
+
+        // Clear stale IDs: mesh topology changed, old tet IDs are invalidated
+        unrefinableTetrahedra_.clear();
+
         return true;
     }
     catch (const std::exception& e)

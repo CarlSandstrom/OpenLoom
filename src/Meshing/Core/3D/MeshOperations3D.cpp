@@ -1,4 +1,5 @@
 #include "MeshOperations3D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "ConstraintChecker3D.h"
 #include "ElementGeometry3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
@@ -29,9 +30,9 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
 {
     if (points.empty())
     {
-        spdlog::error("MeshOperations3D::createBoundingTetrahedron: Empty point list");
-        // Return dummy IDs - caller should check for empty input
-        return {0, 0, 0, 0};
+        CMESH_THROW_CODE(cMesh::MeshException,
+                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+                         "createBoundingTetrahedron called with empty point list");
     }
 
     // Compute bounding box of all points
@@ -208,11 +209,44 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 void MeshOperations3D::retriangulate(size_t vertexNodeId,
                                      const std::vector<std::array<size_t, 3>>& boundary)
 {
-    // Create a new tetrahedron for each boundary face
+    const Node3D* vertexNode = meshData_.getNode(vertexNodeId);
+    if (!vertexNode)
+    {
+        return;
+    }
+    const Point3D& v = vertexNode->getCoordinates();
+
+    // Create a new tetrahedron for each boundary face, ensuring positive orientation
     for (const auto& face : boundary)
     {
-        auto tet = std::make_unique<TetrahedralElement>(
-            std::array<size_t, 4>{vertexNodeId, face[0], face[1], face[2]});
+        const Node3D* n0 = meshData_.getNode(face[0]);
+        const Node3D* n1 = meshData_.getNode(face[1]);
+        const Node3D* n2 = meshData_.getNode(face[2]);
+        if (!n0 || !n1 || !n2)
+        {
+            continue;
+        }
+
+        const Point3D& p0 = n0->getCoordinates();
+        const Point3D& p1 = n1->getCoordinates();
+        const Point3D& p2 = n2->getCoordinates();
+
+        // Compute signed volume: positive means vertex is on the correct side
+        // signedVolume = (1/6) * (p1-p0) . ((p2-p0) x (v-p0))
+        double signedVolume = (p1 - p0).dot((p2 - p0).cross(v - p0));
+
+        std::array<size_t, 4> nodeIds;
+        if (signedVolume >= 0.0)
+        {
+            nodeIds = {vertexNodeId, face[0], face[1], face[2]};
+        }
+        else
+        {
+            // Flip face winding to get positive orientation
+            nodeIds = {vertexNodeId, face[0], face[2], face[1]};
+        }
+
+        auto tet = std::make_unique<TetrahedralElement>(nodeIds);
         mutator_->addElement(std::move(tet));
     }
 }
@@ -232,20 +266,38 @@ MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subs
     }
 
     // Compute the midpoint on the geometry (handles curved edges)
-    // For now, use simple Euclidean midpoint
-    // TODO: Use parametric midpoint from parent edge when available
+    // Default to Euclidean midpoint
     Point3D midpoint = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
 
-    // Try to get parametric midpoint from edge if possible
-    try
+    // Use subsegment endpoint parameters to compute the parametric midpoint
+    const auto& params1 = node1->getEdgeParameters();
+    const auto& params2 = node2->getEdgeParameters();
+    const auto& geoIds1 = node1->getGeometryIds();
+    const auto& geoIds2 = node2->getGeometryIds();
+
+    // Find the edge parameter for each endpoint on the parent edge
+    std::optional<double> t1, t2;
+    for (size_t i = 0; i < geoIds1.size() && i < params1.size(); ++i)
     {
-        auto [tMin, tMax] = parentEdge.getParameterBounds();
-        double tMid = (tMin + tMax) * 0.5;
-        midpoint = parentEdge.getPoint(tMid);
+        if (geoIds1[i] == subsegment.geometryId)
+        {
+            t1 = params1[i];
+            break;
+        }
     }
-    catch (...)
+    for (size_t i = 0; i < geoIds2.size() && i < params2.size(); ++i)
     {
-        // Fall back to Euclidean midpoint (already computed)
+        if (geoIds2[i] == subsegment.geometryId)
+        {
+            t2 = params2[i];
+            break;
+        }
+    }
+
+    if (t1.has_value() && t2.has_value())
+    {
+        double tMid = (*t1 + *t2) * 0.5;
+        midpoint = parentEdge.getPoint(tMid);
     }
 
     // Insert the midpoint vertex

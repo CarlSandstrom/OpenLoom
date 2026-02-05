@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <memory>
 
+#include "Common/Exceptions/MeshException.h"
 #include "Common/Types.h"
 #include "Meshing/Core/3D/ElementGeometry3D.h"
 #include "Meshing/Core/3D/GeometryStructures3D.h"
@@ -386,13 +387,9 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesEmptyInput)
     MeshOperations3D operations(meshData_);
 
     std::vector<Point3D> emptyPoints;
-    auto boundingIds = operations.createBoundingTetrahedron(emptyPoints);
 
-    // Should return dummy IDs (all zeros) for empty input
-    EXPECT_EQ(boundingIds[0], 0);
-    EXPECT_EQ(boundingIds[1], 0);
-    EXPECT_EQ(boundingIds[2], 0);
-    EXPECT_EQ(boundingIds[3], 0);
+    // Should throw on empty input (programming error)
+    EXPECT_THROW(operations.createBoundingTetrahedron(emptyPoints), cMesh::MeshException);
 }
 
 TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesSinglePoint)

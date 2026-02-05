@@ -4,6 +4,8 @@
 #include <GCPnts_AbscissaPoint.hxx>
 #include <GeomLProp_CLProps.hxx>
 #include <Precision.hxx>
+#include <TopoDS_Shape.hxx>
+#include <functional>
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
@@ -108,7 +110,7 @@ double OpenCascadeEdge::getCurvature(double t) const
 std::string OpenCascadeEdge::getId() const
 {
     std::ostringstream oss;
-    oss << "OpenCascadeEdge_" << std::hex << reinterpret_cast<uintptr_t>(&edge_);
+    oss << "OpenCascadeEdge_" << std::hex << std::hash<TopoDS_Shape>{}(edge_);
     return oss.str();
 }
 
