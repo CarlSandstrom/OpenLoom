@@ -4,10 +4,9 @@
 #include "ElementGeometry2D.h"
 #include "ElementQuality2D.h"
 #include "Export/VtkExporter.h"
-#include "Geometry/2D/Base/GeometryOperations2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Geometry/2D/Base/IFace2D.h"
 #include "MeshOperations2D.h"
+#include "MeshQueries2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
@@ -26,8 +25,7 @@ namespace Meshing
 ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
                                      const IQualityController2D& qualityController) :
     context_(&context),
-    qualityController_(&qualityController),
-    domainFace_(context.buildDomainFace())
+    qualityController_(&qualityController)
 {
 }
 
@@ -242,7 +240,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     Point2D circumcenter = circumcenterOpt.value();
 
     // Check if circumcenter is inside the domain (not in a hole)
-    if (!domainFace_ || !Geometry2D::GeometryOperations2D::isPointInsideDomain(circumcenter, *domainFace_))
+    if (!context_->getOperations().getQueries().isPointInsideDomain(circumcenter))
     {
         spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) is outside domain or in hole, skipping",
                       circumcenter.x(), circumcenter.y());

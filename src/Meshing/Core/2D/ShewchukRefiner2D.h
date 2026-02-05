@@ -3,13 +3,7 @@
 #include "GeometryStructures2D.h"
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include "MeshingContext2D.h"
-#include <memory>
 #include <unordered_set>
-
-namespace Geometry2D
-{
-class IFace2D;
-}
 
 namespace Meshing
 {
@@ -52,7 +46,6 @@ public:
 private:
     MeshingContext2D* context_;
     const IQualityController2D* qualityController_;
-    std::unique_ptr<Geometry2D::IFace2D> domainFace_;
 
     /**
      * @brief Perform a single refinement step

@@ -1,9 +1,7 @@
 #include "MeshingContext2D.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Geometry/2D/Base/IFace2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DFaceBuilder.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ICorner3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
@@ -132,12 +130,6 @@ MeshOperations2D& MeshingContext2D::getOperations()
 {
     ensureInitialized();
     return *meshOperations_;
-}
-
-std::unique_ptr<Geometry2D::IFace2D> MeshingContext2D::buildDomainFace() const
-{
-    return Geometry2D::OpenCascade2DFaceBuilder::buildFromTopology(
-        *topology_, *geometry_);
 }
 
 void MeshingContext2D::ensureInitialized()

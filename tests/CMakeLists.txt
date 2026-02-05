@@ -48,20 +48,17 @@ set(TEST_SOURCES
 add_executable(runTests ${TEST_SOURCES})
 
 # Link against all the libraries we want to test
-target_link_libraries(runTests PRIVATE 
+target_link_libraries(runTests PRIVATE
     # Google Test
-    GTest::gtest 
-    GTest::gtest_main 
+    GTest::gtest
+    GTest::gtest_main
     pthread
-    
+
     # cMesh libraries
     Topology
-    GeometryBase
-    GeometryOpenCascade
     MeshingData
     MeshingOperations
-    ReaderOpenCascade
-    
+
     # Interface libraries (automatically bring in dependencies)
     Geometry
     Meshing
