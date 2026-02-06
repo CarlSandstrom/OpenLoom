@@ -88,7 +88,7 @@ bool ShewchukRefiner3D::refineStep()
     for (const auto& [tetId, ratio] : skinnyTets)
     {
         // Skip tetrahedra we've already determined can't be refined
-        if (unrefinableTetrahedra_.count(tetId) > 0)
+        if (unrefinableTetrahedra_.contains(tetId))
         {
             continue;
         }

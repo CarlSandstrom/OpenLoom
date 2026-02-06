@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <numbers>
 #include <optional>
 
 namespace Geometry2D
@@ -22,7 +23,7 @@ public:
      */
     DiscretizationSettings2D() :
         numSegmentsPerEdge_(1),
-        maxAngleBetweenSegments_(2 * 3.14159265358979323846 / 8)
+        maxAngleBetweenSegments_(std::numbers::pi / 4.0)
     {
     }
 

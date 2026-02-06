@@ -141,7 +141,7 @@ void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& bo
         const auto& nodes = tet->getNodeIds();
         for (size_t nodeId : nodes)
         {
-            if (boundingSet.count(nodeId) > 0)
+            if (boundingSet.contains(nodeId))
             {
                 tetsToRemove.push_back(tetId);
                 break;
@@ -526,7 +526,7 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior()
                     continue;
 
                 // If we haven't visited this neighbor yet, add it to the flood fill
-                if (insideTetrahedra.find(neighborId) == insideTetrahedra.end())
+                if (!insideTetrahedra.contains(neighborId))
                 {
                     insideTetrahedra.insert(neighborId);
                     queue.push(neighborId);
@@ -542,7 +542,7 @@ void MeshOperations3D::classifyTetrahedraInteriorExterior()
     std::vector<size_t> tetsToRemove;
     for (const auto& [elemId, element] : meshData_.getElements())
     {
-        if (insideTetrahedra.find(elemId) == insideTetrahedra.end())
+        if (!insideTetrahedra.contains(elemId))
         {
             tetsToRemove.push_back(elemId);
         }

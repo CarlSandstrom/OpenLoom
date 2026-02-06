@@ -1,6 +1,7 @@
 #include "MeshData3D.h"
 #include <algorithm>
 #include <array>
+#include <ranges>
 #include <stdexcept>
 
 namespace Meshing
@@ -121,13 +122,12 @@ void MeshData3D::addConstrainedSubsegmentInternal(const ConstrainedSubsegment3D&
 
 void MeshData3D::removeConstrainedSubsegmentInternal(size_t nodeId1, size_t nodeId2)
 {
-    auto it = std::remove_if(constrainedSubsegments_.begin(), constrainedSubsegments_.end(),
+    std::erase_if(constrainedSubsegments_,
         [nodeId1, nodeId2](const ConstrainedSubsegment3D& seg)
         {
             return (seg.nodeId1 == nodeId1 && seg.nodeId2 == nodeId2) ||
                    (seg.nodeId1 == nodeId2 && seg.nodeId2 == nodeId1);
         });
-    constrainedSubsegments_.erase(it, constrainedSubsegments_.end());
 }
 
 void MeshData3D::replaceConstrainedSubsegmentInternal(const ConstrainedSubsegment3D& oldSeg,
@@ -159,16 +159,15 @@ void MeshData3D::addConstrainedSubfacetInternal(const ConstrainedSubfacet3D& sub
 
 void MeshData3D::removeConstrainedSubfacetInternal(size_t nodeId1, size_t nodeId2, size_t nodeId3)
 {
-    auto it = std::remove_if(constrainedSubfacets_.begin(), constrainedSubfacets_.end(),
+    std::erase_if(constrainedSubfacets_,
         [nodeId1, nodeId2, nodeId3](const ConstrainedSubfacet3D& facet)
         {
             std::array<size_t, 3> a = {facet.nodeId1, facet.nodeId2, facet.nodeId3};
             std::array<size_t, 3> b = {nodeId1, nodeId2, nodeId3};
-            std::sort(a.begin(), a.end());
-            std::sort(b.begin(), b.end());
+            std::ranges::sort(a);
+            std::ranges::sort(b);
             return a == b;
         });
-    constrainedSubfacets_.erase(it, constrainedSubfacets_.end());
 }
 
 void MeshData3D::replaceConstrainedSubfacetInternal(const ConstrainedSubfacet3D& oldFacet,
@@ -181,12 +180,12 @@ void MeshData3D::replaceConstrainedSubfacetInternal(const ConstrainedSubfacet3D&
 
     // Match using canonical (sorted) node IDs, consistent with removeConstrainedSubfacetInternal
     std::array<size_t, 3> oldSorted = {oldFacet.nodeId1, oldFacet.nodeId2, oldFacet.nodeId3};
-    std::sort(oldSorted.begin(), oldSorted.end());
+    std::ranges::sort(oldSorted);
 
     for (auto it = constrainedSubfacets_.begin(); it != constrainedSubfacets_.end(); ++it)
     {
         std::array<size_t, 3> currentSorted = {it->nodeId1, it->nodeId2, it->nodeId3};
-        std::sort(currentSorted.begin(), currentSorted.end());
+        std::ranges::sort(currentSorted);
 
         if (currentSorted == oldSorted)
         {

@@ -50,13 +50,12 @@ void MeshData2D::addConstrainedSegmentInternal(const ConstrainedSegment2D& segme
 
 void MeshData2D::removeConstrainedSegmentInternal(size_t nodeId1, size_t nodeId2)
 {
-    auto it = std::remove_if(constrainedSegments_.begin(), constrainedSegments_.end(),
+    std::erase_if(constrainedSegments_,
         [nodeId1, nodeId2](const ConstrainedSegment2D& seg)
         {
             return (seg.nodeId1 == nodeId1 && seg.nodeId2 == nodeId2) ||
                    (seg.nodeId1 == nodeId2 && seg.nodeId2 == nodeId1);
         });
-    constrainedSegments_.erase(it, constrainedSegments_.end());
 }
 
 void MeshData2D::replaceConstrainedSegmentInternal(const ConstrainedSegment2D& oldSegment,

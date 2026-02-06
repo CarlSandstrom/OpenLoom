@@ -67,7 +67,7 @@ MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices)
             faceCount[key]++;
             // Store the oriented face (first occurrence wins; for boundary faces
             // there is only one occurrence)
-            if (faceOrientation.find(key) == faceOrientation.end())
+            if (!faceOrientation.contains(key))
             {
                 faceOrientation[key] = face;
             }

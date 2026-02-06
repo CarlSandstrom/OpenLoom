@@ -166,7 +166,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         bool advanced = false;
         for (size_t neighbor : adjacency[current])
         {
-            if (visited.count(neighbor) == 0)
+            if (!visited.contains(neighbor))
             {
                 fullBoundary.push_back(neighbor);
                 visited.insert(neighbor);
@@ -541,7 +541,7 @@ std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unorder
     std::vector<size_t> trianglesToRemove;
     for (const auto& [elemId, element] : meshData_.getElements())
     {
-        if (interiorTriangles.find(elemId) == interiorTriangles.end())
+        if (!interiorTriangles.contains(elemId))
         {
             trianglesToRemove.push_back(elemId);
         }

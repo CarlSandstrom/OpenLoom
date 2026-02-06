@@ -140,7 +140,7 @@ bool ShewchukRefiner2D::refineStep()
             continue;
 
         // Skip triangles we've already determined can't be refined
-        if (unrefinableTriangles_.find(triangleId) != unrefinableTriangles_.end())
+        if (unrefinableTriangles_.contains(triangleId))
             continue;
 
         // Check if this triangle needs refinement

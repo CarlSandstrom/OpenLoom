@@ -114,7 +114,7 @@ bool Topology3D::isValid() const
         // Check that all boundary edges exist
         for (const std::string& edgeId : surface.getBoundaryEdgeIds())
         {
-            if (edges_.find(edgeId) == edges_.end())
+            if (!edges_.contains(edgeId))
             {
                 return false;
             }
@@ -123,7 +123,7 @@ bool Topology3D::isValid() const
         // Check that all corners exist
         for (const std::string& cornerId : surface.getCornerIds())
         {
-            if (corners_.find(cornerId) == corners_.end())
+            if (!corners_.contains(cornerId))
             {
                 return false;
             }
@@ -132,7 +132,7 @@ bool Topology3D::isValid() const
         // Check that all adjacent surfaces exist
         for (const std::string& adjacentId : surface.getAdjacentSurfaceIds())
         {
-            if (surfaces_.find(adjacentId) == surfaces_.end())
+            if (!surfaces_.contains(adjacentId))
             {
                 return false;
             }
@@ -145,8 +145,8 @@ bool Topology3D::isValid() const
         const Edge3D& edge = edgePair.second;
 
         // Check that start and end corners exist
-        if (corners_.find(edge.getStartCornerId()) == corners_.end() ||
-            corners_.find(edge.getEndCornerId()) == corners_.end())
+        if (!corners_.contains(edge.getStartCornerId()) ||
+            !corners_.contains(edge.getEndCornerId()))
         {
             return false;
         }
@@ -154,7 +154,7 @@ bool Topology3D::isValid() const
         // Check that all adjacent surfaces exist
         for (const std::string& surfaceId : edge.getAdjacentSurfaceIds())
         {
-            if (surfaces_.find(surfaceId) == surfaces_.end())
+            if (!surfaces_.contains(surfaceId))
             {
                 return false;
             }
@@ -169,7 +169,7 @@ bool Topology3D::isValid() const
         // Check that all connected edges exist
         for (const std::string& edgeId : corner.getConnectedEdgeIds())
         {
-            if (edges_.find(edgeId) == edges_.end())
+            if (!edges_.contains(edgeId))
             {
                 return false;
             }
@@ -178,7 +178,7 @@ bool Topology3D::isValid() const
         // Check that all connected surfaces exist
         for (const std::string& surfaceId : corner.getConnectedSurfaceIds())
         {
-            if (surfaces_.find(surfaceId) == surfaces_.end())
+            if (!surfaces_.contains(surfaceId))
             {
                 return false;
             }

@@ -125,7 +125,7 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 
             for (size_t neighborId : it->second)
             {
-                if (visited.count(neighborId) == 0)
+                if (!visited.contains(neighborId))
                 {
                     visited.insert(neighborId);
                     bfsQueue.push(neighborId);
@@ -508,7 +508,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
             for (size_t neighborId : it->second)
             {
                 if (neighborId != currentTriId &&
-                    insideTriangles.find(neighborId) == insideTriangles.end())
+                    !insideTriangles.contains(neighborId))
                 {
                     insideTriangles.insert(neighborId);
                     queue.push(neighborId);

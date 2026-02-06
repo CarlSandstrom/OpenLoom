@@ -152,7 +152,7 @@ bool MeshVerifier3D::verifyNoOrphanNodes() const
     size_t count = 0;
     for (const auto& [nodeId, node] : meshData_.getNodes())
     {
-        if (referencedNodes.find(nodeId) == referencedNodes.end())
+        if (!referencedNodes.contains(nodeId))
         {
             spdlog::debug("MeshVerifier3D: Node {} is orphaned", nodeId);
             count++;
