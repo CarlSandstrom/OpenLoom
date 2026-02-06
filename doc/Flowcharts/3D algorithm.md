@@ -1,5 +1,18 @@
 # 3D Tetrahedral Mesh Generation by Delaunay Refinement
 
+Based on Shewchuk's algorithm: "Tetrahedral Mesh Generation by Delaunay Refinement"
+
+## Key Difference from 2D
+
+In 2D constrained Delaunay triangulation, constraint edges are directly enforced into the mesh. In 3D, this approach does not work because:
+
+1. The tetrahedralization is **unconstrained Delaunay** — constraints (subsegments, subfacets) may be **missing** from the initial mesh
+2. Constraints are **tracked** separately and **recovered** through iterative refinement by vertex insertion
+3. Each facet maintains an **independent 2D Delaunay triangulation** that defines what subfacets *should* exist
+4. The algorithm compares facet triangulations against tetrahedralization faces to identify missing subfacets
+
+This refinement-based recovery guarantees termination and good element quality, which direct constraint enforcement cannot.
+
 ## 1. Input Processing
 
 - **1.1** Receive Piecewise Linear Complex (PLC): vertices, constraining segments, and planar constraining facets from CAD geometry and topology
@@ -9,16 +22,20 @@
   - **1.4.1** Segments → initial subsegment list (each segment starts as one subsegment)
   - **1.4.2** For each facet, create an independent 2D Delaunay triangulation of its vertices → initial subfacet list. These facet triangulations are maintained separately from the tetrahedralization throughout the entire algorithm
 
-## 2. Initial Delaunay Tetrahedralization
+## 2. Initial Delaunay Tetrahedralization (Unconstrained)
+
+Create an **unconstrained** Delaunay tetrahedralization of all input vertices. Some input segments and facets may be missing from this mesh — they will be recovered in steps 3-4.
 
 - **2.1** Create a bounding tetrahedron that encloses all input vertices with large margin
 - **2.2** Insert each vertex incrementally via 3D Bowyer-Watson:
   - **2.2.1** Find a seed tetrahedron containing the point
-  - **2.2.2** Circumsphere test: find all tetrahedra whose circumsphere contains the new point (BFS flood fill from seed; no constraint-awareness at this stage since constraints are not yet recovered)
+  - **2.2.2** Circumsphere test: find all tetrahedra whose circumsphere contains the new point (BFS flood fill from seed). No constraint-awareness at this stage — the mesh is pure Delaunay
   - **2.2.3** Extract cavity boundary: triangular faces appearing exactly once among conflicting tetrahedra form the boundary; faces appearing twice are interior and are removed
   - **2.2.4** Remove all conflicting tetrahedra
   - **2.2.5** Retriangulate: create new tetrahedra connecting each boundary face to the inserted vertex
 - **2.3** Remove the bounding tetrahedron and all tetrahedra sharing its vertices
+
+**Note:** After this step, the subsegment and subfacet lists from step 1.4 define what *should* exist in the mesh, but many may be missing. The Delaunay property does not guarantee constraint edges/faces appear.
 
 ## 3. Segment Recovery (Priority 1 — "Stitching")
 
@@ -92,8 +109,20 @@ A three-priority loop. Each iteration selects the highest-priority action availa
 
 ## Key Invariants
 
-- After step 3: every input segment is a chain of mesh edges
-- After step 4: every input facet is a union of mesh faces
+- After step 2: tetrahedralization is Delaunay but constraints may be missing
+- After step 3: every input segment is a chain of mesh edges (segments recovered)
+- After step 4: every input facet is a union of mesh faces (facets recovered)
 - After step 5: mesh contains only interior tetrahedra
 - During step 6: the strict priority ordering (subsegments > subfacets > skinny tets) guarantees that subfacet circumcenters lie in their containing facet (when no subsegments are encroached), and tetrahedron circumcenters lie in the mesh (when no subfacets are encroached)
 - The Projection Lemma (steps 4.2, 6.2.2) prevents cross-feature cascade: encroachment caused by a vertex near one facet never triggers unbounded refinement on an incident facet
+
+## Data Structure Summary
+
+| Structure | Purpose | Lifetime |
+|-----------|---------|----------|
+| Subsegment list | Tracks edge segments that must appear in mesh | Created in 1.4.1, updated during refinement |
+| Facet triangulations | Independent 2D Delaunay per surface; defines required subfacets | Created in 1.4.2, updated when vertices inserted on surfaces |
+| Subfacet list | Derived from facet triangulations; tracks face constraints | Regenerated from facet triangulations as needed |
+| Tetrahedralization | The actual 3D mesh being refined | Created in step 2, modified throughout |
+
+The separation between constraint tracking (subsegments, facet triangulations) and the tetrahedralization is fundamental to the algorithm's correctness and termination guarantees.

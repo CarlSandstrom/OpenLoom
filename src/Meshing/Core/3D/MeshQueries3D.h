@@ -5,8 +5,14 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include <array>
+#include <map>
 #include <string>
 #include <vector>
+
+namespace Topology3D
+{
+class Topology3D;
+}
 
 namespace Meshing
 {
@@ -143,6 +149,26 @@ public:
     std::vector<ConstrainedSubfacet3D> findEncroachingSubfacets(
         const Point3D& point,
         const std::vector<ConstrainedSubfacet3D>& subfacets) const;
+
+    /**
+     * @brief Extract constrained subsegments from topology edges
+     *
+     * Creates a list of subsegments from the topology edges, mapping
+     * discretization point indices to mesh node IDs. Each subsegment
+     * represents a portion of a CAD edge that should eventually appear
+     * as an edge in the tetrahedralization.
+     *
+     * @param topology The 3D topology containing edge definitions
+     * @param cornerIdToPointIndexMap Maps corner IDs to discretization point indices
+     * @param pointIndexToNodeIdMap Maps discretization point indices to mesh node IDs
+     * @param edgeIdToPointIndicesMap Maps edge IDs to ordered discretization point indices
+     * @return Vector of ConstrainedSubsegment3D representing all edge subsegments
+     */
+    std::vector<ConstrainedSubsegment3D> extractConstrainedSubsegments(
+        const Topology3D::Topology3D& topology,
+        const std::map<std::string, size_t>& cornerIdToPointIndexMap,
+        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const;
 
 private:
     const MeshData3D& meshData_;

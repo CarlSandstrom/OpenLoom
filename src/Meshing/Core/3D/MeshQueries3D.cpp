@@ -3,6 +3,7 @@
 #include "ElementGeometry3D.h"
 #include "ElementQuality3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <map>
@@ -248,6 +249,62 @@ std::vector<ConstrainedSubfacet3D> MeshQueries3D::findEncroachingSubfacets(
     }
 
     return encroached;
+}
+
+std::vector<ConstrainedSubsegment3D> MeshQueries3D::extractConstrainedSubsegments(
+    const Topology3D::Topology3D& topology,
+    const std::map<std::string, size_t>& cornerIdToPointIndexMap,
+    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
+{
+    std::vector<ConstrainedSubsegment3D> constrainedSubsegments;
+
+    for (const auto& edgeId : topology.getAllEdgeIds())
+    {
+        auto edgePointsIt = edgeIdToPointIndicesMap.find(edgeId);
+
+        if (edgePointsIt != edgeIdToPointIndicesMap.end() && edgePointsIt->second.size() >= 2)
+        {
+            const auto& pointIndices = edgePointsIt->second;
+
+            for (size_t i = 0; i < pointIndices.size() - 1; ++i)
+            {
+                size_t startPointIdx = pointIndices[i];
+                size_t endPointIdx = pointIndices[i + 1];
+
+                size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
+                size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
+
+                constrainedSubsegments.push_back(
+                    ConstrainedSubsegment3D{startNodeId, endNodeId, edgeId});
+
+                spdlog::debug("Edge {} subsegment {}: Node IDs ({}, {})",
+                              edgeId, i, startNodeId, endNodeId);
+            }
+        }
+        else
+        {
+            // Edge has no intermediate points; create single subsegment from corners
+            const auto& edgeTopology = topology.getEdge(edgeId);
+
+            auto startCornerIt = cornerIdToPointIndexMap.find(edgeTopology.getStartCornerId());
+            auto endCornerIt = cornerIdToPointIndexMap.find(edgeTopology.getEndCornerId());
+
+            if (startCornerIt != cornerIdToPointIndexMap.end() &&
+                endCornerIt != cornerIdToPointIndexMap.end())
+            {
+                size_t startNodeId = pointIndexToNodeIdMap.at(startCornerIt->second);
+                size_t endNodeId = pointIndexToNodeIdMap.at(endCornerIt->second);
+
+                constrainedSubsegments.push_back(
+                    ConstrainedSubsegment3D{startNodeId, endNodeId, edgeId});
+
+                spdlog::debug("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
+            }
+        }
+    }
+
+    return constrainedSubsegments;
 }
 
 } // namespace Meshing
