@@ -16,6 +16,7 @@
     - **2.2.1.1** Circumcircle test: compute the circumcenter and circumradius of each triangle; the point conflicts if its distance to the circumcenter is less than the circumradius
     - **2.2.1.2** If constrained segments already exist, conflict detection uses BFS flood fill from a seed triangle containing the point, never crossing constrained edges. This prevents the cavity from spanning across domain boundaries
     - **2.2.1.3** Seed triangle selection: find a conflicting triangle that geometrically contains the point via orientation sign tests (all three signed areas have the same sign)
+    - **2.2.1.4** Star-shapedness verification: the BFS-restricted cavity may not be star-shaped w.r.t. the insertion point (constrained edges can clip the conflict region asymmetrically). Iteratively check each cavity boundary edge: compute the signed area of the triangle formed by the insertion point and the boundary edge. If any boundary edge produces a negative signed area (inverted triangle), remove the owning cavity triangle and recheck. This guarantees that Bowyer-Watson retriangulation produces only valid, correctly-oriented triangles
   - **2.2.2** Extract cavity boundary: edges appearing exactly once among conflicting triangles form the boundary; edges appearing twice are interior and are removed
   - **2.2.3** Remove all conflicting triangles
   - **2.2.4** Retriangulate: create new triangles connecting each cavity boundary edge to the inserted vertex. Skip degenerate triangles (area below tolerance)
@@ -73,6 +74,7 @@ A two-priority loop. Each iteration selects the highest-priority action availabl
   - **5.2.4** Safety checks — skip the triangle if:
     - **5.2.4.1** The triangle is too small (area or shortest edge below tolerance)
     - **5.2.4.2** The circumcenter falls outside the domain or inside a hole
+    - **5.2.4.3** The circumcenter coincides with an existing mesh node (distance below edge length tolerance). This occurs when multiple bad triangles near a constraint edge share the same circumcenter location; Bowyer-Watson cannot insert a point at an existing vertex because the circumcircle containment test degenerates (the point lies ON the circumcircle rather than inside it)
   - **5.2.5** Encroachment check: if the circumcenter would encroach any constrained segment, do not insert it; split the encroached segment instead (return to 5.1)
   - **5.2.6** Otherwise, insert the circumcenter via Bowyer-Watson (step 2.2). The bad triangle is eliminated because its circumcircle is no longer empty
   - **5.2.7** If the original bad triangle survives insertion (circumcenter landed on the wrong side of a constraint), mark it as unrefinable and skip it in future iterations
@@ -97,4 +99,4 @@ A two-priority loop. Each iteration selects the highest-priority action availabl
 - After step 3: every constrained segment from step 1.3 is present as a mesh edge
 - After step 4: the mesh contains only interior triangles; exterior and hole regions are removed
 - During step 5: the strict priority ordering (encroached segments before bad triangles) ensures that segment splitting resolves encroachment before quality refinement proceeds. Circumcenters of bad triangles that would violate constraints are redirected to segment splits, preventing constraint violations
-- The constraint-aware BFS in conflict detection (step 2.2.1.2) ensures that Bowyer-Watson insertion never creates triangles spanning across constrained edges
+- The constraint-aware BFS in conflict detection (step 2.2.1.2) ensures that Bowyer-Watson insertion never creates triangles spanning across constrained edges. The star-shapedness verification (step 2.2.1.4) additionally guarantees that the restricted cavity produces only valid triangles, even when constrained edges clip the conflict region into a non-convex shape

@@ -247,6 +247,21 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         return false;
     }
 
+    // Check if circumcenter coincides with an existing mesh node.
+    // This happens when the circumcenter lands at a circle center where a
+    // node was already inserted. Bowyer-Watson cannot handle duplicate points.
+    for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
+    {
+        double dist = (node->getCoordinates() - circumcenter).norm();
+        if (dist < MIN_REFINABLE_EDGE)
+        {
+            spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) coincides with "
+                          "existing node {}, skipping",
+                          circumcenter.x(), circumcenter.y(), nodeId);
+            return false;
+        }
+    }
+
     // Check if circumcenter would encroach any segments
     auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
 

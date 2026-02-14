@@ -134,6 +134,60 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
         }
     }
 
+    // Step 6: Star-shapedness verification.
+    // The BFS-restricted cavity may not be star-shaped w.r.t. the insertion
+    // point when constrained edges clip the conflict region. Iteratively
+    // remove cavity triangles whose boundary edges would produce inverted
+    // triangles when connected to the insertion point.
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+
+        // Find boundary edges (edges appearing exactly once in the cavity)
+        std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edgeCount;
+        std::unordered_map<EdgeKey, std::array<size_t, 2>, EdgeKeyHash> edgeOriginal;
+        std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edgeOwner;
+
+        for (size_t id : conflicting)
+        {
+            const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
+            for (size_t i = 0; i < 3; ++i)
+            {
+                auto edge = tri->getEdge(i);
+                EdgeKey key = makeEdgeKey(edge[0], edge[1]);
+                edgeCount[key]++;
+                edgeOriginal[key] = edge;
+                edgeOwner[key] = id;
+            }
+        }
+
+        // Check each boundary edge for correct orientation with the insertion point
+        for (const auto& [key, count] : edgeCount)
+        {
+            if (count != 1)
+                continue;
+
+            const auto& edge = edgeOriginal[key];
+            const Point2D& p0 = meshData_.getNode(edge[0])->getCoordinates();
+            const Point2D& p1 = meshData_.getNode(edge[1])->getCoordinates();
+            double area = GeometryUtilities2D::computeSignedArea(point, p0, p1);
+
+            if (area < -1e-10)
+            {
+                // This boundary edge is not visible from the insertion point.
+                // Remove the owning triangle from the cavity.
+                size_t badId = edgeOwner[key];
+                std::erase(conflicting, badId);
+                changed = true;
+                SPDLOG_DEBUG("findConflictingTriangles: Removed triangle {} from cavity "
+                             "(non-star-shaped boundary edge, signed area: {:.6f})",
+                             badId, area);
+                break; // Restart boundary check with updated cavity
+            }
+        }
+    }
+
     return conflicting;
 }
 
