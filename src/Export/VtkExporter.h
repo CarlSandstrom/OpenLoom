@@ -3,6 +3,7 @@
 #include "IExporter.h"
 #include <iosfwd>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Meshing
@@ -52,11 +53,13 @@ private:
                       std::vector<std::size_t>& outElementIds,
                       std::size_t& outConstraintCount) const;
     void writeCellData2D(std::ostream& os, const std::vector<std::size_t>& elementIds,
-                         std::size_t constraintCount) const;
+                         std::size_t constraintCount,
+                         const std::unordered_map<std::size_t, int>& domainIds) const;
 
     // Convert 2D mesh to 3D (with z=0) for export
     static Meshing::MeshData3D convertToMeshData3D(const Meshing::MeshData2D& mesh2D);
 
+    static std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D& mesh);
     static int vtkCellTypeFor(const Meshing::IElement& element);
 };
 

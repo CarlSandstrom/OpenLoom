@@ -1,5 +1,6 @@
 #include "VtkExporter.h"
 
+#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -9,7 +10,9 @@
 
 #include <algorithm>
 #include <fstream>
+#include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace Export
@@ -54,11 +57,13 @@ bool VtkExporter::exportMesh(const Meshing::MeshData2D& mesh, const std::string&
     std::vector<std::size_t> elementIds;
     std::size_t constraintCount = 0;
 
+    auto domainIds = computeDomainIds(mesh);
+
     writeHeader(os);
     writePoints2D(os, mesh, nodeIds);
     writePointData(os, nodeIds);
     writeCells2D(os, mesh, nodeIds, elementIds, constraintCount);
-    writeCellData2D(os, elementIds, constraintCount);
+    writeCellData2D(os, elementIds, constraintCount, domainIds);
     writeFooter(os);
     return true;
 }
@@ -337,7 +342,8 @@ void VtkExporter::writeCells2D(std::ostream& os, const Meshing::MeshData2D& mesh
 }
 
 void VtkExporter::writeCellData2D(std::ostream& os, const std::vector<std::size_t>& elementIds,
-                                  std::size_t constraintCount) const
+                                  std::size_t constraintCount,
+                                  const std::unordered_map<std::size_t, int>& domainIds) const
 {
     const std::size_t totalCells = elementIds.size() + constraintCount;
 
@@ -364,8 +370,217 @@ void VtkExporter::writeCellData2D(std::ostream& os, const std::vector<std::size_
     }
     os << "        </DataArray>\n";
 
+    // DomainID array: only written when domain classification produced results
+    if (!domainIds.empty())
+    {
+        os << "        <DataArray type=\"Int32\" Name=\"DomainID\" format=\"ascii\">\n          ";
+        for (std::size_t i = 0; i < totalCells; ++i)
+        {
+            if (i < elementIds.size())
+            {
+                auto it = domainIds.find(elementIds[i]);
+                os << (it != domainIds.end() ? it->second : -1);
+            }
+            else
+            {
+                os << -1; // constraint edges get domain -1
+            }
+            os << (i + 1 == totalCells ? "\n" : " ");
+        }
+        os << "        </DataArray>\n";
+    }
+
     os << "      </CellData>\n";
     os << "    </Piece>\n";
+}
+
+std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing::MeshData2D& mesh)
+{
+    std::unordered_map<std::size_t, int> domainIds;
+
+    const auto& constraints = mesh.getConstrainedSegments();
+    if (constraints.empty())
+        return domainIds;
+
+    // Edge key helper (canonical ordering)
+    using EdgeKey = std::pair<std::size_t, std::size_t>;
+    auto makeEdgeKey = [](std::size_t a, std::size_t b) -> EdgeKey
+    {
+        return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
+    };
+    struct EdgeKeyHash
+    {
+        std::size_t operator()(const EdgeKey& k) const
+        {
+            return std::hash<std::size_t>{}(k.first) ^ (std::hash<std::size_t>{}(k.second) << 1);
+        }
+    };
+
+    // Collect boundary and all constraint edge keys
+    std::unordered_set<EdgeKey, EdgeKeyHash> boundaryEdges;
+    std::unordered_set<EdgeKey, EdgeKeyHash> allConstraintEdges;
+
+    for (const auto& seg : constraints)
+    {
+        auto key = makeEdgeKey(seg.nodeId1, seg.nodeId2);
+        allConstraintEdges.insert(key);
+        if (seg.role == Meshing::EdgeRole::BOUNDARY)
+            boundaryEdges.insert(key);
+    }
+
+    // Build edge-to-triangles adjacency map
+    std::unordered_map<EdgeKey, std::vector<std::size_t>, EdgeKeyHash> edgeToTriangles;
+    for (const auto& [elemId, element] : mesh.getElements())
+    {
+        const auto& nodeIds = element->getNodeIds();
+        for (std::size_t i = 0; i < nodeIds.size(); ++i)
+        {
+            std::size_t a = nodeIds[i];
+            std::size_t b = nodeIds[(i + 1) % nodeIds.size()];
+            edgeToTriangles[makeEdgeKey(a, b)].push_back(elemId);
+        }
+    }
+
+    // Ray casting: test if a point is inside the domain boundary
+    auto isInsideDomain = [&](const Meshing::Point2D& point) -> bool
+    {
+        int crossings = 0;
+        for (const auto& seg : constraints)
+        {
+            if (seg.role != Meshing::EdgeRole::BOUNDARY)
+                continue;
+
+            const auto& p1 = mesh.getNode(seg.nodeId1)->getCoordinates();
+            const auto& p2 = mesh.getNode(seg.nodeId2)->getCoordinates();
+
+            if ((p1.y() > point.y()) == (p2.y() > point.y()))
+                continue;
+
+            double xIntersect = p1.x() + (point.y() - p1.y()) / (p2.y() - p1.y()) * (p2.x() - p1.x());
+            if (point.x() < xIntersect)
+                crossings++;
+        }
+        return (crossings % 2) == 1;
+    };
+
+    // Find a seed triangle whose centroid is inside the boundary
+    std::size_t seedTriangle = 0;
+    bool foundSeed = false;
+    for (const auto& [elemId, element] : mesh.getElements())
+    {
+        const auto& nodeIds = element->getNodeIds();
+        Meshing::Point2D centroid = Meshing::Point2D::Zero();
+        for (std::size_t nid : nodeIds)
+        {
+            centroid += mesh.getNode(nid)->getCoordinates();
+        }
+        centroid /= static_cast<double>(nodeIds.size());
+
+        if (isInsideDomain(centroid))
+        {
+            seedTriangle = elemId;
+            foundSeed = true;
+            break;
+        }
+    }
+
+    if (!foundSeed)
+        return domainIds;
+
+    // Phase 1: BFS flood fill from seed, stopping at BOUNDARY constraints → interior triangles
+    std::unordered_set<std::size_t> interiorTriangles;
+    {
+        std::queue<std::size_t> queue;
+        queue.push(seedTriangle);
+        interiorTriangles.insert(seedTriangle);
+
+        while (!queue.empty())
+        {
+            std::size_t current = queue.front();
+            queue.pop();
+
+            const auto& nodeIds = mesh.getElement(current)->getNodeIds();
+            for (std::size_t i = 0; i < nodeIds.size(); ++i)
+            {
+                auto edgeKey = makeEdgeKey(nodeIds[i], nodeIds[(i + 1) % nodeIds.size()]);
+
+                if (boundaryEdges.count(edgeKey))
+                    continue;
+
+                auto it = edgeToTriangles.find(edgeKey);
+                if (it == edgeToTriangles.end())
+                    continue;
+
+                for (std::size_t neighbor : it->second)
+                {
+                    if (neighbor != current && !interiorTriangles.count(neighbor))
+                    {
+                        interiorTriangles.insert(neighbor);
+                        queue.push(neighbor);
+                    }
+                }
+            }
+        }
+    }
+
+    // Phase 2: BFS flood fill on interior triangles, stopping at ALL constraints → domain IDs
+    std::unordered_map<EdgeKey, std::vector<std::size_t>, EdgeKeyHash> interiorEdgeToTriangles;
+    for (std::size_t elemId : interiorTriangles)
+    {
+        const auto& nodeIds = mesh.getElement(elemId)->getNodeIds();
+        for (std::size_t i = 0; i < nodeIds.size(); ++i)
+        {
+            std::size_t a = nodeIds[i];
+            std::size_t b = nodeIds[(i + 1) % nodeIds.size()];
+            interiorEdgeToTriangles[makeEdgeKey(a, b)].push_back(elemId);
+        }
+    }
+
+    int nextDomainId = 0;
+    std::unordered_set<std::size_t> assigned;
+
+    for (std::size_t elemId : interiorTriangles)
+    {
+        if (assigned.count(elemId))
+            continue;
+
+        int currentDomain = nextDomainId++;
+        std::queue<std::size_t> queue;
+        queue.push(elemId);
+        assigned.insert(elemId);
+        domainIds[elemId] = currentDomain;
+
+        while (!queue.empty())
+        {
+            std::size_t current = queue.front();
+            queue.pop();
+
+            const auto& nodeIds = mesh.getElement(current)->getNodeIds();
+            for (std::size_t i = 0; i < nodeIds.size(); ++i)
+            {
+                auto edgeKey = makeEdgeKey(nodeIds[i], nodeIds[(i + 1) % nodeIds.size()]);
+
+                if (allConstraintEdges.count(edgeKey))
+                    continue;
+
+                auto it = interiorEdgeToTriangles.find(edgeKey);
+                if (it == interiorEdgeToTriangles.end())
+                    continue;
+
+                for (std::size_t neighbor : it->second)
+                {
+                    if (neighbor != current && !assigned.count(neighbor))
+                    {
+                        assigned.insert(neighbor);
+                        domainIds[neighbor] = currentDomain;
+                        queue.push(neighbor);
+                    }
+                }
+            }
+        }
+    }
+
+    return domainIds;
 }
 
 int VtkExporter::vtkCellTypeFor(const Meshing::IElement& element)
