@@ -37,10 +37,10 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
         auto circle = geometry.computeCircumcircle(*triangle);
         if (circle && GeometryUtilities2D::isPointInsideCircle(*circle, point))
         {
-            // Visibility check: ensure the insertion point can "see" this triangle
-            // without being obscured by any constrained segment. This prevents the
-            // cavity from extending across constrained boundaries while still
-            // allowing it to cross interior constraints when geometrically valid.
+            // Visibility check per constrained Delaunay definition (Shewchuk, p.2):
+            // A triangle is in the conflict set only if the insertion point is visible
+            // from the triangle's interior, i.e. the line from point to centroid does
+            // not properly cross any constrained segment.
             const auto& nodeIds = triangle->getNodeIds();
             const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
             const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
@@ -72,6 +72,56 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
             if (visible)
             {
                 conflicting.push_back(id);
+            }
+        }
+    }
+
+    // Star-shapedness verification: the visibility-based cavity may include
+    // triangles whose boundary edges are not visible from the insertion point
+    // (e.g. near concave constraint boundaries). Iteratively remove cavity
+    // triangles whose boundary edges would produce inverted triangles when
+    // connected to the insertion point.
+    bool changed = true;
+    while (changed)
+    {
+        changed = false;
+
+        std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edgeCount;
+        std::unordered_map<EdgeKey, std::array<size_t, 2>, EdgeKeyHash> edgeOriginal;
+        std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edgeOwner;
+
+        for (size_t id : conflicting)
+        {
+            const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
+            for (size_t i = 0; i < 3; ++i)
+            {
+                auto edge = tri->getEdge(i);
+                EdgeKey key = makeEdgeKey(edge[0], edge[1]);
+                edgeCount[key]++;
+                edgeOriginal[key] = edge;
+                edgeOwner[key] = id;
+            }
+        }
+
+        for (const auto& [key, count] : edgeCount)
+        {
+            if (count != 1)
+                continue;
+
+            const auto& edge = edgeOriginal[key];
+            const Point2D& p0 = meshData_.getNode(edge[0])->getCoordinates();
+            const Point2D& p1 = meshData_.getNode(edge[1])->getCoordinates();
+            double area = GeometryUtilities2D::computeSignedArea(point, p0, p1);
+
+            if (area < -1e-10)
+            {
+                size_t badId = edgeOwner[key];
+                std::erase(conflicting, badId);
+                changed = true;
+                SPDLOG_DEBUG("findConflictingTriangles: Removed triangle {} from cavity "
+                             "(non-star-shaped boundary edge, signed area: {:.6f})",
+                             badId, area);
+                break;
             }
         }
     }

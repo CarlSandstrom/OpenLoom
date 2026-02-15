@@ -12,11 +12,10 @@
 
 - **2.1** Create a super triangle that encloses all input vertices with large margin (bounding box × 100 scale)
 - **2.2** Insert each vertex incrementally via Bowyer-Watson:
-  - **2.2.1** Find all conflicting triangles: triangles whose circumcircle contains the new point
+  - **2.2.1** Find all conflicting triangles: triangles whose circumcircle contains the new point AND are visible from the insertion point
     - **2.2.1.1** Circumcircle test: compute the circumcenter and circumradius of each triangle; the point conflicts if its distance to the circumcenter is less than the circumradius
-    - **2.2.1.2** If constrained segments already exist, conflict detection uses BFS flood fill from a seed triangle containing the point, never crossing constrained edges. This prevents the cavity from spanning across domain boundaries
-    - **2.2.1.3** Seed triangle selection: find a conflicting triangle that geometrically contains the point via orientation sign tests (all three signed areas have the same sign)
-    - **2.2.1.4** Star-shapedness verification: the BFS-restricted cavity may not be star-shaped w.r.t. the insertion point (constrained edges can clip the conflict region asymmetrically). Iteratively check each cavity boundary edge: compute the signed area of the triangle formed by the insertion point and the boundary edge. If any boundary edge produces a negative signed area (inverted triangle), remove the owning cavity triangle and recheck. This guarantees that Bowyer-Watson retriangulation produces only valid, correctly-oriented triangles
+    - **2.2.1.2** Visibility check per the constrained Delaunay definition (Shewchuk, p.2): a triangle is included in the cavity only if the line from the insertion point to the triangle's centroid does not properly cross any constrained segment. Segments that share a node with the triangle are excluded from this test (they cannot block visibility to an adjacent triangle). This correctly handles interior constraints: the cavity can extend across interior edges when geometrically valid, but is blocked by constraints that separate the point from the triangle
+    - **2.2.1.3** Star-shapedness verification: the visibility-based cavity may include triangles whose boundary edges are not star-shaped w.r.t. the insertion point (e.g. near concave constraint boundaries). Iteratively check each cavity boundary edge: compute the signed area of the triangle formed by the insertion point and the boundary edge. If any boundary edge produces a negative signed area (inverted triangle), remove the owning cavity triangle and recheck. This guarantees that Bowyer-Watson retriangulation produces only valid, correctly-oriented triangles
   - **2.2.2** Extract cavity boundary: edges appearing exactly once among conflicting triangles form the boundary; edges appearing twice are interior and are removed
   - **2.2.3** Remove all conflicting triangles
   - **2.2.4** Retriangulate: create new triangles connecting each cavity boundary edge to the inserted vertex. Skip degenerate triangles (area below tolerance)
@@ -57,7 +56,7 @@ This phase ensures every constrained segment from step 1.3 is represented as a m
 A two-priority loop. Each iteration selects the highest-priority action available:
 
 - **5.1** Priority 1 — Split encroached segments:
-  - **5.1.1** A constrained segment is encroached if any vertex (other than its endpoints) lies inside or on its diametral circle (the circle with the segment as diameter)
+  - **5.1.1** A constrained segment is encroached if any vertex (other than its endpoints) lies inside or on its diametral circle (the circle with the segment as diameter) AND is visible from the segment's interior (Shewchuk, Section 3.1). Visibility is checked by testing whether the line from the vertex to the segment midpoint properly crosses any other constrained segment; if so, the vertex is hidden and does not count as encroaching
   - **5.1.2** For each encroached segment, compute the parametric midpoint on the parent edge curve: t_mid = (t_start + t_end) / 2
   - **5.1.3** Evaluate the midpoint position on the parent edge geometry (preserves curved boundaries)
   - **5.1.4** Insert the midpoint via Bowyer-Watson (step 2.2, with constraint-aware conflict detection per 2.2.1.2)
@@ -99,4 +98,5 @@ A two-priority loop. Each iteration selects the highest-priority action availabl
 - After step 3: every constrained segment from step 1.3 is present as a mesh edge
 - After step 4: the mesh contains only interior triangles; exterior and hole regions are removed
 - During step 5: the strict priority ordering (encroached segments before bad triangles) ensures that segment splitting resolves encroachment before quality refinement proceeds. Circumcenters of bad triangles that would violate constraints are redirected to segment splits, preventing constraint violations
-- The constraint-aware BFS in conflict detection (step 2.2.1.2) ensures that Bowyer-Watson insertion never creates triangles spanning across constrained edges. The star-shapedness verification (step 2.2.1.4) additionally guarantees that the restricted cavity produces only valid triangles, even when constrained edges clip the conflict region into a non-convex shape
+- The visibility check in conflict detection (step 2.2.1.2) ensures that the Bowyer-Watson cavity respects constrained segments while allowing cavities to extend across interior constraints when geometrically valid. The star-shapedness verification (step 2.2.1.3) additionally guarantees that the cavity produces only valid, correctly-oriented triangles near concave constraint boundaries
+- The visibility check in encroachment detection (step 5.1.1) ensures that vertices hidden behind other constrained segments do not trigger unnecessary segment splits
