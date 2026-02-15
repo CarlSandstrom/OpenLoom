@@ -21,10 +21,10 @@ MeshQueries2D::MeshQueries2D(const MeshData2D& meshData) :
 
 std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point) const
 {
+    std::vector<size_t> conflicting;
+
     ElementGeometry2D geometry(meshData_);
 
-    // Step 1: Find all candidate triangles whose circumcircle contains the point
-    std::unordered_set<size_t> candidates;
     for (const auto& [id, element] : meshData_.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
@@ -37,153 +37,41 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
         auto circle = geometry.computeCircumcircle(*triangle);
         if (circle && GeometryUtilities2D::isPointInsideCircle(*circle, point))
         {
-            candidates.insert(id);
-        }
-    }
+            // Visibility check: ensure the insertion point can "see" this triangle
+            // without being obscured by any constrained segment. This prevents the
+            // cavity from extending across constrained boundaries while still
+            // allowing it to cross interior constraints when geometrically valid.
+            const auto& nodeIds = triangle->getNodeIds();
+            const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
+            const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
+            const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
+            Point2D centroid((p0.x() + p1.x() + p2.x()) / 3.0,
+                             (p0.y() + p1.y() + p2.y()) / 3.0);
 
-    if (candidates.empty())
-        return {};
-
-    // Step 2: Build constrained edge set for fast lookup
-    std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
-    for (const auto& seg : meshData_.getConstrainedSegments())
-    {
-        constrainedEdgeKeys.insert(makeEdgeKey(seg.nodeId1, seg.nodeId2));
-    }
-
-    // Step 3: Build edge-to-triangles adjacency among candidates
-    std::unordered_map<EdgeKey, std::vector<size_t>, EdgeKeyHash> edgeToTriangles;
-    for (size_t id : candidates)
-    {
-        const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
-        for (size_t i = 0; i < 3; ++i)
-        {
-            auto edge = tri->getEdge(i);
-            edgeToTriangles[makeEdgeKey(edge[0], edge[1])].push_back(id);
-        }
-    }
-
-    // Step 4: Find the seed - the candidate triangle containing the point
-    size_t seed = SIZE_MAX;
-    for (size_t id : candidates)
-    {
-        const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
-        const auto& nodeIds = tri->getNodeIds();
-        const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
-        const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
-        const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
-
-        double d1 = GeometryUtilities2D::computeOrientation(p0, p1, point);
-        double d2 = GeometryUtilities2D::computeOrientation(p1, p2, point);
-        double d3 = GeometryUtilities2D::computeOrientation(p2, p0, point);
-
-        bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-        bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-
-        if (!(hasNeg && hasPos))
-        {
-            seed = id;
-            break;
-        }
-    }
-
-    if (seed == SIZE_MAX)
-    {
-        // Point is on or very near a triangle edge; pick any candidate
-        seed = *candidates.begin();
-    }
-
-    // Step 5: BFS from seed through non-constrained edges to find the
-    // connected conflict region. This ensures the cavity never crosses
-    // a constrained segment.
-    std::vector<size_t> conflicting;
-    std::unordered_set<size_t> visited;
-    std::queue<size_t> bfsQueue;
-
-    bfsQueue.push(seed);
-    visited.insert(seed);
-
-    while (!bfsQueue.empty())
-    {
-        size_t current = bfsQueue.front();
-        bfsQueue.pop();
-        conflicting.push_back(current);
-
-        const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(current));
-        for (size_t i = 0; i < 3; ++i)
-        {
-            auto edge = tri->getEdge(i);
-            EdgeKey key = makeEdgeKey(edge[0], edge[1]);
-
-            // Do not cross constrained edges
-            if (constrainedEdgeKeys.count(key))
-                continue;
-
-            auto it = edgeToTriangles.find(key);
-            if (it == edgeToTriangles.end())
-                continue;
-
-            for (size_t neighborId : it->second)
+            bool visible = true;
+            for (const auto& segment : meshData_.getConstrainedSegments())
             {
-                if (!visited.contains(neighborId))
+                // Skip segments that share a node with this triangle
+                if (segment.nodeId1 == nodeIds[0] || segment.nodeId1 == nodeIds[1] ||
+                    segment.nodeId1 == nodeIds[2] || segment.nodeId2 == nodeIds[0] ||
+                    segment.nodeId2 == nodeIds[1] || segment.nodeId2 == nodeIds[2])
                 {
-                    visited.insert(neighborId);
-                    bfsQueue.push(neighborId);
+                    continue;
+                }
+
+                const Point2D& s1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
+                const Point2D& s2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
+
+                if (GeometryUtilities2D::segmentsIntersect(point, centroid, s1, s2))
+                {
+                    visible = false;
+                    break;
                 }
             }
-        }
-    }
 
-    // Step 6: Star-shapedness verification.
-    // The BFS-restricted cavity may not be star-shaped w.r.t. the insertion
-    // point when constrained edges clip the conflict region. Iteratively
-    // remove cavity triangles whose boundary edges would produce inverted
-    // triangles when connected to the insertion point.
-    bool changed = true;
-    while (changed)
-    {
-        changed = false;
-
-        // Find boundary edges (edges appearing exactly once in the cavity)
-        std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edgeCount;
-        std::unordered_map<EdgeKey, std::array<size_t, 2>, EdgeKeyHash> edgeOriginal;
-        std::unordered_map<EdgeKey, size_t, EdgeKeyHash> edgeOwner;
-
-        for (size_t id : conflicting)
-        {
-            const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
-            for (size_t i = 0; i < 3; ++i)
+            if (visible)
             {
-                auto edge = tri->getEdge(i);
-                EdgeKey key = makeEdgeKey(edge[0], edge[1]);
-                edgeCount[key]++;
-                edgeOriginal[key] = edge;
-                edgeOwner[key] = id;
-            }
-        }
-
-        // Check each boundary edge for correct orientation with the insertion point
-        for (const auto& [key, count] : edgeCount)
-        {
-            if (count != 1)
-                continue;
-
-            const auto& edge = edgeOriginal[key];
-            const Point2D& p0 = meshData_.getNode(edge[0])->getCoordinates();
-            const Point2D& p1 = meshData_.getNode(edge[1])->getCoordinates();
-            double area = GeometryUtilities2D::computeSignedArea(point, p0, p1);
-
-            if (area < -1e-10)
-            {
-                // This boundary edge is not visible from the insertion point.
-                // Remove the owning triangle from the cavity.
-                size_t badId = edgeOwner[key];
-                std::erase(conflicting, badId);
-                changed = true;
-                SPDLOG_DEBUG("findConflictingTriangles: Removed triangle {} from cavity "
-                             "(non-star-shaped boundary edge, signed area: {:.6f})",
-                             badId, area);
-                break; // Restart boundary check with updated cavity
+                conflicting.push_back(id);
             }
         }
     }
@@ -366,8 +254,13 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments() const
 
             if (checker.isSegmentEncroached(segment, point))
             {
-                encroached.push_back(segment);
-                break;
+                // Per Ruppert: only count encroachment if the vertex is visible
+                // from the subsegment interior (visibility obstructed by other segments)
+                if (isPointVisibleFromSegment(point, segment))
+                {
+                    encroached.push_back(segment);
+                    break;
+                }
             }
         }
     }
@@ -386,11 +279,56 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
     {
         if (checker.isSegmentEncroached(segment, point))
         {
-            encroached.push_back(segment);
+            // Per Ruppert: only count encroachment if the point is visible
+            // from the subsegment interior
+            if (isPointVisibleFromSegment(point, segment))
+            {
+                encroached.push_back(segment);
+            }
         }
     }
 
     return encroached;
+}
+
+bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const ConstrainedSegment2D& segment) const
+{
+    // Compute the midpoint of the subsegment
+    const Point2D& s1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
+    const Point2D& s2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
+    Point2D midpoint = (s1 + s2) * 0.5;
+
+    // Check if the line from point to midpoint properly crosses any other
+    // constrained segment. "Properly" means the segments cross in their interiors,
+    // not just touch at endpoints.
+    for (const auto& other : meshData_.getConstrainedSegments())
+    {
+        // Skip the segment itself
+        if (other.nodeId1 == segment.nodeId1 && other.nodeId2 == segment.nodeId2)
+            continue;
+        if (other.nodeId1 == segment.nodeId2 && other.nodeId2 == segment.nodeId1)
+            continue;
+
+        const Point2D& o1 = meshData_.getNode(other.nodeId1)->getCoordinates();
+        const Point2D& o2 = meshData_.getNode(other.nodeId2)->getCoordinates();
+
+        // Check for proper intersection (not at shared endpoints).
+        // Segments sharing an endpoint with the query segment or touching at the
+        // point itself should not block visibility.
+        int d1 = GeometryUtilities2D::computeOrientationSign(point, midpoint, o1);
+        int d2 = GeometryUtilities2D::computeOrientationSign(point, midpoint, o2);
+        int d3 = GeometryUtilities2D::computeOrientationSign(o1, o2, point);
+        int d4 = GeometryUtilities2D::computeOrientationSign(o1, o2, midpoint);
+
+        // Proper crossing: both endpoints of each segment are strictly on opposite
+        // sides of the other segment
+        if (d1 != 0 && d2 != 0 && d1 != d2 && d3 != 0 && d4 != 0 && d3 != d4)
+        {
+            return false; // Blocked by this segment
+        }
+    }
+
+    return true; // No segment blocks visibility
 }
 
 std::optional<std::string> MeshQueries2D::findCommonGeometryId(size_t nodeId1, size_t nodeId2) const

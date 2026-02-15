@@ -29,6 +29,7 @@ set(TEST_SOURCES
     Meshing/Core/test_ConstraintChecker3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
+    Meshing/Core/test_ShewchukRefiner2D.cpp
     Meshing/Core/test_ShewchukRefiner3D.cpp
     Meshing/Core/test_FacetTriangulation.cpp
     Meshing/Core/test_FacetTriangulationManager.cpp

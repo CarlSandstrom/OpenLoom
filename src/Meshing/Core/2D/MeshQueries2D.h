@@ -188,6 +188,19 @@ public:
      */
     std::unordered_set<size_t> classifyTrianglesInteriorExterior() const;
 
+    /**
+     * @brief Check if a point is visible from a subsegment's interior
+     *
+     * Per Ruppert's algorithm, visibility is obstructed only by other segments.
+     * A point is visible from a subsegment if the line from the point to the
+     * subsegment midpoint does not properly cross any other constrained segment.
+     *
+     * @param point The point to check visibility from
+     * @param segment The subsegment to check visibility to
+     * @return True if the point is visible from the subsegment interior
+     */
+    bool isPointVisibleFromSegment(const Point2D& point, const ConstrainedSegment2D& segment) const;
+
 private:
     const MeshData2D& meshData_;
 };

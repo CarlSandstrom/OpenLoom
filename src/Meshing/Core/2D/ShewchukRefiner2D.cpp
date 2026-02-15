@@ -262,7 +262,9 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         }
     }
 
-    // Check if circumcenter would encroach any segments
+    // Check if circumcenter would encroach any segments (with visibility check).
+    // Per Ruppert: if the circumcenter would encroach a visible subsegment, reject
+    // the circumcenter and split the encroached subsegment instead.
     auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
 
     if (!encroachedByCircumcenter.empty())
@@ -270,9 +272,8 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         spdlog::debug("ShewchukRefiner2D: Circumcenter would encroach {} segments, splitting them first",
                       encroachedByCircumcenter.size());
 
-        // Split the first encroached segment and defer circumcenter insertion
         handleEncroachedSegment(encroachedByCircumcenter[0]);
-        return true; // We made progress by splitting a segment
+        return true;
     }
 
     // Safe to insert circumcenter
