@@ -7,7 +7,8 @@ Tracks implementation of the Shewchuk 3D Delaunay refinement algorithm as descri
 - [x] **`MeshDebugUtils3D`** — Phase-aware export + verify utility (modeled on `MeshDebugUtils2D`)
   - Accepts a `MeshingPhase3D` enum to select which invariants to check
   - Each phase accumulates checks from all previous phases
-  - Status: **Not yet created**
+  - Files: `src/Meshing/Core/3D/MeshDebugUtils3D.h/.cpp`
+  - Status: **Done**
 
 ---
 
@@ -187,8 +188,8 @@ Note: Constraints (subsegments, subfacets) may be missing from the mesh — this
 The steps below respect dependencies — each builds on the previous.
 
 ### Phase A: Validation infrastructure
-1. Create `MeshDebugUtils3D` with `MeshingPhase3D` enum
-2. Add phase-specific checks that extend `MeshVerifier3D`
+1. ~~Create `MeshDebugUtils3D` with `MeshingPhase3D` enum~~ **Done**
+2. ~~Add phase-specific checks that extend `MeshVerifier3D`~~ **Done**
 3. Wire into existing examples to confirm Steps 1–2 pass validation
 
 ### Phase B: Segment recovery (Step 3)
@@ -232,4 +233,14 @@ The steps below respect dependencies — each builds on the previous.
 | `src/Meshing/Core/3D/ElementQuality3D.h/.cpp` | Quality metrics |
 | `src/Meshing/Core/3D/ElementGeometry3D.h/.cpp` | Geometric computations (circumsphere, volume) |
 | `src/Common/DebugFlags.h` | Runtime debug flags (`CMESH_DEBUG_ENABLED`) |
+| `src/Meshing/Core/3D/MeshDebugUtils3D.h/.cpp` | Phase-aware debug export + verification |
 | `tests/Meshing/Core/test_ShewchukRefiner3D.cpp` | Refiner tests (includes TODO stubs for encroachment) |
+
+---
+
+## Future Improvements
+
+- [ ] **Parallelize verification loops in `MeshDebugUtils3D`** — The subsegment and subfacet presence checks iterate over all constraints sequentially. For large meshes these loops are embarrassingly parallel (each check is independent). Add optional OpenMP parallelization as done in `MeshVerifier` (2D overlap checks). Candidate loops:
+  - `verifySubsegmentsPresent`: parallel edge existence check over all subsegments
+  - `verifySubfacetsPresent`: parallel face existence check over all subfacets
+  - `verifyQualityBound`: skinny tet detection is already batched in `ElementQuality3D`, but could also benefit
