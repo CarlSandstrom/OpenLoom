@@ -11,6 +11,15 @@ namespace Meshing
 MeshVerifier::MeshVerifier(const MeshData2D& meshData) :
     meshData_(meshData)
 {
+#ifndef CMESH_HAS_OPENMP
+    static bool warned = false;
+    if (!warned)
+    {
+        spdlog::warn("MeshVerifier: OpenMP is disabled. Overlap checks will run sequentially. "
+                     "Enable with: cmake -DCMESH_USE_OPENMP=ON");
+        warned = true;
+    }
+#endif
 }
 
 MeshVerifier::VerificationResult MeshVerifier::verify() const
@@ -71,7 +80,36 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
         triangleCoords.push_back(coords);
     }
 
-    // Check all pairs of triangles
+    // Check all pairs of triangles for overlap
+#ifdef CMESH_HAS_OPENMP
+    #pragma omp parallel
+    {
+        std::vector<std::string> localErrors;
+
+        #pragma omp for schedule(dynamic)
+        for (size_t i = 0; i < triangleCoords.size(); ++i)
+        {
+            for (size_t j = i + 1; j < triangleCoords.size(); ++j)
+            {
+                if (trianglesOverlap(triangleCoords[i], triangleCoords[j]))
+                {
+                    localErrors.push_back("Elements " + std::to_string(elementIds[i]) +
+                                          " and " + std::to_string(elementIds[j]) +
+                                          " overlap");
+                }
+            }
+        }
+
+        if (!localErrors.empty())
+        {
+            #pragma omp critical
+            {
+                result.isValid = false;
+                result.errors.insert(result.errors.end(), localErrors.begin(), localErrors.end());
+            }
+        }
+    }
+#else
     for (size_t i = 0; i < triangleCoords.size(); ++i)
     {
         for (size_t j = i + 1; j < triangleCoords.size(); ++j)
@@ -85,6 +123,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
             }
         }
     }
+#endif
 
     if (result.isValid)
     {

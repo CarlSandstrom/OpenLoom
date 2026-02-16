@@ -47,6 +47,12 @@ if(NOT GTest_FOUND)
     find_package(GTest REQUIRED)
 endif()
 
+# Optional OpenMP for parallel mesh verification
+option(CMESH_USE_OPENMP "Enable OpenMP parallelization for mesh verification" OFF)
+if(CMESH_USE_OPENMP)
+    find_package(OpenMP REQUIRED)
+endif()
+
 # Add subdirectories
 add_subdirectory(src)
 add_subdirectory(tests)
