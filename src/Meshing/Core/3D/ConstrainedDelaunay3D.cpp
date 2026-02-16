@@ -1,5 +1,6 @@
 #include "ConstrainedDelaunay3D.h"
 #include "Delaunay3D.h"
+#include "MeshDebugUtils3D.h"
 #include "MeshingContext3D.h"
 #include "MeshOperations3D.h"
 #include "MeshQueries3D.h"
@@ -44,6 +45,9 @@ void ConstrainedDelaunay3D::tetrahedralize()
 
     spdlog::info("ConstrainedDelaunay3D: Initial tetrahedralization complete - {} nodes, {} tetrahedra",
                  meshData3D_->getNodeCount(), meshData3D_->getElementCount());
+
+    exportAndVerifyMesh3D(*meshData3D_, MeshingPhase3D::InitialDelaunay,
+                          "constrained_delaunay_3d", exportCounter_);
 
     // Step 2: Extract and store constrained subsegments
     extractAndStoreSubsegments();

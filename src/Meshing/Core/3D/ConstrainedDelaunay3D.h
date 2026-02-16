@@ -81,6 +81,8 @@ private:
     MeshData3D* meshData3D_;
     MeshOperations3D* meshOperations_;
 
+    size_t exportCounter_ = 0;
+
     std::unique_ptr<FacetTriangulationManager> facetManager_;
     std::map<size_t, size_t> pointIndexToNodeIdMap_;
 

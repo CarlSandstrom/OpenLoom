@@ -1,6 +1,7 @@
 #include "ShewchukRefiner3D.h"
 #include "ElementGeometry3D.h"
 #include "ElementQuality3D.h"
+#include "MeshDebugUtils3D.h"
 #include "MeshOperations3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
@@ -35,6 +36,10 @@ void ShewchukRefiner3D::refine()
 
     size_t iterationCount = 0;
     const size_t maxIterations = 10000;
+    double qualityBound = qualityController_->getTargetElementQuality();
+
+    exportAndVerifyMesh3D(context_->getMeshData(), MeshingPhase3D::Refined,
+                          "ShewchukRefiner3D", exportCounter_, qualityBound);
 
     while (iterationCount < maxIterations)
     {
@@ -64,6 +69,8 @@ void ShewchukRefiner3D::refine()
         }
 
         ++iterationCount;
+        exportAndVerifyMesh3D(context_->getMeshData(), MeshingPhase3D::Refined,
+                              "ShewchukRefiner3D", exportCounter_, qualityBound);
     }
 
     if (iterationCount >= maxIterations)

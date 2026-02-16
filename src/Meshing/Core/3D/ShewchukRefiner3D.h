@@ -63,6 +63,8 @@ private:
     MeshingContext3D* context_;
     const IQualityController3D* qualityController_;
 
+    size_t exportCounter_ = 0;
+
     // Track tetrahedra that cannot be refined
     std::unordered_set<size_t> unrefinableTetrahedra_;
 
