@@ -13,7 +13,7 @@ public:
     ElementType getType() const override { return ElementType::TETRAHEDRON; }
     size_t getNodeCount() const override { return 4; }
     const std::vector<size_t>& getNodeIds() const override;
-    bool getHasNode(size_t nodeId) const override;
+    bool hasNode(size_t nodeId) const override;
 
     std::unique_ptr<IElement> clone() const override;
 
@@ -21,7 +21,6 @@ public:
     std::array<size_t, 3> getFace(size_t faceIndex) const;
     std::array<size_t, 2> getEdge(size_t edgeIndex) const;
     std::array<std::array<size_t, 3>, 4> getFaces() const;
-    bool hasNode(size_t nodeId) const;
     bool containsAll(const std::array<size_t, 3>& nodes) const;
 
     // Utility methods

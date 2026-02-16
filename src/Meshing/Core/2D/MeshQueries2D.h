@@ -115,17 +115,6 @@ public:
     std::vector<ConstrainedSegment2D> findSegmentsEncroachedByPoint(const Point2D& point) const;
 
     /**
-     * @brief Check if two 2D segments intersect
-     * @param a1 First point of first segment
-     * @param a2 Second point of first segment
-     * @param b1 First point of second segment
-     * @param b2 Second point of second segment
-     * @return True if segments intersect
-     */
-    bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                           const Point2D& b1, const Point2D& b2) const;
-
-    /**
      * @brief Create ordered edge key for lookups
      * @param a First node ID
      * @param b Second node ID

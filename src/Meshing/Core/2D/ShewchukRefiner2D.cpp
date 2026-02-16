@@ -79,8 +79,7 @@ void ShewchukRefiner2D::refine()
             if (iterationCount % 10 == 0)
             {
                 spdlog::debug("ShewchukRefiner2D: Periodic triangle re-classification at iteration {}", iterationCount);
-                auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior();
-                auto removedIds = context_->getOperations().removeExteriorTriangles(interiorTriangles);
+                auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
 
                 // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
                 for (size_t id : removedIds)
@@ -99,8 +98,7 @@ void ShewchukRefiner2D::refine()
     // Re-classify triangles after refinement to remove any that ended up in holes
     // Refinement can create triangles that cross constraint boundaries
     spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
-    auto interiorTriangles = context_->getOperations().getQueries().classifyTrianglesInteriorExterior();
-    auto removedIds = context_->getOperations().removeExteriorTriangles(interiorTriangles);
+    auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
 
     // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
     for (size_t id : removedIds)

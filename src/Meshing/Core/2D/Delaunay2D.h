@@ -40,7 +40,7 @@ public:
      */
     void triangulate();
 
-    std::map<size_t, size_t> getPointIndexToNodeIdMap() const { return pointIndexToNodeIdMap_; }
+    const std::map<size_t, size_t>& getPointIndexToNodeIdMap() const { return pointIndexToNodeIdMap_; }
 
 private:
     MeshData2D* meshData_;

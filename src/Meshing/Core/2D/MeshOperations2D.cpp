@@ -85,7 +85,7 @@ bool MeshOperations2D::removeTrianglesContainingNode(size_t nodeId)
     for (const auto& [id, element] : meshData_.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (triangle && triangle->getHasNode(nodeId))
+        if (triangle && triangle->hasNode(nodeId))
         {
             elementsToRemove.push_back(id);
         }
@@ -238,13 +238,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
                     if (j == prev || j == i || j == next)
                         continue;
                     const Point2D& pTest = meshData_.getNode(polygon[j])->getCoordinates();
-                    // Point-in-triangle test using orientation
-                    double d1 = GeometryUtilities2D::computeOrientation(pPrev, pCurr, pTest);
-                    double d2 = GeometryUtilities2D::computeOrientation(pCurr, pNext, pTest);
-                    double d3 = GeometryUtilities2D::computeOrientation(pNext, pPrev, pTest);
-                    bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-                    bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-                    if (!(hasNeg && hasPos))
+                    if (GeometryUtilities2D::isPointInsideOrOnTriangle(pTest, pPrev, pCurr, pNext))
                     {
                         isEar = false;
                         break;
@@ -310,16 +304,7 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
             continue;
 
         // Find the opposite vertex (the one not on the split edge)
-        const auto& nodes = triangle->getNodeIdArray();
-        size_t opposite = 0;
-        for (size_t n : nodes)
-        {
-            if (n != edgeNode1 && n != edgeNode2)
-            {
-                opposite = n;
-                break;
-            }
-        }
+        size_t opposite = triangle->getOppositeNode(edgeNode1, edgeNode2);
 
         mutator_->removeElement(triId);
 
@@ -338,14 +323,8 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
 void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
 {
     // Build set of constrained edge keys for fast lookup
-    using EdgeKey = std::pair<size_t, size_t>;
-    struct EdgeKeyHash
-    {
-        std::size_t operator()(const EdgeKey& key) const
-        {
-            return std::hash<size_t>{}(key.first) ^ (std::hash<size_t>{}(key.second) << 1);
-        }
-    };
+    using EdgeKey = MeshQueries2D::EdgeKey;
+    using EdgeKeyHash = MeshQueries2D::EdgeKeyHash;
 
     std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
     for (const auto& seg : meshData_.getConstrainedSegments())
@@ -396,23 +375,8 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
             continue;
 
         // Find opposite vertices
-        size_t c = 0, d = 0;
-        for (size_t n : elem1->getNodeIdArray())
-        {
-            if (n != a && n != b)
-            {
-                c = n;
-                break;
-            }
-        }
-        for (size_t n : elem2->getNodeIdArray())
-        {
-            if (n != a && n != b)
-            {
-                d = n;
-                break;
-            }
-        }
+        size_t c = elem1->getOppositeNode(a, b);
+        size_t d = elem2->getOppositeNode(a, b);
 
         // Get coordinates of the quad vertices
         const Node2D* nodeA = meshData_.getNode(a);
@@ -559,6 +523,12 @@ std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unorder
                  meshData_.getElements().size());
 
     return trianglesToRemove;
+}
+
+std::vector<size_t> MeshOperations2D::classifyAndRemoveExteriorTriangles()
+{
+    auto interiorTriangles = queries_.classifyTrianglesInteriorExterior();
+    return removeExteriorTriangles(interiorTriangles);
 }
 
 } // namespace Meshing

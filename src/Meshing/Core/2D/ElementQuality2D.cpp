@@ -13,22 +13,24 @@ ElementQuality2D::ElementQuality2D(const MeshData2D& mesh) :
 {
 }
 
-double ElementQuality2D::computeShortestEdgeLength(const TriangleElement& element) const
+std::array<double, 3> ElementQuality2D::computeEdgeLengths(const TriangleElement& element) const
 {
     auto [p0, p1, p2] = geometry_.getElementNodeCoordinates(element);
-    const double e0 = GeometryUtilities2D::computeEdgeLength(p0, p1);
-    const double e1 = GeometryUtilities2D::computeEdgeLength(p1, p2);
-    const double e2 = GeometryUtilities2D::computeEdgeLength(p2, p0);
-    return std::min({e0, e1, e2});
+    return {GeometryUtilities2D::computeEdgeLength(p0, p1),
+            GeometryUtilities2D::computeEdgeLength(p1, p2),
+            GeometryUtilities2D::computeEdgeLength(p2, p0)};
+}
+
+double ElementQuality2D::computeShortestEdgeLength(const TriangleElement& element) const
+{
+    auto lengths = computeEdgeLengths(element);
+    return std::min({lengths[0], lengths[1], lengths[2]});
 }
 
 double ElementQuality2D::computeLongestEdgeLength(const TriangleElement& element) const
 {
-    auto [p0, p1, p2] = geometry_.getElementNodeCoordinates(element);
-    const double e0 = GeometryUtilities2D::computeEdgeLength(p0, p1);
-    const double e1 = GeometryUtilities2D::computeEdgeLength(p1, p2);
-    const double e2 = GeometryUtilities2D::computeEdgeLength(p2, p0);
-    return std::max({e0, e1, e2});
+    auto lengths = computeEdgeLengths(element);
+    return std::max({lengths[0], lengths[1], lengths[2]});
 }
 
 std::optional<double> ElementQuality2D::computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const

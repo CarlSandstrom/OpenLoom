@@ -15,7 +15,7 @@ const std::vector<size_t>& TetrahedralElement::getNodeIds() const
     return nodeIdsVector_;
 }
 
-bool TetrahedralElement::getHasNode(size_t nodeId) const
+bool TetrahedralElement::hasNode(size_t nodeId) const
 {
     return nodeIds_[0] == nodeId || nodeIds_[1] == nodeId || nodeIds_[2] == nodeId || nodeIds_[3] == nodeId;
 }
@@ -66,11 +66,6 @@ std::array<std::array<size_t, 3>, 4> TetrahedralElement::getFaces() const
              {nodeIds_[0], nodeIds_[3], nodeIds_[2]},
              {nodeIds_[0], nodeIds_[1], nodeIds_[3]},
              {nodeIds_[0], nodeIds_[2], nodeIds_[1]}}};
-}
-
-bool TetrahedralElement::hasNode(size_t nodeId) const
-{
-    return std::find(nodeIds_.begin(), nodeIds_.end(), nodeId) != nodeIds_.end();
 }
 
 bool TetrahedralElement::containsAll(const std::array<size_t, 3>& nodes) const

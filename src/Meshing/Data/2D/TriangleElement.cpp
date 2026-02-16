@@ -1,4 +1,5 @@
 #include "TriangleElement.h"
+#include "Common/Exceptions/MeshException.h"
 #include <algorithm>
 
 namespace Meshing
@@ -16,7 +17,7 @@ const std::vector<size_t>& TriangleElement::getNodeIds() const
     return nodeVector;
 }
 
-bool TriangleElement::getHasNode(size_t nodeId) const
+bool TriangleElement::hasNode(size_t nodeId) const
 {
     return nodeIds_[0] == nodeId || nodeIds_[1] == nodeId || nodeIds_[2] == nodeId;
 }
@@ -32,8 +33,25 @@ std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
     case 2:
         return {nodeIds_[2], nodeIds_[0]};
     default:
-        return {nodeIds_[0], nodeIds_[1]};
+        CMESH_THROW_CODE(cMesh::MeshException,
+                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+                         "Invalid edge index " + std::to_string(edgeIndex) + " for triangle (valid: 0-2)");
     }
+}
+
+size_t TriangleElement::getOppositeNode(size_t edgeNode1, size_t edgeNode2) const
+{
+    for (size_t n : nodeIds_)
+    {
+        if (n != edgeNode1 && n != edgeNode2)
+        {
+            return n;
+        }
+    }
+    CMESH_THROW_CODE(cMesh::MeshException,
+                     cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+                     "No opposite node found for edge (" + std::to_string(edgeNode1) +
+                         ", " + std::to_string(edgeNode2) + ") in triangle");
 }
 
 std::array<size_t, 3> TriangleElement::getSortedNodeIds() const

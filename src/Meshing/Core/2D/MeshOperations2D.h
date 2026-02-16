@@ -105,6 +105,16 @@ public:
     std::vector<size_t> removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles);
 
     /**
+     * @brief Classify triangles as interior/exterior and remove exterior ones
+     *
+     * Convenience method combining classifyTrianglesInteriorExterior() and
+     * removeExteriorTriangles() which are always called together.
+     *
+     * @return Vector of removed triangle IDs
+     */
+    std::vector<size_t> classifyAndRemoveExteriorTriangles();
+
+    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator2D& getMutator() { return *mutator_; }

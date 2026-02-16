@@ -1,5 +1,6 @@
 #include "MeshMutator2D.h"
 
+#include "Common/Exceptions/MeshException.h"
 #include "Node2D.h"
 
 namespace Meshing
@@ -27,10 +28,13 @@ size_t MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vec
 void MeshMutator2D::moveNode(size_t id, const Point2D& newCoords)
 {
     Node2D* node = meshData_.getNodeMutable(id);
-    if (node != nullptr)
+    if (node == nullptr)
     {
-        node->setCoordinates(newCoords);
+        CMESH_THROW_CODE(cMesh::MeshException,
+                         cMesh::MeshException::ErrorCode::NODE_NOT_FOUND,
+                         "Cannot move node " + std::to_string(id) + ": node not found");
     }
+    node->setCoordinates(newCoords);
 }
 
 void MeshMutator2D::removeNode(size_t id)

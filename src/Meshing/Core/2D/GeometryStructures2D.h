@@ -6,7 +6,7 @@ namespace Meshing
 struct Circle2D
 {
     Point2D center;
-    double radius;
+    double radius = 0.0;
 };
 
 enum class EdgeRole

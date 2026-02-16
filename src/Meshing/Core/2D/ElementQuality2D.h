@@ -31,6 +31,9 @@ public:
     std::vector<size_t> getTrianglesSortedByQuality() const;
 
 private:
+    /// Computes the three edge lengths of a triangle element.
+    std::array<double, 3> computeEdgeLengths(const TriangleElement& element) const;
+
     const MeshData2D& mesh_;
     ElementGeometry2D geometry_;
 };

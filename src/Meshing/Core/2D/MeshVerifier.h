@@ -49,24 +49,6 @@ private:
     static bool trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
                                  const std::array<Point2D, 3>& tri2Nodes);
 
-    /**
-     * @brief Check if a point is inside or on a triangle
-     * @param point Point to test
-     * @param tri Triangle vertices
-     * @return True if point is inside or on the triangle
-     */
-    static bool isPointInsideTriangle(const Point2D& point, const std::array<Point2D, 3>& tri);
-
-    /**
-     * @brief Check if two line segments intersect (excluding shared endpoints)
-     * @param a1 First point of first segment
-     * @param a2 Second point of first segment
-     * @param b1 First point of second segment
-     * @param b2 Second point of second segment
-     * @return True if segments intersect in their interior
-     */
-    static bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                  const Point2D& b1, const Point2D& b2);
 };
 
 } // namespace Meshing

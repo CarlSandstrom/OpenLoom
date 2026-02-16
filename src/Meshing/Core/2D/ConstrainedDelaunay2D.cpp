@@ -72,8 +72,7 @@ void ConstrainedDelaunay2D::triangulate()
     // Classify triangles as interior/exterior using flood fill algorithm
     // This approach uses mesh topology (constraint edges) instead of geometry queries,
     // making it robust regardless of mesh coarseness relative to geometry features
-    auto interiorTriangles = meshOperations_->getQueries().classifyTrianglesInteriorExterior();
-    meshOperations_->removeExteriorTriangles(interiorTriangles);
+    meshOperations_->classifyAndRemoveExteriorTriangles();
     exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
 }
 

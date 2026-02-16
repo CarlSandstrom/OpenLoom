@@ -42,6 +42,23 @@ public:
     /// Returns true if segments properly intersect (including collinear overlap cases).
     static bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
                                   const Point2D& b1, const Point2D& b2);
+
+    /// Checks if two segments intersect in their interiors, excluding shared endpoints.
+    /// Adjacent triangle edges that share a vertex are not considered intersecting.
+    static bool segmentsIntersectExcludingSharedEndpoints(const Point2D& a1, const Point2D& a2,
+                                                          const Point2D& b1, const Point2D& b2,
+                                                          double tolerance = 1e-10);
+
+    /// Tests if a point is strictly inside a triangle (excluding boundary).
+    /// Uses barycentric coordinates with tolerance.
+    static bool isPointStrictlyInsideTriangle(const Point2D& point,
+                                              const Point2D& v0, const Point2D& v1, const Point2D& v2,
+                                              double tolerance = 1e-10);
+
+    /// Tests if a point is inside or on a triangle (including boundary).
+    /// Uses orientation-based test.
+    static bool isPointInsideOrOnTriangle(const Point2D& point,
+                                          const Point2D& v0, const Point2D& v1, const Point2D& v2);
 };
 
 } // namespace Meshing

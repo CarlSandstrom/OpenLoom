@@ -144,25 +144,27 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
     // 1. Any vertex of one triangle is inside the other triangle
     // 2. Any edges of the triangles intersect (excluding shared edges/vertices)
 
-    // Check if any vertex of tri1 is inside tri2
+    // Check if any vertex of tri1 is strictly inside tri2
     for (size_t i = 0; i < 3; ++i)
     {
-        if (isPointInsideTriangle(tri1Nodes[i], tri2Nodes))
+        if (GeometryUtilities2D::isPointStrictlyInsideTriangle(
+                tri1Nodes[i], tri2Nodes[0], tri2Nodes[1], tri2Nodes[2]))
         {
             return true;
         }
     }
 
-    // Check if any vertex of tri2 is inside tri1
+    // Check if any vertex of tri2 is strictly inside tri1
     for (size_t i = 0; i < 3; ++i)
     {
-        if (isPointInsideTriangle(tri2Nodes[i], tri1Nodes))
+        if (GeometryUtilities2D::isPointStrictlyInsideTriangle(
+                tri2Nodes[i], tri1Nodes[0], tri1Nodes[1], tri1Nodes[2]))
         {
             return true;
         }
     }
 
-    // Check if any edges intersect
+    // Check if any edges intersect (excluding shared endpoints)
     for (size_t i = 0; i < 3; ++i)
     {
         const Point2D& a1 = tri1Nodes[i];
@@ -173,7 +175,7 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
             const Point2D& b1 = tri2Nodes[j];
             const Point2D& b2 = tri2Nodes[(j + 1) % 3];
 
-            if (segmentsIntersect(a1, a2, b1, b2))
+            if (GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(a1, a2, b1, b2))
             {
                 return true;
             }
@@ -181,96 +183,6 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
     }
 
     return false;
-}
-
-bool MeshVerifier::isPointInsideTriangle(const Point2D& point, const std::array<Point2D, 3>& tri)
-{
-    // Use barycentric coordinates method
-    // A point is inside a triangle if all barycentric coordinates are non-negative
-    // and their sum is <= 1
-
-    const Point2D& v0 = tri[0];
-    const Point2D& v1 = tri[1];
-    const Point2D& v2 = tri[2];
-
-    // Compute vectors
-    double v0x = v1.x() - v0.x();
-    double v0y = v1.y() - v0.y();
-    double v1x = v2.x() - v0.x();
-    double v1y = v2.y() - v0.y();
-    double v2x = point.x() - v0.x();
-    double v2y = point.y() - v0.y();
-
-    // Compute dot products
-    double dot00 = v0x * v0x + v0y * v0y;
-    double dot01 = v0x * v1x + v0y * v1y;
-    double dot02 = v0x * v2x + v0y * v2y;
-    double dot11 = v1x * v1x + v1y * v1y;
-    double dot12 = v1x * v2x + v1y * v2y;
-
-    // Compute barycentric coordinates
-    double invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
-    double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-    double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
-
-    // Check if point is strictly inside triangle (excluding boundary)
-    // This is important to avoid flagging adjacent triangles as overlapping
-    const double tolerance = 1e-10;
-    return (u > tolerance) && (v > tolerance) && (u + v < 1.0 - tolerance);
-}
-
-bool MeshVerifier::segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                     const Point2D& b1, const Point2D& b2)
-{
-    const double tolerance = 1e-10;
-
-    // Exclude segments that share an endpoint (common in adjacent triangles)
-    bool shareEndpoint =
-        (a1 - b1).norm() < tolerance || (a1 - b2).norm() < tolerance ||
-        (a2 - b1).norm() < tolerance || (a2 - b2).norm() < tolerance;
-
-    if (shareEndpoint)
-    {
-        // For shared endpoints, only report intersection if segments overlap in interior
-        int o1 = GeometryUtilities2D::computeOrientationSign(a1, a2, b1);
-        int o2 = GeometryUtilities2D::computeOrientationSign(a1, a2, b2);
-        int o3 = GeometryUtilities2D::computeOrientationSign(b1, b2, a1);
-        int o4 = GeometryUtilities2D::computeOrientationSign(b1, b2, a2);
-
-        auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
-        {
-            return q.x() <= std::max(p.x(), r.x()) + 1e-10 &&
-                   q.x() >= std::min(p.x(), r.x()) - 1e-10 &&
-                   q.y() <= std::max(p.y(), r.y()) + 1e-10 &&
-                   q.y() >= std::min(p.y(), r.y()) - 1e-10;
-        };
-
-        // Check collinear cases - only interior overlap counts
-        if (o1 == 0 && onSegment(a1, b1, a2) &&
-            (b1 - a1).norm() > tolerance && (b1 - a2).norm() > tolerance)
-        {
-            return true;
-        }
-        if (o2 == 0 && onSegment(a1, b2, a2) &&
-            (b2 - a1).norm() > tolerance && (b2 - a2).norm() > tolerance)
-        {
-            return true;
-        }
-        if (o3 == 0 && onSegment(b1, a1, b2) &&
-            (a1 - b1).norm() > tolerance && (a1 - b2).norm() > tolerance)
-        {
-            return true;
-        }
-        if (o4 == 0 && onSegment(b1, a2, b2) &&
-            (a2 - b1).norm() > tolerance && (a2 - b2).norm() > tolerance)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    return GeometryUtilities2D::segmentsIntersect(a1, a2, b1, b2);
 }
 
 } // namespace Meshing

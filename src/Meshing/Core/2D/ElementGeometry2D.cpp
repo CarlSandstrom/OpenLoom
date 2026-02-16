@@ -1,4 +1,5 @@
 #include "ElementGeometry2D.h"
+#include "Common/Exceptions/GeometryException.h"
 #include "GeometryUtilities2D.h"
 
 #include <algorithm>
@@ -55,13 +56,7 @@ std::optional<Point2D> ElementGeometry2D::computeCircumcenter(const TriangleElem
 double ElementGeometry2D::computeArea(const TriangleElement& element) const
 {
     auto [v0, v1, v2] = getElementNodeCoordinates(element);
-    const double dx1 = v1.x() - v0.x();
-    const double dy1 = v1.y() - v0.y();
-    const double dx2 = v2.x() - v0.x();
-    const double dy2 = v2.y() - v0.y();
-
-    // Cross product in 2D gives the area
-    return 0.5 * std::abs(dx1 * dy2 - dy1 * dx2);
+    return std::abs(GeometryUtilities2D::computeSignedArea(v0, v1, v2));
 }
 
 std::array<double, 3> ElementGeometry2D::computeTriangleAngles(const TriangleElement& element) const
@@ -94,10 +89,13 @@ Point2D ElementGeometry2D::computeCentroid(const TriangleElement& element) const
 
 std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(const TriangleElement& element) const
 {
-    auto nodeIds = element.getNodeIds();
+    const auto& nodeIds = element.getNodeIdArray();
     const auto* n0 = mesh_.getNode(nodeIds[0]);
     const auto* n1 = mesh_.getNode(nodeIds[1]);
     const auto* n2 = mesh_.getNode(nodeIds[2]);
+    CMESH_REQUIRE_NOT_NULL(n0, "triangle node 0");
+    CMESH_REQUIRE_NOT_NULL(n1, "triangle node 1");
+    CMESH_REQUIRE_NOT_NULL(n2, "triangle node 2");
     return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
 }
 

@@ -41,14 +41,10 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
             // A triangle is in the conflict set only if the insertion point is visible
             // from the triangle's interior, i.e. the line from point to centroid does
             // not properly cross any constrained segment.
-            const auto& nodeIds = triangle->getNodeIds();
-            const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
-            const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
-            const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
-            Point2D centroid((p0.x() + p1.x() + p2.x()) / 3.0,
-                             (p0.y() + p1.y() + p2.y()) / 3.0);
+            Point2D centroid = geometry.computeCentroid(*triangle);
 
             bool visible = true;
+            const auto& nodeIds = triangle->getNodeIdArray();
             for (const auto& segment : meshData_.getConstrainedSegments())
             {
                 // Skip segments that share a node with this triangle
@@ -177,7 +173,7 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
         }
 
         // Skip triangles that already contain both nodes
-        if (triangle->getHasNode(nodeId1) && triangle->getHasNode(nodeId2))
+        if (triangle->hasNode(nodeId1) && triangle->hasNode(nodeId2))
         {
             continue;
         }
@@ -198,7 +194,7 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
             const Point2D& coordinate1 = meshData_.getNode(edge[0])->getCoordinates();
             const Point2D& coordinate2 = meshData_.getNode(edge[1])->getCoordinates();
 
-            if (segmentsIntersect(p1, p2, coordinate1, coordinate2))
+            if (GeometryUtilities2D::segmentsIntersect(p1, p2, coordinate1, coordinate2))
             {
                 intersects = true;
                 break;
@@ -212,12 +208,6 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
     }
 
     return result;
-}
-
-bool MeshQueries2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                      const Point2D& b1, const Point2D& b2) const
-{
-    return GeometryUtilities2D::segmentsIntersect(a1, a2, b1, b2);
 }
 
 std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(
@@ -300,7 +290,7 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments() const
             if (nodeId == segment.nodeId1 || nodeId == segment.nodeId2)
                 continue;
 
-            Point2D point = node->getCoordinates();
+            const Point2D& point = node->getCoordinates();
 
             if (checker.isSegmentEncroached(segment, point))
             {

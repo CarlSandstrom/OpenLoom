@@ -71,6 +71,7 @@ void MeshData2D::replaceConstrainedSegmentInternal(const ConstrainedSegment2D& o
             return;
         }
     }
+    // Segment not found - this is a no-op (may happen during mesh modifications)
 }
 
 void MeshData2D::clearConstrainedSegmentsInternal()
