@@ -190,7 +190,7 @@ The steps below respect dependencies — each builds on the previous.
 ### Phase A: Validation infrastructure
 1. ~~Create `MeshDebugUtils3D` with `MeshingPhase3D` enum~~ **Done**
 2. ~~Add phase-specific checks that extend `MeshVerifier3D`~~ **Done**
-3. Wire into existing examples to confirm Steps 1–2 pass validation
+3. ~~Wire into `ConstrainedDelaunay3D` and `ShewchukRefiner3D`~~ **Done**
 
 ### Phase B: Segment recovery (Step 3)
 4. Add facet triangulation update when splitting a boundary subsegment (3.3.4)
