@@ -9,6 +9,7 @@
 #include "Meshing/Data/Base/IElement.h"
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <queue>
 #include <unordered_map>
@@ -539,6 +540,7 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     int nextDomainId = 0;
     std::unordered_set<std::size_t> assigned;
 
+    // Temporary domain ID assignment (order-dependent, will be remapped below)
     for (std::size_t elemId : interiorTriangles)
     {
         if (assigned.count(elemId))
@@ -579,6 +581,57 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
             }
         }
     }
+
+    // Remap domain IDs by centroid position so they are stable across mesh changes.
+    // Compute the centroid of each domain, sort by (x, y), and reassign IDs.
+    struct DomainInfo
+    {
+        int originalId;
+        double centroidX = 0.0;
+        double centroidY = 0.0;
+        std::size_t count = 0;
+    };
+
+    std::unordered_map<int, DomainInfo> domainInfos;
+    for (const auto& [elemId, domain] : domainIds)
+    {
+        auto& info = domainInfos[domain];
+        info.originalId = domain;
+
+        const auto& nodeIds = mesh.getElement(elemId)->getNodeIds();
+        Meshing::Point2D centroid = Meshing::Point2D::Zero();
+        for (std::size_t nid : nodeIds)
+            centroid += mesh.getNode(nid)->getCoordinates();
+        centroid /= static_cast<double>(nodeIds.size());
+
+        info.centroidX += centroid.x();
+        info.centroidY += centroid.y();
+        info.count++;
+    }
+
+    std::vector<DomainInfo> sortedDomains;
+    sortedDomains.reserve(domainInfos.size());
+    for (auto& [id, info] : domainInfos)
+    {
+        info.centroidX /= static_cast<double>(info.count);
+        info.centroidY /= static_cast<double>(info.count);
+        sortedDomains.push_back(info);
+    }
+
+    std::sort(sortedDomains.begin(), sortedDomains.end(), [](const DomainInfo& a, const DomainInfo& b)
+              {
+                  constexpr double EPS = 1e-6;
+                  if (std::abs(a.centroidX - b.centroidX) > EPS)
+                      return a.centroidX < b.centroidX;
+                  return a.centroidY < b.centroidY;
+              });
+
+    std::unordered_map<int, int> remapping;
+    for (int i = 0; i < static_cast<int>(sortedDomains.size()); ++i)
+        remapping[sortedDomains[i].originalId] = i;
+
+    for (auto& [elemId, domain] : domainIds)
+        domain = remapping[domain];
 
     return domainIds;
 }
