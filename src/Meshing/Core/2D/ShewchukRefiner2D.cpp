@@ -1,13 +1,10 @@
 #include "ShewchukRefiner2D.h"
-#include "Common/DebugFlags.h"
-#include "Common/Exceptions/MeshException.h"
 #include "ElementGeometry2D.h"
 #include "ElementQuality2D.h"
-#include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/IEdge2D.h"
+#include "MeshDebugUtils2D.h"
 #include "MeshOperations2D.h"
 #include "MeshQueries2D.h"
-#include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -40,7 +37,7 @@ void ShewchukRefiner2D::refine()
     const size_t maxIterations = 10000;         // Safety limit to prevent infinite loops
     const size_t maxConsecutiveNoProgress = 10; // Exit if no progress for this many iterations
 
-    exportAndVerifyMesh();
+    exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D", exportCounter_);
     while (true)
     {
         // Check mesh quality
@@ -94,7 +91,7 @@ void ShewchukRefiner2D::refine()
         }
 
         ++iterationCount;
-        exportAndVerifyMesh();
+        exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D", exportCounter_);
     }
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);
@@ -132,7 +129,7 @@ bool ShewchukRefiner2D::refineStep()
     // Skip any where circumcenter computation fails or are known to be unrefinable
     for (size_t triangleId : worstTriangles)
     {
-        // ShewchukRefiner2D::exportAndVerifyMesh(); // Disabled during refinement - flood fill at end will clean up
+        // exportAndVerifyMesh disabled during refinement - flood fill at end will clean up
         const auto* element = context_->getMeshData().getElement(triangleId);
         const auto* triangle = dynamic_cast<const TriangleElement*>(element);
 
@@ -303,31 +300,6 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
                       circumcenter.x(), circumcenter.y(), e.what());
         // Note: Mesh state might be partially modified. The final flood fill will clean up.
         return false; // Skip this triangle
-    }
-}
-
-void ShewchukRefiner2D::exportAndVerifyMesh()
-{
-    if (CMESH_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
-    {
-        Export::VtkExporter exporter;
-        exporter.exportMesh(context_->getMeshData(), "ShewchukRefiner2D_" + std::to_string(exportCounter_++) + ".vtu");
-    }
-
-    if (CMESH_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
-    {
-        spdlog::info("ShewchukRefiner2D: Verifying mesh at export step {}", exportCounter_ - 1);
-        MeshVerifier verifier(context_->getMeshData());
-
-        auto result = verifier.verify();
-        if (!result.isValid)
-        {
-            for (const auto& error : result.errors)
-            {
-                spdlog::error(" - {}", error);
-            }
-            CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
-        }
     }
 }
 

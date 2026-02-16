@@ -33,9 +33,6 @@ public:
     void triangulate();
 
 private:
-    void exportAndVerifyMesh();
-
-private:
     size_t exportCounter_ = 0;
 
     DiscretizationResult2D discretization_;

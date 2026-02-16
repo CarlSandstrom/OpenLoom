@@ -1,10 +1,7 @@
 #include "ConstrainedDelaunay2D.h"
-#include "Common/DebugFlags.h"
-#include "Common/Exceptions/MeshException.h"
 #include "Delaunay2D.h"
-#include "Export/VtkExporter.h"
+#include "MeshDebugUtils2D.h"
 #include "MeshOperations2D.h"
-#include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
@@ -57,7 +54,7 @@ void ConstrainedDelaunay2D::triangulate()
         meshOperations_->getMutator().addConstrainedSegment(segment);
     }
 
-    exportAndVerifyMesh();
+    exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
 
     // Enforce all constrained edges
     bool allConstrainedEdgesPresent = false;
@@ -70,38 +67,14 @@ void ConstrainedDelaunay2D::triangulate()
                                          meshOperations_->enforceEdge(segment.nodeId1, segment.nodeId2);
         }
     }
-    exportAndVerifyMesh();
+    exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
 
     // Classify triangles as interior/exterior using flood fill algorithm
     // This approach uses mesh topology (constraint edges) instead of geometry queries,
     // making it robust regardless of mesh coarseness relative to geometry features
     auto interiorTriangles = meshOperations_->getQueries().classifyTrianglesInteriorExterior();
     meshOperations_->removeExteriorTriangles(interiorTriangles);
-    exportAndVerifyMesh();
-}
-
-void ConstrainedDelaunay2D::exportAndVerifyMesh()
-{
-    if (CMESH_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
-    {
-        Export::VtkExporter exporter;
-        exporter.exportMesh(*meshData2D_, "constrained_delaunay_" + std::to_string(exportCounter_++) + ".vtu");
-    }
-
-    if (CMESH_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
-    {
-        MeshVerifier verifier(*meshData2D_);
-
-        auto result = verifier.verify();
-        if (!result.isValid)
-        {
-            for (const auto& error : result.errors)
-            {
-                spdlog::error(" - {}", error);
-            }
-            CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
-        }
-    }
+    exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
 }
 
 } // namespace Meshing

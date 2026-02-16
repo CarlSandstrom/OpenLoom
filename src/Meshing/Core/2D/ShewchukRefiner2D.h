@@ -66,8 +66,6 @@ private:
      */
     bool handlePoorQualityTriangle(size_t triangleId);
 
-    void exportAndVerifyMesh();
-
     size_t exportCounter_ = 0;
     std::unordered_set<size_t> unrefinableTriangles_; // Triangles that can't be refined (circumcenter in hole)
 };
