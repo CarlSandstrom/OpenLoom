@@ -31,6 +31,28 @@ double ElementGeometry3D::computeArea(const TriangleElement& element) const
     return 0.5 * edge1.cross(edge2).norm();
 }
 
+Point3D ElementGeometry3D::computeNormal(const TriangleElement& element) const
+{
+    auto [v0, v1, v2] = getElementNodeCoordinates(element);
+    const auto cross = (v1 - v0).cross(v2 - v0);
+    const double norm = cross.norm();
+    if (norm < 1e-14)
+    {
+        return Point3D::Zero();
+    }
+    return cross / norm;
+}
+
+std::optional<EquatorialSphere> ElementGeometry3D::computeCircumcircle(const TriangleElement& element) const
+{
+    auto [v0, v1, v2] = getElementNodeCoordinates(element);
+    if ((v1 - v0).cross(v2 - v0).squaredNorm() < 1e-24)
+    {
+        return std::nullopt;
+    }
+    return GeometryUtilities3D::createEquatorialSphere(v0, v1, v2);
+}
+
 std::optional<CircumscribedSphere> ElementGeometry3D::computeCircumscribingSphere(const TetrahedralElement& element) const
 {
     auto [v0, v1, v2, v3] = getElementNodeCoordinates(element);

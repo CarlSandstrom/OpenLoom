@@ -177,3 +177,164 @@ TEST_F(ElementGeometry3DTest, ComputeCentroidForCubicTetrahedron)
     EXPECT_NEAR(centroid.y(), 0.5, TOLERANCE);
     EXPECT_NEAR(centroid.z(), 0.5, TOLERANCE);
 }
+
+// ============================================================================
+// computeNormal tests
+// ============================================================================
+
+TEST_F(ElementGeometry3DTest, ComputeNormalForTriangleInXYPlane)
+{
+    // Triangle in XY plane — normal should point in +Z direction
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0, 0.0);
+    size_t n2 = addNode(0.0, 1.0, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    Point3D normal = geometry.computeNormal(*element);
+
+    EXPECT_NEAR(normal.x(), 0.0, TOLERANCE);
+    EXPECT_NEAR(normal.y(), 0.0, TOLERANCE);
+    EXPECT_NEAR(normal.z(), 1.0, TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeNormalForTriangleInXZPlane)
+{
+    // Triangle in XZ plane with CCW winding — normal points in -Y direction
+    // (1,0,0)-(0,0,0) = (1,0,0), (0,0,1)-(0,0,0) = (0,0,1)
+    // cross = (1,0,0) x (0,0,1) = (0*1-0*0, 0*0-1*1, 1*0-0*0) = (0,-1,0)
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0, 0.0);
+    size_t n2 = addNode(0.0, 0.0, 1.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    Point3D normal = geometry.computeNormal(*element);
+
+    EXPECT_NEAR(normal.x(), 0.0, TOLERANCE);
+    EXPECT_NEAR(normal.y(), -1.0, TOLERANCE);
+    EXPECT_NEAR(normal.z(), 0.0, TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeNormalIsUnitLength)
+{
+    // For any non-degenerate triangle the result must be a unit vector
+    size_t n0 = addNode(1.0, 2.0, 3.0);
+    size_t n1 = addNode(4.0, 1.0, 2.0);
+    size_t n2 = addNode(2.0, 5.0, 1.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    Point3D normal = geometry.computeNormal(*element);
+
+    EXPECT_NEAR(normal.norm(), 1.0, TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeNormalForDegenerateTriangleReturnsZero)
+{
+    // Collinear points — degenerate triangle
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0, 0.0);
+    size_t n2 = addNode(2.0, 0.0, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    Point3D normal = geometry.computeNormal(*element);
+
+    EXPECT_NEAR(normal.norm(), 0.0, TOLERANCE);
+}
+
+// ============================================================================
+// computeCircumcircle tests
+// ============================================================================
+
+TEST_F(ElementGeometry3DTest, ComputeCircumcircleForRightTriangle)
+{
+    // Right triangle with legs 2 along X and Y axes, right angle at origin.
+    // For a right triangle the circumcircle has the hypotenuse as diameter:
+    //   hypotenuse endpoints: (2,0,0) and (0,2,0)
+    //   center = midpoint = (1,1,0), radius = sqrt(2)
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(2.0, 0.0, 0.0);
+    size_t n2 = addNode(0.0, 2.0, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    auto circle = geometry.computeCircumcircle(*element);
+
+    ASSERT_TRUE(circle.has_value());
+    EXPECT_NEAR(circle->center.x(), 1.0, TOLERANCE);
+    EXPECT_NEAR(circle->center.y(), 1.0, TOLERANCE);
+    EXPECT_NEAR(circle->center.z(), 0.0, TOLERANCE);
+    EXPECT_NEAR(circle->radius, std::sqrt(2.0), TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeCircumcircleForEquilateralTriangle)
+{
+    // Equilateral triangle with unit edge length in XY plane.
+    // Vertices: (0,0,0), (1,0,0), (0.5, sqrt(3)/2, 0)
+    // Circumradius = a / sqrt(3) = 1/sqrt(3)
+    const double sq3 = std::sqrt(3.0);
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0, 0.0);
+    size_t n2 = addNode(0.5, sq3 / 2.0, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    auto circle = geometry.computeCircumcircle(*element);
+
+    ASSERT_TRUE(circle.has_value());
+    EXPECT_NEAR(circle->radius, 1.0 / sq3, TOLERANCE);
+    // Center equidistant from all three vertices
+    EXPECT_NEAR((circle->center - Point3D(0.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
+    EXPECT_NEAR((circle->center - Point3D(1.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
+    EXPECT_NEAR((circle->center - Point3D(0.5, sq3 / 2.0, 0.0)).norm(), circle->radius, TOLERANCE);
+}
+
+TEST_F(ElementGeometry3DTest, ComputeCircumcircleForDegenerateTriangleReturnsNullopt)
+{
+    // Collinear points
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(1.0, 0.0, 0.0);
+    size_t n2 = addNode(2.0, 0.0, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    auto circle = geometry.computeCircumcircle(*element);
+
+    EXPECT_FALSE(circle.has_value());
+}
+
+TEST_F(ElementGeometry3DTest, ComputeCircumcircleCenterLiesInTrianglePlane)
+{
+    // Triangle tilted 45 degrees — circumcircle center must lie in same plane
+    size_t n0 = addNode(0.0, 0.0, 0.0);
+    size_t n1 = addNode(2.0, 0.0, 0.0);
+    size_t n2 = addNode(1.0, 1.0, 1.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+
+    auto circle = geometry.computeCircumcircle(*element);
+
+    ASSERT_TRUE(circle.has_value());
+    // All three vertices must be at the circumradius from the center
+    EXPECT_NEAR((circle->center - Point3D(0.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
+    EXPECT_NEAR((circle->center - Point3D(2.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
+    EXPECT_NEAR((circle->center - Point3D(1.0, 1.0, 1.0)).norm(), circle->radius, TOLERANCE);
+}
