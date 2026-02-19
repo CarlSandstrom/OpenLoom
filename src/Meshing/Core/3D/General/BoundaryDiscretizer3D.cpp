@@ -3,15 +3,16 @@
 #include "Geometry/3D/Base/ICorner3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Topology/Topology3D.h"
 
 namespace Meshing
 {
 
-BoundaryDiscretizer3D::BoundaryDiscretizer3D(const MeshingContext3D& context,
+BoundaryDiscretizer3D::BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
+                                             const Topology3D::Topology3D& topology,
                                              const Geometry3D::DiscretizationSettings3D& settings) :
-    context_(&context),
+    geometry_(&geometry),
+    topology_(&topology),
     settings_(settings)
 {
 }
@@ -20,13 +21,8 @@ DiscretizationResult3D BoundaryDiscretizer3D::discretize() const
 {
     DiscretizationResult3D result;
 
-    const auto* geometry = context_->getGeometry();
-    const auto* topology = context_->getTopology();
-
-    if (!geometry || !topology)
-    {
-        return result;
-    }
+    const auto* geometry = geometry_;
+    const auto* topology = topology_;
 
     // Step 1: Sample corner points
     for (const auto& cornerId : topology->getAllCornerIds())

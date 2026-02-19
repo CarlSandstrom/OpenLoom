@@ -3,10 +3,18 @@
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 
+namespace Geometry3D
+{
+class GeometryCollection3D;
+}
+
+namespace Topology3D
+{
+class Topology3D;
+}
+
 namespace Meshing
 {
-
-class MeshingContext3D;
 
 /**
  * @brief Discretizes 3D geometry boundaries into points for mesh generation
@@ -17,10 +25,8 @@ class MeshingContext3D;
  *
  * Example usage:
  * @code
- * MeshingContext3D context(geometry, topology);
- * BoundaryDiscretizer3D discretizer(context, settings);
+ * BoundaryDiscretizer3D discretizer(geometry, topology, settings);
  * auto discretization = discretizer.discretize();
- * Delaunay3D delaunay(discretization.points, &context.getMeshData(), ...);
  * @endcode
  */
 class BoundaryDiscretizer3D
@@ -28,10 +34,12 @@ class BoundaryDiscretizer3D
 public:
     /**
      * @brief Construct a boundary discretizer
-     * @param context The meshing context containing geometry and topology
+     * @param geometry The geometry collection containing corners, edges, and surfaces
+     * @param topology The topology defining connectivity between geometric entities
      * @param settings Discretization settings (segments per edge, surface samples)
      */
-    BoundaryDiscretizer3D(const MeshingContext3D& context,
+    BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
+                          const Topology3D::Topology3D& topology,
                           const Geometry3D::DiscretizationSettings3D& settings = {});
 
     /**
@@ -41,7 +49,8 @@ public:
     DiscretizationResult3D discretize() const;
 
 private:
-    const MeshingContext3D* context_;
+    const Geometry3D::GeometryCollection3D* geometry_;
+    const Topology3D::Topology3D* topology_;
     Geometry3D::DiscretizationSettings3D settings_;
 };
 

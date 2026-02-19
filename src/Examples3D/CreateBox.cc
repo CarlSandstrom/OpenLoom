@@ -28,7 +28,7 @@ int main()
 
     // Discretize boundaries
     Geometry3D::DiscretizationSettings3D settings(3, 2);
-    BoundaryDiscretizer3D discretizer(context, settings);
+    BoundaryDiscretizer3D discretizer(*context.getGeometry(), *context.getTopology(), settings);
     auto discretization = discretizer.discretize();
 
     // Create initial (unconstrained) Delaunay tetrahedralization

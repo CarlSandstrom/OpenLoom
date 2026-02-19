@@ -62,7 +62,7 @@ int main()
     spdlog::info("Discretizing boundary points...");
 
     Geometry3D::DiscretizationSettings3D settings(3, 2); // 3 segments/edge, 2x2 surface grid
-    BoundaryDiscretizer3D discretizer(context, settings);
+    BoundaryDiscretizer3D discretizer(*context.getGeometry(), *context.getTopology(), settings);
     auto discretization = discretizer.discretize();
 
     spdlog::info("Total boundary points: {}", discretization.points.size());

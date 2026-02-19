@@ -6,7 +6,6 @@
 #include "Geometry/3D/Base/ICorner3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/Volume/ConstrainedDelaunay3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
