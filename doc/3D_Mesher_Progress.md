@@ -14,7 +14,7 @@ The codebase will be reorganized from a flat `3D/` folder into:
 - [x] **`MeshDebugUtils3D`** — Phase-aware export + verify utility (modeled on `MeshDebugUtils2D`)
   - Accepts a `MeshingPhase3D` enum to select which invariants to check
   - Each phase accumulates checks from all previous phases
-  - Files: `src/Meshing/Core/3D/MeshDebugUtils3D.h/.cpp`
+  - Files: `src/Meshing/Core/3D/General/MeshDebugUtils3D.h/.cpp`
   - Status: **Done**
 
 ---
@@ -25,15 +25,15 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 0.1 | Create `3D/General/`, `3D/Surface/`, `3D/Volume/` | **TODO** |
-| 0.2 | Move general 3D infrastructure to `3D/General/`: `GeometryStructures3D`, `GeometryUtilities3D`, `DiscretizationResult3D`, `BoundaryDiscretizer3D`, `ConstraintRegistrar3D`, `ConstraintChecker3D`, `MeshingContext3D`, `MeshData3D` (if not already separate), `MeshOperations3D`, `MeshQueries3D`, `MeshVerifier3D`, `ElementGeometry3D`, `ElementQuality3D`, `MeshDebugUtils3D` | **TODO** |
+| 0.1 | Create `3D/General/`, `3D/Surface/`, `3D/Volume/` | Done |
+| 0.2 | Move general 3D infrastructure to `3D/General/`: `GeometryStructures3D`, `GeometryUtilities3D`, `DiscretizationResult3D`, `BoundaryDiscretizer3D`, `ConstraintRegistrar3D`, `ConstraintChecker3D`, `MeshingContext3D`, `MeshOperations3D`, `MeshQueries3D`, `MeshVerifier3D`, `ElementGeometry3D`, `ElementQuality3D`, `MeshDebugUtils3D` | Done |
 | 0.3 | Decouple `BoundaryDiscretizer3D` from `MeshingContext3D` (currently depends on volume context; should work without tet data) | **TODO** |
 | 0.4 | Extend `ElementGeometry3D` to cover triangle-in-3D operations (area, normal, circumcircle in plane) — needed by surface mesher | **TODO** |
-| 0.5 | Move `FacetTriangulation`, `FacetTriangulationManager` to `3D/Surface/` | **TODO** |
-| 0.6 | Move the four volume-specific files to `3D/Volume/`: `Delaunay3D`, `ConstrainedDelaunay3D`, `ShewchukRefiner3D`, `Shewchuk3DQualityController` | **TODO** |
-| 0.7 | Update all `CMakeLists.txt` and `#include` paths; verify build passes | **TODO** |
+| 0.5 | Move `FacetTriangulation`, `FacetTriangulationManager` to `3D/Surface/` | Done |
+| 0.6 | Move the four volume-specific files to `3D/Volume/`: `Delaunay3D`, `ConstrainedDelaunay3D`, `ShewchukRefiner3D`, `Shewchuk3DQualityController` | Done |
+| 0.7 | Update all `CMakeLists.txt` and `#include` paths; verify build passes | Done |
 
-**Status: NOT STARTED**
+**Status: IN PROGRESS — 0.3 and 0.4 remaining**
 
 ---
 
@@ -271,10 +271,9 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 ## Recommended Implementation Order
 
 ### Phase 0: Folder restructuring
-1. Create `3D/General/`, `3D/Surface/`, `3D/Volume/` and move files (see Phase 0 table above)
-2. Extend `ElementGeometry3D` with triangle-in-3D operations
-3. Decouple `BoundaryDiscretizer3D` from `MeshingContext3D`
-4. Update `CMakeLists.txt` and `#include` paths; verify build passes
+1. ~~Create `3D/General/`, `3D/Surface/`, `3D/Volume/` and move files~~ **Done**
+2. Decouple `BoundaryDiscretizer3D` from `MeshingContext3D`
+3. Extend `ElementGeometry3D` with triangle-in-3D operations
 
 ### Phase I-A: Surface mesher infrastructure (Step S1)
 4. Define `SurfaceMesh3D` result type
