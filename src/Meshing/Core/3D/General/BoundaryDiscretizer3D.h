@@ -1,6 +1,6 @@
 #pragma once
 
-#include "DiscretizationResult3D.h"
+#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 
 namespace Meshing

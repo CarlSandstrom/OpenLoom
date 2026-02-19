@@ -1,7 +1,7 @@
-#include "MeshingContext3D.h"
+#include "Meshing/Core/3D/General/MeshingContext3D.h"
 
 #include "Geometry/3D/Base/GeometryCollection3D.h"
-#include "MeshOperations3D.h"
+#include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"

@@ -1,5 +1,5 @@
-#include "ElementGeometry3D.h"
-#include "GeometryUtilities3D.h"
+#include "Meshing/Core/3D/General/ElementGeometry3D.h"
+#include "Meshing/Core/3D/General/GeometryUtilities3D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 
 #include <Eigen/LU>

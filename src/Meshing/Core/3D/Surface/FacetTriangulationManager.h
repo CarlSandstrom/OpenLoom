@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "DiscretizationResult3D.h"
-#include "FacetTriangulation.h"
-#include "GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Core/3D/Surface/FacetTriangulation.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include <map>
 #include <memory>
 #include <string>

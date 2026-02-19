@@ -1,5 +1,5 @@
-#include "ConstraintChecker3D.h"
-#include "GeometryUtilities3D.h"
+#include "Meshing/Core/3D/General/ConstraintChecker3D.h"
+#include "Meshing/Core/3D/General/GeometryUtilities3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/Node3D.h"
 

@@ -2,7 +2,7 @@
 #include "../Base/IElement.h"
 #include "../Operations/ITransactionListener.h"
 #include "MeshData3D.h"
-#include "Meshing/Core/3D/GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include <memory>
 #include <string>
 #include <vector>

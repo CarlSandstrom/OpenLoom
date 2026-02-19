@@ -1,7 +1,7 @@
-#include "Shewchuk3DQualityController.h"
+#include "Meshing/Core/3D/Volume/Shewchuk3DQualityController.h"
 
-#include "ElementGeometry3D.h"
-#include "ElementQuality3D.h"
+#include "Meshing/Core/3D/General/ElementGeometry3D.h"
+#include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"

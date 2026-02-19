@@ -1,9 +1,9 @@
-#include "BoundaryDiscretizer3D.h"
+#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ICorner3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "MeshingContext3D.h"
+#include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Topology/Topology3D.h"
 
 namespace Meshing

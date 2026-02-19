@@ -1,7 +1,7 @@
 #pragma once
 #include "../2D/MeshData2D.h"
 #include "../Base/IElement.h"
-#include "Meshing/Core/3D/GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Node3D.h"
 #include <memory>
 #include <unordered_map>

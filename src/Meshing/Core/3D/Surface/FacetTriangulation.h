@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include <map>
 #include <memory>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 
 namespace Meshing
 {

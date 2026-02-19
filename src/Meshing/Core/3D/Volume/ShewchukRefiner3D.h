@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Meshing/Interfaces/IQualityController3D.h"
-#include "MeshingContext3D.h"
+#include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include <unordered_set>
 
 namespace Geometry3D

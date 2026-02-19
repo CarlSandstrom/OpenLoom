@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/GeometryStructures3D.h"
-#include "Meshing/Core/3D/GeometryUtilities3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/GeometryUtilities3D.h"
 
 using namespace Meshing;
 

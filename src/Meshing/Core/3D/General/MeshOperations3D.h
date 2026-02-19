@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/GeometryStructures3D.h"
-#include "Meshing/Core/3D/MeshQueries3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include <array>

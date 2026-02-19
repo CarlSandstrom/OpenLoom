@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ElementGeometry3D.h"
-#include "ElementQuality3D.h"
+#include "Meshing/Core/3D/General/ElementGeometry3D.h"
+#include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Interfaces/IQualityController3D.h"
 #include <cstddef>
 #include <memory>

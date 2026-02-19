@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/ConstraintChecker3D.h"
-#include "Meshing/Core/3D/GeometryStructures3D.h"
+#include "Meshing/Core/3D/General/ConstraintChecker3D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 
