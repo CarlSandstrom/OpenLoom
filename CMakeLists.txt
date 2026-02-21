@@ -8,7 +8,7 @@ set(CMAKE_CXX_COMPILER clang++)
 # set(CMAKE_C_COMPILER gcc)
 # set(CMAKE_CXX_COMPILER g++)
 
-project(cMesh)
+project(OpenLoom)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 20)
@@ -48,8 +48,8 @@ if(NOT GTest_FOUND)
 endif()
 
 # Optional OpenMP for parallel mesh verification
-option(CMESH_USE_OPENMP "Enable OpenMP parallelization for mesh verification" OFF)
-if(CMESH_USE_OPENMP)
+option(OPENLOOM_USE_OPENMP "Enable OpenMP parallelization for mesh verification" OFF)
+if(OPENLOOM_USE_OPENMP)
     find_package(OpenMP REQUIRED)
 endif()
 

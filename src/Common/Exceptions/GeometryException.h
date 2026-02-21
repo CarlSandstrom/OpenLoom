@@ -3,7 +3,7 @@
 #include "Common/Exceptions/Exception.h"
 #include <string>
 
-namespace cMesh
+namespace OpenLoom
 {
 
 class GeometryException : public Exception
@@ -48,7 +48,7 @@ public:
 
     const char* typeName() const noexcept override
     {
-        return "cMesh::GeometryException";
+        return "OpenLoom::GeometryException";
     }
 
 private:
@@ -99,14 +99,14 @@ public:
     }
 };
 
-} // namespace cMesh
+} // namespace OpenLoom
 
-#define CMESH_THROW_GEOMETRY(message) \
-    CMESH_THROW(cMesh::GeometryException, message)
+#define OPENLOOM_THROW_GEOMETRY(message) \
+    OPENLOOM_THROW(OpenLoom::GeometryException, message)
 
-#define CMESH_THROW_ENTITY_NOT_FOUND(entityType, entityId)     \
-    throw cMesh::EntityNotFoundException(entityType, entityId, \
+#define OPENLOOM_THROW_ENTITY_NOT_FOUND(entityType, entityId)     \
+    throw OpenLoom::EntityNotFoundException(entityType, entityId, \
                                          std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-#define CMESH_REQUIRE_NOT_NULL(ptr, name) \
-    CMESH_REQUIRE(ptr != nullptr, cMesh::NullGeometryException, name)
+#define OPENLOOM_REQUIRE_NOT_NULL(ptr, name) \
+    OPENLOOM_REQUIRE(ptr != nullptr, OpenLoom::NullGeometryException, name)

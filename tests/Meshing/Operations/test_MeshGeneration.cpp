@@ -2,7 +2,7 @@
 // TODO: Add proper includes when MeshGeneration classes are available
 // #include "MeshGeneration.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Meshing
 {
@@ -43,4 +43,4 @@ TEST_F(MeshGenerationTest, MeshQualityTest)
 
 } // namespace Operations
 } // namespace Meshing
-} // namespace cMesh
+} // namespace OpenLoom

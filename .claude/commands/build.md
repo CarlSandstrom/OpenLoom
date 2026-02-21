@@ -1,8 +1,8 @@
 ---
-description: Build the cMesh project
+description: Build the OpenLoom project
 ---
 
-Build the cMesh project using CMake.
+Build the OpenLoom project using CMake.
 
 If build directory doesn't exist, configure first:
 ```bash

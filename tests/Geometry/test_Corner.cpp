@@ -2,7 +2,7 @@
 // TODO: Add proper includes when Corner class is available
 // #include "Corner.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Geometry3D
 {
@@ -34,4 +34,4 @@ TEST_F(GeometryCornerTest, BasicOperationsTest)
 }
 
 } // namespace Geometry3D
-} // namespace cMesh
+} // namespace OpenLoom

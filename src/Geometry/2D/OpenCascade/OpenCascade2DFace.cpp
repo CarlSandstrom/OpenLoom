@@ -20,12 +20,12 @@ OpenCascade2DFace::OpenCascade2DFace(std::unique_ptr<OpenCascade2DEdgeLoop> oute
     outerEdgeLoop_(std::move(outerEdgeLoop)),
     faceBuilt_(false)
 {
-    CMESH_REQUIRE_NOT_NULL(outerEdgeLoop_, "outer edge loop");
+    OPENLOOM_REQUIRE_NOT_NULL(outerEdgeLoop_, "outer edge loop");
 }
 
 void OpenCascade2DFace::addHole(std::unique_ptr<OpenCascade2DEdgeLoop> holeEdgeLoop)
 {
-    CMESH_REQUIRE_NOT_NULL(holeEdgeLoop, "hole edge loop");
+    OPENLOOM_REQUIRE_NOT_NULL(holeEdgeLoop, "hole edge loop");
 
     holeEdgeLoops_.push_back(std::move(holeEdgeLoop));
     faceBuilt_ = false;
@@ -45,8 +45,8 @@ const IEdgeLoop2D& OpenCascade2DFace::getHoleEdgeLoop(size_t index) const
 {
     if (index >= holeEdgeLoops_.size())
     {
-        CMESH_THROW_CODE(cMesh::GeometryException,
-                         cMesh::GeometryException::ErrorCode::PARAMETER_OUT_OF_RANGE,
+        OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                         OpenLoom::GeometryException::ErrorCode::PARAMETER_OUT_OF_RANGE,
                          "Hole index " + std::to_string(index) + " out of range (size: " + std::to_string(holeEdgeLoops_.size()) + ")");
     }
     return *holeEdgeLoops_[index];
@@ -117,8 +117,8 @@ void OpenCascade2DFace::buildFace() const
 
     if (!faceBuilder.IsDone())
     {
-        CMESH_THROW_CODE(cMesh::GeometryException,
-                         cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+        OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                         OpenLoom::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
                          "Failed to create face from outer wire");
     }
 
@@ -138,8 +138,8 @@ void OpenCascade2DFace::buildFace() const
 
         if (!faceBuilder.IsDone())
         {
-            CMESH_THROW_CODE(cMesh::GeometryException,
-                             cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+            OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                             OpenLoom::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
                              "Failed to add hole wire to face");
         }
     }

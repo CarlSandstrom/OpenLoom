@@ -1,8 +1,8 @@
 ---
-description: Run cMesh tests
+description: Run OpenLoom tests
 ---
 
-Run the cMesh test suite.
+Run the OpenLoom test suite.
 
 First ensure the project is built, then run tests:
 ```bash

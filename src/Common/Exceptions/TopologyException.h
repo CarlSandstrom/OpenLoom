@@ -3,7 +3,7 @@
 #include "Common/Exceptions/Exception.h"
 #include <string>
 
-namespace cMesh
+namespace OpenLoom
 {
 
 class TopologyException : public Exception
@@ -36,14 +36,14 @@ public:
 
     const char* typeName() const noexcept override
     {
-        return "cMesh::TopologyException";
+        return "OpenLoom::TopologyException";
     }
 
 private:
     ErrorCode code_;
 };
 
-} // namespace cMesh
+} // namespace OpenLoom
 
-#define CMESH_THROW_TOPOLOGY(code, message) \
-    CMESH_THROW_CODE(cMesh::TopologyException, cMesh::TopologyException::ErrorCode::code, message)
+#define OPENLOOM_THROW_TOPOLOGY(code, message) \
+    OPENLOOM_THROW_CODE(OpenLoom::TopologyException, OpenLoom::TopologyException::ErrorCode::code, message)

@@ -18,7 +18,7 @@ ISurface3D* GeometryCollection3D::getSurface(const std::string& id) const
     auto it = surfaces_.find(id);
     if (it == surfaces_.end())
     {
-        CMESH_THROW_ENTITY_NOT_FOUND("Surface", id);
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("Surface", id);
     }
     return it->second.get();
 }
@@ -28,7 +28,7 @@ IEdge3D* GeometryCollection3D::getEdge(const std::string& id) const
     auto it = edges_.find(id);
     if (it == edges_.end())
     {
-        CMESH_THROW_ENTITY_NOT_FOUND("Edge", id);
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("Edge", id);
     }
     return it->second.get();
 }
@@ -38,7 +38,7 @@ ICorner3D* GeometryCollection3D::getCorner(const std::string& id) const
     auto it = corners_.find(id);
     if (it == corners_.end())
     {
-        CMESH_THROW_ENTITY_NOT_FOUND("Corner", id);
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("Corner", id);
     }
     return it->second.get();
 }

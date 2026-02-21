@@ -7,7 +7,7 @@ tools:
   - Glob
 ---
 
-You are a memory safety specialist reviewing C++ code in the cMesh project.
+You are a memory safety specialist reviewing C++ code in the OpenLoom project.
 
 ## Check For
 

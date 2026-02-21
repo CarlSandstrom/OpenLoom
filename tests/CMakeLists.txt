@@ -58,7 +58,7 @@ target_link_libraries(runTests PRIVATE
     GTest::gtest_main
     pthread
 
-    # cMesh libraries
+    # OpenLoom libraries
     Topology
     MeshingData
     MeshingOperations

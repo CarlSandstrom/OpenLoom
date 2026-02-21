@@ -2,7 +2,7 @@
 // TODO: Add proper includes when Edge class is available
 // #include "Edge.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Geometry3D
 {
@@ -34,4 +34,4 @@ TEST_F(GeometryEdgeTest, LengthCalculationTest)
 }
 
 } // namespace Geometry3D
-} // namespace cMesh
+} // namespace OpenLoom

@@ -142,13 +142,13 @@ void exportAndVerifyMesh3D(MeshData3D& meshData,
                            size_t& exportCounter,
                            double qualityBound)
 {
-    if (CMESH_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
+    if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
         Export::VtkExporter exporter;
         exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter++) + ".vtu");
     }
 
-    if (CMESH_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+    if (OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
     {
         spdlog::info("{} [{}]: Verifying mesh at step {} ({} nodes, {} elements)",
                      filenamePrefix, phaseToString(phase), exportCounter,
@@ -183,7 +183,7 @@ void exportAndVerifyMesh3D(MeshData3D& meshData,
             {
                 spdlog::error(" - {}", error);
             }
-            CMESH_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase "
+            OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase "
                                                  + std::string(phaseToString(phase)),
                                              errors);
         }

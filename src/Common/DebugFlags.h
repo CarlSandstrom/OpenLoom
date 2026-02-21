@@ -3,11 +3,11 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace cMesh
+namespace OpenLoom
 {
 
 /// Debug flag identifiers for runtime debugging control.
-/// Enable via environment variables: CMESH_DEBUG_<FLAG_NAME>=1
+/// Enable via environment variables: OPENLOOM_DEBUG_<FLAG_NAME>=1
 enum class DebugFlag
 {
     CHECK_MESH_EACH_ITERATION,
@@ -43,7 +43,7 @@ inline bool isDebugEnabled(DebugFlag flag)
     return val != nullptr && std::strcmp(val, "1") == 0;
 }
 
-} // namespace cMesh
+} // namespace OpenLoom
 
 // Convenience macro for concise debug checks
-#define CMESH_DEBUG_ENABLED(flag) cMesh::isDebugEnabled(cMesh::DebugFlag::flag)
+#define OPENLOOM_DEBUG_ENABLED(flag) OpenLoom::isDebugEnabled(OpenLoom::DebugFlag::flag)

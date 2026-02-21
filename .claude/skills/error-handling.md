@@ -1,13 +1,13 @@
 ---
 name: error-handling
-description: Error handling patterns for cMesh
+description: Error handling patterns for OpenLoom
 globs:
   - "**/*.cpp"
   - "**/*.hpp"
   - "**/*.h"
 ---
 
-# Error Handling in cMesh
+# Error Handling in OpenLoom
 
 ## Exception Hierarchy
 ```
@@ -27,9 +27,9 @@ Exception (base)
 ### Exceptions (Programming Errors)
 Entity lookups that should succeed:
 ```cpp
-CMESH_THROW_ENTITY_NOT_FOUND("Node", id)
-CMESH_REQUIRE_NOT_NULL(ptr, "meshData")
-CMESH_THROW_CODE(MeshException, ErrorCode::INVALID_MESH, "msg")
+OPENLOOM_THROW_ENTITY_NOT_FOUND("Node", id)
+OPENLOOM_REQUIRE_NOT_NULL(ptr, "meshData")
+OPENLOOM_THROW_CODE(MeshException, ErrorCode::INVALID_MESH, "msg")
 ```
 
 ### std::optional (Valid Absence)

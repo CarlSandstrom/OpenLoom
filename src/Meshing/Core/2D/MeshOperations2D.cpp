@@ -33,8 +33,8 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     {
         SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
                     point.x(), point.y());
-        CMESH_THROW_CODE(cMesh::MeshException,
-                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
                          "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
     }
 

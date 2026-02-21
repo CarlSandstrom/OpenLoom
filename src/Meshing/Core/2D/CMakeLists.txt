@@ -27,7 +27,7 @@ target_link_libraries(MeshingCore2D PUBLIC
 
 target_compile_definitions(MeshingCore2D PRIVATE SPDLOG_FMT_EXTERNAL)
 
-if(CMESH_USE_OPENMP)
+if(OPENLOOM_USE_OPENMP)
     target_link_libraries(MeshingCore2D PUBLIC OpenMP::OpenMP_CXX)
-    target_compile_definitions(MeshingCore2D PUBLIC CMESH_HAS_OPENMP)
+    target_compile_definitions(MeshingCore2D PUBLIC OPENLOOM_HAS_OPENMP)
 endif()

@@ -2,7 +2,7 @@
 // TODO: Add proper includes when Surface class is available
 // #include "Surface.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Geometry3D
 {
@@ -34,4 +34,4 @@ TEST_F(GeometrySurfaceTest, AreaCalculationTest)
 }
 
 } // namespace Geometry3D
-} // namespace cMesh
+} // namespace OpenLoom

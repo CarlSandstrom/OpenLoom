@@ -389,7 +389,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesEmptyInput)
     std::vector<Point3D> emptyPoints;
 
     // Should throw on empty input (programming error)
-    EXPECT_THROW(operations.createBoundingTetrahedron(emptyPoints), cMesh::MeshException);
+    EXPECT_THROW(operations.createBoundingTetrahedron(emptyPoints), OpenLoom::MeshException);
 }
 
 TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesSinglePoint)

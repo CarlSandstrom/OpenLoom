@@ -1,12 +1,12 @@
 ---
 name: meshing-patterns
-description: Meshing architecture patterns for cMesh
+description: Meshing architecture patterns for OpenLoom
 globs:
   - "src/Meshing/**/*"
   - "src/Examples/**/*"
 ---
 
-# Meshing Patterns for cMesh
+# Meshing Patterns for OpenLoom
 
 ## Context Pattern
 Always access mesh data through contexts, never cache raw pointers:

@@ -93,9 +93,9 @@ std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinat
     const auto* n0 = mesh_.getNode(nodeIds[0]);
     const auto* n1 = mesh_.getNode(nodeIds[1]);
     const auto* n2 = mesh_.getNode(nodeIds[2]);
-    CMESH_REQUIRE_NOT_NULL(n0, "triangle node 0");
-    CMESH_REQUIRE_NOT_NULL(n1, "triangle node 1");
-    CMESH_REQUIRE_NOT_NULL(n2, "triangle node 2");
+    OPENLOOM_REQUIRE_NOT_NULL(n0, "triangle node 0");
+    OPENLOOM_REQUIRE_NOT_NULL(n1, "triangle node 1");
+    OPENLOOM_REQUIRE_NOT_NULL(n2, "triangle node 2");
     return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
 }
 

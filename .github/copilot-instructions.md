@@ -1,4 +1,4 @@
-# cMesh Agent Guide
+# OpenLoom Agent Guide
 
 ## Architecture & Data Flow
 - `Common/` hosts math helpers (`BoundingBox{2,3}D`, `MathConverter`, `Types`) that every module includes; keep new utilities dependency-free so they can compile in headers.

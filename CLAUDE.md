@@ -1,4 +1,4 @@
-# cMesh Project Context
+# OpenLoom Project Context
 
 Constrained Delaunay triangulation library for 2D and 3D mesh generation with OpenCASCADE CAD support.
 
@@ -75,8 +75,8 @@ See `doc/Error_Handling.md` for complete guide.
 
 ```cpp
 // Entity lookups (programming errors)
-CMESH_THROW_ENTITY_NOT_FOUND("Node", id)
-CMESH_REQUIRE_NOT_NULL(ptr, "name")
+OPENLOOM_THROW_ENTITY_NOT_FOUND("Node", id)
+OPENLOOM_REQUIRE_NOT_NULL(ptr, "name")
 
 // Legitimate "not found" results
 std::optional<T> result = tryFind(...);

@@ -13,13 +13,13 @@ void exportAndVerifyMesh(MeshData2D& meshData,
                          const std::string& filenamePrefix,
                          size_t& exportCounter)
 {
-    if (CMESH_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
+    if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
         Export::VtkExporter exporter;
         exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter++) + ".vtu");
     }
 
-    if (CMESH_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+    if (OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
     {
         spdlog::info("{}: Verifying mesh at export step {}", filenamePrefix, exportCounter);
         MeshVerifier verifier(meshData);
@@ -31,7 +31,7 @@ void exportAndVerifyMesh(MeshData2D& meshData,
             {
                 spdlog::error(" - {}", error);
             }
-            CMESH_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
+            OPENLOOM_THROW_VERIFICATION_FAILED("Mesh verification failed", result.errors);
         }
     }
 }

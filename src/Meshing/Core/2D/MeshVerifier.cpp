@@ -11,12 +11,12 @@ namespace Meshing
 MeshVerifier::MeshVerifier(const MeshData2D& meshData) :
     meshData_(meshData)
 {
-#ifndef CMESH_HAS_OPENMP
+#ifndef OPENLOOM_HAS_OPENMP
     static bool warned = false;
     if (!warned)
     {
         spdlog::warn("MeshVerifier: OpenMP is disabled. Overlap checks will run sequentially. "
-                     "Enable with: cmake -DCMESH_USE_OPENMP=ON");
+                     "Enable with: cmake -DOPENLOOM_USE_OPENMP=ON");
         warned = true;
     }
 #endif
@@ -81,7 +81,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
     }
 
     // Check all pairs of triangles for overlap
-#ifdef CMESH_HAS_OPENMP
+#ifdef OPENLOOM_HAS_OPENMP
     #pragma omp parallel
     {
         std::vector<std::string> localErrors;

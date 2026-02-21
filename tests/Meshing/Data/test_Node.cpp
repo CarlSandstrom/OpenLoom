@@ -2,7 +2,7 @@
 // TODO: Add proper includes when Node class is available
 // #include "Node.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Meshing
 {
@@ -37,4 +37,4 @@ TEST_F(NodeTest, CoordinateAccessTest)
 
 } // namespace Data
 } // namespace Meshing
-} // namespace cMesh
+} // namespace OpenLoom

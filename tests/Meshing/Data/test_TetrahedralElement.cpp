@@ -1,7 +1,7 @@
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include <gtest/gtest.h>
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Meshing
 {
@@ -42,4 +42,4 @@ TEST_F(TetrahedralElementTest, QualityMetricsTest)
 
 } // namespace Data
 } // namespace Meshing
-} // namespace cMesh
+} // namespace OpenLoom

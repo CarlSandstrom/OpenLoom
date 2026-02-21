@@ -3,7 +3,7 @@
 // #include "GeometryCollection.h"
 // #include "OpenCascadeGeometry.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Integration
 {
@@ -41,4 +41,4 @@ TEST_F(GeometryToMeshTest, MeshQualityValidationTest)
 }
 
 } // namespace Integration
-} // namespace cMesh
+} // namespace OpenLoom

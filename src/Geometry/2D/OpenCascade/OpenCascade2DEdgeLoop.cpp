@@ -26,8 +26,8 @@ OpenCascade2DEdgeLoop::OpenCascade2DEdgeLoop(const std::vector<std::string>& edg
 {
     if (edgeIds_.empty())
     {
-        CMESH_THROW_CODE(cMesh::GeometryException,
-                         cMesh::GeometryException::ErrorCode::EMPTY_COLLECTION,
+        OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                         OpenLoom::GeometryException::ErrorCode::EMPTY_COLLECTION,
                          "Edge list cannot be empty");
     }
 
@@ -76,7 +76,7 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
         const IEdge2D* edge = geometry.getEdge(edgeId);
         if (!edge)
         {
-            CMESH_THROW_ENTITY_NOT_FOUND("Edge", edgeId);
+            OPENLOOM_THROW_ENTITY_NOT_FOUND("Edge", edgeId);
         }
 
         // Try to get OpenCASCADE curve if available
@@ -93,8 +93,8 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
 
             if (!edgeBuilder.IsDone())
             {
-                CMESH_THROW_CODE(cMesh::GeometryException,
-                                 cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                                 OpenLoom::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
                                  "Failed to create edge: " + edgeId);
             }
 
@@ -113,8 +113,8 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
 
             if (!edgeBuilder.IsDone())
             {
-                CMESH_THROW_CODE(cMesh::GeometryException,
-                                 cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+                OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                                 OpenLoom::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
                                  "Failed to create linear edge: " + edgeId);
             }
 
@@ -124,8 +124,8 @@ void OpenCascade2DEdgeLoop::buildWire(const GeometryCollection2D& geometry)
 
     if (!wireBuilder.IsDone())
     {
-        CMESH_THROW_CODE(cMesh::GeometryException,
-                         cMesh::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
+        OPENLOOM_THROW_CODE(OpenLoom::GeometryException,
+                         OpenLoom::GeometryException::ErrorCode::WIRE_BUILDING_FAILED,
                          "Failed to build wire");
     }
 

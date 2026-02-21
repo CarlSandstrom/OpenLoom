@@ -1,7 +1,7 @@
 #include "../../Topology/Edge3D.h"
 #include <gtest/gtest.h>
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Topology3D
 {
@@ -33,4 +33,4 @@ TEST_F(TopologyEdgeTest, ConnectivityTest)
 }
 
 } // namespace Topology3D
-} // namespace cMesh
+} // namespace OpenLoom

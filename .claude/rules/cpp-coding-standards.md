@@ -6,7 +6,7 @@ globs:
   - "**/*.hpp"
 ---
 
-# C++ Coding Standards for cMesh
+# C++ Coding Standards for OpenLoom
 
 **IMPORTANT: Follow these standards for ALL code edits.**
 
@@ -56,9 +56,9 @@ globs:
 
 ## Error Handling
 - Use custom exceptions from `Common/Exceptions/`:
-  - `CMESH_THROW_ENTITY_NOT_FOUND("Type", id)` for entity lookups
-  - `CMESH_REQUIRE_NOT_NULL(ptr, "name")` for null checks
-  - `CMESH_THROW_CODE(ExceptionType, ErrorCode::CODE, "msg")` for failures
+  - `OPENLOOM_THROW_ENTITY_NOT_FOUND("Type", id)` for entity lookups
+  - `OPENLOOM_REQUIRE_NOT_NULL(ptr, "name")` for null checks
+  - `OPENLOOM_THROW_CODE(ExceptionType, ErrorCode::CODE, "msg")` for failures
 - Use `std::optional<T>` for operations that may produce no result
 - Use `bool` for simple success/failure
 - Never use generic `std::runtime_error`

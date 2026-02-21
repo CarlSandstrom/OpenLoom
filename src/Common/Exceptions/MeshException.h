@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace cMesh
+namespace OpenLoom
 {
 
 class MeshException : public Exception
@@ -43,7 +43,7 @@ public:
 
     const char* typeName() const noexcept override
     {
-        return "cMesh::MeshException";
+        return "OpenLoom::MeshException";
     }
 
 private:
@@ -145,15 +145,15 @@ private:
     size_t entityId_;
 };
 
-} // namespace cMesh
+} // namespace OpenLoom
 
-#define CMESH_THROW_MESH(code, message) \
-    CMESH_THROW_CODE(cMesh::MeshException, cMesh::MeshException::ErrorCode::code, message)
+#define OPENLOOM_THROW_MESH(code, message) \
+    OPENLOOM_THROW_CODE(OpenLoom::MeshException, OpenLoom::MeshException::ErrorCode::code, message)
 
-#define CMESH_THROW_VERIFICATION_FAILED(message, errors)    \
-    throw cMesh::MeshVerificationException(message, errors, \
+#define OPENLOOM_THROW_VERIFICATION_FAILED(message, errors)    \
+    throw OpenLoom::MeshVerificationException(message, errors, \
                                            std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-#define CMESH_THROW_MAX_ITERATIONS(operation, maxIter)      \
-    throw cMesh::MaxIterationsException(operation, maxIter, \
+#define OPENLOOM_THROW_MAX_ITERATIONS(operation, maxIter)      \
+    throw OpenLoom::MaxIterationsException(operation, maxIter, \
                                         std::string(__FILE__) + ":" + std::to_string(__LINE__))

@@ -33,8 +33,8 @@ std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
     case 2:
         return {nodeIds_[2], nodeIds_[0]};
     default:
-        CMESH_THROW_CODE(cMesh::MeshException,
-                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
                          "Invalid edge index " + std::to_string(edgeIndex) + " for triangle (valid: 0-2)");
     }
 }
@@ -48,8 +48,8 @@ size_t TriangleElement::getOppositeNode(size_t edgeNode1, size_t edgeNode2) cons
             return n;
         }
     }
-    CMESH_THROW_CODE(cMesh::MeshException,
-                     cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+    OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                     OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
                      "No opposite node found for edge (" + std::to_string(edgeNode1) +
                          ", " + std::to_string(edgeNode2) + ") in triangle");
 }

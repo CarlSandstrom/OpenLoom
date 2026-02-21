@@ -1,6 +1,6 @@
 ---
 name: cpp-conventions
-description: C++ coding conventions for cMesh
+description: C++ coding conventions for OpenLoom
 globs:
   - "**/*.cpp"
   - "**/*.hpp"
@@ -8,7 +8,7 @@ globs:
   - "**/*.cc"
 ---
 
-# C++ Conventions for cMesh
+# C++ Conventions for OpenLoom
 
 ## File Organization
 - Headers: `.h` with `#pragma once`

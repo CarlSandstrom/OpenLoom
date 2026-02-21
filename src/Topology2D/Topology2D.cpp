@@ -37,7 +37,7 @@ const Corner2D& Topology2D::getCorner(const std::string& id) const
     auto it = corners_.find(id);
     if (it == corners_.end())
     {
-        CMESH_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Corner2D not found: " + id);
+        OPENLOOM_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Corner2D not found: " + id);
     }
     return it->second;
 }
@@ -47,7 +47,7 @@ const Edge2D& Topology2D::getEdge(const std::string& id) const
     auto it = edges_.find(id);
     if (it == edges_.end())
     {
-        CMESH_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Edge2D not found: " + id);
+        OPENLOOM_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Edge2D not found: " + id);
     }
     return it->second;
 }

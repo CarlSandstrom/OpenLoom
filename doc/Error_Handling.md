@@ -1,24 +1,24 @@
-# cMesh Error Handling Guide
+# OpenLoom Error Handling Guide
 
-Quick reference for standardized error handling in cMesh.
+Quick reference for standardized error handling in OpenLoom.
 
 ## Decision Tree
 
 | Situation | Use | Example |
 |-----------|-----|---------|
-| Entity should exist (programming error if not) | **Exception** | `CMESH_THROW_ENTITY_NOT_FOUND("Surface", id)` |
+| Entity should exist (programming error if not) | **Exception** | `OPENLOOM_THROW_ENTITY_NOT_FOUND("Surface", id)` |
 | Geometric computation may fail (degenerate) | **`std::optional<T>`** | `std::optional<Circle2D> computeCircumcircle(...)` |
 | Query where "not found" is valid | **`std::optional<T>`** or `nullptr` | `std::optional<std::string> findVertexId(...)` |
 | Simple yes/no or try operation | **`bool`** | `bool tryEnforceConstraint(...)` |
-| Operation with multiple failure modes | **Exception** with error code | `CMESH_THROW_MAX_ITERATIONS(...)` |
+| Operation with multiple failure modes | **Exception** with error code | `OPENLOOM_THROW_MAX_ITERATIONS(...)` |
 | Validation needing error list | **Struct** | `VerificationResult verify()` |
 | File I/O | **Stream exceptions** | `os.exceptions(std::ios::failbit)` |
-| Null pointer validation | **Exception** | `CMESH_REQUIRE_NOT_NULL(ptr, "name")` |
+| Null pointer validation | **Exception** | `OPENLOOM_REQUIRE_NOT_NULL(ptr, "name")` |
 
 ## Exception Hierarchy
 
 ```
-cMesh::Exception (base)
+OpenLoom::Exception (base)
 ├── GeometryException (error codes 1000-1007)
 │   ├── EntityNotFoundException
 │   └── NullGeometryException
@@ -41,10 +41,10 @@ cMesh::Exception (base)
 
 **Usage:**
 ```cpp
-CMESH_THROW_GEOMETRY("Invalid geometry");
-CMESH_THROW_ENTITY_NOT_FOUND("Surface", surfaceId);
-CMESH_REQUIRE_NOT_NULL(edge, "edge");
-CMESH_THROW_CODE(cMesh::GeometryException, ErrorCode::WIRE_BUILDING_FAILED, "msg");
+OPENLOOM_THROW_GEOMETRY("Invalid geometry");
+OPENLOOM_THROW_ENTITY_NOT_FOUND("Surface", surfaceId);
+OPENLOOM_REQUIRE_NOT_NULL(edge, "edge");
+OPENLOOM_THROW_CODE(OpenLoom::GeometryException, ErrorCode::WIRE_BUILDING_FAILED, "msg");
 ```
 
 ### MeshException
@@ -57,10 +57,10 @@ CMESH_THROW_CODE(cMesh::GeometryException, ErrorCode::WIRE_BUILDING_FAILED, "msg
 
 **Usage:**
 ```cpp
-CMESH_THROW_MESH(GENERATION_FAILED, "Mesh generation failed");
-CMESH_THROW_VERIFICATION_FAILED("Verification failed", errorList);
-CMESH_THROW_MAX_ITERATIONS("Mesh refinement", 100);
-throw cMesh::MeshEntityNotFoundException("Node", nodeId, __FILE__ ":" + std::to_string(__LINE__));
+OPENLOOM_THROW_MESH(GENERATION_FAILED, "Mesh generation failed");
+OPENLOOM_THROW_VERIFICATION_FAILED("Verification failed", errorList);
+OPENLOOM_THROW_MAX_ITERATIONS("Mesh refinement", 100);
+throw OpenLoom::MeshEntityNotFoundException("Node", nodeId, __FILE__ ":" + std::to_string(__LINE__));
 ```
 
 ### TopologyException
@@ -71,7 +71,7 @@ throw cMesh::MeshEntityNotFoundException("Node", nodeId, __FILE__ ":" + std::to_
 
 **Usage:**
 ```cpp
-CMESH_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Corner2D not found: " + id);
+OPENLOOM_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Corner2D not found: " + id);
 ```
 
 ## Helper Macros
@@ -80,22 +80,22 @@ All macros automatically capture file:line location.
 
 ```cpp
 // General
-CMESH_THROW(ExceptionType, message)
-CMESH_THROW_CODE(ExceptionType, code, message)
-CMESH_REQUIRE(condition, ExceptionType, message)
+OPENLOOM_THROW(ExceptionType, message)
+OPENLOOM_THROW_CODE(ExceptionType, code, message)
+OPENLOOM_REQUIRE(condition, ExceptionType, message)
 
 // Geometry
-CMESH_THROW_GEOMETRY(message)
-CMESH_THROW_ENTITY_NOT_FOUND(entityType, entityId)
-CMESH_REQUIRE_NOT_NULL(ptr, name)
+OPENLOOM_THROW_GEOMETRY(message)
+OPENLOOM_THROW_ENTITY_NOT_FOUND(entityType, entityId)
+OPENLOOM_REQUIRE_NOT_NULL(ptr, name)
 
 // Mesh
-CMESH_THROW_MESH(code, message)
-CMESH_THROW_VERIFICATION_FAILED(message, errorVector)
-CMESH_THROW_MAX_ITERATIONS(operation, maxIter)
+OPENLOOM_THROW_MESH(code, message)
+OPENLOOM_THROW_VERIFICATION_FAILED(message, errorVector)
+OPENLOOM_THROW_MAX_ITERATIONS(operation, maxIter)
 
 // Topology
-CMESH_THROW_TOPOLOGY(code, message)
+OPENLOOM_THROW_TOPOLOGY(code, message)
 ```
 
 ## Usage Patterns
@@ -105,7 +105,7 @@ CMESH_THROW_TOPOLOGY(code, message)
 ISurface3D* getSurface(const std::string& id) const {
     auto it = surfaces_.find(id);
     if (it == surfaces_.end()) {
-        CMESH_THROW_ENTITY_NOT_FOUND("Surface", id);
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("Surface", id);
     }
     return it->second.get();
 }
@@ -159,7 +159,7 @@ void exportMesh(const MeshData3D& mesh, const std::string& path) const {
 ### Null Pointer Validation
 ```cpp
 void addHole(std::unique_ptr<EdgeLoop> hole) {
-    CMESH_REQUIRE_NOT_NULL(hole, "hole edge loop");
+    OPENLOOM_REQUIRE_NOT_NULL(hole, "hole edge loop");
     holes_.push_back(std::move(hole));
 }
 ```
@@ -189,7 +189,7 @@ Surface* getSurface(const std::string& id);
 
 ❌ **Don't use assertions for validation**
 ```cpp
-assert(node != nullptr);  // Use CMESH_REQUIRE_NOT_NULL instead
+assert(node != nullptr);  // Use OPENLOOM_REQUIRE_NOT_NULL instead
 ```
 
 ## Catching Exceptions
@@ -198,19 +198,19 @@ assert(node != nullptr);  // Use CMESH_REQUIRE_NOT_NULL instead
 try {
     mesh = generator.generateMesh(geometry);
 }
-catch (const cMesh::EntityNotFoundException& e) {
+catch (const OpenLoom::EntityNotFoundException& e) {
     // Specific handling - missing geometry
     spdlog::error("{} ({})", e.message(), e.getEntityId());
 }
-catch (const cMesh::MaxIterationsException& e) {
+catch (const OpenLoom::MaxIterationsException& e) {
     // Could retry with different parameters
     spdlog::warn("{} after {}", e.getOperation(), e.getMaxIterations());
 }
 catch (const std::ios_base::failure& e) {
     // File I/O errors
 }
-catch (const cMesh::Exception& e) {
-    // Generic cMesh error
+catch (const OpenLoom::Exception& e) {
+    // Generic OpenLoom error
     spdlog::error("Error at {}: {}", e.location(), e.message());
 }
 ```

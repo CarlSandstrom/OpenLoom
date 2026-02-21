@@ -3,7 +3,7 @@
 #include <exception>
 #include <string>
 
-namespace cMesh
+namespace OpenLoom
 {
 
 class Exception : public std::exception
@@ -40,7 +40,7 @@ public:
 
     virtual const char* typeName() const noexcept
     {
-        return "cMesh::Exception";
+        return "OpenLoom::Exception";
     }
 
 protected:
@@ -59,19 +59,19 @@ private:
     std::string fullMessage_;
 };
 
-} // namespace cMesh
+} // namespace OpenLoom
 
-#define CMESH_THROW(ExceptionType, message) \
+#define OPENLOOM_THROW(ExceptionType, message) \
     throw ExceptionType(message, std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-#define CMESH_THROW_CODE(ExceptionType, code, message) \
+#define OPENLOOM_THROW_CODE(ExceptionType, code, message) \
     throw ExceptionType(code, message, std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-#define CMESH_REQUIRE(condition, ExceptionType, message) \
+#define OPENLOOM_REQUIRE(condition, ExceptionType, message) \
     do                                                   \
     {                                                    \
         if (!(condition))                                \
         {                                                \
-            CMESH_THROW(ExceptionType, message);         \
+            OPENLOOM_THROW(ExceptionType, message);         \
         }                                                \
     } while (0)

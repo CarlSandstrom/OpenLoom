@@ -3,7 +3,7 @@
 // #include "GeometryCollection.h"
 // #include "MeshGeneration.h"
 
-namespace cMesh
+namespace OpenLoom
 {
 namespace Integration
 {
@@ -35,4 +35,4 @@ TEST_F(MeshWorkflowTest, ErrorHandlingTest)
 }
 
 } // namespace Integration
-} // namespace cMesh
+} // namespace OpenLoom

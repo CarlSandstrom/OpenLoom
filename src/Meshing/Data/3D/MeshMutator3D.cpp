@@ -70,7 +70,7 @@ void MeshMutator3D::moveNode(size_t id, const Point3D& newCoords)
     Node3D* node = geometry_.getNodeMutable(id);
     if (!node)
     {
-        throw cMesh::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
+        throw OpenLoom::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
     // Notify transaction listener BEFORE modification
@@ -89,7 +89,7 @@ void MeshMutator3D::removeNode(size_t id)
     const Node3D* node = geometry_.getNode(id);
     if (!node)
     {
-        throw cMesh::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
+        throw OpenLoom::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
     // Validate that node can be removed (this would need connectivity info)
@@ -126,7 +126,7 @@ void MeshMutator3D::removeElement(size_t id)
     const IElement* element = geometry_.getElement(id);
     if (!element)
     {
-        throw cMesh::MeshEntityNotFoundException("Element", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
+        throw OpenLoom::MeshEntityNotFoundException("Element", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
     // Clone element before removing (if listener needs it)
@@ -240,8 +240,8 @@ void MeshMutator3D::validateNodeRemoval(size_t nodeId) const
     if (connectivity_ && !connectivity_->canRemoveNode(nodeId))
     {
         const auto& elements = connectivity_->getNodeElements(nodeId);
-        CMESH_THROW_CODE(cMesh::MeshException,
-                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
                          "Cannot remove node " + std::to_string(nodeId) +
                              ": still referenced by " + std::to_string(elements.size()) + " element(s)");
     }

@@ -30,8 +30,8 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
 {
     if (points.empty())
     {
-        CMESH_THROW_CODE(cMesh::MeshException,
-                         cMesh::MeshException::ErrorCode::INVALID_OPERATION,
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
                          "createBoundingTetrahedron called with empty point list");
     }
 

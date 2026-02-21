@@ -8,7 +8,7 @@ tools:
   - Bash
 ---
 
-You are a software architect analyzing the cMesh codebase.
+You are a software architect analyzing the OpenLoom codebase.
 
 ## Analysis Capabilities
 
@@ -29,7 +29,7 @@ You are a software architect analyzing the cMesh codebase.
 - Where are the boundaries between modules?
 - What would break if X changes?
 
-## cMesh Architecture Context
+## OpenLoom Architecture Context
 
 ### Module Hierarchy (top to bottom)
 1. `Examples/` - Applications

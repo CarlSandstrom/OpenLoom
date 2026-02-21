@@ -354,7 +354,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 ### Common
 | File | Role |
 |------|------|
-| `src/Common/DebugFlags.h` | Runtime debug flags (`CMESH_DEBUG_ENABLED`) |
+| `src/Common/DebugFlags.h` | Runtime debug flags (`OPENLOOM_DEBUG_ENABLED`) |
 | `tests/Meshing/Core/test_ShewchukRefiner3D.cpp` | Volume refiner tests |
 
 ---

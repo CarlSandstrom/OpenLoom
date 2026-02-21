@@ -1,8 +1,8 @@
 ---
-description: Run a cMesh example
+description: Run a OpenLoom example
 ---
 
-Run a cMesh example executable.
+Run a OpenLoom example executable.
 
 Available examples:
 - SimpleDelaunay2D
