@@ -6,6 +6,7 @@ set(EXAMPLE_SOURCES_2D
     RectangleWithCrack.cc
     SimpleDelaunay2D.cc
     SquareWithCircularHole.cc
+    SquareWithCircleAndTwinEdges.cc
     SquareWithInternalCircles.cc
     MeshStepFile2D.cc
 )
