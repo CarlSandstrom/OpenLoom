@@ -7,9 +7,9 @@
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Shewchuk2DQualityController.h"
@@ -221,41 +221,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     Shewchuk2DQualityController qualityController(
         context.getMeshData(), 2.0, M_PI / 6.0, 10000);
     ShewchukRefiner2D refiner(context, qualityController);
-
-    // Callback: whenever a boundary segment is split, propagate to its twin.
-    refiner.setOnBoundarySplit([&](size_t n1, size_t n2, size_t mid) {
-        auto twin = twinManager.getTwin(n1, n2);
-        if (!twin)
-            return;
-        auto [t1, t2] = *twin; // TwinManager endpoint direction
-
-        // The stored ConstrainedSegment2D may be in either direction, so search
-        // for a segment matching {t1,t2} or {t2,t1}.
-        const auto& segs = context.getMeshData().getConstrainedSegments();
-        auto it = std::find_if(segs.begin(), segs.end(),
-                               [&](const ConstrainedSegment2D& s) {
-                                   return (s.nodeId1 == t1 && s.nodeId2 == t2) ||
-                                          (s.nodeId1 == t2 && s.nodeId2 == t1);
-                               });
-        if (it == segs.end())
-            return;
-        const ConstrainedSegment2D twinSeg = *it;
-
-        auto twinEdgeId = context.getOperations().getQueries().findCommonGeometryId(
-            twinSeg.nodeId1, twinSeg.nodeId2);
-        if (!twinEdgeId)
-            return;
-        const auto* twinEdge = context.getGeometry().getEdge(*twinEdgeId);
-        if (!twinEdge)
-            return;
-
-        auto twinMid = context.getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
-        if (!twinMid)
-            return;
-
-        // Use TwinManager direction (t1, t2) so endpoint correspondence is preserved
-        twinManager.recordSplit(n1, n2, mid, t1, t2, *twinMid);
-    });
+    refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
 
     ASSERT_NO_THROW(refiner.refine());
 

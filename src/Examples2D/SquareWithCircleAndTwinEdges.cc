@@ -5,10 +5,9 @@
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
-#include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Shewchuk2DQualityController.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
@@ -204,7 +203,7 @@ int main()
     spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
 
     // -------------------------------------------------------------------------
-    // Refine with BoundarySplitCallback
+    // Refine with BoundarySplitSynchronizer
     // -------------------------------------------------------------------------
     Shewchuk2DQualityController qualityController(
         context.getMeshData(),
@@ -213,40 +212,7 @@ int main()
         10000);     // element limit
 
     ShewchukRefiner2D refiner(context, qualityController);
-
-    refiner.setOnBoundarySplit([&](size_t n1, size_t n2, size_t mid) {
-        auto twin = twinManager.getTwin(n1, n2);
-        if (!twin)
-            return;
-        auto [t1, t2] = *twin;
-
-        // Find the stored segment for the twin (direction may differ from TwinManager)
-        const auto& segs = context.getMeshData().getConstrainedSegments();
-        auto it = std::find_if(segs.begin(), segs.end(),
-                               [&](const ConstrainedSegment2D& s) {
-                                   return (s.nodeId1 == t1 && s.nodeId2 == t2) ||
-                                          (s.nodeId1 == t2 && s.nodeId2 == t1);
-                               });
-        if (it == segs.end())
-            return;
-        const ConstrainedSegment2D twinSeg = *it;
-
-        auto twinEdgeId = context.getOperations().getQueries().findCommonGeometryId(
-            twinSeg.nodeId1, twinSeg.nodeId2);
-        if (!twinEdgeId)
-            return;
-        const auto* twinEdge = context.getGeometry().getEdge(*twinEdgeId);
-        if (!twinEdge)
-            return;
-
-        auto twinMid = context.getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
-        if (!twinMid)
-            return;
-
-        twinManager.recordSplit(n1, n2, mid, t1, t2, *twinMid);
-        spdlog::debug("Twin split: ({},{}) → mid {} / ({},{}) → twinMid {}",
-                      n1, n2, mid, t1, t2, *twinMid);
-    });
+    refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
 
     spdlog::info("Refining...");
     refiner.refine();
