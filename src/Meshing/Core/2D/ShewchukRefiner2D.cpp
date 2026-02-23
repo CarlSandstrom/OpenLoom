@@ -28,6 +28,11 @@ ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
 
 ShewchukRefiner2D::~ShewchukRefiner2D() = default;
 
+void ShewchukRefiner2D::setOnBoundarySplit(BoundarySplitCallback callback)
+{
+    onBoundarySplit_ = std::move(callback);
+}
+
 void ShewchukRefiner2D::refine()
 {
     spdlog::info("ShewchukRefiner2D: Starting mesh refinement");
@@ -192,6 +197,11 @@ void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segm
 
     spdlog::debug("ShewchukRefiner2D: Successfully split segment ({}, {}) at node {}",
                   segment.nodeId1, segment.nodeId2, newNodeId.value());
+
+    if (onBoundarySplit_)
+    {
+        onBoundarySplit_(segment.nodeId1, segment.nodeId2, newNodeId.value());
+    }
 }
 
 bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)

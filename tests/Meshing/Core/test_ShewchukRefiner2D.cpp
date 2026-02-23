@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include "Common/TwinManager.h"
 #include "Common/Types.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -8,6 +9,8 @@
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
+#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Shewchuk2DQualityController.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
@@ -21,6 +24,7 @@
 #include <gp_Dir2d.hxx>
 #include <gp_Pnt2d.hxx>
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -151,4 +155,134 @@ TEST(ShewchukRefiner2D, SquareWithInternalCirclesTerminates)
     const auto& meshData = context.getMeshData();
     EXPECT_GT(meshData.getElementCount(), 0u);
     EXPECT_LT(meshData.getElementCount(), 5000u);
+}
+
+// Integration test: two boundary edges declared as twins must end up with
+// identical discretization (same number of nodes, matching y-coordinates) after
+// Shewchuk refinement propagates every boundary split to the paired edge.
+TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
+{
+    // Build a 1×1 square. Edges:
+    //   sq_e0: c0(0,0) → c1(1,0)  bottom
+    //   sq_e1: c1(1,0) → c2(1,1)  right  (bottom-to-top)
+    //   sq_e2: c2(1,1) → c3(0,1)  top
+    //   sq_e3: c3(0,1) → c0(0,0)  left   (top-to-bottom)
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::vector<std::string> edgeLoop;
+    addSquare(*geometry, topoCorners, topoEdges, edgeLoop, "sq", 1.0);
+
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topoCorners, topoEdges, edgeLoop,
+        std::vector<std::vector<std::string>>{});
+
+    MeshingContext2D context(std::move(geometry), std::move(topology));
+
+    EdgeDiscretizer2D discretizer(context);
+    auto discretization = discretizer.discretize();
+
+    ConstrainedDelaunay2D mesher(context, discretization);
+    mesher.triangulate();
+
+    // Locate the four corner nodes by coordinate
+    size_t c0Id = SIZE_MAX, c1Id = SIZE_MAX, c2Id = SIZE_MAX, c3Id = SIZE_MAX;
+    for (const auto& [nodeId, node] : context.getMeshData().getNodes())
+    {
+        const Point2D& pt = node->getCoordinates();
+        if (std::abs(pt.x()) < 1e-10 && std::abs(pt.y()) < 1e-10)
+            c0Id = nodeId; // (0,0) bottom-left
+        else if (std::abs(pt.x() - 1.0) < 1e-10 && std::abs(pt.y()) < 1e-10)
+            c1Id = nodeId; // (1,0) bottom-right
+        else if (std::abs(pt.x() - 1.0) < 1e-10 && std::abs(pt.y() - 1.0) < 1e-10)
+            c2Id = nodeId; // (1,1) top-right
+        else if (std::abs(pt.x()) < 1e-10 && std::abs(pt.y() - 1.0) < 1e-10)
+            c3Id = nodeId; // (0,1) top-left
+    }
+    ASSERT_NE(c0Id, SIZE_MAX) << "Corner c0 (0,0) not found";
+    ASSERT_NE(c1Id, SIZE_MAX) << "Corner c1 (1,0) not found";
+    ASSERT_NE(c2Id, SIZE_MAX) << "Corner c2 (1,1) not found";
+    ASSERT_NE(c3Id, SIZE_MAX) << "Corner c3 (0,1) not found";
+
+    // Insert an interior node very close to the left edge to guarantee two things:
+    //  1. The left edge is encroached (distance 0.1 from diametral-circle centre
+    //     (0, 0.5), radius 0.5 → 0.1 < 0.5 ✓)
+    //  2. The triangle touching the left edge has a ~11° angle, which fails the
+    //     π/6 quality threshold, so the refiner will actually call refineStep().
+    context.getOperations().insertVertexBowyerWatson(Point2D(0.1, 0.5));
+
+    // Register the left/right edge pair as twins.
+    // Left edge (sq_e3) goes c3→c0 (top-to-bottom).
+    // Right edge (sq_e1) goes c1→c2 (bottom-to-top).
+    // Correspondence: c3(y=1)↔c2(y=1)  and  c0(y=0)↔c1(y=0).
+    TwinManager twinManager;
+    twinManager.registerTwin(c3Id, c0Id, c2Id, c1Id);
+
+    Shewchuk2DQualityController qualityController(
+        context.getMeshData(), 2.0, M_PI / 6.0, 10000);
+    ShewchukRefiner2D refiner(context, qualityController);
+
+    // Callback: whenever a boundary segment is split, propagate to its twin.
+    refiner.setOnBoundarySplit([&](size_t n1, size_t n2, size_t mid) {
+        auto twin = twinManager.getTwin(n1, n2);
+        if (!twin)
+            return;
+        auto [t1, t2] = *twin; // TwinManager endpoint direction
+
+        // The stored ConstrainedSegment2D may be in either direction, so search
+        // for a segment matching {t1,t2} or {t2,t1}.
+        const auto& segs = context.getMeshData().getConstrainedSegments();
+        auto it = std::find_if(segs.begin(), segs.end(),
+                               [&](const ConstrainedSegment2D& s) {
+                                   return (s.nodeId1 == t1 && s.nodeId2 == t2) ||
+                                          (s.nodeId1 == t2 && s.nodeId2 == t1);
+                               });
+        if (it == segs.end())
+            return;
+        const ConstrainedSegment2D twinSeg = *it;
+
+        auto twinEdgeId = context.getOperations().getQueries().findCommonGeometryId(
+            twinSeg.nodeId1, twinSeg.nodeId2);
+        if (!twinEdgeId)
+            return;
+        const auto* twinEdge = context.getGeometry().getEdge(*twinEdgeId);
+        if (!twinEdge)
+            return;
+
+        auto twinMid = context.getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
+        if (!twinMid)
+            return;
+
+        // Use TwinManager direction (t1, t2) so endpoint correspondence is preserved
+        twinManager.recordSplit(n1, n2, mid, t1, t2, *twinMid);
+    });
+
+    ASSERT_NO_THROW(refiner.refine());
+
+    // Collect nodes on the left edge (x ≈ 0) and right edge (x ≈ 1), sorted by y
+    std::vector<double> leftY, rightY;
+    for (const auto& [nodeId, node] : context.getMeshData().getNodes())
+    {
+        const Point2D& pt = node->getCoordinates();
+        if (std::abs(pt.x()) < 1e-10)
+            leftY.push_back(pt.y());
+        else if (std::abs(pt.x() - 1.0) < 1e-10)
+            rightY.push_back(pt.y());
+    }
+    std::sort(leftY.begin(), leftY.end());
+    std::sort(rightY.begin(), rightY.end());
+
+    // At least one split must have occurred on each edge
+    EXPECT_GT(leftY.size(), 2u);
+
+    // Both edges must have the same number of nodes
+    ASSERT_EQ(leftY.size(), rightY.size());
+
+    // Each corresponding node pair must share the same y-coordinate
+    for (size_t i = 0; i < leftY.size(); ++i)
+    {
+        EXPECT_NEAR(leftY[i], rightY[i], 1e-10)
+            << "y-mismatch at index " << i
+            << ": left=" << leftY[i] << " right=" << rightY[i];
+    }
 }

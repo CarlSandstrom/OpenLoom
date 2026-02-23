@@ -5,6 +5,7 @@ add_library(Common STATIC
     MathConverter.cpp
     BoundingBox2D.cpp
     BoundingBox3D.cpp
+    TwinManager.cpp
 )
 
 target_include_directories(Common PUBLIC
