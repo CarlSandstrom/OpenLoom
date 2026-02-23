@@ -52,14 +52,14 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
 | S1.1 | Define `SurfaceMesh3D` result type (nodes, triangles, per-face groups, edge node pairing) | `3D/Surface/SurfaceMesh3D.h` | Done |
-| S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | **TODO** |
+| S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | Done |
 | S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | **TODO** |
 | S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | **TODO** |
 | S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | **TODO** |
 
 **Validation gate:** Each CAD face has an initialized `FacetTriangulation` (`MeshData2D`) with boundary nodes seeded from edge discretization. `TwinManager` knows all shared-edge segment pairs.
 
-**Status: IN PROGRESS — S1.1 Done, S1.2–S1.5 remaining**
+**Status: IN PROGRESS — S1.1–S1.2 Done, S1.3–S1.5 remaining**
 
 ---
 
@@ -278,7 +278,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ### Phase I-A: Surface mesher infrastructure (Step S1)
 4. ~~Define `SurfaceMesh3D` result type~~ **Done**
-5. `TwinTableGenerator`: topology → `EdgeTwinTable`
+5. ~~`TwinTableGenerator`: topology → `EdgeTwinTable`~~ **Done**
 6. Extend `BoundaryDiscretizer3D` with `EdgeTwinTable` input + `TwinManager` population
 7. `FacetTriangulationManager`: surface-mesher init (no `MeshData3D`)
 8. `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`

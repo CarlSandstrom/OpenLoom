@@ -34,6 +34,8 @@ set(TEST_SOURCES
     Meshing/Core/test_FacetTriangulation.cpp
     Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_ConstrainedDelaunay3D.cpp
+    Meshing/Core/test_SurfaceMesh3D.cpp
+    Meshing/Core/test_TwinTableGenerator.cpp
 
     # Meshing Operations tests
     Meshing/Operations/test_MeshTransaction.cpp
