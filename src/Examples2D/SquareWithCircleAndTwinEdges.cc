@@ -148,7 +148,7 @@ int main()
 
     // Circular hole — 12 arc segments, center at (5, 8), radius 1.5
     std::vector<std::string> holeLoop;
-    addCircularHole(*geometry, topoCorners, topoEdges, holeLoop, "circ", 5.0, 8.0, 1.5, 12);
+    addCircularHole(*geometry, topoCorners, topoEdges, holeLoop, "circ", 7.0, 8.3, 1.5, 12);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
         topoCorners, topoEdges, outerLoop,
