@@ -39,7 +39,9 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 # Part I — 3D Surface Mesher
 
-Produces a quality triangle mesh of all CAD surfaces. Each face is meshed independently in its UV (parametric) space using the 2D Shewchuk refiner, with inter-face conformity enforced on shared edges.
+Produces a quality triangle mesh of all CAD surfaces. Each face is meshed independently in its UV (parametric) space using the 2D Shewchuk refiner, with inter-face conformity enforced on shared edges via `TwinManager`.
+
+**Pipeline:** `TwinTableGenerator` (topology) → `BoundaryDiscretizer3D` (populates `TwinManager`) → `FacetTriangulationManager` (per-face `MeshData2D`, no `MeshData3D`) → `ShewchukRefiner2D` per face → assembly → `SurfaceMesh3D`
 
 **Output:** `SurfaceMesh3D` — a conforming triangle mesh of all boundary surfaces, with node-pairing metadata for periodic/synchronized boundaries.
 
@@ -49,13 +51,15 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
-| S1.1 | Define `SurfaceMesh3D` result type (nodes, triangles, per-face groups, edge node pairing) | `3D/Surface/SurfaceMesh3D.h` | **TODO** |
-| S1.2 | Create `SurfaceMeshingContext3D` — lightweight context holding geometry + topology + per-face `FacetTriangulation`, no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | **TODO** |
-| S1.3 | Wire in `BoundaryDiscretizer3D` (after Phase 0 decoupling) to seed per-face triangulations with boundary nodes | — | **TODO** |
+| S1.1 | Define `SurfaceMesh3D` result type (nodes, triangles, per-face groups, edge node pairing) | `3D/Surface/SurfaceMesh3D.h` | Done |
+| S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | **TODO** |
+| S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | **TODO** |
+| S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | **TODO** |
+| S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | **TODO** |
 
-**Validation gate:** Each CAD face has an initialized `FacetTriangulation` with boundary nodes seeded from edge discretization.
+**Validation gate:** Each CAD face has an initialized `FacetTriangulation` (`MeshData2D`) with boundary nodes seeded from edge discretization. `TwinManager` knows all shared-edge segment pairs.
 
-**Status: NOT STARTED**
+**Status: IN PROGRESS — S1.1 Done, S1.2–S1.5 remaining**
 
 ---
 
@@ -77,20 +81,17 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 
 ---
 
-## Step S3 — Inter-Face Conformity (Shared Edge Synchronization)
+## Step S3 — Inter-Face Conformity (TwinManager)
 
-Adjacent CAD faces share topology edges. After independent per-face refinement, the same edge may have different node spacings on each side. This step enforces a common discretization on all shared edges.
+Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager`: when a segment on a shared edge is split during per-face refinement, the split propagates to all twin segments on adjacent faces. The `TwinManager` is populated in S1.3 and consulted throughout S2.
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
-| S3.1 | Build shared-edge registry: for each topology edge, list the `(face, UV-coords)` pairs it belongs to | `3D/Surface/SharedEdgeRegistry.h/.cpp` (new) | **TODO** |
-| S3.2 | After per-face refinement, collect all nodes on each shared edge across all adjacent faces | — | **TODO** |
-| S3.3 | Merge node lists: take the union of node positions along each shared edge, re-insert missing nodes into affected face triangulations | — | **TODO** |
-| S3.4 | Re-run local Delaunay refinement around modified edges to restore triangle quality | — | **TODO** |
+| S3.1 | `TwinManager` class: tracks segment twin groups, resolves split parameters, maps cross-mesh node IDs | `Common/TwinManager.h/.cpp` (new) | **TODO** |
+| S3.2 | Wire `TwinManager` into `FacetTriangulationManager::insertVertexOnSurface`: on each split, call `hasTwins()`, propagate to all twin segments | `FacetTriangulationManager` | **TODO** |
+| S3.3 | `MeshVerifier::verifyTwinConsistency()`: check all twin members have equal subdivision counts and all recorded vertex IDs exist in their meshes | `MeshVerifier` (2D) | **TODO** |
 
-**Note:** This is the "synchronized mesh" mechanism. It generalizes to periodic meshes: instead of merging nodes from geometrically adjacent faces, nodes between geometrically opposite faces are paired based on a user-defined mapping. The interface should be designed with this extension in mind.
-
-**Validation gate:** For every topology edge, all adjacent face triangulations have identical node sequences along that edge (same 3D positions, same count). No cracks visible in ParaView output.
+**Validation gate:** For every shared topology edge, all adjacent face `MeshData2D` instances have identical node sequences along that edge. `verifyTwinConsistency()` passes. No cracks visible in ParaView output.
 
 **Status: NOT STARTED**
 
@@ -276,18 +277,21 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 3. ~~Extend `ElementGeometry3D` with triangle-in-3D operations~~ **Done**
 
 ### Phase I-A: Surface mesher infrastructure (Step S1)
-4. Define `SurfaceMesh3D` result type
-5. Create `SurfaceMeshingContext3D`
-6. Wire existing `FacetTriangulation`/`FacetTriangulationManager` into surface context
+4. ~~Define `SurfaceMesh3D` result type~~ **Done**
+5. `TwinTableGenerator`: topology → `EdgeTwinTable`
+6. Extend `BoundaryDiscretizer3D` with `EdgeTwinTable` input + `TwinManager` population
+7. `FacetTriangulationManager`: surface-mesher init (no `MeshData3D`)
+8. `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`
 
 ### Phase I-B: Per-face quality meshing (Step S2)
-7. Run `ShewchukRefiner2D` per face in UV space
-8. Validate: each face mesh satisfies angle bound, boundary edges unchanged
+9. Run `ShewchukRefiner2D` per face in UV space
+10. Validate: each face mesh satisfies angle bound, boundary edges unchanged
 
-### Phase I-C: Inter-face conformity (Step S3)
-9. Build `SharedEdgeRegistry`
-10. Merge node lists across adjacent faces
-11. Validate: no cracks between faces in ParaView output
+### Phase I-C: Inter-face conformity via TwinManager (Step S3)
+11. Implement `TwinManager` class
+12. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface`
+13. `MeshVerifier::verifyTwinConsistency()`
+14. Validate: no cracks between faces in ParaView output
 
 ### Phase I-D: Surface mesher API (Step S4)
 12. `SurfaceMesher3D` top-level class
@@ -336,11 +340,11 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 | File | Role |
 |------|------|
 | `FacetTriangulation.h/.cpp` | UV-space 2D triangulation for one CAD face |
-| `FacetTriangulationManager.h/.cpp` | Manages all per-face triangulations |
-| `SurfaceMeshingContext3D.h/.cpp` | Surface meshing context (geometry + topology + facet triangulations) |
+| `FacetTriangulationManager.h/.cpp` | Manages all per-face triangulations; surface-mesher init requires no `MeshData3D` |
+| `TwinTableGenerator.h/.cpp` | Topology-only: produces `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) |
+| `SurfaceMeshingContext3D.h/.cpp` | Surface meshing context (geometry + topology + `FacetTriangulationManager` + `TwinManager`) |
 | `SurfaceMesher3D.h/.cpp` | Top-level surface mesher API |
 | `SurfaceMesh3D.h` | Result type (nodes, triangles, per-face groups, edge node pairing) |
-| `SharedEdgeRegistry.h/.cpp` | Inter-face conformity enforcement on shared topology edges |
 | `SurfaceMeshQuality.h/.cpp` | UV-space quality metrics with optional 3D pull-back metric |
 
 ### 3D/Volume (volume mesher)
@@ -362,5 +366,6 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 ## Future Improvements
 
 - [ ] **Metric adaptation in surface mesher (S2.2)** — For highly curved CAD surfaces, use the OCC pull-back metric (`GeomLProp_SLProps`) in the UV-space quality criterion to avoid angle distortion. Defer until basic surface mesher works.
-- [ ] **Periodic mesh support (S3 extension)** — The `SharedEdgeRegistry` and inter-face node-pairing mechanism generalizes to periodic BCs. Instead of matching geometrically adjacent faces, pair nodes between user-specified opposite faces. Design the pairing interface early so it doesn't need to be retrofitted.
+- [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh. Design the `TwinManager` facet extension so it does not need to be retrofitted later.
+- [ ] **`TwinEdges` for 2D periodic meshes (FEM sense)** — Same pattern in 2D: `TwinTableGenerator2D` accepts user-declared boundary edge pairs. `TwinManager` already handles segment-level splits. Enables generating periodic FEM meshes where two boundary edges are discretized identically.
 - [ ] **Parallelize verification loops in `MeshDebugUtils3D`** — The subsegment and subfacet presence checks iterate over all constraints sequentially. For large meshes these are embarrassingly parallel. Add optional OpenMP as done in `MeshVerifier` (2D overlap checks).
