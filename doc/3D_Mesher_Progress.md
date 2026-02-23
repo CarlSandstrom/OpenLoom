@@ -53,13 +53,13 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 |----------|-------------|---------|--------|
 | S1.1 | Define `SurfaceMesh3D` result type (nodes, triangles, per-face groups, edge node pairing) | `3D/Surface/SurfaceMesh3D.h` | Done |
 | S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | Done |
-| S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | **TODO** |
+| S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | Done |
 | S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | **TODO** |
 | S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | **TODO** |
 
 **Validation gate:** Each CAD face has an initialized `FacetTriangulation` (`MeshData2D`) with boundary nodes seeded from edge discretization. `TwinManager` knows all shared-edge segment pairs.
 
-**Status: IN PROGRESS — S1.1–S1.2 Done, S1.3–S1.5 remaining**
+**Status: IN PROGRESS — S1.1–S1.3 Done, S1.4–S1.5 remaining**
 
 ---
 
@@ -365,6 +365,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ## Future Improvements
 
+- [ ] **Strongly-typed ID aliases** — Add `using NodeID = size_t;` and `using ElementID = size_t;` (and equivalents for 2D) across the codebase so function signatures are self-documenting and grep-able. No runtime cost; purely a readability/maintainability improvement.
 - [ ] **Metric adaptation in surface mesher (S2.2)** — For highly curved CAD surfaces, use the OCC pull-back metric (`GeomLProp_SLProps`) in the UV-space quality criterion to avoid angle distortion. Defer until basic surface mesher works.
 - [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh. Design the `TwinManager` facet extension so it does not need to be retrofitted later.
 - [ ] **`TwinEdges` for 2D periodic meshes (FEM sense)** — Same pattern in 2D: `TwinTableGenerator2D` accepts user-declared boundary edge pairs. `TwinManager` already handles segment-level splits. Enables generating periodic FEM meshes where two boundary edges are discretized identically.

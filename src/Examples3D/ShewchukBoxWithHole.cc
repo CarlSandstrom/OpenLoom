@@ -84,7 +84,8 @@ int main()
     // Use more samples for curved geometry
     Geometry3D::DiscretizationSettings3D settings(6, 3); // 6 segments/edge, 3x3 surface grid
     BoundaryDiscretizer3D discretizer(*context.getGeometry(), *context.getTopology(), settings);
-    auto discretization = discretizer.discretize();
+    discretizer.discretize();
+    const auto& discretization = discretizer.getDiscretizationResult();
 
     spdlog::info("Total boundary points: {}", discretization.points.size());
 

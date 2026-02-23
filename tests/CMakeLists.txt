@@ -34,6 +34,7 @@ set(TEST_SOURCES
     Meshing/Core/test_FacetTriangulation.cpp
     Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_ConstrainedDelaunay3D.cpp
+    Meshing/Core/test_BoundaryDiscretizer3D.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_TwinManager.cpp
     Meshing/Core/test_TwinTableGenerator.cpp
