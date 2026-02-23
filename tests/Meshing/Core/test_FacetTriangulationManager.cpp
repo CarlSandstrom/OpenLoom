@@ -438,3 +438,49 @@ TEST_F(FacetTriangulationManagerTest, SubfacetsUseCorrect3DNodeIds)
             << "Invalid node ID: " << subfacet.nodeId3;
     }
 }
+
+// ============================================================================
+// Surface-mesher path: initializeFromDiscretization(discretization only)
+// Point indices in DiscretizationResult3D are used directly as node IDs.
+// ============================================================================
+
+TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_CreatesFacetTriangulation)
+{
+    FacetTriangulationManager manager(*geometry_, *topology_);
+    auto discretization = fixture_->createDiscretization();
+
+    manager.initializeFromDiscretization(discretization);
+
+    EXPECT_EQ(manager.size(), 1); // One surface
+    EXPECT_NE(manager.getFacetTriangulation("s0"), nullptr);
+}
+
+TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_CorrectSubfacetCount)
+{
+    FacetTriangulationManager manager(*geometry_, *topology_);
+    auto discretization = fixture_->createDiscretization();
+
+    manager.initializeFromDiscretization(discretization);
+
+    // Four corners → two triangles
+    EXPECT_EQ(manager.getAllSubfacets().size(), 2u);
+}
+
+TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_SubfacetNodeIdsArePointIndices)
+{
+    FacetTriangulationManager manager(*geometry_, *topology_);
+    auto discretization = fixture_->createDiscretization();
+
+    manager.initializeFromDiscretization(discretization);
+
+    auto subfacets = manager.getAllSubfacets();
+
+    // The four corners have point indices 0–3; all subfacet node IDs must be in that set.
+    const std::set<size_t> validIndices = {0, 1, 2, 3};
+    for (const auto& sf : subfacets)
+    {
+        EXPECT_TRUE(validIndices.count(sf.nodeId1) > 0) << "Unexpected nodeId1: " << sf.nodeId1;
+        EXPECT_TRUE(validIndices.count(sf.nodeId2) > 0) << "Unexpected nodeId2: " << sf.nodeId2;
+        EXPECT_TRUE(validIndices.count(sf.nodeId3) > 0) << "Unexpected nodeId3: " << sf.nodeId3;
+    }
+}

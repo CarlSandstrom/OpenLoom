@@ -25,6 +25,54 @@ FacetTriangulationManager::FacetTriangulationManager(FacetTriangulationManager&&
 FacetTriangulationManager& FacetTriangulationManager::operator=(FacetTriangulationManager&&) noexcept = default;
 
 void FacetTriangulationManager::initializeFromDiscretization(
+    const DiscretizationResult3D& discretization)
+{
+    facetTriangulations_.clear();
+
+    for (const auto& surfaceId : topology_->getAllSurfaceIds())
+    {
+        const auto& topoSurface = topology_->getSurface(surfaceId);
+        auto* surface = geometry_->getSurface(surfaceId);
+
+        if (!surface)
+        {
+            spdlog::warn("FacetTriangulationManager: No geometry for surface {}", surfaceId);
+            continue;
+        }
+
+        auto facetTriang = std::make_unique<FacetTriangulation>(
+            *surface, topoSurface, *topology_, *geometry_);
+
+        std::vector<size_t> surfacePointIndices = collectSurfacePointIndices(surfaceId, discretization);
+
+        // In the surface-mesher path point index == 3D node ID — no translation needed.
+        std::map<size_t, Point2D> node3DToPoint2DMap;
+
+        for (size_t pointIdx : surfacePointIndices)
+        {
+            if (pointIdx >= discretization.points.size())
+            {
+                spdlog::warn("FacetTriangulationManager: Point index {} out of range", pointIdx);
+                continue;
+            }
+
+            Point2D uvCoord = surface->projectPoint(discretization.points[pointIdx]);
+            node3DToPoint2DMap[pointIdx] = uvCoord;
+        }
+
+        facetTriang->initialize(node3DToPoint2DMap);
+
+        spdlog::debug("FacetTriangulationManager: Created triangulation for surface {} with {} points",
+                      surfaceId, node3DToPoint2DMap.size());
+
+        facetTriangulations_[surfaceId] = std::move(facetTriang);
+    }
+
+    spdlog::info("FacetTriangulationManager: Initialized {} facet triangulations",
+                 facetTriangulations_.size());
+}
+
+void FacetTriangulationManager::initializeFromDiscretization(
     const DiscretizationResult3D& discretization,
     const std::map<size_t, size_t>& pointIndexToNodeIdMap,
     const MeshData3D& meshData)
