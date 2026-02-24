@@ -103,12 +103,12 @@ public:
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
-    const Topology3D::Topology3D*           topology_;
-    Geometry3D::DiscretizationSettings3D    settings_;
-    EdgeTwinTable                           twinTable_;
+    const Topology3D::Topology3D* topology_;
+    Geometry3D::DiscretizationSettings3D settings_;
+    EdgeTwinTable twinTable_;
 
     std::unique_ptr<DiscretizationResult3D> result_;
-    std::unique_ptr<TwinManager>            twinManager_;
+    std::unique_ptr<TwinManager> twinManager_;
 };
 
 } // namespace Meshing

@@ -33,8 +33,7 @@ void ConstrainedDelaunay3D::tetrahedralize()
                  discretization_.points.size());
 
     // Step 1: Create initial Delaunay tetrahedralization (unconstrained)
-    Delaunay3D delaunay(
-        discretization_.points,
+    Delaunay3D delaunay(        discretization_.points,
         meshData3D_,
         discretization_.edgeParameters,
         discretization_.geometryIds);

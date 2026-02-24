@@ -2,8 +2,8 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/Surface/FacetTriangulation.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
+#include "Meshing/Core/3D/Surface/FacetTriangulation.h"
 #include <map>
 #include <memory>
 #include <string>
@@ -67,10 +67,9 @@ public:
      * This matches the TwinManager populated by BoundaryDiscretizer3D, so no
      * translation is needed between the two.
      */
-    static FacetTriangulationManager createForSurfaceMesher(
-        const Geometry3D::GeometryCollection3D& geometry,
-        const Topology3D::Topology3D& topology,
-        const DiscretizationResult3D& discretization);
+    static FacetTriangulationManager createForSurfaceMesher(const Geometry3D::GeometryCollection3D& geometry,
+                                                            const Topology3D::Topology3D& topology,
+                                                            const DiscretizationResult3D& discretization);
 
     /**
      * @brief Create a manager for the volume-mesher path (requires MeshData3D).
@@ -79,12 +78,11 @@ public:
      * @p pointIndexToNodeIdMap (discretization point index → MeshData3D node ID)
      * and 3D coordinates are looked up from @p meshData.
      */
-    static FacetTriangulationManager createForVolumeMesher(
-        const Geometry3D::GeometryCollection3D& geometry,
-        const Topology3D::Topology3D& topology,
-        const DiscretizationResult3D& discretization,
-        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-        const MeshData3D& meshData);
+    static FacetTriangulationManager createForVolumeMesher(const Geometry3D::GeometryCollection3D& geometry,
+                                                           const Topology3D::Topology3D& topology,
+                                                           const DiscretizationResult3D& discretization,
+                                                           const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+                                                           const MeshData3D& meshData);
 
     // -----------------------------------------------------------------------
     // Queries
@@ -132,14 +130,13 @@ public:
 
 private:
     FacetTriangulationManager(const Geometry3D::GeometryCollection3D& geometry,
-                               const Topology3D::Topology3D& topology);
+                              const Topology3D::Topology3D& topology);
 
     void initializeForSurfaceMesher(const DiscretizationResult3D& discretization);
 
-    void initializeForVolumeMesher(
-        const DiscretizationResult3D& discretization,
-        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-        const MeshData3D& meshData);
+    void initializeForVolumeMesher(const DiscretizationResult3D& discretization,
+                                   const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+                                   const MeshData3D& meshData);
 
     /**
      * @brief Collect all point indices belonging to a surface
@@ -147,9 +144,8 @@ private:
      * Includes corner points, edge points (from boundary edges), and
      * interior surface points.
      */
-    std::vector<size_t> collectSurfacePointIndices(
-        const std::string& surfaceId,
-        const DiscretizationResult3D& discretization) const;
+    std::vector<size_t> collectSurfacePointIndices(const std::string& surfaceId,
+                                                   const DiscretizationResult3D& discretization) const;
 
     const Geometry3D::GeometryCollection3D* geometry_;
     const Topology3D::Topology3D* topology_;
