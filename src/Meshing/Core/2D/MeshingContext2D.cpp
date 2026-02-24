@@ -17,11 +17,10 @@
 namespace Meshing
 {
 
-MeshingContext2D MeshingContext2D::fromSurface(
-    const Geometry3D::ISurface3D& surface,
-    const Topology3D::Surface3D& topoSurface,
-    const Topology3D::Topology3D& fullTopology,
-    const Geometry3D::GeometryCollection3D& fullGeometry)
+MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& surface,
+                                               const Topology3D::Surface3D& topoSurface,
+                                               const Topology3D::Topology3D& fullTopology,
+                                               const Geometry3D::GeometryCollection3D& fullGeometry)
 {
     // Create 2D geometry collection
     auto geometry2D = std::make_unique<Geometry2D::GeometryCollection2D>();
@@ -100,8 +99,7 @@ MeshingContext2D MeshingContext2D::fromSurface(
     // The boundary edge loop is the ordered list of edge IDs
     std::vector<std::string> boundaryLoop = edgeIds;
 
-    auto topology2D = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, boundaryLoop);
+    auto topology2D = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, boundaryLoop);
 
     return MeshingContext2D(std::move(geometry2D), std::move(topology2D));
 }

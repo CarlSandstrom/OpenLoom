@@ -48,11 +48,10 @@ public:
      * @param fullGeometry Full 3D geometry for edge/corner coordinates
      * @return MeshingContext2D for the surface's parametric domain
      */
-    static MeshingContext2D fromSurface(
-        const Geometry3D::ISurface3D& surface,
-        const Topology3D::Surface3D& topoSurface,
-        const Topology3D::Topology3D& fullTopology,
-        const Geometry3D::GeometryCollection3D& fullGeometry);
+    static MeshingContext2D fromSurface(const Geometry3D::ISurface3D& surface,
+                                        const Topology3D::Surface3D& topoSurface,
+                                        const Topology3D::Topology3D& fullTopology,
+                                        const Geometry3D::GeometryCollection3D& fullGeometry);
 
     /**
      * @brief Create a standalone 2D meshing context

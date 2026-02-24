@@ -55,11 +55,13 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 | S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | Done |
 | S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | Done |
 | S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | Done |
-| S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | **TODO** |
+| S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | Done |
 
 **Validation gate:** Each CAD face has an initialized `FacetTriangulation` (`MeshData2D`) with boundary nodes seeded from edge discretization. `TwinManager` knows all shared-edge segment pairs.
 
-**Status: IN PROGRESS — S1.1–S1.4 Done, S1.5 remaining**
+**Validation:** `SurfaceMeshEdges` example (box-with-hole) exports discretized boundary edges to `SurfaceMeshEdges.vtu`; loaded cleanly in ParaView and verified visually.
+
+**Status: Complete**
 
 ---
 
@@ -87,13 +89,13 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
-| S3.1 | `TwinManager` class: tracks segment twin groups, resolves split parameters, maps cross-mesh node IDs | `Common/TwinManager.h/.cpp` (new) | **TODO** |
+| S3.1 | `TwinManager` class: tracks segment twin groups, resolves split parameters, maps cross-mesh node IDs | `Common/TwinManager.h/.cpp` | Done |
 | S3.2 | Wire `TwinManager` into `FacetTriangulationManager::insertVertexOnSurface`: on each split, call `hasTwins()`, propagate to all twin segments | `FacetTriangulationManager` | **TODO** |
 | S3.3 | `MeshVerifier::verifyTwinConsistency()`: check all twin members have equal subdivision counts and all recorded vertex IDs exist in their meshes | `MeshVerifier` (2D) | **TODO** |
 
 **Validation gate:** For every shared topology edge, all adjacent face `MeshData2D` instances have identical node sequences along that edge. `verifyTwinConsistency()` passes. No cracks visible in ParaView output.
 
-**Status: NOT STARTED**
+**Status: IN PROGRESS — S3.1 Done**
 
 ---
 

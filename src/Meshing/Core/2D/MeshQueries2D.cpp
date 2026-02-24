@@ -210,11 +210,10 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
     return result;
 }
 
-std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(
-    const Topology2D::Topology2D& topology,
-    const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
+std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(const Topology2D::Topology2D& topology,
+                                                                         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
+                                                                         const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+                                                                         const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
 {
     std::vector<ConstrainedSegment2D> constrainedEdges;
 

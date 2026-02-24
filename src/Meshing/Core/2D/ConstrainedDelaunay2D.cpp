@@ -43,11 +43,10 @@ void ConstrainedDelaunay2D::triangulate()
     delaunay.triangulate();
 
     // Extract constrained edges and store in MeshData2D
-    auto constrainedEdges = meshOperations_->getQueries().extractConstrainedEdges(
-        context_->getTopology(),
-        discretization_.cornerIdToPointIndexMap,
-        delaunay.getPointIndexToNodeIdMap(),
-        discretization_.edgeIdToPointIndicesMap);
+    auto constrainedEdges = meshOperations_->getQueries().extractConstrainedEdges(context_->getTopology(),
+                                                                                  discretization_.cornerIdToPointIndexMap,
+                                                                                  delaunay.getPointIndexToNodeIdMap(),
+                                                                                  discretization_.edgeIdToPointIndicesMap);
 
     for (const auto& segment : constrainedEdges)
     {
