@@ -8,6 +8,7 @@ set(EXAMPLE_SOURCES_3D
     3d_mesh_with_holes_example.cpp
     ShewchukBox.cc
     ShewchukBoxWithHole.cc
+    SurfaceMeshEdges.cc
 )
 
 # Link external libraries

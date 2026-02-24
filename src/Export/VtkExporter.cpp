@@ -1,6 +1,7 @@
 #include "VtkExporter.h"
 
 #include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -662,6 +663,111 @@ Meshing::MeshData3D VtkExporter::convertToMeshData3D(const Meshing::MeshData2D& 
 {
     // Simply use the MeshData3D constructor that handles the conversion
     return Meshing::MeshData3D(mesh2D);
+}
+
+bool VtkExporter::writeEdgeMesh(const Meshing::DiscretizationResult3D& result,
+                                const std::string& filePath) const
+{
+    // Count line segments across all topology edges
+    std::size_t totalLines = 0;
+    for (const auto& [edgeId, pointIndices] : result.edgeIdToPointIndicesMap)
+    {
+        if (pointIndices.size() >= 2)
+            totalLines += pointIndices.size() - 1;
+    }
+
+    std::ofstream os;
+    os.exceptions(std::ios::failbit | std::ios::badbit);
+    os.open(filePath);
+
+    writeHeader(os);
+
+    const std::size_t numPoints = result.points.size();
+    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << totalLines << "\">\n";
+
+    // Points: all sampled points in discretization order (index == point ID)
+    os << "      <Points>\n";
+    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+    for (const auto& p : result.points)
+    {
+        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
+    }
+    os << "        </DataArray>\n";
+    os << "      </Points>\n";
+
+    // PointData: global point index as NodeID
+    os << "      <PointData>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numPoints; ++i)
+    {
+        os << i << (i + 1 == numPoints ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+    os << "      </PointData>\n";
+
+    // Cells: one VTK_LINE per consecutive point pair within each topology edge
+    std::vector<unsigned int> connectivity;
+    std::vector<unsigned int> offsets;
+    std::vector<int> edgeIndices; // per-cell EdgeID for coloring
+
+    connectivity.reserve(totalLines * 2);
+    offsets.reserve(totalLines);
+    edgeIndices.reserve(totalLines);
+
+    unsigned int runningOffset = 0;
+    int edgeIndex = 0;
+
+    for (const auto& [edgeId, pointIndices] : result.edgeIdToPointIndicesMap)
+    {
+        for (std::size_t i = 0; i + 1 < pointIndices.size(); ++i)
+        {
+            connectivity.push_back(static_cast<unsigned int>(pointIndices[i]));
+            connectivity.push_back(static_cast<unsigned int>(pointIndices[i + 1]));
+            runningOffset += 2;
+            offsets.push_back(runningOffset);
+            edgeIndices.push_back(edgeIndex);
+        }
+        ++edgeIndex;
+    }
+
+    os << "      <Cells>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < connectivity.size(); ++i)
+    {
+        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < offsets.size(); ++i)
+    {
+        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < offsets.size(); ++i)
+    {
+        os << static_cast<unsigned int>(VTK_LINE) << (i + 1 == offsets.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
+    os << "      </Cells>\n";
+
+    // CellData: EdgeID for color-by-edge inspection in ParaView
+    os << "      <CellData>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"EdgeID\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < edgeIndices.size(); ++i)
+    {
+        os << edgeIndices[i] << (i + 1 == edgeIndices.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+    os << "      </CellData>\n";
+    os << "    </Piece>\n";
+
+    writeFooter(os);
+    return true;
 }
 
 } // namespace Export

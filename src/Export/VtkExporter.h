@@ -11,6 +11,7 @@ namespace Meshing
 class MeshData2D;
 class MeshData3D;
 class IElement;
+class DiscretizationResult3D;
 } // namespace Meshing
 
 namespace Export
@@ -30,6 +31,11 @@ public:
 
     // Direct convenience method identical to exportMesh
     bool writeVtu(const Meshing::MeshData3D& mesh, const std::string& filePath) const { return exportMesh(mesh, filePath); }
+
+    // Export discretized boundary edges as VTK_LINE cells.
+    // Each line cell carries an EdgeID scalar (0-based index over topology edges)
+    // for color-by-edge inspection in ParaView.
+    bool writeEdgeMesh(const Meshing::DiscretizationResult3D& result, const std::string& filePath) const;
 
     // Overloaded methods for 2D meshes (exported with z=0)
     bool exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const;
