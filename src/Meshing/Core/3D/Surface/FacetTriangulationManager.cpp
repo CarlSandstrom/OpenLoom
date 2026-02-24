@@ -11,6 +11,10 @@
 namespace Meshing
 {
 
+// -----------------------------------------------------------------------
+// Private constructor
+// -----------------------------------------------------------------------
+
 FacetTriangulationManager::FacetTriangulationManager(
     const Geometry3D::GeometryCollection3D& geometry,
     const Topology3D::Topology3D& topology) :
@@ -24,7 +28,37 @@ FacetTriangulationManager::~FacetTriangulationManager() = default;
 FacetTriangulationManager::FacetTriangulationManager(FacetTriangulationManager&&) noexcept = default;
 FacetTriangulationManager& FacetTriangulationManager::operator=(FacetTriangulationManager&&) noexcept = default;
 
-void FacetTriangulationManager::initializeFromDiscretization(
+// -----------------------------------------------------------------------
+// Factory methods
+// -----------------------------------------------------------------------
+
+FacetTriangulationManager FacetTriangulationManager::createForSurfaceMesher(
+    const Geometry3D::GeometryCollection3D& geometry,
+    const Topology3D::Topology3D& topology,
+    const DiscretizationResult3D& discretization)
+{
+    FacetTriangulationManager manager(geometry, topology);
+    manager.initializeForSurfaceMesher(discretization);
+    return manager;
+}
+
+FacetTriangulationManager FacetTriangulationManager::createForVolumeMesher(
+    const Geometry3D::GeometryCollection3D& geometry,
+    const Topology3D::Topology3D& topology,
+    const DiscretizationResult3D& discretization,
+    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+    const MeshData3D& meshData)
+{
+    FacetTriangulationManager manager(geometry, topology);
+    manager.initializeForVolumeMesher(discretization, pointIndexToNodeIdMap, meshData);
+    return manager;
+}
+
+// -----------------------------------------------------------------------
+// Private initialisation helpers
+// -----------------------------------------------------------------------
+
+void FacetTriangulationManager::initializeForSurfaceMesher(
     const DiscretizationResult3D& discretization)
 {
     facetTriangulations_.clear();
@@ -72,15 +106,13 @@ void FacetTriangulationManager::initializeFromDiscretization(
                  facetTriangulations_.size());
 }
 
-void FacetTriangulationManager::initializeFromDiscretization(
+void FacetTriangulationManager::initializeForVolumeMesher(
     const DiscretizationResult3D& discretization,
     const std::map<size_t, size_t>& pointIndexToNodeIdMap,
     const MeshData3D& meshData)
 {
-    // Clear existing triangulations
     facetTriangulations_.clear();
 
-    // Create a facet triangulation for each surface
     for (const auto& surfaceId : topology_->getAllSurfaceIds())
     {
         const auto& topoSurface = topology_->getSurface(surfaceId);
@@ -92,14 +124,11 @@ void FacetTriangulationManager::initializeFromDiscretization(
             continue;
         }
 
-        // Create the facet triangulation
         auto facetTriang = std::make_unique<FacetTriangulation>(
             *surface, topoSurface, *topology_, *geometry_);
 
-        // Collect all point indices for this surface
         std::vector<size_t> surfacePointIndices = collectSurfacePointIndices(surfaceId, discretization);
 
-        // Build the map from 3D node IDs to (u,v) coordinates
         std::map<size_t, Point2D> node3DToPoint2DMap;
 
         for (size_t pointIdx : surfacePointIndices)
@@ -120,12 +149,10 @@ void FacetTriangulationManager::initializeFromDiscretization(
                 continue;
             }
 
-            // Project 3D point to (u,v) parametric coordinates
             Point2D uvCoord = surface->projectPoint(node->getCoordinates());
             node3DToPoint2DMap[node3DId] = uvCoord;
         }
 
-        // Initialize the triangulation
         facetTriang->initialize(node3DToPoint2DMap);
 
         spdlog::debug("FacetTriangulationManager: Created triangulation for surface {} with {} points",
@@ -137,6 +164,10 @@ void FacetTriangulationManager::initializeFromDiscretization(
     spdlog::info("FacetTriangulationManager: Initialized {} facet triangulations",
                  facetTriangulations_.size());
 }
+
+// -----------------------------------------------------------------------
+// Private helper
+// -----------------------------------------------------------------------
 
 std::vector<size_t> FacetTriangulationManager::collectSurfacePointIndices(
     const std::string& surfaceId,
@@ -181,6 +212,10 @@ std::vector<size_t> FacetTriangulationManager::collectSurfacePointIndices(
 
     return std::vector<size_t>(pointIndices.begin(), pointIndices.end());
 }
+
+// -----------------------------------------------------------------------
+// Queries
+// -----------------------------------------------------------------------
 
 std::vector<ConstrainedSubfacet3D> FacetTriangulationManager::getAllSubfacets() const
 {
@@ -246,7 +281,6 @@ bool FacetTriangulationManager::insertVertexOnSurface(
         return false;
     }
 
-    // Project 3D point to (u,v) parametric coordinates
     Point2D uvCoord = surface->projectPoint(point);
 
     return facetTriang->insertVertex(node3DId, uvCoord);

@@ -26,7 +26,7 @@ namespace Meshing
 class MeshData3D;
 
 /**
- * @brief Manages all facet triangulations for 3D constrained Delaunay meshing
+ * @brief Manages all facet triangulations for 3D meshing
  *
  * Creates and maintains independent 2D triangulations for each surface in
  * the 3D domain. These triangulations define the initial subfacet constraints
@@ -34,16 +34,13 @@ class MeshData3D;
  *
  * Per Shewchuk's algorithm, facet triangulations are maintained separately
  * from the 3D tetrahedralization and define what subfacets *should* exist.
+ *
+ * Construction is via named factory methods — the object is always fully
+ * initialised on creation and cannot be used in an empty state.
  */
 class FacetTriangulationManager
 {
 public:
-    /**
-     * @brief Construct manager with geometry and topology
-     */
-    FacetTriangulationManager(const Geometry3D::GeometryCollection3D& geometry,
-                               const Topology3D::Topology3D& topology);
-
     ~FacetTriangulationManager();
 
     // Prevent copying
@@ -54,39 +51,44 @@ public:
     FacetTriangulationManager(FacetTriangulationManager&&) noexcept;
     FacetTriangulationManager& operator=(FacetTriangulationManager&&) noexcept;
 
+    // -----------------------------------------------------------------------
+    // Factory methods
+    // -----------------------------------------------------------------------
+
     /**
-     * @brief Initialize all facet triangulations (surface-mesher path — no MeshData3D)
+     * @brief Create a manager for the surface-mesher path (no MeshData3D).
      *
      * For each surface:
      * 1. Collects all points (corners + edge points + interior points)
-     * 2. Projects them to (u,v) parametric space using ISurface3D::projectPoint()
-     * 3. Creates 2D Delaunay triangulation
+     * 2. Projects them to (u,v) parametric space via ISurface3D::projectPoint()
+     * 3. Creates a 2D Delaunay triangulation
      *
      * Point indices in @p discretization are used directly as "3D node IDs".
-     * This is the correct initialisation path for the surface mesher, which has
-     * no MeshData3D. The TwinManager built by BoundaryDiscretizer3D uses the
-     * same point indices, so no translation is needed.
-     *
-     * @param discretization The boundary discretization result
+     * This matches the TwinManager populated by BoundaryDiscretizer3D, so no
+     * translation is needed between the two.
      */
-    void initializeFromDiscretization(const DiscretizationResult3D& discretization);
+    static FacetTriangulationManager createForSurfaceMesher(
+        const Geometry3D::GeometryCollection3D& geometry,
+        const Topology3D::Topology3D& topology,
+        const DiscretizationResult3D& discretization);
 
     /**
-     * @brief Initialize all facet triangulations (volume-mesher path — requires MeshData3D)
+     * @brief Create a manager for the volume-mesher path (requires MeshData3D).
      *
-     * Same projection logic, but node IDs are taken from @p pointIndexToNodeIdMap
-     * (discretization point index → MeshData3D node ID) and 3D coordinates are
-     * looked up from @p meshData. Use this overload when a MeshData3D already
-     * exists (i.e. the ConstrainedDelaunay3D / ConstraintRegistrar3D paths).
-     *
-     * @param discretization         The boundary discretization result
-     * @param pointIndexToNodeIdMap  Maps discretization point indices to 3D node IDs
-     * @param meshData               The 3D mesh data for node coordinate lookups
+     * Same projection logic as the surface-mesher path, but node IDs come from
+     * @p pointIndexToNodeIdMap (discretization point index → MeshData3D node ID)
+     * and 3D coordinates are looked up from @p meshData.
      */
-    void initializeFromDiscretization(
+    static FacetTriangulationManager createForVolumeMesher(
+        const Geometry3D::GeometryCollection3D& geometry,
+        const Topology3D::Topology3D& topology,
         const DiscretizationResult3D& discretization,
         const std::map<size_t, size_t>& pointIndexToNodeIdMap,
         const MeshData3D& meshData);
+
+    // -----------------------------------------------------------------------
+    // Queries
+    // -----------------------------------------------------------------------
 
     /**
      * @brief Get all subfacets from all facet triangulations
@@ -129,11 +131,15 @@ public:
     size_t size() const { return facetTriangulations_.size(); }
 
 private:
-    const Geometry3D::GeometryCollection3D* geometry_;
-    const Topology3D::Topology3D* topology_;
+    FacetTriangulationManager(const Geometry3D::GeometryCollection3D& geometry,
+                               const Topology3D::Topology3D& topology);
 
-    // Map from surface ID to its facet triangulation
-    std::unordered_map<std::string, std::unique_ptr<FacetTriangulation>> facetTriangulations_;
+    void initializeForSurfaceMesher(const DiscretizationResult3D& discretization);
+
+    void initializeForVolumeMesher(
+        const DiscretizationResult3D& discretization,
+        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+        const MeshData3D& meshData);
 
     /**
      * @brief Collect all point indices belonging to a surface
@@ -144,6 +150,12 @@ private:
     std::vector<size_t> collectSurfacePointIndices(
         const std::string& surfaceId,
         const DiscretizationResult3D& discretization) const;
+
+    const Geometry3D::GeometryCollection3D* geometry_;
+    const Topology3D::Topology3D* topology_;
+
+    // Map from surface ID to its facet triangulation
+    std::unordered_map<std::string, std::unique_ptr<FacetTriangulation>> facetTriangulations_;
 };
 
 } // namespace Meshing

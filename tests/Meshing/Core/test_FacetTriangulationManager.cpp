@@ -235,40 +235,12 @@ protected:
     std::unique_ptr<MeshMutator3D> mutator_;
 };
 
-TEST_F(FacetTriangulationManagerTest, ConstructsWithGeometryAndTopology)
+// ============================================================================
+// Volume-mesher path: createForVolumeMesher
+// ============================================================================
+
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_CreatesFacetTriangulation)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-    EXPECT_EQ(manager.size(), 0); // Not initialized yet
-}
-
-TEST_F(FacetTriangulationManagerTest, InitializeFromDiscretizationCreatesFacetTriangulations)
-{
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
-    // Create mesh nodes corresponding to discretization points
-    size_t n0 = addNode(0, 0, 0);
-    size_t n1 = addNode(1, 0, 0);
-    size_t n2 = addNode(1, 1, 0);
-    size_t n3 = addNode(0, 1, 0);
-
-    // Create point index to node ID map
-    std::map<size_t, size_t> pointIndexToNodeIdMap;
-    pointIndexToNodeIdMap[0] = n0;
-    pointIndexToNodeIdMap[1] = n1;
-    pointIndexToNodeIdMap[2] = n2;
-    pointIndexToNodeIdMap[3] = n3;
-
-    auto discretization = fixture_->createDiscretization();
-
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
-
-    EXPECT_EQ(manager.size(), 1); // One surface
-}
-
-TEST_F(FacetTriangulationManagerTest, GetFacetTriangulationReturnsValidPointer)
-{
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -277,17 +249,32 @@ TEST_F(FacetTriangulationManagerTest, GetFacetTriangulationReturnsValidPointer)
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
+
+    EXPECT_EQ(manager.size(), 1); // One surface
+}
+
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_GetFacetTriangulationReturnsValidPointer)
+{
+    size_t n0 = addNode(0, 0, 0);
+    size_t n1 = addNode(1, 0, 0);
+    size_t n2 = addNode(1, 1, 0);
+    size_t n3 = addNode(0, 1, 0);
+
+    std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
+    auto discretization = fixture_->createDiscretization();
+
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
     auto* facetTriang = manager.getFacetTriangulation("s0");
     ASSERT_NE(facetTriang, nullptr);
     EXPECT_EQ(facetTriang->getSurfaceId(), "s0");
 }
 
-TEST_F(FacetTriangulationManagerTest, GetFacetTriangulationReturnsNullForUnknownSurface)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_GetFacetTriangulationReturnsNullForUnknownSurface)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -296,16 +283,14 @@ TEST_F(FacetTriangulationManagerTest, GetFacetTriangulationReturnsNullForUnknown
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
-    auto* facetTriang = manager.getFacetTriangulation("unknown_surface");
-    EXPECT_EQ(facetTriang, nullptr);
+    EXPECT_EQ(manager.getFacetTriangulation("unknown_surface"), nullptr);
 }
 
-TEST_F(FacetTriangulationManagerTest, GetAllSubfacetsReturnsCorrectCount)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_GetAllSubfacetsReturnsCorrectCount)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -314,18 +299,15 @@ TEST_F(FacetTriangulationManagerTest, GetAllSubfacetsReturnsCorrectCount)
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
-
-    auto subfacets = manager.getAllSubfacets();
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
     // A square should be triangulated into 2 triangles
-    EXPECT_EQ(subfacets.size(), 2);
+    EXPECT_EQ(manager.getAllSubfacets().size(), 2u);
 }
 
-TEST_F(FacetTriangulationManagerTest, GetSubfacetsForSurfaceReturnsCorrectSubfacets)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_GetSubfacetsForSurfaceReturnsCorrectSubfacets)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -334,22 +316,20 @@ TEST_F(FacetTriangulationManagerTest, GetSubfacetsForSurfaceReturnsCorrectSubfac
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
     auto subfacets = manager.getSubfacetsForSurface("s0");
-    EXPECT_EQ(subfacets.size(), 2);
+    EXPECT_EQ(subfacets.size(), 2u);
 
-    // All subfacets should have surface ID "s0"
     for (const auto& subfacet : subfacets)
     {
         EXPECT_EQ(subfacet.geometryId, "s0");
     }
 }
 
-TEST_F(FacetTriangulationManagerTest, GetSubfacetsForUnknownSurfaceReturnsEmpty)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_GetSubfacetsForUnknownSurfaceReturnsEmpty)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -358,16 +338,14 @@ TEST_F(FacetTriangulationManagerTest, GetSubfacetsForUnknownSurfaceReturnsEmpty)
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
-    auto subfacets = manager.getSubfacetsForSurface("unknown");
-    EXPECT_TRUE(subfacets.empty());
+    EXPECT_TRUE(manager.getSubfacetsForSurface("unknown").empty());
 }
 
-TEST_F(FacetTriangulationManagerTest, InsertVertexOnSurfaceAddsVertex)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_InsertVertexOnSurfaceAddsVertex)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -376,24 +354,20 @@ TEST_F(FacetTriangulationManagerTest, InsertVertexOnSurfaceAddsVertex)
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
-    auto initialSubfacets = manager.getAllSubfacets();
-    size_t initialCount = initialSubfacets.size();
+    size_t initialCount = manager.getAllSubfacets().size();
 
-    // Insert a vertex in the middle of the surface
     size_t newNodeId = addNode(0.5, 0.5, 0);
     bool inserted = manager.insertVertexOnSurface(newNodeId, Point3D(0.5, 0.5, 0), "s0");
     EXPECT_TRUE(inserted);
 
-    auto finalSubfacets = manager.getAllSubfacets();
-    EXPECT_GT(finalSubfacets.size(), initialCount);
+    EXPECT_GT(manager.getAllSubfacets().size(), initialCount);
 }
 
-TEST_F(FacetTriangulationManagerTest, InsertVertexOnUnknownSurfaceFails)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_InsertVertexOnUnknownSurfaceFails)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
     size_t n0 = addNode(0, 0, 0);
     size_t n1 = addNode(1, 0, 0);
     size_t n2 = addNode(1, 1, 0);
@@ -402,33 +376,28 @@ TEST_F(FacetTriangulationManagerTest, InsertVertexOnUnknownSurfaceFails)
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
     size_t newNodeId = addNode(0.5, 0.5, 0);
-    bool inserted = manager.insertVertexOnSurface(newNodeId, Point3D(0.5, 0.5, 0), "unknown");
-    EXPECT_FALSE(inserted);
+    EXPECT_FALSE(manager.insertVertexOnSurface(newNodeId, Point3D(0.5, 0.5, 0), "unknown"));
 }
 
-TEST_F(FacetTriangulationManagerTest, SubfacetsUseCorrect3DNodeIds)
+TEST_F(FacetTriangulationManagerTest, VolumeMesherPath_SubfacetsUseCorrect3DNodeIds)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
-
-    // Use specific node IDs
-    size_t n0 = addNode(0, 0, 0); // Should be 0
-    size_t n1 = addNode(1, 0, 0); // Should be 1
-    size_t n2 = addNode(1, 1, 0); // Should be 2
-    size_t n3 = addNode(0, 1, 0); // Should be 3
+    size_t n0 = addNode(0, 0, 0);
+    size_t n1 = addNode(1, 0, 0);
+    size_t n2 = addNode(1, 1, 0);
+    size_t n3 = addNode(0, 1, 0);
 
     std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, n0}, {1, n1}, {2, n2}, {3, n3}};
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization, pointIndexToNodeIdMap, meshData_);
+    auto manager = FacetTriangulationManager::createForVolumeMesher(
+        *geometry_, *topology_, discretization, pointIndexToNodeIdMap, meshData_);
 
-    auto subfacets = manager.getAllSubfacets();
-
-    // Verify all node IDs in subfacets are valid mesh node IDs
-    std::set<size_t> validNodeIds = {n0, n1, n2, n3};
-    for (const auto& subfacet : subfacets)
+    const std::set<size_t> validNodeIds = {n0, n1, n2, n3};
+    for (const auto& subfacet : manager.getAllSubfacets())
     {
         EXPECT_TRUE(validNodeIds.count(subfacet.nodeId1) > 0)
             << "Invalid node ID: " << subfacet.nodeId1;
@@ -440,16 +409,16 @@ TEST_F(FacetTriangulationManagerTest, SubfacetsUseCorrect3DNodeIds)
 }
 
 // ============================================================================
-// Surface-mesher path: initializeFromDiscretization(discretization only)
+// Surface-mesher path: createForSurfaceMesher
 // Point indices in DiscretizationResult3D are used directly as node IDs.
 // ============================================================================
 
 TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_CreatesFacetTriangulation)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization);
+    auto manager = FacetTriangulationManager::createForSurfaceMesher(
+        *geometry_, *topology_, discretization);
 
     EXPECT_EQ(manager.size(), 1); // One surface
     EXPECT_NE(manager.getFacetTriangulation("s0"), nullptr);
@@ -457,10 +426,10 @@ TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_CreatesFacetTriangulatio
 
 TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_CorrectSubfacetCount)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization);
+    auto manager = FacetTriangulationManager::createForSurfaceMesher(
+        *geometry_, *topology_, discretization);
 
     // Four corners → two triangles
     EXPECT_EQ(manager.getAllSubfacets().size(), 2u);
@@ -468,16 +437,14 @@ TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_CorrectSubfacetCount)
 
 TEST_F(FacetTriangulationManagerTest, SurfaceMesherPath_SubfacetNodeIdsArePointIndices)
 {
-    FacetTriangulationManager manager(*geometry_, *topology_);
     auto discretization = fixture_->createDiscretization();
 
-    manager.initializeFromDiscretization(discretization);
-
-    auto subfacets = manager.getAllSubfacets();
+    auto manager = FacetTriangulationManager::createForSurfaceMesher(
+        *geometry_, *topology_, discretization);
 
     // The four corners have point indices 0–3; all subfacet node IDs must be in that set.
     const std::set<size_t> validIndices = {0, 1, 2, 3};
-    for (const auto& sf : subfacets)
+    for (const auto& sf : manager.getAllSubfacets())
     {
         EXPECT_TRUE(validIndices.count(sf.nodeId1) > 0) << "Unexpected nodeId1: " << sf.nodeId1;
         EXPECT_TRUE(validIndices.count(sf.nodeId2) > 0) << "Unexpected nodeId2: " << sf.nodeId2;

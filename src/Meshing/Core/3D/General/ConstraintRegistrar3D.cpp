@@ -72,12 +72,9 @@ void ConstraintRegistrar3D::registerSubfacets()
         return;
     }
 
-    facetManager_ = std::make_unique<FacetTriangulationManager>(*geometry, *topology);
-
-    facetManager_->initializeFromDiscretization(
-        *discretization_,
-        pointIndexToNodeIdMap_,
-        context_->getMeshData());
+    facetManager_ = std::make_unique<FacetTriangulationManager>(
+        FacetTriangulationManager::createForVolumeMesher(
+            *geometry, *topology, *discretization_, pointIndexToNodeIdMap_, context_->getMeshData()));
 
     auto subfacets = facetManager_->getAllSubfacets();
 

@@ -101,14 +101,9 @@ void ConstrainedDelaunay3D::createFacetTriangulations()
         return;
     }
 
-    // Create the facet triangulation manager
-    facetManager_ = std::make_unique<FacetTriangulationManager>(*geometry, *topology);
-
-    // Initialize from the discretization
-    facetManager_->initializeFromDiscretization(
-        discretization_,
-        pointIndexToNodeIdMap_,
-        *meshData3D_);
+    facetManager_ = std::make_unique<FacetTriangulationManager>(
+        FacetTriangulationManager::createForVolumeMesher(
+            *geometry, *topology, discretization_, pointIndexToNodeIdMap_, *meshData3D_));
 
     spdlog::debug("ConstrainedDelaunay3D: Created {} facet triangulations", facetManager_->size());
 }
