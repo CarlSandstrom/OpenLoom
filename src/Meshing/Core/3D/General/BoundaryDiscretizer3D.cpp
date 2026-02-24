@@ -23,7 +23,7 @@ BoundaryDiscretizer3D::BoundaryDiscretizer3D(const Geometry3D::GeometryCollectio
 
 void BoundaryDiscretizer3D::discretize()
 {
-    result_      = std::make_unique<DiscretizationResult3D>();
+    result_ = std::make_unique<DiscretizationResult3D>();
     twinManager_ = std::make_unique<TwinManager>();
 
     // Step 1: Sample corner points
@@ -54,7 +54,7 @@ void BoundaryDiscretizer3D::discretize()
         auto [tMin, tMax] = edge->getParameterBounds();
 
         size_t startIdx = result_->cornerIdToPointIndexMap.at(topoEdge.getStartCornerId());
-        size_t endIdx   = result_->cornerIdToPointIndexMap.at(topoEdge.getEndCornerId());
+        size_t endIdx = result_->cornerIdToPointIndexMap.at(topoEdge.getEndCornerId());
 
         result_->edgeParameters[startIdx].push_back(tMin);
         result_->geometryIds[startIdx].push_back(edgeId);
@@ -138,24 +138,24 @@ void BoundaryDiscretizer3D::discretize()
             if (entries[0].orientation == TwinOrientation::Same)
             {
                 s0From = edgePoints[i];
-                s0To   = edgePoints[i + 1];
+                s0To = edgePoints[i + 1];
             }
             else
             {
                 s0From = edgePoints[numberOfSegments - i];
-                s0To   = edgePoints[numberOfSegments - i - 1];
+                s0To = edgePoints[numberOfSegments - i - 1];
             }
 
             size_t s1From, s1To;
             if (entries[1].orientation == TwinOrientation::Same)
             {
                 s1From = edgePoints[i];
-                s1To   = edgePoints[i + 1];
+                s1To = edgePoints[i + 1];
             }
             else
             {
                 s1From = edgePoints[numberOfSegments - i];
-                s1To   = edgePoints[numberOfSegments - i - 1];
+                s1To = edgePoints[numberOfSegments - i - 1];
             }
 
             twinManager_->registerTwin(s0From, s0To, s1From, s1To);
