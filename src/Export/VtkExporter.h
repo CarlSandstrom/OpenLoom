@@ -12,6 +12,7 @@ class MeshData2D;
 class MeshData3D;
 class IElement;
 class DiscretizationResult3D;
+struct ConstrainedSubfacet3D;
 } // namespace Meshing
 
 namespace Export
@@ -36,6 +37,13 @@ public:
     // Each line cell carries an EdgeID scalar (0-based index over topology edges)
     // for color-by-edge inspection in ParaView.
     bool writeEdgeMesh(const Meshing::DiscretizationResult3D& result, const std::string& filePath) const;
+
+    // Export surface triangulation as VTK_TRIANGLE cells.
+    // Each triangle cell carries a SurfaceID scalar (0-based index over unique surface IDs)
+    // for color-by-surface inspection in ParaView.
+    bool writeSurfaceMesh(const Meshing::DiscretizationResult3D& disc3D,
+                          const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
+                          const std::string& filePath) const;
 
     // Overloaded methods for 2D meshes (exported with z=0)
     bool exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const;

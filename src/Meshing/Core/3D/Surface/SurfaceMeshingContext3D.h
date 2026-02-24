@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Data/3D/MeshData3D.h"
 #include <memory>
 
 namespace Geometry3D
@@ -62,6 +63,14 @@ public:
     const TwinManager& getTwinManager() const;
     FacetTriangulationManager& getFacetTriangulationManager();
     const FacetTriangulationManager& getFacetTriangulationManager() const;
+
+    /**
+     * @brief Build a MeshData3D containing the surface triangulation.
+     *
+     * Adds one Node3D per discretization point (node ID == point index) and
+     * one TriangleElement per subfacet from all facet triangulations.
+     */
+    MeshData3D buildSurfaceMesh() const;
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;

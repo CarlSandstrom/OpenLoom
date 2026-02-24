@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
+#include "Meshing/Core/2D/DiscretizationResult2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include <map>
 #include <memory>
 #include <optional>
@@ -60,15 +61,18 @@ public:
     FacetTriangulation& operator=(FacetTriangulation&&) noexcept;
 
     /**
-     * @brief Initialize triangulation with boundary and interior points
+     * @brief Initialize triangulation using a constrained 2D Delaunay triangulation.
      *
-     * Creates a 2D Delaunay triangulation of the given points. The points
-     * are provided with their 3D node IDs and corresponding (u,v) parametric
-     * coordinates on this surface.
+     * Runs ConstrainedDelaunay2D on the UV-space discretization: registers boundary
+     * edge segments as constraints, enforces them, and removes exterior triangles.
+     * After this call, MeshData2D contains a valid constrained triangulation ready
+     * for ShewchukRefiner2D.
      *
-     * @param node3DToPoint2DMap Maps 3D node IDs to their (u,v) coordinates on this surface
+     * @param disc2D  UV-space discretization for this face (local point indices)
+     * @param localIdxToNode3DId  Maps each local disc2D point index to its global 3D node ID
      */
-    void initialize(const std::map<size_t, Point2D>& node3DToPoint2DMap);
+    void initialize(const DiscretizationResult2D& disc2D,
+                    const std::vector<size_t>& localIdxToNode3DId);
 
     /**
      * @brief Get the surface ID

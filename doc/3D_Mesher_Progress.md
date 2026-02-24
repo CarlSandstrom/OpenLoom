@@ -55,11 +55,17 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 | S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | Done |
 | S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | Done |
 | S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | Done |
-| S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | Done |
+| S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data. Exposes `buildSurfaceMesh()` → `MeshData3D` of initial surface triangulation | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | Done |
+
+**Implementation note (S1.4):** `FacetTriangulation::initialize()` uses `ConstrainedDelaunay2D` (not bare `Delaunay2D`) so boundary edge constraints are registered, enforced, and exterior triangles removed for each face. The per-face `DiscretizationResult2D` is built inside `FacetTriangulationManager` from the 3D discretization result using local (face-scoped) point indices.
+
+**Known issue:** The cylindrical face of the box-with-hole shape produces an `enforceEdge: ear clipping failed` warning and ends up with 0 triangles after exterior removal. This is caused by the cylindrical surface's UV parametrization and is a known limitation to address in S2.
 
 **Validation gate:** Each CAD face has an initialized `FacetTriangulation` (`MeshData2D`) with boundary nodes seeded from edge discretization. `TwinManager` knows all shared-edge segment pairs.
 
-**Validation:** `SurfaceMeshEdges` example (box-with-hole) exports discretized boundary edges to `SurfaceMeshEdges.vtu`; loaded cleanly in ParaView and verified visually.
+**Validation:** `SurfaceMeshEdges` example (box-with-hole) exports:
+  - `SurfaceMeshEdges.vtu` — discretized boundary edges (color by EdgeID); verified in ParaView
+  - `SurfaceMesh3D.vtu` — initial surface triangulation (color by SurfaceID); 210 subfacets across 7/8 faces
 
 **Status: Complete**
 
@@ -103,14 +109,18 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
-| S4.1 | `SurfaceMesher3D` top-level class: takes geometry + topology + settings, runs S1–S3, returns `SurfaceMesh3D` | `3D/Surface/SurfaceMesher3D.h/.cpp` (new) | **TODO** |
+| S4.1 | `SurfaceMesher3D` top-level class: takes geometry + topology + settings, runs S1–S3, returns `SurfaceMesh3D` | `3D/Surface/SurfaceMesher3D.h/.cpp` (new) | **TODO** (needs S2/S3) |
 | S4.2 | Assemble `SurfaceMesh3D` from all `FacetTriangulation` results (global node numbering, per-face groups) | — | **TODO** |
-| S4.3 | VTK export of surface mesh (triangle surface, `.vtu`) | `Export/VtkExporter` or new exporter | **TODO** |
-| S4.4 | Example: `SurfaceMesh3DExample` — mesh a STEP file surface, export to ParaView | `src/Examples/` | **TODO** |
+| S4.3 | VTK export of surface mesh (triangle surface, `.vtu`) | `Export/VtkExporter` | Done |
+| S4.4 | Example: export surface triangulation to ParaView | `src/Examples3D/SurfaceMeshEdges.cc` | Done (initial triangulation) |
+
+**S4.3 implementation:** `VtkExporter::writeSurfaceMesh(disc3D, subfacets, path)` writes all discretization points as nodes and one `VTK_TRIANGLE` per subfacet, with a `SurfaceID` per-cell attribute (0-based index over unique surface IDs). `SurfaceMeshingContext3D::buildSurfaceMesh()` returns a `MeshData3D` usable with the standard `exportMesh()` for programmatic use.
+
+**S4.4 implementation:** `SurfaceMeshEdges.cc` now exports both `SurfaceMeshEdges.vtu` (edges) and `SurfaceMesh3D.vtu` (surface triangulation). The full `SurfaceMesh3DExample` awaits S2/S3 completion.
 
 **Validation gate:** Exported surface mesh displays correctly in ParaView. All CAD faces covered. No cracks or duplicate nodes on shared edges.
 
-**Status: NOT STARTED**
+**Status: S4.3 and S4.4 (initial) Done — S4.1/S4.2 await S2/S3**
 
 ---
 

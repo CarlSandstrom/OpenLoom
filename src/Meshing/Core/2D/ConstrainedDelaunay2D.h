@@ -4,6 +4,7 @@
 #include "DiscretizationResult2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -32,9 +33,12 @@ public:
 
     void triangulate();
 
+    const std::map<size_t, size_t>& getPointIndexToNodeIdMap() const { return pointIndexToNodeIdMap_; }
+
 private:
     size_t exportCounter_ = 0;
 
+    std::map<size_t, size_t> pointIndexToNodeIdMap_;
     DiscretizationResult2D discretization_;
     std::vector<Point2D> additionalPoints_;
 

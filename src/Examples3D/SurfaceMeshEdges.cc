@@ -1,13 +1,13 @@
 /**
  * @file SurfaceMeshEdges.cc
- * @brief S1 validation: initialize surface meshing context and export boundary edge discretization.
+ * @brief S1 validation: initialize surface meshing context and export boundary edge and surface mesh.
  *
  * Demonstrates the S1 pipeline (TwinTableGenerator → BoundaryDiscretizer3D →
- * FacetTriangulationManager) on a box-with-hole CAD shape and exports the
- * discretized boundary edges as a VTK edge mesh for inspection in ParaView.
+ * FacetTriangulationManager) on a box-with-hole CAD shape and exports:
+ *   - SurfaceMeshEdges.vtu   : discretized boundary edges (color by EdgeID)
+ *   - SurfaceMesh3D.vtu      : full surface triangulation (color by SurfaceID)
  *
- * Color by EdgeID in ParaView to verify each topology edge is discretized
- * correctly and shared-edge segments align between adjacent faces.
+ * Open both files in ParaView to verify each topology edge and surface triangulation.
  */
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
@@ -30,10 +30,10 @@ int main()
     // Build box-with-cylindrical-hole CAD shape (same geometry as BoxWithHole)
     TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
 
-    gp_Pnt center(7.50, 7.50, 2.0);
+    gp_Pnt center(7.50, 7.50, 0.0);
     gp_Dir axisDirection(0.0, 0.0, 1.0);
     gp_Ax2 axis(center, axisDirection);
-    TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 10.0).Shape();
+    TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 20.0).Shape();
     TopoDS_Shape shape = BRepAlgoAPI_Cut(box, cylinder).Shape();
 
     // Convert CAD shape to geometry + topology
@@ -48,16 +48,27 @@ int main()
                                              settings);
 
     const auto& discResult = context.getDiscretizationResult();
+    const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();
+
     std::cout << "Points:         " << discResult.points.size() << "\n";
     std::cout << "Topology edges: " << discResult.edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << context.getFacetTriangulationManager().size() << "\n";
+    std::cout << "Subfacets:      " << subfacets.size() << "\n";
 
-    // Export discretized edges for ParaView inspection
-    // Color by EdgeID to verify each topology edge and check shared-edge alignment
     Export::VtkExporter exporter;
+
+    // Export discretized edges — color by EdgeID to verify shared-edge alignment
     exporter.writeEdgeMesh(discResult, "SurfaceMeshEdges.vtu");
-    std::cout << "Exported edge mesh to SurfaceMeshEdges.vtu\n";
-    std::cout << "Open in ParaView and color by EdgeID.\n";
+    std::cout << "Exported edge mesh to SurfaceMeshEdges.vtu (color by EdgeID)\n";
+
+    // Export surface triangulation — color by SurfaceID to verify per-face triangulation
+    exporter.writeSurfaceMesh(discResult, subfacets, "SurfaceMesh3D.vtu");
+    std::cout << "Exported surface mesh to SurfaceMesh3D.vtu (color by SurfaceID)\n";
+
+    // Build a MeshData3D for programmatic use (e.g. further processing)
+    auto meshData = context.buildSurfaceMesh();
+    std::cout << "MeshData3D: " << meshData.getNodeCount() << " nodes, "
+              << meshData.getElementCount() << " triangles\n";
 
     return 0;
 }

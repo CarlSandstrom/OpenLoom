@@ -41,6 +41,7 @@ void ConstrainedDelaunay2D::triangulate()
     // Create Delaunay triangulation
     Delaunay2D delaunay(allPoints, meshData2D_, allTParameters, allGeometryIds);
     delaunay.triangulate();
+    pointIndexToNodeIdMap_ = delaunay.getPointIndexToNodeIdMap();
 
     // Extract constrained edges and store in MeshData2D
     auto constrainedEdges = meshOperations_->getQueries().extractConstrainedEdges(context_->getTopology(),

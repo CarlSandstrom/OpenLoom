@@ -1,7 +1,7 @@
 #include "Meshing/Core/3D/Surface/FacetTriangulation.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/2D/Delaunay2D.h"
+#include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -21,8 +21,7 @@ FacetTriangulation::FacetTriangulation(
     surface_(&surface)
 {
     // Create 2D meshing context from the surface
-    context_ = std::make_unique<MeshingContext2D>(
-        MeshingContext2D::fromSurface(surface, topoSurface, fullTopology, fullGeometry));
+    context_ = std::make_unique<MeshingContext2D>(MeshingContext2D::fromSurface(surface, topoSurface, fullTopology, fullGeometry));
 }
 
 FacetTriangulation::~FacetTriangulation() = default;
@@ -30,48 +29,35 @@ FacetTriangulation::~FacetTriangulation() = default;
 FacetTriangulation::FacetTriangulation(FacetTriangulation&&) noexcept = default;
 FacetTriangulation& FacetTriangulation::operator=(FacetTriangulation&&) noexcept = default;
 
-void FacetTriangulation::initialize(const std::map<size_t, Point2D>& node3DToPoint2DMap)
+void FacetTriangulation::initialize(const DiscretizationResult2D& disc2D,
+                                    const std::vector<size_t>& localIdxToNode3DId)
 {
-    // Clear existing mappings
     node3DTo2DMap_.clear();
     node2DTo3DMap_.clear();
 
-    // Build vectors for Delaunay2D
-    std::vector<Point2D> points;
-    std::vector<size_t> node3DIds;
+    // Run constrained Delaunay: registers boundary segments, enforces them,
+    // and removes exterior triangles.
+    ConstrainedDelaunay2D constrained(*context_, disc2D);
+    constrained.triangulate();
 
-    points.reserve(node3DToPoint2DMap.size());
-    node3DIds.reserve(node3DToPoint2DMap.size());
+    // Build bidirectional 3D↔2D node mappings
+    const auto& pointIndexToNode2DMap = constrained.getPointIndexToNodeIdMap();
 
-    for (const auto& [node3DId, uvCoord] : node3DToPoint2DMap)
+    for (size_t localIdx = 0; localIdx < localIdxToNode3DId.size(); ++localIdx)
     {
-        points.push_back(uvCoord);
-        node3DIds.push_back(node3DId);
-    }
-
-    // Run 2D Delaunay triangulation
-    auto& meshData = context_->getMeshData();
-    Delaunay2D delaunay(points, &meshData);
-    delaunay.triangulate();
-
-    // Build bidirectional mappings from point indices to node IDs
-    auto pointIndexToNode2DMap = delaunay.getPointIndexToNodeIdMap();
-
-    for (size_t pointIdx = 0; pointIdx < node3DIds.size(); ++pointIdx)
-    {
-        size_t node3DId = node3DIds[pointIdx];
-        auto node2DIt = pointIndexToNode2DMap.find(pointIdx);
-
-        if (node2DIt != pointIndexToNode2DMap.end())
+        size_t node3DId = localIdxToNode3DId[localIdx];
+        auto it = pointIndexToNode2DMap.find(localIdx);
+        if (it != pointIndexToNode2DMap.end())
         {
-            size_t node2DId = node2DIt->second;
+            size_t node2DId = it->second;
             node3DTo2DMap_[node3DId] = node2DId;
             node2DTo3DMap_[node2DId] = node3DId;
         }
     }
 
     spdlog::debug("FacetTriangulation for surface {}: {} points, {} triangles, {} node mappings",
-                  surfaceId_, points.size(), meshData.getElementCount(), node3DTo2DMap_.size());
+                  surfaceId_, disc2D.points.size(),
+                  context_->getMeshData().getElementCount(), node3DTo2DMap_.size());
 }
 
 std::vector<ConstrainedSubfacet3D> FacetTriangulation::getSubfacets() const

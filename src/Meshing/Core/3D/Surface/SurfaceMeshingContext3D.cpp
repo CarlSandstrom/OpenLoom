@@ -6,6 +6,8 @@
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/TwinTableGenerator.h"
+#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
@@ -63,6 +65,31 @@ FacetTriangulationManager& SurfaceMeshingContext3D::getFacetTriangulationManager
 const FacetTriangulationManager& SurfaceMeshingContext3D::getFacetTriangulationManager() const
 {
     return *facetTriangulationManager_;
+}
+
+MeshData3D SurfaceMeshingContext3D::buildSurfaceMesh() const
+{
+    MeshData3D mesh;
+    MeshMutator3D mutator(mesh);
+
+    // Add one node per discretization point.
+    // In the surface-mesher path node ID == point index, so IDs will be 0..N-1.
+    for (const auto& pt : discretizationResult_->points)
+    {
+        mutator.addNode(pt);
+    }
+
+    // Add one triangle element per subfacet from all facet triangulations.
+    for (const auto& subfacet : facetTriangulationManager_->getAllSubfacets())
+    {
+        mutator.addElement(std::make_unique<TriangleElement>(
+            std::array<size_t, 3>{subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3}));
+    }
+
+    spdlog::debug("SurfaceMeshingContext3D::buildSurfaceMesh: {} nodes, {} triangles",
+                  mesh.getNodeCount(), mesh.getElementCount());
+
+    return mesh;
 }
 
 } // namespace Meshing

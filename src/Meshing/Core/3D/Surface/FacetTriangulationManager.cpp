@@ -1,12 +1,92 @@
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
+#include "Meshing/Core/2D/DiscretizationResult2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/Node3D.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
+#include <functional>
+#include <map>
 #include <set>
+
+namespace
+{
+
+// Build the UV-space DiscretizationResult2D for a single face, using LOCAL indices
+// (0..N-1 over the sorted global point indices for this face).
+// Also returns localIdxToNode3DId mapping each local index → 3D node ID.
+std::pair<Meshing::DiscretizationResult2D, std::vector<size_t>>
+buildFaceDiscretization2D(
+    const Geometry3D::ISurface3D& surface,
+    const Topology3D::Surface3D& topoSurface,
+    const Meshing::DiscretizationResult3D& disc3D,
+    const std::vector<size_t>& globalPtIndices,
+    const std::function<size_t(size_t)>& pointIdxToNode3DId)
+{
+    Meshing::DiscretizationResult2D disc2D;
+    std::vector<size_t> localIdxToNode3DId;
+
+    // Build global → local index lookup (globalPtIndices is already sorted)
+    std::map<size_t, size_t> globalToLocal;
+    for (size_t localIdx = 0; localIdx < globalPtIndices.size(); ++localIdx)
+    {
+        globalToLocal[globalPtIndices[localIdx]] = localIdx;
+    }
+
+    // Build points, tParameters, geometryIds, and localIdxToNode3DId in lockstep
+    disc2D.points.reserve(globalPtIndices.size());
+    disc2D.tParameters.reserve(globalPtIndices.size());
+    disc2D.geometryIds.reserve(globalPtIndices.size());
+    localIdxToNode3DId.reserve(globalPtIndices.size());
+
+    for (size_t localIdx = 0; localIdx < globalPtIndices.size(); ++localIdx)
+    {
+        size_t globalPtIdx = globalPtIndices[localIdx];
+        disc2D.points.push_back(surface.projectPoint(disc3D.points[globalPtIdx]));
+        disc2D.tParameters.push_back(disc3D.edgeParameters[globalPtIdx]);
+        disc2D.geometryIds.push_back(disc3D.geometryIds[globalPtIdx]);
+        localIdxToNode3DId.push_back(pointIdxToNode3DId(globalPtIdx));
+    }
+
+    // Build cornerIdToPointIndexMap: translate global corner index → local
+    for (const auto& cornerId : topoSurface.getCornerIds())
+    {
+        auto it = disc3D.cornerIdToPointIndexMap.find(cornerId);
+        if (it != disc3D.cornerIdToPointIndexMap.end())
+        {
+            auto localIt = globalToLocal.find(it->second);
+            if (localIt != globalToLocal.end())
+            {
+                disc2D.cornerIdToPointIndexMap[cornerId] = localIt->second;
+            }
+        }
+    }
+
+    // Build edgeIdToPointIndicesMap: translate global edge point indices → local
+    for (const auto& edgeId : topoSurface.getBoundaryEdgeIds())
+    {
+        auto it = disc3D.edgeIdToPointIndicesMap.find(edgeId);
+        if (it != disc3D.edgeIdToPointIndicesMap.end())
+        {
+            std::vector<size_t> localEdgeIndices;
+            localEdgeIndices.reserve(it->second.size());
+            for (size_t globalIdx : it->second)
+            {
+                auto localIt = globalToLocal.find(globalIdx);
+                if (localIt != globalToLocal.end())
+                {
+                    localEdgeIndices.push_back(localIt->second);
+                }
+            }
+            disc2D.edgeIdToPointIndicesMap[edgeId] = std::move(localEdgeIndices);
+        }
+    }
+
+    return {std::move(disc2D), std::move(localIdxToNode3DId)};
+}
+
+} // anonymous namespace
 
 namespace Meshing
 {
@@ -74,30 +154,19 @@ void FacetTriangulationManager::initializeForSurfaceMesher(
             continue;
         }
 
-        auto facetTriang = std::make_unique<FacetTriangulation>(
-            *surface, topoSurface, *topology_, *geometry_);
+        auto facetTriang = std::make_unique<FacetTriangulation>(*surface, topoSurface, *topology_, *geometry_);
 
-        std::vector<size_t> surfacePointIndices = collectSurfacePointIndices(surfaceId, discretization);
+        // In the surface-mesher path, point index == 3D node ID — identity mapping.
+        std::vector<size_t> globalPtIndices = collectSurfacePointIndices(surfaceId, discretization);
+        auto [disc2D, localIdxToNode3DId] = buildFaceDiscretization2D(
+            *surface, topoSurface, discretization, globalPtIndices,
+            [](size_t ptIdx)
+            { return ptIdx; });
 
-        // In the surface-mesher path point index == 3D node ID — no translation needed.
-        std::map<size_t, Point2D> node3DToPoint2DMap;
-
-        for (size_t pointIdx : surfacePointIndices)
-        {
-            if (pointIdx >= discretization.points.size())
-            {
-                spdlog::warn("FacetTriangulationManager: Point index {} out of range", pointIdx);
-                continue;
-            }
-
-            Point2D uvCoord = surface->projectPoint(discretization.points[pointIdx]);
-            node3DToPoint2DMap[pointIdx] = uvCoord;
-        }
-
-        facetTriang->initialize(node3DToPoint2DMap);
+        facetTriang->initialize(disc2D, localIdxToNode3DId);
 
         spdlog::debug("FacetTriangulationManager: Created triangulation for surface {} with {} points",
-                      surfaceId, node3DToPoint2DMap.size());
+                      surfaceId, disc2D.points.size());
 
         facetTriangulations_[surfaceId] = std::move(facetTriang);
     }
@@ -109,7 +178,7 @@ void FacetTriangulationManager::initializeForSurfaceMesher(
 void FacetTriangulationManager::initializeForVolumeMesher(
     const DiscretizationResult3D& discretization,
     const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-    const MeshData3D& meshData)
+    const MeshData3D& /* meshData */)
 {
     facetTriangulations_.clear();
 
@@ -127,36 +196,19 @@ void FacetTriangulationManager::initializeForVolumeMesher(
         auto facetTriang = std::make_unique<FacetTriangulation>(
             *surface, topoSurface, *topology_, *geometry_);
 
-        std::vector<size_t> surfacePointIndices = collectSurfacePointIndices(surfaceId, discretization);
-
-        std::map<size_t, Point2D> node3DToPoint2DMap;
-
-        for (size_t pointIdx : surfacePointIndices)
-        {
-            auto nodeIdIt = pointIndexToNodeIdMap.find(pointIdx);
-            if (nodeIdIt == pointIndexToNodeIdMap.end())
+        std::vector<size_t> globalPtIndices = collectSurfacePointIndices(surfaceId, discretization);
+        auto [disc2D, localIdxToNode3DId] = buildFaceDiscretization2D(
+            *surface, topoSurface, discretization, globalPtIndices,
+            [&pointIndexToNodeIdMap](size_t ptIdx)
             {
-                spdlog::warn("FacetTriangulationManager: Point index {} not found in pointIndexToNodeIdMap",
-                             pointIdx);
-                continue;
-            }
+                auto it = pointIndexToNodeIdMap.find(ptIdx);
+                return (it != pointIndexToNodeIdMap.end()) ? it->second : ptIdx;
+            });
 
-            size_t node3DId = nodeIdIt->second;
-            const auto* node = meshData.getNode(node3DId);
-            if (!node)
-            {
-                spdlog::warn("FacetTriangulationManager: Node {} not found in meshData", node3DId);
-                continue;
-            }
-
-            Point2D uvCoord = surface->projectPoint(node->getCoordinates());
-            node3DToPoint2DMap[node3DId] = uvCoord;
-        }
-
-        facetTriang->initialize(node3DToPoint2DMap);
+        facetTriang->initialize(disc2D, localIdxToNode3DId);
 
         spdlog::debug("FacetTriangulationManager: Created triangulation for surface {} with {} points",
-                      surfaceId, node3DToPoint2DMap.size());
+                      surfaceId, disc2D.points.size());
 
         facetTriangulations_[surfaceId] = std::move(facetTriang);
     }
