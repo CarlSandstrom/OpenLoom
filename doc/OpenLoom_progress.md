@@ -157,10 +157,13 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
 | S2.1 | Run `ShewchukRefiner2D` on each `FacetTriangulation` context in UV space | `FacetTriangulation`, `ShewchukRefiner2D` | **TODO** |
-| S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via OCC `GeomLProp_SLProps`) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | **TODO** |
+| S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via the surface's first fundamental form / metric tensor) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | **TODO** |
 | S2.3 | Respect edge constraints: boundary edges of each face (on shared topology edges) must not be modified | `FacetTriangulation` | **TODO** |
+| S2.4 | Geometric deviation check: for each triangle evaluate the 3D distance from the triangle midpoint (and edge midpoints) to the actual CAD surface by evaluating the surface at the UV midpoint; refine any triangle whose chord deviation exceeds a user-specified tolerance | `3D/Surface/SurfaceMeshQuality.h/.cpp` | **TODO** |
 
 **Note on S2.2:** For mildly curved CAD surfaces the UV distance approximation is acceptable and can be used initially. For tightly curved faces (small fillets, tight bends) the pull-back metric correction matters. Can be deferred to a later iteration.
+
+**Note on CAD abstraction (S2.2, S2.4):** Both sub-steps require querying the underlying surface geometry (metric tensor for S2.2, surface point evaluation for S2.4). These queries must go through an abstraction layer (e.g. `ISurface`) rather than calling CAD-library APIs directly. OCC is the current backend but must not be assumed. The `ISurface` interface should expose `evaluate(u, v) → Point3D` and optionally `metric(u, v) → (du, dv)` for the first fundamental form coefficients.
 
 **Validation gate:** Each face has a quality triangle mesh in its `FacetTriangulation`. No triangle violates the angle bound. Boundary edges match the seeded edge discretization.
 
