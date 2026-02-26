@@ -1,11 +1,98 @@
-# 3D Mesher Implementation Progress
+# OpenLoom Implementation Progress
 
-**Strategy (updated Feb 2026):** The original plan targeted the volume mesher directly. The revised plan builds a standalone **3D surface mesher first**, then a **volume mesher** that takes the surface mesh as input. This mirrors how major meshers (Gmsh, TetGen) separate surface and volume meshing, and delivers the surface mesher as an independent milestone with standalone value.
+This document tracks the full implementation status of OpenLoom: the 2D constrained Delaunay mesher (complete), the 3D surface mesher (in progress), and the 3D volume mesher (partially implemented).
 
-The codebase will be reorganized from a flat `3D/` folder into:
-- `3D/General/` — shared infrastructure (geometry structures, boundary discretization, constraint registration)
-- `3D/Surface/` — surface mesher (UV-space quality meshing, inter-face conformity)
-- `3D/Volume/` — volume mesher (tetrahedralization, Shewchuk refinement)
+---
+
+# Part I — 2D Mesher
+
+A standalone 2D constrained Delaunay mesher with Shewchuk refinement.
+
+**Pipeline:** `EdgeDiscretizer2D` → `DiscretizationResult2D` → `MeshingContext2D` → `ConstrainedDelaunay2D` → optional `ShewchukRefiner2D` → `VtkExporter`
+
+**Status: COMPLETE**
+
+---
+
+## Step A — Core Data Structures
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| A1 | Geometric primitives (`Circle2D`, `ConstrainedSegment2D`, `EdgeRole`) | `2D/GeometryStructures2D.h` | Done |
+| A2 | Discretization result type (`DiscretizationResult2D`: sampled points, t-parameters, corner/edge index maps) | `2D/DiscretizationResult2D.h` | Done |
+| A3 | `MeshData2D` / `MeshMutator2D` — node + triangle storage with controlled mutation | `Meshing/Data/MeshData2D.h/.cpp`, `MeshMutator2D.h/.cpp` | Done |
+
+---
+
+## Step B — Unconstrained Delaunay Triangulation
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| B1 | `Delaunay2D`: incremental Bowyer-Watson insertion of unordered point sets | `2D/Delaunay2D.h/.cpp` | Done |
+| B2 | `MeshOperations2D`: Bowyer-Watson insertion, Lawson edge flipping, exterior removal, constrained segment splitting | `2D/MeshOperations2D.h/.cpp` | Done |
+| B3 | `MeshQueries2D`: conflict/cavity queries, encroachment detection, interior/exterior classification (ray-casting + BFS) | `2D/MeshQueries2D.h/.cpp` | Done |
+| B4 | `GeometryUtilities2D`: pure static geometry (orientation, segment intersection, point-in-circle, super-triangle) | `2D/GeometryUtilities2D.h/.cpp` | Done |
+| B5 | `ElementGeometry2D`: per-element computations (circumcircle, area, angles, centroid) | `2D/ElementGeometry2D.h/.cpp` | Done |
+| B6 | `ElementQuality2D`: quality metrics (shortest/longest edge, circumradius-to-edge ratio, sorted quality lists) | `2D/ElementQuality2D.h/.cpp` | Done |
+
+---
+
+## Step C — Constrained Delaunay Triangulation
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| C1 | `EdgeDiscretizer2D`: samples CAD boundary edges into `DiscretizationResult2D` (curvature-adaptive or fixed count) | `2D/EdgeDiscretizer2D.h/.cpp` | Done |
+| C2 | `ConstrainedDelaunay2D`: extends `Delaunay2D` with edge constraint enforcement and exterior triangle removal | `2D/ConstrainedDelaunay2D.h/.cpp` | Done |
+| C3 | `MeshingContext2D`: top-level context owning geometry, topology, and `MeshData2D`; `fromSurface()` factory creates a UV-space context for a CAD face | `2D/MeshingContext2D.h/.cpp` | Done |
+
+---
+
+## Step D — Shewchuk Quality Refinement
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| D1 | `IQualityController2D`: interface for pluggable quality criteria | `2D/IQualityController2D.h` | Done |
+| D2 | `Shewchuk2DQualityController`: circumradius-to-shortest-edge bound, min-angle threshold, element limit | `2D/Shewchuk2DQualityController.h/.cpp` | Done |
+| D3 | `ConstraintChecker2D`: diametral circle encroachment test for constrained segments | `2D/ConstraintChecker2D.h/.cpp` | Done |
+| D4 | `ShewchukRefiner2D`: priority-driven refinement loop — (1) split encroached segments, (2) insert circumcenters of poor triangles; supports `BoundarySplitCallback` for twin-edge sync | `2D/ShewchukRefiner2D.h/.cpp` | Done |
+| D5 | `BoundarySplitSynchronizer`: callback implementation that propagates segment splits to twin edges via `TwinManager` | `2D/BoundarySplitSynchronizer.h/.cpp` | Done |
+
+---
+
+## Step E — Verification & Debug
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| E1 | `MeshVerifier`: CCW orientation check, no-overlap check; returns `VerificationResult` | `2D/MeshVerifier.h/.cpp` | Done |
+| E2 | `MeshDebugUtils2D`: compile-flag-gated conditional export + verify at each iteration | `2D/MeshDebugUtils2D.h/.cpp` | Done |
+
+---
+
+## Step F — Export & Examples
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| F1 | VTK `.vtu` export for 2D meshes | `Export/VtkExporter` | Done |
+| F2 | `SimpleDelaunay2D` — basic unconstrained triangulation | `Examples2D/SimpleDelaunay2D.cc` | Done |
+| F3 | `RectangleWithHole2D` — constrained mesh with hole | `Examples2D/RectangleWithHole2D.cc` | Done |
+| F4 | `RectangleWithCrack` — interior edge constraint | `Examples2D/RectangleWithCrack.cc` | Done |
+| F5 | `SquareWithCircularHole` — curved boundary sampling | `Examples2D/SquareWithCircularHole.cc` | Done |
+| F6 | `SquareWithInternalCircles` — multiple interior constraints | `Examples2D/SquareWithInternalCircles.cc` | Done |
+| F7 | `SquareWithCircleAndTwinEdges` — periodic twin-edge demo | `Examples2D/SquareWithCircleAndTwinEdges.cc` | Done |
+| F8 | `MeshStepFile2D` — CAD STEP file import and mesh | `Examples2D/MeshStepFile2D.cc` | Done |
+| F9 | Unit tests: constrained triangulation, refinement, geometry, quality, constraint checking | `tests/Meshing/Core/test_*.cpp` | Done |
+
+---
+
+---
+
+# Part II — 3D Surface Mesher
+
+Produces a quality triangle mesh of all CAD surfaces. Each face is meshed independently in its UV (parametric) space using the 2D Shewchuk refiner, with inter-face conformity enforced on shared edges via `TwinManager`.
+
+**Pipeline:** `TwinTableGenerator` (topology) → `BoundaryDiscretizer3D` (populates `TwinManager`) → `FacetTriangulationManager` (per-face `MeshData2D`, no `MeshData3D`) → `ShewchukRefiner2D` per face → assembly → `SurfaceMesh3D`
+
+**Output:** `SurfaceMesh3D` — a conforming triangle mesh of all boundary surfaces, with node-pairing metadata for periodic/synchronized boundaries.
 
 ---
 
@@ -34,16 +121,6 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 | 0.7 | Update all `CMakeLists.txt` and `#include` paths; verify build passes | Done |
 
 **Status: Complete**
-
----
-
-# Part I — 3D Surface Mesher
-
-Produces a quality triangle mesh of all CAD surfaces. Each face is meshed independently in its UV (parametric) space using the 2D Shewchuk refiner, with inter-face conformity enforced on shared edges via `TwinManager`.
-
-**Pipeline:** `TwinTableGenerator` (topology) → `BoundaryDiscretizer3D` (populates `TwinManager`) → `FacetTriangulationManager` (per-face `MeshData2D`, no `MeshData3D`) → `ShewchukRefiner2D` per face → assembly → `SurfaceMesh3D`
-
-**Output:** `SurfaceMesh3D` — a conforming triangle mesh of all boundary surfaces, with node-pairing metadata for periodic/synchronized boundaries.
 
 ---
 
@@ -126,9 +203,11 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 
 ---
 
-# Part II — 3D Volume Mesher
+---
 
-Takes a `SurfaceMesh3D` from Part I as input. Fills the interior with quality tetrahedra. The surface is **fixed** — no new nodes are inserted on the boundary during volume refinement.
+# Part III — 3D Volume Mesher
+
+Takes a `SurfaceMesh3D` from Part II as input. Fills the interior with quality tetrahedra. The surface is **fixed** — no new nodes are inserted on the boundary during volume refinement.
 
 **Design note:** The volume mesher must recover the given surface triangulation as constrained faces in the tetrahedralization (Steps V3–V4). This is the classical conforming Delaunay embedding problem. Whether Steiner points are permitted on the surface during recovery is an open design decision to be resolved during V3–V4 implementation.
 
@@ -147,8 +226,6 @@ Takes a `SurfaceMesh3D` from Part I as input. Fills the interior with quality te
 ---
 
 ## Step V2 — Initial Delaunay Tetrahedralization (Unconstrained)
-
-**Algorithm ref:** Sections 2.1–2.3
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
@@ -283,55 +360,79 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ---
 
-## Recommended Implementation Order
+---
 
-### Phase 0: Folder restructuring
-1. ~~Create `3D/General/`, `3D/Surface/`, `3D/Volume/` and move files~~ **Done**
-2. ~~Decouple `BoundaryDiscretizer3D` from `MeshingContext3D`~~ **Done**
-3. ~~Extend `ElementGeometry3D` with triangle-in-3D operations~~ **Done**
+# Recommended Implementation Order
 
-### Phase I-A: Surface mesher infrastructure (Step S1)
-4. ~~Define `SurfaceMesh3D` result type~~ **Done**
-5. ~~`TwinTableGenerator`: topology → `EdgeTwinTable`~~ **Done**
-6. ~~Extend `BoundaryDiscretizer3D` with `EdgeTwinTable` input + `TwinManager` population~~ **Done**
-7. ~~`FacetTriangulationManager`: surface-mesher init (no `MeshData3D`)~~ **Done**
-8. ~~`SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`~~ **Done**
+### Done
+1. ~~Part I: Full 2D mesher (A–F)~~ **Done**
+2. ~~Phase 0: Folder restructuring (3D)~~ **Done**
+3. ~~Step S1: Surface meshing context and infrastructure~~ **Done**
+4. ~~S3.1: `TwinManager` class~~ **Done**
+5. ~~S4.3/S4.4 (initial): VTK export + edge example~~ **Done**
 
-### Phase I-B: Per-face quality meshing (Step S2)
-9. Run `ShewchukRefiner2D` per face in UV space
-10. Validate: each face mesh satisfies angle bound, boundary edges unchanged
+### In Progress / Next Steps
 
-### Phase I-C: Inter-face conformity via TwinManager (Step S3)
-11. ~~Implement `TwinManager` class~~ **Done**
-12. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface`
-13. `MeshVerifier::verifyTwinConsistency()`
-14. Validate: no cracks between faces in ParaView output
+#### Phase I-B: Per-face quality meshing (Step S2)
+6. Run `ShewchukRefiner2D` per face in UV space (S2.1)
+7. Validate: each face mesh satisfies angle bound, boundary edges unchanged
 
-### Phase I-D: Surface mesher API (Step S4)
-12. `SurfaceMesher3D` top-level class
-13. VTK export + example
+#### Phase I-C: Inter-face conformity via TwinManager (Step S3)
+8. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface` (S3.2)
+9. `MeshVerifier::verifyTwinConsistency()` (S3.3)
+10. Validate: no cracks between faces in ParaView output
 
-### Phase II-A: Volume input refactoring (Step V1)
-14. Refactor `MeshingContext3D` to accept `SurfaceMesh3D` as input
+#### Phase I-D: Surface mesher API (Step S4)
+11. `SurfaceMesher3D` top-level class (S4.1)
+12. Assemble `SurfaceMesh3D` with global node numbering (S4.2)
 
-### Phase II-B: Segment and facet recovery (Steps V3–V4)
-15. Implement flip-based edge and face recovery for fixed surface
-16. Wire into pipeline
+#### Phase II-A: Volume input refactoring (Step V1)
+13. Refactor `MeshingContext3D` to accept `SurfaceMesh3D` as input (V1.1)
 
-### Phase II-C: Exterior removal integration (Step V5)
-17. Call `classifyTetrahedraInteriorExterior()` after facet recovery
+#### Phase II-B: Segment and facet recovery (Steps V3–V4)
+14. Implement flip-based edge recovery for fixed surface (V3.3–V3.4)
+15. Implement flip-based face recovery (V4.2–V4.4)
 
-### Phase II-D: Complete refinement loop (Step V6)
-18. Add Priority 1 and Priority 2 to `refineStep()`
-19. Add encroachment checks to `handleSkinnyTetrahedron()`
+#### Phase II-C: Exterior removal integration (Step V5)
+16. Call `classifyTetrahedraInteriorExterior()` after facet recovery (V5.4)
 
-### Phase II-E: Post-processing (Step V7)
-20. Sliver detection and removal
-21. (Optional) Smoothing and topological flips
+#### Phase II-D: Complete refinement loop (Step V6)
+17. Add Priority 1 and Priority 2 to `refineStep()`
+18. Add encroachment checks to `handleSkinnyTetrahedron()`
+
+#### Phase II-E: Post-processing (Step V7)
+19. Sliver detection and removal
+20. (Optional) Smoothing and topological flips
 
 ---
 
-## Key Files Reference
+---
+
+# Key Files Reference
+
+### 2D Mesher
+| File | Role |
+|------|------|
+| `2D/GeometryStructures2D.h` | `Circle2D`, `ConstrainedSegment2D`, `EdgeRole` |
+| `2D/DiscretizationResult2D.h` | Sampled points + edge index maps from `EdgeDiscretizer2D` |
+| `2D/GeometryUtilities2D.h/.cpp` | Static geometry: orientation, intersection, point-in-circle |
+| `2D/ElementGeometry2D.h/.cpp` | Per-element: circumcircle, area, angles, centroid |
+| `2D/ElementQuality2D.h/.cpp` | Quality metrics: circumradius-to-edge ratio, sorted lists |
+| `2D/Delaunay2D.h/.cpp` | Unconstrained incremental Bowyer-Watson triangulation |
+| `2D/ConstrainedDelaunay2D.h/.cpp` | Constrained triangulation with exterior removal |
+| `2D/EdgeDiscretizer2D.h/.cpp` | CAD edge → sampled `DiscretizationResult2D` |
+| `2D/MeshingContext2D.h/.cpp` | Top-level context; `fromSurface()` for UV-space CAD face meshing |
+| `2D/MeshOperations2D.h/.cpp` | Bowyer-Watson, Lawson flipping, segment splitting, exterior removal |
+| `2D/MeshQueries2D.h/.cpp` | Conflict/cavity queries, encroachment, interior/exterior classification |
+| `2D/ConstraintChecker2D.h/.cpp` | Diametral circle encroachment test |
+| `2D/IQualityController2D.h` | Quality controller interface |
+| `2D/Shewchuk2DQualityController.h/.cpp` | Circumradius-to-edge bound + min-angle threshold |
+| `2D/ShewchukRefiner2D.h/.cpp` | Refinement loop: encroachment splits + circumcenter insertion |
+| `2D/BoundarySplitSynchronizer.h/.cpp` | `BoundarySplitCallback` for twin-edge synchronization |
+| `2D/MeshVerifier.h/.cpp` | CCW orientation + overlap checks |
+| `2D/MeshDebugUtils2D.h/.cpp` | Flag-gated conditional export + verify |
+| `Meshing/Data/MeshData2D.h/.cpp` | Node + triangle storage |
+| `Meshing/Data/MeshMutator2D.h/.cpp` | Controlled mesh mutation |
 
 ### 3D/General (shared infrastructure)
 | File | Role |
@@ -341,12 +442,12 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 | `DiscretizationResult3D.h` | Result type from `BoundaryDiscretizer3D` |
 | `BoundaryDiscretizer3D.h/.cpp` | Edge and surface parametric sampling |
 | `ConstraintRegistrar3D.h/.cpp` | Subsegment/subfacet registration |
-| `ConstraintChecker3D.h/.cpp` | Encroachment tests (diametral/equatorial sphere — geometric, not algorithm-specific) |
+| `ConstraintChecker3D.h/.cpp` | Encroachment tests (diametral/equatorial sphere) |
 | `MeshingContext3D.h/.cpp` | Owns 3D mesh data and operations lifecycle |
 | `MeshOperations3D.h/.cpp` | Mutation operations (Bowyer-Watson, cavity retriangulation, splitting) |
 | `MeshQueries3D.h/.cpp` | Read-only queries (edge/face existence, encroachment, cavity finding) |
 | `MeshVerifier3D.h/.cpp` | Mesh integrity checks |
-| `ElementGeometry3D.h/.cpp` | Geometric computations: circumsphere, tet volume, triangle area/normal in 3D, circumcircle in plane |
+| `ElementGeometry3D.h/.cpp` | Circumsphere, tet volume, triangle area/normal in 3D, circumcircle in plane |
 | `ElementQuality3D.h/.cpp` | Quality metrics for tetrahedra and triangles in 3D |
 | `MeshDebugUtils3D.h/.cpp` | Phase-aware debug export + verification |
 
@@ -354,12 +455,12 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 | File | Role |
 |------|------|
 | `FacetTriangulation.h/.cpp` | UV-space 2D triangulation for one CAD face |
-| `FacetTriangulationManager.h/.cpp` | Manages all per-face triangulations; surface-mesher init requires no `MeshData3D` |
-| `TwinTableGenerator.h/.cpp` | Topology-only: produces `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) |
+| `FacetTriangulationManager.h/.cpp` | Manages all per-face triangulations |
+| `TwinTableGenerator.h/.cpp` | Topology-only: produces `EdgeTwinTable` |
 | `SurfaceMeshingContext3D.h/.cpp` | Surface meshing context (geometry + topology + `FacetTriangulationManager` + `TwinManager`) |
-| `SurfaceMesher3D.h/.cpp` | Top-level surface mesher API |
+| `SurfaceMesher3D.h/.cpp` | Top-level surface mesher API (**TODO**) |
 | `SurfaceMesh3D.h` | Result type (nodes, triangles, per-face groups, edge node pairing) |
-| `SurfaceMeshQuality.h/.cpp` | UV-space quality metrics with optional 3D pull-back metric |
+| `SurfaceMeshQuality.h/.cpp` | UV-space quality with optional 3D pull-back metric (**TODO**) |
 
 ### 3D/Volume (volume mesher)
 | File | Role |
@@ -372,20 +473,23 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 ### Topology
 | File | Role |
 |------|------|
-| `src/Topology/SeamCollection.h/.cpp` | Owns original↔twin edge mapping for periodic surfaces; queried by `BoundaryDiscretizer3D`, `FacetTriangulationManager`, `MeshingContext2D` |
+| `src/Topology/SeamCollection.h/.cpp` | Owns original↔twin edge mapping for periodic surfaces |
 
 ### Common
 | File | Role |
 |------|------|
+| `src/Common/TwinManager.h/.cpp` | Segment-level twin groups; cross-mesh node ID mapping |
 | `src/Common/DebugFlags.h` | Runtime debug flags (`OPENLOOM_DEBUG_ENABLED`) |
 | `tests/Meshing/Core/test_ShewchukRefiner3D.cpp` | Volume refiner tests |
 
 ---
 
-## Future Improvements
+---
+
+# Future Improvements
 
 - [ ] **Topology3D string IDs → `size_t` indices** — `Edge3D`, `Surface3D`, `Corner3D` currently use `std::string` IDs both for self-identity and for cross-referencing neighbours. Switch to `size_t` indices, store entities in `std::vector` instead of `unordered_map`, and drop `getId()` (only 2 production call sites). Requires updating `TopoDS_ShapeConverter` on ingestion and all consumers of `getStartCornerId()`, `getBoundaryEdgeIds()`, etc. Separately, add `using NodeID = size_t;` and `using ElementID = size_t;` aliases for mesh data so function signatures are self-documenting and grep-able.
 - [ ] **Metric adaptation in surface mesher (S2.2)** — For highly curved CAD surfaces, use the OCC pull-back metric (`GeomLProp_SLProps`) in the UV-space quality criterion to avoid angle distortion. Defer until basic surface mesher works.
-- [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh. Design the `TwinManager` facet extension so it does not need to be retrofitted later.
-- [ ] **`TwinEdges` for 2D periodic meshes (FEM sense)** — Same pattern in 2D: `TwinTableGenerator2D` accepts user-declared boundary edge pairs. `TwinManager` already handles segment-level splits. Enables generating periodic FEM meshes where two boundary edges are discretized identically.
+- [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh.
+- [ ] **`TwinEdges` for 2D periodic meshes (FEM sense)** — `TwinTableGenerator2D` accepts user-declared boundary edge pairs. `TwinManager` already handles segment-level splits. Enables generating periodic FEM meshes where two boundary edges are discretized identically.
 - [ ] **Parallelize verification loops in `MeshDebugUtils3D`** — The subsegment and subfacet presence checks iterate over all constraints sequentially. For large meshes these are embarrassingly parallel. Add optional OpenMP as done in `MeshVerifier` (2D overlap checks).
