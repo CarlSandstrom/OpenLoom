@@ -37,7 +37,7 @@ void FacetTriangulation::initialize(const DiscretizationResult2D& disc2D,
 
     // Run constrained Delaunay: registers boundary segments, enforces them,
     // and removes exterior triangles.
-    ConstrainedDelaunay2D constrained(*context_, disc2D);
+    ConstrainedDelaunay2D constrained(*context_, disc2D, {}, surfaceId_);
     constrained.triangulate();
 
     // Build bidirectional 3D↔2D node mappings

@@ -1,8 +1,10 @@
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
+#include "Common/Types.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/2D/DiscretizationResult2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
@@ -20,6 +22,7 @@ std::pair<Meshing::DiscretizationResult2D, std::vector<size_t>>
 buildFaceDiscretization2D(
     const Geometry3D::ISurface3D& surface,
     const Topology3D::Surface3D& topoSurface,
+    const Topology3D::SeamCollection& seams,
     const Meshing::DiscretizationResult3D& disc3D,
     const std::vector<size_t>& globalPtIndices,
     const std::function<size_t(size_t)>& pointIdxToNode3DId)
@@ -63,15 +66,100 @@ buildFaceDiscretization2D(
         }
     }
 
-    // Build edgeIdToPointIndicesMap: translate global edge point indices → local
+    // Partition boundary edges into seam twins and regular edges.
+    std::vector<std::string> seamTwinEdgeIds;
+    std::vector<std::string> nonSeamEdgeIds;
     for (const auto& edgeId : topoSurface.getBoundaryEdgeIds())
     {
-        auto it = disc3D.edgeIdToPointIndicesMap.find(edgeId);
-        if (it != disc3D.edgeIdToPointIndicesMap.end())
+        if (seams.isSeamTwin(edgeId))
+            seamTwinEdgeIds.push_back(edgeId);
+        else
+            nonSeamEdgeIds.push_back(edgeId);
+    }
+
+    // Phase 1: Process seam twin edges FIRST to build realCornerToShiftedLocal.
+    // Each global point index in the seam twin sequence gets a UV-shifted copy
+    // (at U + uPeriod). Knowing these shifted local indices up front lets phase 2
+    // correctly close any periodic (closed-circle) edges.
+    std::map<size_t, size_t> realCornerToShiftedLocal;
+    if (!seamTwinEdgeIds.empty())
+    {
+        const auto bounds = surface.getParameterBounds();
+        const double uPeriod = bounds.getUMax() - bounds.getUMin();
+
+        for (const auto& seamId : seamTwinEdgeIds)
         {
-            std::vector<size_t> localEdgeIndices;
-            localEdgeIndices.reserve(it->second.size());
+            auto it = disc3D.edgeIdToPointIndicesMap.find(seamId);
+            if (it == disc3D.edgeIdToPointIndicesMap.end())
+                continue;
+
+            std::vector<size_t> seamLocalIndices;
+            seamLocalIndices.reserve(it->second.size());
+
             for (size_t globalIdx : it->second)
+            {
+                size_t newLocalIdx = disc2D.points.size();
+
+                // Project to UV and shift to the far side of the seam
+                auto uv = surface.projectPoint(disc3D.points[globalIdx]);
+                disc2D.points.push_back(Meshing::Point2D(uv.x() + uPeriod, uv.y()));
+
+                // Copy metadata from the original local entry (if available)
+                auto origIt = globalToLocal.find(globalIdx);
+                if (origIt != globalToLocal.end())
+                {
+                    size_t origLocalIdx = origIt->second;
+                    disc2D.tParameters.push_back(disc2D.tParameters[origLocalIdx]);
+                    disc2D.geometryIds.push_back(disc2D.geometryIds[origLocalIdx]);
+                }
+                else
+                {
+                    disc2D.tParameters.push_back({});
+                    disc2D.geometryIds.push_back({});
+                }
+
+                localIdxToNode3DId.push_back(pointIdxToNode3DId(globalIdx));
+                realCornerToShiftedLocal[globalIdx] = newLocalIdx;
+                seamLocalIndices.push_back(newLocalIdx);
+            }
+
+            disc2D.edgeIdToPointIndicesMap[seamId] = std::move(seamLocalIndices);
+        }
+    }
+
+    // Phase 2: Process non-seam edges.
+    // Closed-circle edges (start and end share the same 3D global index, e.g. the
+    // bottom/top circles of a cylinder) need their final point to reference the
+    // seam-shifted local index rather than the original, so the boundary closes
+    // at U + uPeriod instead of doubling back to U.
+    for (const auto& edgeId : nonSeamEdgeIds)
+    {
+        auto it = disc3D.edgeIdToPointIndicesMap.find(edgeId);
+        if (it == disc3D.edgeIdToPointIndicesMap.end())
+            continue;
+
+        const auto& globalSeq = it->second;
+        if (globalSeq.empty())
+            continue;
+
+        const size_t firstGlobal = globalSeq.front();
+        std::vector<size_t> localEdgeIndices;
+        localEdgeIndices.reserve(globalSeq.size());
+
+        for (size_t i = 0; i < globalSeq.size(); ++i)
+        {
+            size_t globalIdx = globalSeq[i];
+
+            // Detect the endpoint of a closed circle: last element == first element
+            // and a shifted copy exists from phase 1.
+            bool isClosedCircleEndpoint = (i == globalSeq.size() - 1) &&
+                                          (globalIdx == firstGlobal) &&
+                                          realCornerToShiftedLocal.count(globalIdx);
+            if (isClosedCircleEndpoint)
+            {
+                localEdgeIndices.push_back(realCornerToShiftedLocal.at(globalIdx));
+            }
+            else
             {
                 auto localIt = globalToLocal.find(globalIdx);
                 if (localIt != globalToLocal.end())
@@ -79,8 +167,9 @@ buildFaceDiscretization2D(
                     localEdgeIndices.push_back(localIt->second);
                 }
             }
-            disc2D.edgeIdToPointIndicesMap[edgeId] = std::move(localEdgeIndices);
         }
+
+        disc2D.edgeIdToPointIndicesMap[edgeId] = std::move(localEdgeIndices);
     }
 
     return {std::move(disc2D), std::move(localIdxToNode3DId)};
@@ -157,9 +246,11 @@ void FacetTriangulationManager::initializeForSurfaceMesher(
         auto facetTriang = std::make_unique<FacetTriangulation>(*surface, topoSurface, *topology_, *geometry_);
 
         // In the surface-mesher path, point index == 3D node ID — identity mapping.
-        std::vector<size_t> globalPtIndices = collectSurfacePointIndices(surfaceId, discretization);
+        // Use boundary-only points so the triangulator starts clean and refinement
+        // adds interior vertices as needed.
+        std::vector<size_t> globalPtIndices = collectBoundaryPointIndices(surfaceId, discretization);
         auto [disc2D, localIdxToNode3DId] = buildFaceDiscretization2D(
-            *surface, topoSurface, discretization, globalPtIndices,
+            *surface, topoSurface, topology_->getSeamCollection(), discretization, globalPtIndices,
             [](size_t ptIdx)
             { return ptIdx; });
 
@@ -198,7 +289,7 @@ void FacetTriangulationManager::initializeForVolumeMesher(
 
         std::vector<size_t> globalPtIndices = collectSurfacePointIndices(surfaceId, discretization);
         auto [disc2D, localIdxToNode3DId] = buildFaceDiscretization2D(
-            *surface, topoSurface, discretization, globalPtIndices,
+            *surface, topoSurface, topology_->getSeamCollection(), discretization, globalPtIndices,
             [&pointIndexToNodeIdMap](size_t ptIdx)
             {
                 auto it = pointIndexToNodeIdMap.find(ptIdx);
@@ -218,8 +309,45 @@ void FacetTriangulationManager::initializeForVolumeMesher(
 }
 
 // -----------------------------------------------------------------------
-// Private helper
+// Private helpers
 // -----------------------------------------------------------------------
+
+std::vector<size_t> FacetTriangulationManager::collectBoundaryPointIndices(
+    const std::string& surfaceId,
+    const DiscretizationResult3D& discretization) const
+{
+    std::set<size_t> pointIndices;
+
+    const auto& topoSurface = topology_->getSurface(surfaceId);
+
+    // Add corner points
+    for (const auto& cornerId : topoSurface.getCornerIds())
+    {
+        auto it = discretization.cornerIdToPointIndexMap.find(cornerId);
+        if (it != discretization.cornerIdToPointIndexMap.end())
+        {
+            pointIndices.insert(it->second);
+        }
+    }
+
+    // Add edge points (from boundary edges, excludes seam twins — they share 3D points)
+    for (const auto& edgeId : topoSurface.getBoundaryEdgeIds())
+    {
+        if (topology_->getSeamCollection().isSeamTwin(edgeId))
+            continue;
+
+        auto it = discretization.edgeIdToPointIndicesMap.find(edgeId);
+        if (it != discretization.edgeIdToPointIndicesMap.end())
+        {
+            for (size_t idx : it->second)
+            {
+                pointIndices.insert(idx);
+            }
+        }
+    }
+
+    return std::vector<size_t>(pointIndices.begin(), pointIndices.end());
+}
 
 std::vector<size_t> FacetTriangulationManager::collectSurfacePointIndices(
     const std::string& surfaceId,

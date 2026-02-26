@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 namespace Meshing
@@ -24,10 +25,12 @@ public:
      * @param context The 2D meshing context containing geometry and topology
      * @param discretization Pre-computed edge discretization from EdgeDiscretizer2D
      * @param additionalPoints Additional points to include in triangulation (optional)
+     * @param debugExportFilenamePrefix Prefix for debug export filenames (optional)
      */
     explicit ConstrainedDelaunay2D(MeshingContext2D& context,
                                    const DiscretizationResult2D& discretization,
-                                   const std::vector<Point2D>& additionalPoints = {});
+                                   const std::vector<Point2D>& additionalPoints = {},
+                                   const std::string& debugExportFilenamePrefix = "constrained_delaunay");
 
     ~ConstrainedDelaunay2D() = default;
 
@@ -37,6 +40,7 @@ public:
 
 private:
     size_t exportCounter_ = 0;
+    std::string debugExportFilenamePrefix_;
 
     std::map<size_t, size_t> pointIndexToNodeIdMap_;
     DiscretizationResult2D discretization_;

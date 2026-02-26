@@ -41,26 +41,59 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
 
     // Get boundary edges and project them to 2D parametric space
     const auto& edgeIds = topoSurface.getBoundaryEdgeIds();
+    const auto surfBounds = surface.getParameterBounds();
+    const double uPeriod = surfBounds.getUMax() - surfBounds.getUMin();
+
     for (const auto& edgeId : edgeIds)
     {
         const auto& topoEdge = fullTopology.getEdge(edgeId);
-        auto* edge3D = fullGeometry.getEdge(edgeId);
 
-        if (edge3D != nullptr)
+        if (fullTopology.getSeamCollection().isSeamTwin(edgeId))
         {
-            // Get start and end corners in 2D
-            auto* startCorner2D = geometry2D->getCorner(topoEdge.getStartCornerId());
-            auto* endCorner2D = geometry2D->getCorner(topoEdge.getEndCornerId());
+            // Seam twin: create virtual corners at U + uPeriod and a linear edge between them.
+            // topoEdge corners already carry "_seam" suffix (e.g. "vertex_1_seam").
+            const std::string& seamStartId = topoEdge.getStartCornerId();
+            const std::string& seamEndId = topoEdge.getEndCornerId();
 
-            if (startCorner2D != nullptr && endCorner2D != nullptr)
+            auto addVirtualCorner = [&](const std::string& virtualId)
             {
-                // Create linear edge in 2D parametric space
-                auto edge2D = std::make_unique<Geometry2D::LinearEdge2D>(
-                    edgeId,
-                    startCorner2D->getPoint(),
-                    endCorner2D->getPoint());
-                geometry2D->addEdge(std::move(edge2D));
+                if (geometry2D->getCorner(virtualId) != nullptr)
+                    return;
+                // Strip "_seam" to get the original corner ID
+                std::string origCornerId = virtualId.substr(0, virtualId.size() - 5);
+                auto* origCorner = fullGeometry.getCorner(origCornerId);
+                if (!origCorner)
+                    return;
+                Point2D uv = surface.projectPoint(origCorner->getPoint());
+                geometry2D->addCorner(std::make_unique<Geometry2D::Corner2D>(
+                    virtualId, Point2D(uv.x() + uPeriod, uv.y())));
+            };
+
+            addVirtualCorner(seamStartId);
+            addVirtualCorner(seamEndId);
+
+            auto* sc2D = geometry2D->getCorner(seamStartId);
+            auto* ec2D = geometry2D->getCorner(seamEndId);
+            if (sc2D && ec2D)
+            {
+                geometry2D->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
+                    edgeId, sc2D->getPoint(), ec2D->getPoint()));
             }
+            continue;
+        }
+
+        // Get start and end corners in 2D
+        auto* startCorner2D = geometry2D->getCorner(topoEdge.getStartCornerId());
+        auto* endCorner2D = geometry2D->getCorner(topoEdge.getEndCornerId());
+
+        if (startCorner2D != nullptr && endCorner2D != nullptr)
+        {
+            // Create linear edge in 2D parametric space
+            auto edge2D = std::make_unique<Geometry2D::LinearEdge2D>(
+                edgeId,
+                startCorner2D->getPoint(),
+                endCorner2D->getPoint());
+            geometry2D->addEdge(std::move(edge2D));
         }
     }
 
@@ -94,6 +127,17 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
                                       edgeId,
                                       topoEdge.getStartCornerId(),
                                       topoEdge.getEndCornerId()));
+
+        // For seam twin edges, register virtual corners in topoCorners so
+        // Topology2D is consistent (corner IDs in edges must exist in corners map).
+        if (fullTopology.getSeamCollection().isSeamTwin(edgeId))
+        {
+            for (const auto& cid : {topoEdge.getStartCornerId(), topoEdge.getEndCornerId()})
+            {
+                if (!topoCorners.count(cid))
+                    topoCorners.emplace(cid, Topology2D::Corner2D(cid, {edgeId}));
+            }
+        }
     }
 
     // The boundary edge loop is the ordered list of edge IDs

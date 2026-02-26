@@ -4,6 +4,7 @@
 #include "OpenCascadeGeometryCollection.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"
+#include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
 #include <TopoDS_Shape.hxx>
@@ -35,6 +36,7 @@ private:
     std::unordered_map<std::string, Topology3D::Corner3D> corners_;
     std::unordered_map<std::string, Topology3D::Edge3D> edges_;
     std::unordered_map<std::string, Topology3D::Surface3D> surfaces_;
+    Topology3D::SeamCollection seams_;
     std::unique_ptr<Topology3D::Topology3D> topology_;
 
     std::unique_ptr<Geometry3D::GeometryCollection3D> geometryCollection_;

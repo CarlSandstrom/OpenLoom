@@ -4,6 +4,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Topology/Topology3D.h"
+#include <algorithm>
 
 namespace Meshing
 {
@@ -45,6 +46,10 @@ void BoundaryDiscretizer3D::discretize()
 
     for (const auto& edgeId : topology_->getAllEdgeIds())
     {
+        // Seam twin edges have no 3D geometry; they are handled in Step 2b.
+        if (topology_->getSeamCollection().isSeamTwin(edgeId))
+            continue;
+
         const auto& topoEdge = topology_->getEdge(edgeId);
         const auto* edge = geometry_->getEdge(edgeId);
 
@@ -78,6 +83,22 @@ void BoundaryDiscretizer3D::discretize()
 
         edgePointIndices.push_back(endIdx);
         result_->edgeIdToPointIndicesMap[edgeId] = edgePointIndices;
+    }
+
+    // Step 2b: Populate seam twin edge point sequences (reversed copy of original seam).
+    // Seam twin edges have no 3D geometry entry; their point sequence is the reverse of
+    // the original seam edge, representing the same curve at U + uPeriod in UV space.
+    const auto& seams = topology_->getSeamCollection();
+    for (const auto& twinId : seams.getSeamTwinEdgeIds())
+    {
+        const std::string& originalId = seams.getOriginalEdgeId(twinId);
+        auto origIt = result_->edgeIdToPointIndicesMap.find(originalId);
+        if (origIt == result_->edgeIdToPointIndicesMap.end())
+            continue;
+
+        auto reversed = origIt->second;
+        std::reverse(reversed.begin(), reversed.end());
+        result_->edgeIdToPointIndicesMap[twinId] = std::move(reversed);
     }
 
     // Step 3: Sample surface interior points

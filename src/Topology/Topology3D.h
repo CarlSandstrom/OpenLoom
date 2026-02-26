@@ -2,6 +2,7 @@
 
 #include "Corner3D.h"
 #include "Edge3D.h"
+#include "SeamCollection.h"
 #include "Surface3D.h"
 #include <string>
 #include <unordered_map>
@@ -15,7 +16,8 @@ class Topology3D
 public:
     Topology3D(const std::unordered_map<std::string, Surface3D>& surfaces,
                const std::unordered_map<std::string, Edge3D>& edges,
-               const std::unordered_map<std::string, Corner3D>& corners);
+               const std::unordered_map<std::string, Corner3D>& corners,
+               SeamCollection seams = {});
 
     // Entity access
     const Surface3D& getSurface(const std::string& id) const;
@@ -29,6 +31,8 @@ public:
     std::vector<std::string> getBoundaryEdgeIds() const;
     std::vector<std::string> getNonManifoldEdgeIds() const;
 
+    const SeamCollection& getSeamCollection() const;
+
     // Validation
     bool isValid() const;
     bool isManifold() const;
@@ -37,6 +41,7 @@ private:
     std::unordered_map<std::string, Surface3D> surfaces_;
     std::unordered_map<std::string, Edge3D> edges_;
     std::unordered_map<std::string, Corner3D> corners_;
+    SeamCollection seams_;
 };
 
 } // namespace Topology3D

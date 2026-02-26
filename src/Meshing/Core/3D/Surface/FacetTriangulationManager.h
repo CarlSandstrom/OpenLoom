@@ -139,6 +139,15 @@ private:
                                    const MeshData3D& meshData);
 
     /**
+     * @brief Collect boundary-only point indices for a surface (corners + edge points).
+     *
+     * Excludes interior surface points so the surface mesher starts with only
+     * boundary vertices and lets refinement add interior points.
+     */
+    std::vector<size_t> collectBoundaryPointIndices(const std::string& surfaceId,
+                                                    const DiscretizationResult3D& discretization) const;
+
+    /**
      * @brief Collect all point indices belonging to a surface
      *
      * Includes corner points, edge points (from boundary edges), and

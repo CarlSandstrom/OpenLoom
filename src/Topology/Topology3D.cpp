@@ -8,10 +8,12 @@ namespace Topology3D
 
 Topology3D::Topology3D(const std::unordered_map<std::string, Surface3D>& surfaces,
                        const std::unordered_map<std::string, Edge3D>& edges,
-                       const std::unordered_map<std::string, Corner3D>& corners) :
+                       const std::unordered_map<std::string, Corner3D>& corners,
+                       SeamCollection seams) :
     surfaces_(surfaces),
     edges_(edges),
-    corners_(corners)
+    corners_(corners),
+    seams_(std::move(seams))
 {
 }
 
@@ -104,6 +106,11 @@ std::vector<std::string> Topology3D::getNonManifoldEdgeIds() const
     return nonManifoldIds;
 }
 
+const SeamCollection& Topology3D::getSeamCollection() const
+{
+    return seams_;
+}
+
 bool Topology3D::isValid() const
 {
     // Check that all referenced entities exist
@@ -143,6 +150,10 @@ bool Topology3D::isValid() const
     for (const auto& edgePair : edges_)
     {
         const Edge3D& edge = edgePair.second;
+
+        // Seam twin edges reference synthetic corners that don't exist in corners_ — skip them.
+        if (seams_.isSeamTwin(edgePair.first))
+            continue;
 
         // Check that start and end corners exist
         if (!corners_.contains(edge.getStartCornerId()) ||

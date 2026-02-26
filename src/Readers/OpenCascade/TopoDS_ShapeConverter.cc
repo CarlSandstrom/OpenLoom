@@ -5,6 +5,7 @@
 #include "../../Geometry/3D/OpenCascade/OpenCascadeCorner.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeEdge.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeSurface.h"
+#include <BRepTools_WireExplorer.hxx>
 #include <TopExp.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
@@ -38,7 +39,8 @@ void TopoDS_ShapeConverter::buildTopology()
 
     topology_ = std::make_unique<Topology3D::Topology3D>(std::unordered_map<std::string, Topology3D::Surface3D>(surfaces_),
                                                          std::unordered_map<std::string, Topology3D::Edge3D>(edges_),
-                                                         std::unordered_map<std::string, Topology3D::Corner3D>(corners_));
+                                                         std::unordered_map<std::string, Topology3D::Corner3D>(corners_),
+                                                         std::move(seams_));
 }
 
 void TopoDS_ShapeConverter::buildGeometryCollection()
@@ -88,17 +90,31 @@ void TopoDS_ShapeConverter::createSurfaces()
         std::vector<std::string> cornerIds;
         std::vector<std::string> adjacentSurfaceIds;
 
-        // Find all edges of the face
-        TopTools_IndexedMapOfShape edgeMap;
-        TopExp::MapShapes(face, TopAbs_EDGE, edgeMap);
-
-        for (size_t i = 1; i <= edgeMap.Extent(); ++i)
+        // Find all edges of the face, preserving seam edge occurrences.
+        // BRepTools_WireExplorer visits seam edges twice (once in each direction),
+        // which is required to correctly close the UV domain of cylindrical/toroidal faces.
+        std::set<std::string> seenEdgeIds;
+        for (TopExp_Explorer wireExp(face, TopAbs_WIRE); wireExp.More(); wireExp.Next())
         {
-            const TopoDS_Edge& edge = TopoDS::Edge(edgeMap(i));
-            auto edgeId = openCascadeGeometryCollection_->findEdgeId(edge);
-            if (edgeId.has_value())
+            const TopoDS_Wire& wire = TopoDS::Wire(wireExp.Current());
+            BRepTools_WireExplorer edgeExp(wire, face);
+            for (; edgeExp.More(); edgeExp.Next())
             {
-                boundaryEdgeIds.push_back(edgeId.value());
+                const TopoDS_Edge& edge = edgeExp.Current();
+                auto edgeIdOpt = openCascadeGeometryCollection_->findEdgeId(edge);
+                if (!edgeIdOpt.has_value())
+                    continue;
+                const std::string& edgeId = edgeIdOpt.value();
+                if (seenEdgeIds.count(edgeId) == 0)
+                {
+                    boundaryEdgeIds.push_back(edgeId);
+                    seenEdgeIds.insert(edgeId);
+                }
+                else
+                {
+                    // Second occurrence: seam edge traversed in reverse — add as twin
+                    boundaryEdgeIds.push_back(edgeId + "_seam");
+                }
             }
         }
 
@@ -183,6 +199,35 @@ void TopoDS_ShapeConverter::createEdges()
         }
 
         edges_.emplace(id, Topology3D::Edge3D(id, startCornerId, endCornerId, adjacentSurfaceIds));
+    }
+
+    // Create synthetic seam twin edges for any "_seam" boundary entries in surfaces_.
+    // A seam twin is the same physical edge traversed in reverse to close the UV domain.
+    // Its corner IDs carry a "_seam" suffix to distinguish their UV positions (U + period).
+    // The ID suffix is used here only as a bootstrapping signal from createSurfaces();
+    // all downstream code queries SeamCollection instead.
+    for (const auto& [surfId, surf] : surfaces_)
+    {
+        for (const auto& edgeId : surf.getBoundaryEdgeIds())
+        {
+            if (!edgeId.ends_with("_seam"))
+                continue;
+            if (edges_.count(edgeId) > 0)
+                continue;
+
+            std::string originalId = edgeId.substr(0, edgeId.size() - 5);
+            auto origIt = edges_.find(originalId);
+            if (origIt == edges_.end())
+                continue;
+
+            const auto& orig = origIt->second;
+            edges_.emplace(edgeId,
+                           Topology3D::Edge3D(edgeId,
+                                              orig.getEndCornerId() + "_seam",
+                                              orig.getStartCornerId() + "_seam",
+                                              orig.getAdjacentSurfaceIds()));
+            seams_.addPair(originalId, edgeId);
+        }
     }
 }
 

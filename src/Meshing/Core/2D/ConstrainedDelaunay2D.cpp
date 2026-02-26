@@ -17,10 +17,12 @@ namespace Meshing
 
 ConstrainedDelaunay2D::ConstrainedDelaunay2D(MeshingContext2D& context,
                                              const DiscretizationResult2D& discretization,
-                                             const std::vector<Point2D>& additionalPoints) :
+                                             const std::vector<Point2D>& additionalPoints,
+                                             const std::string& debugExportFilenamePrefix) :
     context_(&context),
     discretization_(discretization),
     additionalPoints_(additionalPoints),
+    debugExportFilenamePrefix_(debugExportFilenamePrefix),
     meshData2D_(&context.getMeshData()),
     meshOperations_(&context.getOperations())
 {
@@ -54,7 +56,7 @@ void ConstrainedDelaunay2D::triangulate()
         meshOperations_->getMutator().addConstrainedSegment(segment);
     }
 
-    exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
+    exportAndVerifyMesh(*meshData2D_, debugExportFilenamePrefix_, exportCounter_);
 
     // Enforce all constrained edges
     bool allConstrainedEdgesPresent = false;
@@ -67,13 +69,13 @@ void ConstrainedDelaunay2D::triangulate()
                                          meshOperations_->enforceEdge(segment.nodeId1, segment.nodeId2);
         }
     }
-    exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
+    exportAndVerifyMesh(*meshData2D_, debugExportFilenamePrefix_, exportCounter_);
 
     // Classify triangles as interior/exterior using flood fill algorithm
     // This approach uses mesh topology (constraint edges) instead of geometry queries,
     // making it robust regardless of mesh coarseness relative to geometry features
     meshOperations_->classifyAndRemoveExteriorTriangles();
-    exportAndVerifyMesh(*meshData2D_, "constrained_delaunay", exportCounter_);
+    exportAndVerifyMesh(*meshData2D_, debugExportFilenamePrefix_, exportCounter_);
 }
 
 } // namespace Meshing
