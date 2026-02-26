@@ -57,15 +57,17 @@ Produces a quality triangle mesh of all CAD surfaces. Each face is meshed indepe
 | S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | Done |
 | S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data. Exposes `buildSurfaceMesh()` → `MeshData3D` of initial surface triangulation | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | Done |
 
-**Implementation note (S1.4):** `FacetTriangulation::initialize()` uses `ConstrainedDelaunay2D` (not bare `Delaunay2D`) so boundary edge constraints are registered, enforced, and exterior triangles removed for each face. The per-face `DiscretizationResult2D` is built inside `FacetTriangulationManager` from the 3D discretization result using local (face-scoped) point indices.
+**Implementation note (S1.4):** `FacetTriangulation::initialize()` uses `ConstrainedDelaunay2D` (not bare `Delaunay2D`) so boundary edge constraints are registered, enforced, and exterior triangles removed for each face. The per-face `DiscretizationResult2D` is built inside `FacetTriangulationManager` from the 3D discretization result using local (face-scoped) point indices. `ConstrainedDelaunay2D` exposes `getPointIndexToNodeIdMap()` so callers can build 3D↔2D node ID mappings after triangulation.
 
-**Known issue:** The cylindrical face of the box-with-hole shape produces an `enforceEdge: ear clipping failed` warning and ends up with 0 triangles after exterior removal. This is caused by the cylindrical surface's UV parametrization and is a known limitation to address in S2.
+**Implementation note (periodic surfaces):** Two bugs affecting cylindrical/toroidal faces were fixed. Bug 1: `initializeForSurfaceMesher` now uses `collectBoundaryPointIndices`, excluding interior surface sample points so the constrained Delaunay starts with boundary-only vertices. Bug 2: `buildFaceDiscretization2D` processes seam twin edges first to build a `realCornerToShiftedLocal` map, then uses it to close circular edges at U+uPeriod instead of doubling back to U=0.
+
+**Refactoring — SeamCollection:** A new `Topology3D::SeamCollection` class owns the original↔twin edge mapping for periodic surfaces, exposing `isSeamTwin()`, `getOriginalEdgeId()`, and `getSeamTwinEdgeIds()`. `Topology3D` holds and exposes `SeamCollection`; `isValid()` skips seam twin edges (their synthetic `_seam` corner IDs intentionally don't exist in `corners_`). `Edge3D` is restored to a plain topological type with no seam knowledge. `TopoDS_ShapeConverter` builds `SeamCollection` during `createEdges()`. All consumers (`BoundaryDiscretizer3D`, `FacetTriangulationManager`, `MeshingContext2D`) query `SeamCollection` instead of checking edge name suffixes.
 
 **Validation gate:** Each CAD face has an initialized `FacetTriangulation` (`MeshData2D`) with boundary nodes seeded from edge discretization. `TwinManager` knows all shared-edge segment pairs.
 
 **Validation:** `SurfaceMeshEdges` example (box-with-hole) exports:
   - `SurfaceMeshEdges.vtu` — discretized boundary edges (color by EdgeID); verified in ParaView
-  - `SurfaceMesh3D.vtu` — initial surface triangulation (color by SurfaceID); 210 subfacets across 7/8 faces
+  - `SurfaceMesh3D.vtu` — initial surface triangulation (color by SurfaceID); all 8 faces covered including cylinder
 
 **Status: Complete**
 
@@ -291,16 +293,16 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 ### Phase I-A: Surface mesher infrastructure (Step S1)
 4. ~~Define `SurfaceMesh3D` result type~~ **Done**
 5. ~~`TwinTableGenerator`: topology → `EdgeTwinTable`~~ **Done**
-6. Extend `BoundaryDiscretizer3D` with `EdgeTwinTable` input + `TwinManager` population
-7. `FacetTriangulationManager`: surface-mesher init (no `MeshData3D`)
-8. `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`
+6. ~~Extend `BoundaryDiscretizer3D` with `EdgeTwinTable` input + `TwinManager` population~~ **Done**
+7. ~~`FacetTriangulationManager`: surface-mesher init (no `MeshData3D`)~~ **Done**
+8. ~~`SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`~~ **Done**
 
 ### Phase I-B: Per-face quality meshing (Step S2)
 9. Run `ShewchukRefiner2D` per face in UV space
 10. Validate: each face mesh satisfies angle bound, boundary edges unchanged
 
 ### Phase I-C: Inter-face conformity via TwinManager (Step S3)
-11. Implement `TwinManager` class
+11. ~~Implement `TwinManager` class~~ **Done**
 12. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface`
 13. `MeshVerifier::verifyTwinConsistency()`
 14. Validate: no cracks between faces in ParaView output
@@ -367,6 +369,11 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 | `ShewchukRefiner3D.h/.cpp` | Shewchuk refinement loop (Priority 1/2/3) |
 | `Shewchuk3DQualityController.h/.cpp` | Circumradius-to-edge quality bound configuration |
 
+### Topology
+| File | Role |
+|------|------|
+| `src/Topology/SeamCollection.h/.cpp` | Owns original↔twin edge mapping for periodic surfaces; queried by `BoundaryDiscretizer3D`, `FacetTriangulationManager`, `MeshingContext2D` |
+
 ### Common
 | File | Role |
 |------|------|
@@ -377,7 +384,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ## Future Improvements
 
-- [ ] **Strongly-typed ID aliases** — Add `using NodeID = size_t;` and `using ElementID = size_t;` (and equivalents for 2D) across the codebase so function signatures are self-documenting and grep-able. No runtime cost; purely a readability/maintainability improvement.
+- [ ] **Topology3D string IDs → `size_t` indices** — `Edge3D`, `Surface3D`, `Corner3D` currently use `std::string` IDs both for self-identity and for cross-referencing neighbours. Switch to `size_t` indices, store entities in `std::vector` instead of `unordered_map`, and drop `getId()` (only 2 production call sites). Requires updating `TopoDS_ShapeConverter` on ingestion and all consumers of `getStartCornerId()`, `getBoundaryEdgeIds()`, etc. Separately, add `using NodeID = size_t;` and `using ElementID = size_t;` aliases for mesh data so function signatures are self-documenting and grep-able.
 - [ ] **Metric adaptation in surface mesher (S2.2)** — For highly curved CAD surfaces, use the OCC pull-back metric (`GeomLProp_SLProps`) in the UV-space quality criterion to avoid angle distortion. Defer until basic surface mesher works.
 - [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh. Design the `TwinManager` facet extension so it does not need to be retrofitted later.
 - [ ] **`TwinEdges` for 2D periodic meshes (FEM sense)** — Same pattern in 2D: `TwinTableGenerator2D` accepts user-declared boundary edge pairs. `TwinManager` already handles segment-level splits. Enables generating periodic FEM meshes where two boundary edges are discretized identically.
