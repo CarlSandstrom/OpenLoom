@@ -5,9 +5,22 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Topology/Topology3D.h"
 #include <algorithm>
+#include <cmath>
 
 namespace Meshing
 {
+
+namespace
+{
+
+double angleBetweenTangents(const std::array<double, 3>& a, const std::array<double, 3>& b)
+{
+    double dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    dot = std::clamp(dot, -1.0, 1.0);
+    return std::acos(dot);
+}
+
+} // namespace
 
 BoundaryDiscretizer3D::BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
                                              const Topology3D::Topology3D& topology,
@@ -42,7 +55,8 @@ void BoundaryDiscretizer3D::discretize()
     }
 
     // Step 2: Sample edge interior points (excluding endpoints)
-    size_t numSegments = settings_.getNumSegmentsPerEdge();
+    const auto maxAngle = settings_.getMaxAngleBetweenSegments();
+    const auto numSegments = settings_.getNumSegmentsPerEdge();
 
     for (const auto& edgeId : topology_->getAllEdgeIds())
     {
@@ -69,17 +83,53 @@ void BoundaryDiscretizer3D::discretize()
         std::vector<size_t> edgePointIndices;
         edgePointIndices.push_back(startIdx);
 
-        for (size_t i = 1; i < numSegments; ++i)
+        if (maxAngle.has_value())
         {
-            double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(numSegments);
-            Point3D point = edge->getPoint(t);
+            // Angle-based: walk 1000 uniform steps; insert a point whenever the
+            // accumulated tangent-angle change since the last inserted point
+            // meets or exceeds maxAngle. Straight edges produce no interior points.
+            constexpr size_t NUM_STEPS = 1000;
+            auto prevTangent = edge->getTangent(tMin);
+            double accumulated = 0.0;
 
-            size_t pointIndex = result_->points.size();
-            result_->points.push_back(point);
-            result_->edgeParameters.push_back({t});
-            result_->geometryIds.push_back({edgeId});
-            edgePointIndices.push_back(pointIndex);
+            for (size_t i = 1; i <= NUM_STEPS; ++i)
+            {
+                double t = tMin + static_cast<double>(i) * (tMax - tMin) / static_cast<double>(NUM_STEPS);
+                auto nextTangent = edge->getTangent(t);
+                accumulated += angleBetweenTangents(prevTangent, nextTangent);
+                prevTangent = nextTangent;
+
+                if (accumulated >= maxAngle.value())
+                {
+                    size_t pointIndex = result_->points.size();
+                    result_->points.push_back(edge->getPoint(t));
+                    result_->edgeParameters.push_back({t});
+                    result_->geometryIds.push_back({edgeId});
+                    edgePointIndices.push_back(pointIndex);
+                    accumulated = 0.0;
+                }
+
+                if (t >= tMax)
+                    break;
+            }
         }
+        else if (numSegments.has_value() && numSegments.value() > 1)
+        {
+            // Fixed-count: divide the edge into numSegments uniform segments.
+            const size_t n = numSegments.value();
+            for (size_t i = 1; i < n; ++i)
+            {
+                double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(n);
+                Point3D point = edge->getPoint(t);
+
+                size_t pointIndex = result_->points.size();
+                result_->points.push_back(point);
+                result_->edgeParameters.push_back({t});
+                result_->geometryIds.push_back({edgeId});
+                edgePointIndices.push_back(pointIndex);
+            }
+        }
+        // else: no interior points — edge represented by endpoints only.
 
         edgePointIndices.push_back(endIdx);
         result_->edgeIdToPointIndicesMap[edgeId] = edgePointIndices;

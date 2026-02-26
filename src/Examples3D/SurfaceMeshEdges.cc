@@ -13,6 +13,7 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include <numbers>
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
@@ -39,8 +40,10 @@ int main()
     // Convert CAD shape to geometry + topology
     Readers::TopoDS_ShapeConverter converter(shape);
 
-    // Discretization settings: 8 segments per edge for a reasonably resolved edge mesh
-    Geometry3D::DiscretizationSettings3D settings(8, 2);
+    // Discretization settings: angle-based — inserts points only where the tangent
+    // direction changes by more than π/8 (22.5°). Straight edges (box edges, seam)
+    // produce no interior points; circular arc edges are resolved adaptively.
+    Geometry3D::DiscretizationSettings3D settings(std::nullopt, std::numbers::pi / 8.0, 2);
 
     // S1 pipeline: TwinTableGenerator → BoundaryDiscretizer3D → FacetTriangulationManager
     Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
