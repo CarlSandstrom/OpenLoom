@@ -22,14 +22,23 @@ ctest --test-dir build/tests --output-on-failure
 
 ## Examples
 
-Executables in `build/src/Examples/`:
+2D executables in `build/src/Examples2D/`:
 - `SimpleDelaunay2D` - Basic 2D Delaunay triangulation
 - `RectangleWithHole2D` - 2D mesh with hole constraints
 - `RectangleWithCrack` - 2D mesh with crack constraints
 - `SquareWithCircularHole` - 2D square with circular hole
+- `SquareWithCircleAndTwinEdges`
+- `SquareWithInternalCircles`
+- `MeshStepFile2D`
+
+3D executables in `build/src/Examples3D/`:
 - `BoxWithHole` - 3D mesh with hole
 - `ConstrainedBoxExample` - 3D constrained mesh
 - `CreateBox` - Basic 3D box mesh
+- `CylinderSurfaceMesh`
+- `ShewchukBox`
+- `ShewchukBoxWithHole`
+- `SurfaceMeshEdges`
 
 View output with ParaView: `paraview output.vtu`
 
@@ -59,7 +68,7 @@ using Point3D = Eigen::Vector3d;
 
 ## Code Conventions
 
-See `.clinerules` for comprehensive standards. Key points:
+See `.claude/rules/cpp-coding-standards.md` for comprehensive standards. Key points:
 
 - **Headers**: `.h` with `#pragma once`
 - **Sources**: `.cpp`

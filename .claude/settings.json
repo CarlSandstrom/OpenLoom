@@ -6,6 +6,8 @@
       "Bash(cmake --build build -j:*)",
       "Bash(ctest:*)",
       "Bash(./build/src/Examples/*:*)",
+      "Bash(./build/src/Examples2D/*:*)",
+      "Bash(./build/src/Examples3D/*:*)",
       "Bash(./build/tests/runTests:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",

@@ -4,6 +4,8 @@ description: Meshing architecture patterns for OpenLoom
 globs:
   - "src/Meshing/**/*"
   - "src/Examples/**/*"
+  - "src/Examples2D/**/*"
+  - "src/Examples3D/**/*"
 ---
 
 # Meshing Patterns for OpenLoom
@@ -18,7 +20,7 @@ const MeshData2D& mesh = context.getMeshData();
 ## Strategy Pattern (IMesher)
 Pluggable meshing algorithms:
 ```cpp
-IMesher* mesher = new ConstrainedMesher();
+auto mesher = std::make_unique<ConstrainedMesher>();
 mesher->generate(context);
 ```
 
