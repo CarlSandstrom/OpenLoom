@@ -48,9 +48,14 @@ View output with ParaView: `paraview output.vtu`
 | Module | Purpose |
 |--------|---------|
 | `Common/` | Types, BoundingBox, Exceptions |
-| `Geometry/` | 2D/3D geometric entities (ICorner, IEdge, ISurface interfaces) |
-| `Topology/` / `Topology2D/` | Topological relationships |
-| `Meshing/Core/` | Delaunay algorithms (ConstrainedDelaunay2D/3D, Computer2D/3D) |
+| `Geometry/2D/` | 2D geometric entities (ICorner2D, IEdge2D, IFace2D — Base and OpenCascade impls) |
+| `Geometry/3D/` | 3D geometric entities (ICorner3D, IEdge3D, ISurface3D — Base and OpenCascade impls) |
+| `Topology/` | 3D topological relationships (Corner3D, Edge3D, Surface3D, Topology3D) |
+| `Topology2D/` | 2D topological relationships |
+| `Meshing/Core/2D/` | 2D Delaunay: ConstrainedDelaunay2D, MeshOperations2D, ShewchukRefiner2D |
+| `Meshing/Core/3D/General/` | Shared 3D infrastructure: MeshingContext3D, MeshOperations3D, geometry/quality utils |
+| `Meshing/Core/3D/Surface/` | Surface mesh generation: SurfaceMeshingContext3D, FacetTriangulation |
+| `Meshing/Core/3D/Volume/` | Volume mesh generation: ConstrainedDelaunay3D, ShewchukRefiner3D |
 | `Meshing/Data/` | MeshData2D/3D, Node2D/3D, TriangleElement, TetrahedralElement |
 | `Readers/` | OpenCASCADE CAD import |
 | `Export/` | VtkExporter (VTU format) |
