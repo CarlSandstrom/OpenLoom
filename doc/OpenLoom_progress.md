@@ -376,36 +376,39 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ### In Progress / Next Steps
 
+#### Phase I-A: Context infrastructure refactor
+6. Add `IMeshingContext` abstract base class; make `MeshingContext2D`, `SurfaceMeshingContext3D`, and `MeshingContext3D` inherit from it
+
 #### Phase I-B: Per-face quality meshing (Step S2)
-6. Run `ShewchukRefiner2D` per face in UV space (S2.1)
-7. Validate: each face mesh satisfies angle bound, boundary edges unchanged
+7. Run `ShewchukRefiner2D` per face in UV space (S2.1)
+8. Validate: each face mesh satisfies angle bound, boundary edges unchanged
 
 #### Phase I-C: Inter-face conformity via TwinManager (Step S3)
-8. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface` (S3.2)
-9. `MeshVerifier::verifyTwinConsistency()` (S3.3)
-10. Validate: no cracks between faces in ParaView output
+9. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface` (S3.2)
+10. `MeshVerifier::verifyTwinConsistency()` (S3.3)
+11. Validate: no cracks between faces in ParaView output
 
 #### Phase I-D: Surface mesher API (Step S4)
-11. `SurfaceMesher3D` top-level class (S4.1)
-12. Assemble `SurfaceMesh3D` with global node numbering (S4.2)
+12. `SurfaceMesher3D` top-level class (S4.1)
+13. Assemble `SurfaceMesh3D` with global node numbering (S4.2)
 
 #### Phase II-A: Volume input refactoring (Step V1)
-13. Refactor `MeshingContext3D` to accept `SurfaceMesh3D` as input (V1.1)
+14. Refactor `MeshingContext3D` to accept `SurfaceMesh3D` as input (V1.1)
 
 #### Phase II-B: Segment and facet recovery (Steps V3–V4)
-14. Implement flip-based edge recovery for fixed surface (V3.3–V3.4)
-15. Implement flip-based face recovery (V4.2–V4.4)
+15. Implement flip-based edge recovery for fixed surface (V3.3–V3.4)
+16. Implement flip-based face recovery (V4.2–V4.4)
 
 #### Phase II-C: Exterior removal integration (Step V5)
-16. Call `classifyTetrahedraInteriorExterior()` after facet recovery (V5.4)
+17. Call `classifyTetrahedraInteriorExterior()` after facet recovery (V5.4)
 
 #### Phase II-D: Complete refinement loop (Step V6)
-17. Add Priority 1 and Priority 2 to `refineStep()`
-18. Add encroachment checks to `handleSkinnyTetrahedron()`
+18. Add Priority 1 and Priority 2 to `refineStep()`
+19. Add encroachment checks to `handleSkinnyTetrahedron()`
 
 #### Phase II-E: Post-processing (Step V7)
-19. Sliver detection and removal
-20. (Optional) Smoothing and topological flips
+20. Sliver detection and removal
+21. (Optional) Smoothing and topological flips
 
 ---
 
