@@ -115,7 +115,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
             if ((edge[0] == nodeId1 && edge[1] == nodeId2) ||
                 (edge[0] == nodeId2 && edge[1] == nodeId1))
             {
-                spdlog::debug("Edge ({}, {}) already exists in mesh", nodeId1, nodeId2);
+                spdlog::debug("Edge ({}, {}) already exists in mesh (tri {})", nodeId1, nodeId2, id);
                 return true; // Edge already exists
             }
         }

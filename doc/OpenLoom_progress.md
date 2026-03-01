@@ -156,7 +156,7 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
-| S2.1 | Run `ShewchukRefiner2D` on each `FacetTriangulation` context in UV space | `FacetTriangulation`, `ShewchukRefiner2D` | **TODO** |
+| S2.1 | Run `ShewchukRefiner2D` on each `FacetTriangulation` context in UV space | `FacetTriangulation`, `ShewchukRefiner2D` | Done |
 | S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via the surface's first fundamental form / metric tensor) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | **TODO** |
 | S2.3 | Respect edge constraints: boundary edges of each face (on shared topology edges) must not be modified | `FacetTriangulation` | **TODO** |
 | S2.4 | Geometric deviation check: for each triangle evaluate the 3D distance from the triangle midpoint (and edge midpoints) to the actual CAD surface by evaluating the surface at the UV midpoint; refine any triangle whose chord deviation exceeds a user-specified tolerance | `3D/Surface/SurfaceMeshQuality.h/.cpp` | **TODO** |
@@ -167,7 +167,9 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 **Validation gate:** Each face has a quality triangle mesh in its `FacetTriangulation`. No triangle violates the angle bound. Boundary edges match the seeded edge discretization.
 
-**Status: NOT STARTED**
+**Implementation note (S2.1):** `SurfaceMeshingContext3D::refineSurfaces()` iterates over all surfaces, retrieves each face's `MeshingContext2D` from its `FacetTriangulation`, constructs a `Shewchuk2DQualityController` and `ShewchukRefiner2D`, wires in a `BoundarySplitSynchronizer`, then calls `refiner.refine()`. After all faces are refined, `resolveRefinementNodes()` is called per face to lift UV refinement nodes onto the 3D surface and assign global 3D node IDs. These are stored in `SurfaceMeshingContext3D::refinementNodes_` and included by `getSurfaceMesh3D()`.
+
+**Status: IN PROGRESS — S2.1 Done**
 
 ---
 
@@ -178,12 +180,14 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
 | S3.1 | `TwinManager` class: tracks segment twin groups, resolves split parameters, maps cross-mesh node IDs | `Common/TwinManager.h/.cpp` | Done |
-| S3.2 | Wire `TwinManager` into `FacetTriangulationManager::insertVertexOnSurface`: on each split, call `hasTwins()`, propagate to all twin segments | `FacetTriangulationManager` | **TODO** |
+| S3.2 | Wire `TwinManager` into boundary split propagation: on each split, call `hasTwins()`, propagate to all twin segments | `BoundarySplitSynchronizer`, `SurfaceMeshingContext3D` | Done |
 | S3.3 | `MeshVerifier::verifyTwinConsistency()`: check all twin members have equal subdivision counts and all recorded vertex IDs exist in their meshes | `MeshVerifier` (2D) | **TODO** |
 
 **Validation gate:** For every shared topology edge, all adjacent face `MeshData2D` instances have identical node sequences along that edge. `verifyTwinConsistency()` passes. No cracks visible in ParaView output.
 
-**Status: IN PROGRESS — S3.1 Done**
+**Implementation note (S3.2):** `BoundarySplitSynchronizer` is the `BoundarySplitCallback` implementation that propagates segment splits to twin edges via `TwinManager`. It is wired into `ShewchukRefiner2D` via `refiner.setOnBoundarySplit(sync)` inside `refineSurfaces()`. When the refiner splits a boundary segment, the callback resolves the twin segments through `TwinManager` and performs matching splits on all adjacent faces.
+
+**Status: IN PROGRESS — S3.1, S3.2 Done**
 
 ---
 
@@ -196,13 +200,13 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 | S4.3 | VTK export of surface mesh (triangle surface, `.vtu`) | `Export/VtkExporter` | Done |
 | S4.4 | Example: export surface triangulation to ParaView | `src/Examples3D/SurfaceMeshEdges.cc` | Done (initial triangulation) |
 
-**S4.3 implementation:** `VtkExporter::writeSurfaceMesh(disc3D, subfacets, path)` writes all discretization points as nodes and one `VTK_TRIANGLE` per subfacet, with a `SurfaceID` per-cell attribute (0-based index over unique surface IDs). `SurfaceMeshingContext3D::buildSurfaceMesh()` returns a `MeshData3D` usable with the standard `exportMesh()` for programmatic use.
+**S4.3 implementation:** Two `VtkExporter::writeSurfaceMesh` overloads exist. The original takes `(disc3D, subfacets, path)` and writes only discretization points (suitable before refinement). A second overload takes `(MeshData3D, subfacets, path)` and writes all nodes from `MeshData3D` (including refinement nodes added by `resolveRefinementNodes()`), sorted by ID so the VTK point index equals the node ID. Use the `MeshData3D` overload after calling `refineSurfaces()` + `getSurfaceMesh3D()`.
 
-**S4.4 implementation:** `SurfaceMeshEdges.cc` now exports both `SurfaceMeshEdges.vtu` (edges) and `SurfaceMesh3D.vtu` (surface triangulation). The full `SurfaceMesh3DExample` awaits S2/S3 completion.
+**S4.4 implementation:** `SurfaceMeshEdges.cc` exports both `SurfaceMeshEdges.vtu` (edges) and `SurfaceMesh3D.vtu` (initial surface triangulation, before refinement). `CylinderSurfaceMesh.cc` (new) demonstrates the full pipeline for a cylinder: edge discretization → initial triangulation → `refineSurfaces()` → `getSurfaceMesh3D()` → export; produces 249 nodes and 431 triangles with zero warnings.
 
 **Validation gate:** Exported surface mesh displays correctly in ParaView. All CAD faces covered. No cracks or duplicate nodes on shared edges.
 
-**Status: S4.3 and S4.4 (initial) Done — S4.1/S4.2 await S2/S3**
+**Status: S4.3 and S4.4 Done (initial + cylinder refinement) — S4.1/S4.2 await remaining S2/S3**
 
 ---
 
@@ -373,6 +377,9 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 3. ~~Step S1: Surface meshing context and infrastructure~~ **Done**
 4. ~~S3.1: `TwinManager` class~~ **Done**
 5. ~~S4.3/S4.4 (initial): VTK export + edge example~~ **Done**
+6. ~~S2.1: `ShewchukRefiner2D` per face in UV space~~ **Done**
+7. ~~S3.2: `BoundarySplitSynchronizer` wired into refinement loop~~ **Done**
+8. ~~`CylinderSurfaceMesh` example: full pipeline validation (init → refine → export)~~ **Done**
 
 ### In Progress / Next Steps
 
@@ -380,13 +387,14 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 6. Add `IMeshingContext` abstract base class; make `MeshingContext2D`, `SurfaceMeshingContext3D`, and `MeshingContext3D` inherit from it
 
 #### Phase I-B: Per-face quality meshing (Step S2)
-7. Run `ShewchukRefiner2D` per face in UV space (S2.1)
-8. Validate: each face mesh satisfies angle bound, boundary edges unchanged
+7. ~~Run `ShewchukRefiner2D` per face in UV space (S2.1)~~ **Done**
+8. Quality criterion with 3D arc-length metric / pull-back metric (S2.2)
+9. Geometric deviation check per triangle against actual CAD surface (S2.4)
 
 #### Phase I-C: Inter-face conformity via TwinManager (Step S3)
-9. Wire twin split propagation into `FacetTriangulationManager::insertVertexOnSurface` (S3.2)
-10. `MeshVerifier::verifyTwinConsistency()` (S3.3)
-11. Validate: no cracks between faces in ParaView output
+10. ~~Wire twin split propagation into boundary splits via `BoundarySplitSynchronizer` (S3.2)~~ **Done**
+11. `MeshVerifier::verifyTwinConsistency()` (S3.3)
+12. Validate: no cracks between faces in ParaView output
 
 #### Phase I-D: Surface mesher API (Step S4)
 12. `SurfaceMesher3D` top-level class (S4.1)
@@ -494,6 +502,8 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 # Future Improvements
 
+- [ ] **No abbreviations in identifiers** *(do soon)* — All variable, parameter, and function names must use full words. Examples: `disc2D` → `discretization2D`, `globalPtIndices` → `globalPointIndices`, `ctx` → `context`, `mgr` → `manager`. Sweep all files under `src/` and rename abbreviated identifiers.
+- [ ] **`FacetTriangulation` — split into data and logic classes** *(do soon)* — `FacetTriangulation` currently mixes algorithmic logic with data ownership (e.g. `node3DTo2DMap_`, UV-space `MeshingContext2D`). Split into a plain data container (`FacetTriangulationData` or similar) and a separate logic class. Doing this before S2 quality refinement work will keep the logic class focused and testable. Files: `3D/Surface/FacetTriangulation.h/.cpp`.
 - [ ] **Topology3D string IDs → `size_t` indices** — `Edge3D`, `Surface3D`, `Corner3D` currently use `std::string` IDs both for self-identity and for cross-referencing neighbours. Switch to `size_t` indices, store entities in `std::vector` instead of `unordered_map`, and drop `getId()` (only 2 production call sites). Requires updating `TopoDS_ShapeConverter` on ingestion and all consumers of `getStartCornerId()`, `getBoundaryEdgeIds()`, etc. Separately, add `using NodeID = size_t;` and `using ElementID = size_t;` aliases for mesh data so function signatures are self-documenting and grep-able.
 - [ ] **Metric adaptation in surface mesher (S2.2)** — For highly curved CAD surfaces, use the OCC pull-back metric (`GeomLProp_SLProps`) in the UV-space quality criterion to avoid angle distortion. Defer until basic surface mesher works.
 - [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh.

@@ -9,6 +9,7 @@ set(EXAMPLE_SOURCES_3D
     ShewchukBox.cc
     ShewchukBoxWithHole.cc
     SurfaceMeshEdges.cc
+    CylinderSurfaceMesh.cc
 )
 
 # Link external libraries

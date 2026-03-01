@@ -25,7 +25,8 @@ buildFaceDiscretization2D(
     const Topology3D::SeamCollection& seams,
     const Meshing::DiscretizationResult3D& disc3D,
     const std::vector<size_t>& globalPtIndices,
-    const std::function<size_t(size_t)>& pointIdxToNode3DId)
+    const std::function<size_t(size_t)>& pointIdxToNode3DId,
+    const Geometry3D::GeometryCollection3D& geometry)
 {
     Meshing::DiscretizationResult2D disc2D;
     std::vector<size_t> localIdxToNode3DId;
@@ -47,7 +48,28 @@ buildFaceDiscretization2D(
     {
         size_t globalPtIdx = globalPtIndices[localIdx];
         disc2D.points.push_back(surface.projectPoint(disc3D.points[globalPtIdx]));
-        disc2D.tParameters.push_back(disc3D.edgeParameters[globalPtIdx]);
+
+        // Normalize 3D edge parameters to [0,1] for use with LinearEdge2D.
+        const auto& rawParams = disc3D.edgeParameters[globalPtIdx];
+        const auto& geoIds = disc3D.geometryIds[globalPtIdx];
+        std::vector<double> normalizedParams;
+        normalizedParams.reserve(rawParams.size());
+        for (size_t k = 0; k < rawParams.size(); ++k)
+        {
+            double t = rawParams[k];
+            if (k < geoIds.size())
+            {
+                const auto* edge3D = geometry.getEdge(geoIds[k]);
+                if (edge3D)
+                {
+                    auto [tMin, tMax] = edge3D->getParameterBounds();
+                    if (tMax > tMin)
+                        t = (t - tMin) / (tMax - tMin);
+                }
+            }
+            normalizedParams.push_back(t);
+        }
+        disc2D.tParameters.push_back(normalizedParams);
         disc2D.geometryIds.push_back(disc3D.geometryIds[globalPtIdx]);
         localIdxToNode3DId.push_back(pointIdxToNode3DId(globalPtIdx));
     }
@@ -104,13 +126,23 @@ buildFaceDiscretization2D(
                 auto uv = surface.projectPoint(disc3D.points[globalIdx]);
                 disc2D.points.push_back(Meshing::Point2D(uv.x() + uPeriod, uv.y()));
 
-                // Copy metadata from the original local entry (if available)
+                // Copy metadata from the original local entry (if available),
+                // replacing the original seam edge ID with the seam twin ID so that
+                // findCommonGeometryId / splitConstrainedSegment use the shifted UV edge.
                 auto origIt = globalToLocal.find(globalIdx);
                 if (origIt != globalToLocal.end())
                 {
                     size_t origLocalIdx = origIt->second;
                     disc2D.tParameters.push_back(disc2D.tParameters[origLocalIdx]);
-                    disc2D.geometryIds.push_back(disc2D.geometryIds[origLocalIdx]);
+
+                    const std::string& originalSeamId = seams.getOriginalEdgeId(seamId);
+                    auto geoIdsCopy = disc2D.geometryIds[origLocalIdx];
+                    for (auto& geoId : geoIdsCopy)
+                    {
+                        if (geoId == originalSeamId)
+                            geoId = seamId;
+                    }
+                    disc2D.geometryIds.push_back(std::move(geoIdsCopy));
                 }
                 else
                 {
@@ -252,7 +284,8 @@ void FacetTriangulationManager::initializeForSurfaceMesher(
         auto [disc2D, localIdxToNode3DId] = buildFaceDiscretization2D(
             *surface, topoSurface, topology_->getSeamCollection(), discretization, globalPtIndices,
             [](size_t ptIdx)
-            { return ptIdx; });
+            { return ptIdx; },
+            *geometry_);
 
         facetTriang->initialize(disc2D, localIdxToNode3DId);
 
@@ -294,7 +327,8 @@ void FacetTriangulationManager::initializeForVolumeMesher(
             {
                 auto it = pointIndexToNodeIdMap.find(ptIdx);
                 return (it != pointIndexToNodeIdMap.end()) ? it->second : ptIdx;
-            });
+            },
+            *geometry_);
 
         facetTriang->initialize(disc2D, localIdxToNode3DId);
 

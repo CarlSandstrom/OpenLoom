@@ -4,6 +4,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
@@ -58,6 +59,26 @@ void FacetTriangulation::initialize(const DiscretizationResult2D& disc2D,
     spdlog::debug("FacetTriangulation for surface {}: {} points, {} triangles, {} node mappings",
                   surfaceId_, disc2D.points.size(),
                   context_->getMeshData().getElementCount(), node3DTo2DMap_.size());
+}
+
+std::vector<Point3D> FacetTriangulation::resolveRefinementNodes(size_t& nextNode3DId)
+{
+    std::vector<Point3D> newPoints;
+    const auto& meshData = context_->getMeshData();
+    for (const auto& [node2DId, node2D] : meshData.getNodes())
+    {
+        if (node2DTo3DMap_.find(node2DId) == node2DTo3DMap_.end())
+        {
+            const auto& uv = node2D->getCoordinates();
+            Point3D pt3D = surface_->getPoint(uv.x(), uv.y());
+            size_t node3DId = nextNode3DId++;
+            node2DTo3DMap_[node2DId] = node3DId;
+            node3DTo2DMap_[node3DId] = node2DId;
+            newPoints.push_back(pt3D);
+        }
+    }
+    spdlog::debug("FacetTriangulation {}: resolved {} refinement nodes", surfaceId_, newPoints.size());
+    return newPoints;
 }
 
 std::vector<ConstrainedSubfacet3D> FacetTriangulation::getSubfacets() const

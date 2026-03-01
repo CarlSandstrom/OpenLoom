@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Common/Types.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include <memory>
+#include <vector>
 
 namespace Geometry3D
 {
@@ -65,12 +67,28 @@ public:
     const FacetTriangulationManager& getFacetTriangulationManager() const;
 
     /**
+     * @brief Run ShewchukRefiner2D on every face in UV space (Step S2.1).
+     *
+     * Must be called after construction and before buildSurfaceMesh().
+     * Within-face seam-edge twins (e.g. cylindrical faces) are kept
+     * synchronised via BoundarySplitSynchronizer. Cross-face twin
+     * propagation is deferred to S3.2.
+     *
+     * @param circumradiusToEdgeRatio  Max circumradius/shortest-edge bound (default 2.0)
+     * @param minAngleDegrees          Minimum interior angle in degrees (default 30.0)
+     * @param elementLimit             Safety cap on elements per face (default 50000)
+     */
+    void refineSurfaces(double circumradiusToEdgeRatio = 2.0,
+                        double minAngleDegrees = 30.0,
+                        size_t elementLimit = 50000);
+
+    /**
      * @brief Build a MeshData3D containing the surface triangulation.
      *
-     * Adds one Node3D per discretization point (node ID == point index) and
-     * one TriangleElement per subfacet from all facet triangulations.
+     * Adds one Node3D per discretization point (node ID == point index) plus any
+     * nodes inserted during refineSurfaces(), then one TriangleElement per subfacet.
      */
-    MeshData3D buildSurfaceMesh() const;
+    MeshData3D getSurfaceMesh3D() const;
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
@@ -79,6 +97,10 @@ private:
     std::unique_ptr<DiscretizationResult3D> discretizationResult_;
     std::unique_ptr<TwinManager> twinManager_;
     std::unique_ptr<FacetTriangulationManager> facetTriangulationManager_;
+
+    // 3D positions of nodes inserted during Shewchuk refinement (populated by refineSurfaces).
+    // Their 3D node IDs follow immediately after discretizationResult_->points.
+    std::vector<Point3D> refinementNodes_;
 };
 
 } // namespace Meshing

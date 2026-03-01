@@ -116,6 +116,19 @@ public:
     std::optional<size_t> get3DNodeId(size_t node2DId) const;
 
     /**
+     * @brief Map any 2D refinement nodes (inserted during Shewchuk refinement) to new 3D node IDs.
+     *
+     * After refinement, the 2D mesh may contain nodes with no 3D peer (ShewchukRefiner2D
+     * inserts them without creating a matching 3D node). This method assigns IDs starting at
+     * nextNode3DId (incremented for each new node), registers bidirectional mappings, and
+     * returns the 3D positions obtained by lifting the UV coordinates onto the surface.
+     *
+     * @param nextNode3DId  Next available 3D node ID (incremented in-place per new node)
+     * @return 3D positions of the newly registered nodes, in ID order
+     */
+    std::vector<Point3D> resolveRefinementNodes(size_t& nextNode3DId);
+
+    /**
      * @brief Access the underlying 2D mesh context
      */
     MeshingContext2D& getContext() { return *context_; }

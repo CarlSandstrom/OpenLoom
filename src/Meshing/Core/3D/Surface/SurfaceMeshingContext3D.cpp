@@ -2,6 +2,9 @@
 
 #include "Common/TwinManager.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
+#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
@@ -10,6 +13,7 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
+#include <numbers>
 
 namespace Meshing
 {
@@ -67,17 +71,18 @@ const FacetTriangulationManager& SurfaceMeshingContext3D::getFacetTriangulationM
     return *facetTriangulationManager_;
 }
 
-MeshData3D SurfaceMeshingContext3D::buildSurfaceMesh() const
+MeshData3D SurfaceMeshingContext3D::getSurfaceMesh3D() const
 {
     MeshData3D mesh;
     MeshMutator3D mutator(mesh);
 
-    // Add one node per discretization point.
-    // In the surface-mesher path node ID == point index, so IDs will be 0..N-1.
+    // Add one node per discretization point (IDs 0..N-1).
     for (const auto& pt : discretizationResult_->points)
-    {
         mutator.addNode(pt);
-    }
+
+    // Add refinement nodes resolved during refineSurfaces() (IDs N..M-1).
+    for (const auto& pt : refinementNodes_)
+        mutator.addNode(pt);
 
     // Add one triangle element per subfacet from all facet triangulations.
     for (const auto& subfacet : facetTriangulationManager_->getAllSubfacets())
@@ -90,6 +95,53 @@ MeshData3D SurfaceMeshingContext3D::buildSurfaceMesh() const
                   mesh.getNodeCount(), mesh.getElementCount());
 
     return mesh;
+}
+
+void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
+                                             double minAngleDegrees,
+                                             size_t elementLimit)
+{
+    const double minAngleRadians = minAngleDegrees * (std::numbers::pi / 180.0);
+    auto& manager = *facetTriangulationManager_;
+
+    for (const auto& surfaceId : topology_->getAllSurfaceIds())
+    {
+        auto* facetTriang = manager.getFacetTriangulation(surfaceId);
+        if (!facetTriang)
+            continue;
+
+        spdlog::info("SurfaceMeshingContext3D::refineSurfaces: refining surface '{}'", surfaceId);
+
+        MeshingContext2D& faceContext = facetTriang->getContext();
+
+        Shewchuk2DQualityController qualityController(
+            faceContext.getMeshData(),
+            circumradiusToEdgeRatio,
+            minAngleRadians,
+            elementLimit);
+
+        ShewchukRefiner2D refiner(faceContext, qualityController);
+        BoundarySplitSynchronizer sync(faceContext, *twinManager_);
+        refiner.setOnBoundarySplit(sync);
+        refiner.refine();
+    }
+
+    // Assign 3D node IDs to all 2D nodes inserted during refinement (they have no 3D peer
+    // yet). This must happen before any getAllSubfacets() call so that getSubfacets() can
+    // map every 2D node to a 3D ID without warnings.
+    refinementNodes_.clear();
+    size_t nextNode3DId = discretizationResult_->points.size();
+    for (const auto& surfaceId : topology_->getAllSurfaceIds())
+    {
+        auto* facetTriang = manager.getFacetTriangulation(surfaceId);
+        if (!facetTriang)
+            continue;
+        for (const auto& pt : facetTriang->resolveRefinementNodes(nextNode3DId))
+            refinementNodes_.push_back(pt);
+    }
+
+    spdlog::info("SurfaceMeshingContext3D::refineSurfaces: complete ({} refinement nodes)",
+                 refinementNodes_.size());
 }
 
 } // namespace Meshing

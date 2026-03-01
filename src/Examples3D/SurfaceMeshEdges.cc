@@ -13,7 +13,6 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include <numbers>
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
@@ -25,6 +24,7 @@
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 #include <iostream>
+#include <numbers>
 
 int main()
 {
@@ -68,8 +68,18 @@ int main()
     exporter.writeSurfaceMesh(discResult, subfacets, "SurfaceMesh3D.vtu");
     std::cout << "Exported surface mesh to SurfaceMesh3D.vtu (color by SurfaceID)\n";
 
+    // S2.1: Refine each face in UV space using Shewchuk's algorithm
+    context.refineSurfaces();
+
+    const auto subfacetsRefined = context.getFacetTriangulationManager().getAllSubfacets();
+    std::cout << "Subfacets (refined): " << subfacetsRefined.size() << "\n";
+
+    // Export refined surface triangulation
+    exporter.writeSurfaceMesh(discResult, subfacetsRefined, "SurfaceMesh3D_Refined.vtu");
+    std::cout << "Exported refined surface mesh to SurfaceMesh3D_Refined.vtu\n";
+
     // Build a MeshData3D for programmatic use (e.g. further processing)
-    auto meshData = context.buildSurfaceMesh();
+    auto meshData = context.getSurfaceMesh3D();
     std::cout << "MeshData3D: " << meshData.getNodeCount() << " nodes, "
               << meshData.getElementCount() << " triangles\n";
 

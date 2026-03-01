@@ -50,7 +50,7 @@ void BoundaryDiscretizer3D::discretize()
         size_t pointIndex = result_->points.size();
         result_->points.push_back(corner->getPoint());
         result_->edgeParameters.push_back({});
-        result_->geometryIds.push_back({cornerId});
+        result_->geometryIds.push_back({});
         result_->cornerIdToPointIndexMap[cornerId] = pointIndex;
     }
 

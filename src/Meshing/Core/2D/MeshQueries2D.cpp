@@ -58,6 +58,18 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
                 const Point2D& s1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
                 const Point2D& s2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
 
+                // If the insertion point lies on this constraint segment, the line from
+                // point to centroid starts on the segment — that is not a proper crossing
+                // and cannot block visibility (e.g. when splitting a seam segment at its midpoint).
+                if (GeometryUtilities2D::computeOrientationSign(s1, s2, point) == 0 &&
+                    point.x() >= std::min(s1.x(), s2.x()) - 1e-10 &&
+                    point.x() <= std::max(s1.x(), s2.x()) + 1e-10 &&
+                    point.y() >= std::min(s1.y(), s2.y()) - 1e-10 &&
+                    point.y() <= std::max(s1.y(), s2.y()) + 1e-10)
+                {
+                    continue;
+                }
+
                 if (GeometryUtilities2D::segmentsIntersect(point, centroid, s1, s2))
                 {
                     visible = false;

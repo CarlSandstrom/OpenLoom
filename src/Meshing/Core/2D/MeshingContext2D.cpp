@@ -44,56 +44,74 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
     const auto surfBounds = surface.getParameterBounds();
     const double uPeriod = surfBounds.getUMax() - surfBounds.getUMin();
 
+    // Pass 1: seam twin edges — registers virtual "_seam" corners at U + uPeriod.
+    // Must run before pass 2 so that closed-circle edges can resolve their shifted endpoints.
+    auto addVirtualCorner = [&](const std::string& virtualId)
+    {
+        if (geometry2D->getCorner(virtualId) != nullptr)
+            return;
+        // Strip "_seam" to get the original corner ID
+        std::string origCornerId = virtualId.substr(0, virtualId.size() - 5);
+        auto* origCorner = fullGeometry.getCorner(origCornerId);
+        if (!origCorner)
+            return;
+        Point2D uv = surface.projectPoint(origCorner->getPoint());
+        geometry2D->addCorner(std::make_unique<Geometry2D::Corner2D>(
+            virtualId, Point2D(uv.x() + uPeriod, uv.y())));
+    };
+
     for (const auto& edgeId : edgeIds)
     {
+        if (!fullTopology.getSeamCollection().isSeamTwin(edgeId))
+            continue;
+
+        const auto& topoEdge = fullTopology.getEdge(edgeId);
+        const std::string& seamStartId = topoEdge.getStartCornerId();
+        const std::string& seamEndId = topoEdge.getEndCornerId();
+
+        addVirtualCorner(seamStartId);
+        addVirtualCorner(seamEndId);
+
+        auto* sc2D = geometry2D->getCorner(seamStartId);
+        auto* ec2D = geometry2D->getCorner(seamEndId);
+        if (sc2D && ec2D)
+        {
+            // The seam twin topology traverses from seamStart→seamEnd (reverse of the original
+            // seam), but 3D parameter normalization assigns t=0 to the original seam start and
+            // t=1 to the original seam end. To match those normalized t-values, the LinearEdge2D
+            // must go in the original seam direction (ec2D → sc2D), not the twin direction.
+            geometry2D->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
+                edgeId, ec2D->getPoint(), sc2D->getPoint()));
+        }
+    }
+
+    // Pass 2: non-seam-twin edges.
+    // Closed-circle edges (start == end corner in 3D, e.g. top/bottom caps of a cylinder)
+    // close at the seam-shifted virtual corner in UV space rather than the original corner.
+    // Without this the LinearEdge2D would be zero-length, making getPoint(t) always return
+    // the seam corner and producing invalid split midpoints during refinement.
+    for (const auto& edgeId : edgeIds)
+    {
+        if (fullTopology.getSeamCollection().isSeamTwin(edgeId))
+            continue;
+
         const auto& topoEdge = fullTopology.getEdge(edgeId);
 
-        if (fullTopology.getSeamCollection().isSeamTwin(edgeId))
-        {
-            // Seam twin: create virtual corners at U + uPeriod and a linear edge between them.
-            // topoEdge corners already carry "_seam" suffix (e.g. "vertex_1_seam").
-            const std::string& seamStartId = topoEdge.getStartCornerId();
-            const std::string& seamEndId = topoEdge.getEndCornerId();
-
-            auto addVirtualCorner = [&](const std::string& virtualId)
-            {
-                if (geometry2D->getCorner(virtualId) != nullptr)
-                    return;
-                // Strip "_seam" to get the original corner ID
-                std::string origCornerId = virtualId.substr(0, virtualId.size() - 5);
-                auto* origCorner = fullGeometry.getCorner(origCornerId);
-                if (!origCorner)
-                    return;
-                Point2D uv = surface.projectPoint(origCorner->getPoint());
-                geometry2D->addCorner(std::make_unique<Geometry2D::Corner2D>(
-                    virtualId, Point2D(uv.x() + uPeriod, uv.y())));
-            };
-
-            addVirtualCorner(seamStartId);
-            addVirtualCorner(seamEndId);
-
-            auto* sc2D = geometry2D->getCorner(seamStartId);
-            auto* ec2D = geometry2D->getCorner(seamEndId);
-            if (sc2D && ec2D)
-            {
-                geometry2D->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
-                    edgeId, sc2D->getPoint(), ec2D->getPoint()));
-            }
-            continue;
-        }
-
-        // Get start and end corners in 2D
         auto* startCorner2D = geometry2D->getCorner(topoEdge.getStartCornerId());
         auto* endCorner2D = geometry2D->getCorner(topoEdge.getEndCornerId());
 
+        if (topoEdge.getStartCornerId() == topoEdge.getEndCornerId())
+        {
+            const std::string seamEndId = topoEdge.getEndCornerId() + "_seam";
+            auto* seamEndCorner2D = geometry2D->getCorner(seamEndId);
+            if (seamEndCorner2D != nullptr)
+                endCorner2D = seamEndCorner2D;
+        }
+
         if (startCorner2D != nullptr && endCorner2D != nullptr)
         {
-            // Create linear edge in 2D parametric space
-            auto edge2D = std::make_unique<Geometry2D::LinearEdge2D>(
-                edgeId,
-                startCorner2D->getPoint(),
-                endCorner2D->getPoint());
-            geometry2D->addEdge(std::move(edge2D));
+            geometry2D->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
+                edgeId, startCorner2D->getPoint(), endCorner2D->getPoint()));
         }
     }
 
