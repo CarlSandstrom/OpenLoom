@@ -45,6 +45,12 @@ public:
                           const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
                           const std::string& filePath) const;
 
+    // Overload that uses MeshData3D for node positions (includes refinement nodes).
+    // Use this after refineSurfaces() when subfacet node IDs exceed disc3D.points.size().
+    bool writeSurfaceMesh(const Meshing::MeshData3D& mesh,
+                          const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
+                          const std::string& filePath) const;
+
     // Overloaded methods for 2D meshes (exported with z=0)
     bool exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const;
     bool writeVtu(const Meshing::MeshData2D& mesh, const std::string& filePath) const { return exportMesh(mesh, filePath); }

@@ -882,4 +882,104 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& disc3D
     return true;
 }
 
+bool VtkExporter::writeSurfaceMesh(const Meshing::MeshData3D& mesh,
+                                   const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
+                                   const std::string& filePath) const
+{
+    // Build surface ID index (same as disc3D overload)
+    std::vector<std::string> sortedSurfaceIds;
+    for (const auto& subfacet : subfacets)
+        sortedSurfaceIds.push_back(subfacet.geometryId);
+    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
+    sortedSurfaceIds.erase(std::unique(sortedSurfaceIds.begin(), sortedSurfaceIds.end()),
+                           sortedSurfaceIds.end());
+
+    std::unordered_map<std::string, int> surfaceIdToIndex;
+    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
+        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
+
+    // Collect nodes sorted by ID so VTK point index == node ID.
+    std::vector<std::pair<size_t, const Meshing::Node3D*>> sortedNodes;
+    for (const auto& [id, node] : mesh.getNodes())
+        sortedNodes.emplace_back(id, node.get());
+    std::sort(sortedNodes.begin(), sortedNodes.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+
+    const std::size_t numPoints = sortedNodes.size();
+    const std::size_t numCells = subfacets.size();
+
+    std::ofstream os;
+    os.exceptions(std::ios::failbit | std::ios::badbit);
+    os.open(filePath);
+
+    writeHeader(os);
+
+    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << numCells << "\">\n";
+
+    os << "      <Points>\n";
+    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+    for (const auto& [id, node] : sortedNodes)
+    {
+        const auto& p = node->getCoordinates();
+        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
+    }
+    os << "        </DataArray>\n";
+    os << "      </Points>\n";
+
+    os << "      <PointData>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numPoints; ++i)
+        os << sortedNodes[i].first << (i + 1 == numPoints ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "      </PointData>\n";
+
+    // Cells
+    std::vector<unsigned int> connectivity;
+    std::vector<unsigned int> offsets;
+    std::vector<int> surfaceIndices;
+    connectivity.reserve(numCells * 3);
+    offsets.reserve(numCells);
+    surfaceIndices.reserve(numCells);
+
+    unsigned int runningOffset = 0;
+    for (const auto& subfacet : subfacets)
+    {
+        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId1));
+        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId2));
+        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId3));
+        runningOffset += 3;
+        offsets.push_back(runningOffset);
+        surfaceIndices.push_back(surfaceIdToIndex.at(subfacet.geometryId));
+    }
+
+    os << "      <Cells>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < connectivity.size(); ++i)
+        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < offsets.size(); ++i)
+        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numCells; ++i)
+        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numCells ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "      </Cells>\n";
+
+    os << "      <CellData>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
+        os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "      </CellData>\n";
+    os << "    </Piece>\n";
+
+    writeFooter(os);
+    return true;
+}
+
 } // namespace Export
