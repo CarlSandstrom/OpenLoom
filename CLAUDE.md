@@ -83,6 +83,16 @@ See `.claude/rules/cpp-coding-standards.md` for comprehensive standards. Key poi
 - **Constants**: `ALL_CAPS`
 - **Formatting**: Microsoft style, 4-space indent, Allman braces
 
+## Debugging & Bug Fixes
+
+When fixing a bug, identify and apply the minimal correct change. Do not accumulate code:
+
+- **One fix at a time**: Apply a fix, build, and test before trying anything else. Do not layer multiple speculative fixes on top of each other.
+- **Remove failed attempts**: If a fix attempt didn't work, remove it entirely before trying the next approach. Never leave dead or commented-out code behind.
+- **Use logging to investigate**: Since there is no debugger access, use `spdlog` calls freely to inspect state during debugging (`SPDLOG_LEVEL=debug` is set by default). Remove temporary log statements once the bug is resolved, unless they are genuinely useful to keep.
+- **No other temporary scaffolding**: Do not add temporary assertions or diagnostic tests. Remove any that were added during investigation once the bug is resolved.
+- **Tests must be intentional**: Only add a test if it covers a real scenario worth keeping permanently. Do not add tests just to verify a fix during debugging.
+
 ## Error Handling
 
 See `doc/Error_Handling.md` for complete guide.
