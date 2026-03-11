@@ -7,6 +7,7 @@
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/TwinTableGenerator.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -34,6 +35,8 @@ SurfaceMeshingContext3D::SurfaceMeshingContext3D(const Geometry3D::GeometryColle
 
     discretizationResult_ = discretizer.releaseDiscretizationResult();
     twinManager_ = discretizer.releaseTwinManager();
+
+    exportEdgeMesh3D(*discretizationResult_, "SurfaceMeshingContext3D_edges.vtu");
 
     spdlog::info("SurfaceMeshingContext3D: discretized {} points, {} twin segments",
                  discretizationResult_->points.size(),
