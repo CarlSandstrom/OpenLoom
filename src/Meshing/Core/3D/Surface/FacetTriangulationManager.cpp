@@ -19,14 +19,13 @@ namespace
 // (0..N-1 over the sorted global point indices for this face).
 // Also returns localIdxToNode3DId mapping each local index → 3D node ID.
 std::pair<Meshing::DiscretizationResult2D, std::vector<size_t>>
-buildFaceDiscretization2D(
-    const Geometry3D::ISurface3D& surface,
-    const Topology3D::Surface3D& topoSurface,
-    const Topology3D::SeamCollection& seams,
-    const Meshing::DiscretizationResult3D& disc3D,
-    const std::vector<size_t>& globalPtIndices,
-    const std::function<size_t(size_t)>& pointIdxToNode3DId,
-    const Geometry3D::GeometryCollection3D& geometry)
+buildFaceDiscretization2D(const Geometry3D::ISurface3D& surface,
+                          const Topology3D::Surface3D& topoSurface,
+                          const Topology3D::SeamCollection& seams,
+                          const Meshing::DiscretizationResult3D& disc3D,
+                          const std::vector<size_t>& globalPtIndices,
+                          const std::function<size_t(size_t)>& pointIdxToNode3DId,
+                          const Geometry3D::GeometryCollection3D& geometry)
 {
     Meshing::DiscretizationResult2D disc2D;
     std::vector<size_t> localIdxToNode3DId;
