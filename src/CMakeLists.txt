@@ -7,8 +7,7 @@ add_subdirectory(Readers)
 add_subdirectory(Export)
 add_subdirectory(Utils)
 add_subdirectory(Meshing)
-add_subdirectory(Examples2D)
-add_subdirectory(Examples3D)
+add_subdirectory(Examples)
 
 # Note: Individual executables are now built in their respective subdirectories
 # The Examples subdirectories contain example executables

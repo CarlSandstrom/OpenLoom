@@ -22,7 +22,7 @@ ctest --test-dir build/tests --output-on-failure
 
 ## Examples
 
-2D executables in `build/src/Examples2D/`:
+2D executables in `build/src/Examples/2D/`:
 - `SimpleDelaunay2D` - Basic 2D Delaunay triangulation
 - `RectangleWithHole2D` - 2D mesh with hole constraints
 - `RectangleWithCrack` - 2D mesh with crack constraints
@@ -31,14 +31,15 @@ ctest --test-dir build/tests --output-on-failure
 - `SquareWithInternalCircles`
 - `MeshStepFile2D`
 
-3D executables in `build/src/Examples3D/`:
-- `BoxWithHole` - 3D mesh with hole
-- `ConstrainedBoxExample` - 3D constrained mesh
-- `CreateBox` - Basic 3D box mesh
+3D surface executables in `build/src/Examples/3D/Surface/`:
 - `CylinderSurfaceMesh`
+- `SurfaceMeshEdges`
+
+3D volume executables in `build/src/Examples/3D/Volume/`:
+- `BoxWithHole` - 3D mesh with hole
+- `CreateBox` - Basic 3D box mesh
 - `ShewchukBox`
 - `ShewchukBoxWithHole`
-- `SurfaceMeshEdges`
 
 View output with ParaView: `paraview output.vtu`
 

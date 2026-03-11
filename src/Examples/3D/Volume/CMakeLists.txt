@@ -1,15 +1,12 @@
-# CMakeLists.txt for 3D Examples
+# CMakeLists.txt for 3D Volume Examples
 
-# List all 3D example sources here; targets are created automatically below.
-set(EXAMPLE_SOURCES_3D
+set(EXAMPLE_SOURCES_3D_VOLUME
     CreateBox.cc
     BoxWithHole.cc
     basic_3d_constraint_example.cpp
     3d_mesh_with_holes_example.cpp
     ShewchukBox.cc
     ShewchukBoxWithHole.cc
-    SurfaceMeshEdges.cc
-    CylinderSurfaceMesh.cc
 )
 
 # Link external libraries
@@ -22,7 +19,7 @@ find_package(fmt REQUIRED)
 set(OpenCASCADE_DIR "$ENV{HOME}/lib/opencascade/lib/cmake/opencascade")
 find_package(OpenCASCADE REQUIRED)
 
-foreach(example_source ${EXAMPLE_SOURCES_3D})
+foreach(example_source ${EXAMPLE_SOURCES_3D_VOLUME})
     get_filename_component(example_target "${example_source}" NAME_WE)
     add_executable(${example_target} ${example_source})
 
