@@ -1,8 +1,9 @@
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
-#include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Export/VtkExporter.h"
+#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshVerifier3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -187,6 +188,16 @@ void exportAndVerifyMesh3D(MeshData3D& meshData,
                                                  + std::string(phaseToString(phase)),
                                              errors);
         }
+    }
+}
+
+void exportEdgeMesh3D(const DiscretizationResult3D& result, const std::string& filename)
+{
+    if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
+    {
+        Export::VtkExporter exporter;
+        exporter.writeEdgeMesh(result, filename);
+        spdlog::info("MeshDebugUtils3D: exported edge mesh to {}", filename);
     }
 }
 

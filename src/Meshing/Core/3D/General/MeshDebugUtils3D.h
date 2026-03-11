@@ -7,6 +7,7 @@ namespace Meshing
 {
 
 class MeshData3D;
+class DiscretizationResult3D;
 
 /**
  * @brief Phases of the 3D meshing algorithm, each with cumulative validation invariants.
@@ -50,5 +51,15 @@ void exportAndVerifyMesh3D(MeshData3D& meshData,
                            const std::string& filenamePrefix,
                            size_t& exportCounter,
                            double qualityBound = 0.0);
+
+/**
+ * @brief Conditionally export discretized boundary edges based on EXPORT_MESH_EACH_ITERATION.
+ *
+ * Exports the edge mesh to "{filename}" when the flag is enabled.
+ *
+ * @param result    The discretization result containing edge points and indices
+ * @param filename  Output VTU filename
+ */
+void exportEdgeMesh3D(const DiscretizationResult3D& result, const std::string& filename);
 
 } // namespace Meshing
