@@ -1,5 +1,6 @@
 ---
-globs:
+description: C++ coding standards for OpenLoom — applies to all C++ source and header files
+paths:
   - "**/*.cpp"
   - "**/*.cc"
   - "**/*.h"
@@ -8,13 +9,20 @@ globs:
 
 # C++ Coding Standards for OpenLoom
 
-**IMPORTANT: Follow these standards for ALL code edits.**
+**IMPORTANT: Follow these standards for ALL code edits and code reviews.**
 
 ## File Organization
 - Headers: `.h` extension, sources: `.cpp` extension
 - One class per file, use `#pragma once` for header guards
 - Only declarations in headers, implementations in `.cpp` files
 - No `using namespace` directives in headers (allowed in `.cpp` files)
+- File-local `struct` types used purely as data containers are allowed in a `.cpp` file alongside the class
+
+## Single Responsibility
+- **One class, one job**: each class is responsible for exactly one thing
+- Helper logic that is not the core responsibility of the class belongs in a separate, dedicated class — never as private methods or lambdas buried inside the primary class
+- If splitting seems inconvenient, raise it with the user for discussion rather than bundling everything into one class
+- Data classes (plain structs or simple value types) are the exception: they may live alongside other classes in the same file if they are scoped to that file and have no behavior of their own
 
 ## Naming Conventions
 - **Classes**: `CamelCase` (e.g., `ConstrainedDelaunay2D`, `MeshData3D`)
@@ -24,6 +32,7 @@ globs:
 - **Constants**: `ALL_CAPS` (e.g., `MAX_ITERATIONS`)
 - **Getters**: `get...()` (e.g., `getNodes()`)
 - **Setters**: `set...()` (e.g., `setTolerance()`)
+- **No abbreviations**: always use full words in all identifiers, file names, and comments — e.g., `discretization` not `disc`, `triangulation` not `tri`, `parameterization` not `param`, `configuration` not `config`
 
 ## Functions & Methods
 - Prefer `const` correctness (const methods, const references)
