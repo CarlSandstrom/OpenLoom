@@ -32,6 +32,7 @@ set(TEST_SOURCES
     Meshing/Core/test_ShewchukRefiner2D.cpp
     Meshing/Core/test_ShewchukRefiner3D.cpp
     Meshing/Core/test_FacetTriangulation.cpp
+    Meshing/Core/test_FacetDiscretization2DBuilder.cpp
     Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_ConstrainedDelaunay3D.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp

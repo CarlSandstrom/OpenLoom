@@ -68,11 +68,11 @@ public:
      * After this call, MeshData2D contains a valid constrained triangulation ready
      * for ShewchukRefiner2D.
      *
-     * @param disc2D  UV-space discretization for this face (local point indices)
-     * @param localIdxToNode3DId  Maps each local disc2D point index to its global 3D node ID
+     * @param discretization2D  UV-space discretization for this face (local point indices)
+     * @param localIndexToNode3DId  Maps each local discretization2D point index to its global 3D node ID
      */
-    void initialize(const DiscretizationResult2D& disc2D,
-                    const std::vector<size_t>& localIdxToNode3DId);
+    void initialize(DiscretizationResult2D discretization2D,
+                    std::vector<size_t> localIndexToNode3DId);
 
     /**
      * @brief Get the surface ID
