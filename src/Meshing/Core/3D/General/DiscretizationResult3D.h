@@ -19,10 +19,10 @@ struct DiscretizationResult3D
     /// Sampled points from corners, edge interiors, and surface interiors
     std::vector<Point3D> points;
 
-    /// Edge parameter t values for each point (empty vector for non-edge points)
+    /// Edge parameter t values for each point (empty vector for non-edge points). Must be same size as points vector.
     std::vector<std::vector<double>> edgeParameters;
 
-    /// Geometry IDs for each point (corner/edge/surface IDs)
+    /// Geometry IDs for each point (corner/edge/surface IDs). Must be same size as points vector.
     std::vector<std::vector<std::string>> geometryIds;
 
     /// Maps corner IDs to indices in points vector

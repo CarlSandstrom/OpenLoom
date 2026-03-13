@@ -58,7 +58,7 @@ public:
     SurfaceMeshingContext3D(SurfaceMeshingContext3D&&) noexcept;
     SurfaceMeshingContext3D& operator=(SurfaceMeshingContext3D&&) noexcept;
 
-    const Geometry3D::GeometryCollection3D& getGeometry() const { return *geometry_; }
+    const Geometry3D::GeometryCollection3D& getGeometry() const { return *geometryCollection3D_; }
     const Topology3D::Topology3D& getTopology() const { return *topology_; }
 
     const DiscretizationResult3D& getDiscretizationResult() const;
@@ -91,7 +91,7 @@ public:
     MeshData3D getSurfaceMesh3D() const;
 
 private:
-    const Geometry3D::GeometryCollection3D* geometry_;
+    const Geometry3D::GeometryCollection3D* geometryCollection3D_;
     const Topology3D::Topology3D* topology_;
 
     std::unique_ptr<DiscretizationResult3D> discretizationResult_;

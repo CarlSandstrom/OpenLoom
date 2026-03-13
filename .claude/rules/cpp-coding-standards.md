@@ -27,8 +27,8 @@ paths:
 ## Naming Conventions
 - **Classes**: `CamelCase` (e.g., `ConstrainedDelaunay2D`, `MeshData3D`)
 - **Interfaces**: Start with capital `I` (e.g., `ICorner3D`, `IEdge3D`)
-- **Variables**: `camelCase` (e.g., `nodeCount`, `triangleIndex`)
-- **Member variables**: `camelCase_` with trailing underscore (e.g., `nodes_`, `connectivity_`)
+- **Variables**: `camelCase` (e.g., `nodeCount`, `triangleIndex`); where no more descriptive name exists, name the variable after its type in `camelCase` (e.g., a `GeometryCollection3D` instance → `geometryCollection3D`)
+- **Member variables**: `camelCase_` with trailing underscore (e.g., `nodes_`, `connectivity_`); same naming-after-type rule applies (e.g., `geometryCollection3D_`)
 - **Constants**: `ALL_CAPS` (e.g., `MAX_ITERATIONS`)
 - **Getters**: `get...()` (e.g., `getNodes()`)
 - **Setters**: `set...()` (e.g., `setTolerance()`)

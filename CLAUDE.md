@@ -86,9 +86,11 @@ See `.claude/rules/cpp-coding-standards.md` for comprehensive standards. Key poi
 
 ## Debugging & Bug Fixes
 
-When fixing a bug, identify and apply the minimal correct change. Do not accumulate code:
+When fixing a bug or adding a feature, make the right change — not the convenient one. Do not accumulate code:
 
-- **One fix at a time**: Apply a fix, build, and test before trying anything else. Do not layer multiple speculative fixes on top of each other.
+- **No patching**: If a bug or feature reveals a structural problem, fix the structure. Do not work around it with local hacks or conditional logic bolted on top of a bad foundation.
+- **Architectural changes when needed**: If the correct fix requires refactoring or restructuring, do that. Discuss the plan with the user first, then execute it properly.
+- **One change at a time**: Apply a fix, build, and test before trying anything else. Do not layer multiple speculative fixes on top of each other.
 - **Remove failed attempts**: If a fix attempt didn't work, remove it entirely before trying the next approach. Never leave dead or commented-out code behind.
 - **Use logging to investigate**: Since there is no debugger access, use `spdlog` calls freely to inspect state during debugging (`SPDLOG_LEVEL=debug` is set by default). Remove temporary log statements once the bug is resolved, unless they are genuinely useful to keep.
 - **No other temporary scaffolding**: Do not add temporary assertions or diagnostic tests. Remove any that were added during investigation once the bug is resolved.

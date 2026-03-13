@@ -19,22 +19,22 @@
 namespace Meshing
 {
 
-SurfaceMeshingContext3D::SurfaceMeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
-                                                 const Topology3D::Topology3D& topology,
-                                                 const Geometry3D::DiscretizationSettings3D& settings) :
-    geometry_(&geometry),
-    topology_(&topology)
+SurfaceMeshingContext3D::SurfaceMeshingContext3D(const Geometry3D::GeometryCollection3D& geometryCollection3D,
+                                                 const Topology3D::Topology3D& topology3D,
+                                                 const Geometry3D::DiscretizationSettings3D& discretizationSettings3D) :
+    geometryCollection3D_(&geometryCollection3D),
+    topology_(&topology3D)
 {
     spdlog::info("SurfaceMeshingContext3D: initializing S1 pipeline");
 
     // S1.2 → S1.3: Generate twin table, then discretize boundaries and populate TwinManager
-    EdgeTwinTable twinTable = TwinTableGenerator::generate(topology);
+    EdgeTwinTable twinTable = TwinTableGenerator::generate(topology3D);
 
-    BoundaryDiscretizer3D discretizer(geometry, topology, settings, twinTable);
-    discretizer.discretize();
+    BoundaryDiscretizer3D boundaryDiscretizer3D(geometryCollection3D, topology3D, discretizationSettings3D, twinTable);
+    boundaryDiscretizer3D.discretize();
 
-    discretizationResult_ = discretizer.releaseDiscretizationResult();
-    twinManager_ = discretizer.releaseTwinManager();
+    discretizationResult_ = boundaryDiscretizer3D.releaseDiscretizationResult();
+    twinManager_ = boundaryDiscretizer3D.releaseTwinManager();
 
     exportEdgeMesh3D(*discretizationResult_, "SurfaceMeshingContext3D_edges.vtu");
 
@@ -43,7 +43,7 @@ SurfaceMeshingContext3D::SurfaceMeshingContext3D(const Geometry3D::GeometryColle
                  twinTable.size());
 
     // S1.4: Initialize per-face triangulations (surface-mesher path, no MeshData3D)
-    auto manager = FacetTriangulationManager::createForSurfaceMesher(geometry, topology, *discretizationResult_);
+    auto manager = FacetTriangulationManager::createForSurfaceMesher(geometryCollection3D, topology3D, *discretizationResult_);
     facetTriangulationManager_ = std::make_unique<FacetTriangulationManager>(std::move(manager));
 
     spdlog::info("SurfaceMeshingContext3D: initialized {} facet triangulations", facetTriangulationManager_->size());
@@ -117,11 +117,10 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
 
         MeshingContext2D& faceContext = facetTriang->getContext();
 
-        Shewchuk2DQualityController qualityController(
-            faceContext.getMeshData(),
-            circumradiusToEdgeRatio,
-            minAngleRadians,
-            elementLimit);
+        Shewchuk2DQualityController qualityController(faceContext.getMeshData(),
+                                                      circumradiusToEdgeRatio,
+                                                      minAngleRadians,
+                                                      elementLimit);
 
         ShewchukRefiner2D refiner(faceContext, qualityController);
         BoundarySplitSynchronizer sync(faceContext, *twinManager_);
