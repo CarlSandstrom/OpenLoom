@@ -64,8 +64,7 @@ void MeshData2D::replaceConstrainedSegmentInternal(const ConstrainedSegment2D& o
 {
     for (auto it = constrainedSegments_.begin(); it != constrainedSegments_.end(); ++it)
     {
-        if ((it->nodeId1 == oldSegment.nodeId1 && it->nodeId2 == oldSegment.nodeId2) ||
-            (it->nodeId1 == oldSegment.nodeId2 && it->nodeId2 == oldSegment.nodeId1))
+        if (it->nodeId1 == oldSegment.nodeId1 && it->nodeId2 == oldSegment.nodeId2)
         {
             *it = newSeg1;
             constrainedSegments_.push_back(newSeg2);

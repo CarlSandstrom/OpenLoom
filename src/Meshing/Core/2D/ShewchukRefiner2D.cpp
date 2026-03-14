@@ -114,19 +114,7 @@ bool ShewchukRefiner2D::refineStep()
     if (!encroachedSegments.empty())
     {
         spdlog::debug("ShewchukRefiner2D: Found {} encroached segments", encroachedSegments.size());
-        // Handle all encroached segments found in this scan before rescanning.
-        // This amortizes the O(n³) scan cost across many segment splits instead of
-        // paying it once per segment.
-        for (const auto& seg : encroachedSegments)
-        {
-            // The segment may have already been split by a prior handleEncroachedSegment
-            // call in this same batch (e.g. via the inline seam-twin split).  Skip it if
-            // it no longer exists in the mesh.
-            auto adjacent = context_->getOperations().getQueries().findTrianglesAdjacentToEdge(
-                seg.nodeId1, seg.nodeId2);
-            if (!adjacent.empty())
-                handleEncroachedSegment(seg);
-        }
+        handleEncroachedSegment(encroachedSegments[0]);
         return true;
     }
 

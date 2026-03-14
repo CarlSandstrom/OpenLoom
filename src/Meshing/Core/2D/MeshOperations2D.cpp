@@ -474,76 +474,11 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
-    // Boundary segments (exactly 1 adjacent triangle) require a direct split.
-    // Bowyer-Watson fails for points lying on the domain boundary: the star-shaped
-    // cavity check rejects them because the midpoint is collinear with the segment
-    // endpoints, making the cavity non-star-shaped.
-    // Interior constraints (2 adjacent triangles) use the standard Bowyer-Watson path.
-    // Zero adjacent triangles means the edge was already split (e.g. a duplicate reverse-
-    // direction constrained segment whose triangle was removed by the forward split).
-    auto adjacentForSplit = queries_.findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2);
+    // Insert midpoint via Bowyer-Watson and re-enforce constraint edges
+    size_t newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
 
-    if (adjacentForSplit.empty())
-    {
-        // The edge no longer exists in the mesh — it was already split via a duplicate
-        // reverse-direction constrained segment. Remove the stale entry so the refiner
-        // does not keep treating it as encroached.
-        mutator_->removeConstrainedSegment(segment.nodeId1, segment.nodeId2);
-        return std::nullopt;
-    }
-
-    size_t newNodeId;
-    if (adjacentForSplit.size() == 1 && segment.role == EdgeRole::BOUNDARY)
-    {
-        const auto* tri = dynamic_cast<const TriangleElement*>(
-            meshData_.getElement(adjacentForSplit[0]));
-
-        // Detect the edge direction as stored in the triangle to preserve winding order.
-        size_t thirdVertex = 0;
-        bool forwardEdge = false;
-        const auto& nodeIds = tri->getNodeIdArray();
-        for (size_t i = 0; i < 3; ++i)
-        {
-            size_t a = nodeIds[i], b = nodeIds[(i + 1) % 3], c = nodeIds[(i + 2) % 3];
-            if (a == segment.nodeId1 && b == segment.nodeId2)
-            {
-                thirdVertex = c;
-                forwardEdge = true;
-                break;
-            }
-            if (a == segment.nodeId2 && b == segment.nodeId1)
-            {
-                thirdVertex = c;
-                forwardEdge = false;
-                break;
-            }
-        }
-
-        mutator_->removeElement(adjacentForSplit[0]);
-        newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
-        if (forwardEdge)
-        {
-            // Original: (..., n1, n2, C, ...) → (n1, M, C) and (M, n2, C)
-            mutator_->addElement(std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{segment.nodeId1, newNodeId, thirdVertex}));
-            mutator_->addElement(std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{newNodeId, segment.nodeId2, thirdVertex}));
-        }
-        else
-        {
-            // Original: (..., n2, n1, C, ...) → (n2, M, C) and (M, n1, C)
-            mutator_->addElement(std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{segment.nodeId2, newNodeId, thirdVertex}));
-            mutator_->addElement(std::make_unique<TriangleElement>(
-                std::array<size_t, 3>{newNodeId, segment.nodeId1, thirdVertex}));
-        }
-    }
-    else
-    {
-        newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
-        enforceEdge(segment.nodeId1, newNodeId);
-        enforceEdge(newNodeId, segment.nodeId2);
-    }
+    enforceEdge(segment.nodeId1, newNodeId);
+    enforceEdge(newNodeId, segment.nodeId2);
 
     // Update constrained segments: replace old with two new
     ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
