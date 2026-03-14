@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "Meshing/Core/3D/General/EdgeTwinTable.h"
-#include "Meshing/Core/3D/Surface/TwinTableGenerator.h"
+#include "Meshing/Core/3D/General/TwinTableGenerator.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"
 #include "Topology/Surface3D.h"

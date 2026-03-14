@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/Surface/FacetDiscretization2DBuilder.h"
+#include "Meshing/Core/3D/General/FacetDiscretization2DBuilder.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Topology/SeamCollection.h"

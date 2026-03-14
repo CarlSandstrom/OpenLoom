@@ -199,7 +199,7 @@ int main()
     //                                     getTwin(c0,c1) = (c3,c2)
     // -------------------------------------------------------------------------
     TwinManager twinManager;
-    twinManager.registerTwin(c2Id, c3Id, c1Id, c0Id);
+    twinManager.registerTwin(TwinManager::NO_SURFACE, c2Id, c3Id, TwinManager::NO_SURFACE, c1Id, c0Id);
     spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
 
     // -------------------------------------------------------------------------

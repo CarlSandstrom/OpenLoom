@@ -30,7 +30,8 @@ namespace Meshing
  *
  * Each facet (surface) maintains its own independent 2D triangulation that is
  * updated when vertices are inserted on the facet during refinement. This class
- * maintains bidirectional mapping between 3D mesh node IDs and 2D facet node IDs.
+ * maintains bidirectional mapping between 3D mesh node IDs and 2D facet node IDs,
+ * and an edge-to-node-sequence map used for building the surface-aware TwinManager.
  *
  * Per Shewchuk's algorithm, facet triangulations define what subfacets *should*
  * exist in the final mesh. They are maintained separately from the 3D tetrahedralization.
@@ -67,6 +68,9 @@ public:
      * edge segments as constraints, enforces them, and removes exterior triangles.
      * After this call, MeshData2D contains a valid constrained triangulation ready
      * for ShewchukRefiner2D.
+     *
+     * Also builds the edge-to-node-sequence map used by FacetTriangulationManager
+     * when constructing the surface-aware TwinManager.
      *
      * @param discretization2D  UV-space discretization for this face (local point indices)
      * @param localIndexToNode3DId  Maps each local discretization2D point index to its global 3D node ID
@@ -116,6 +120,29 @@ public:
     std::optional<size_t> get3DNodeId(size_t node2DId) const;
 
     /**
+     * @brief Get the ordered sequence of 2D node IDs for an edge.
+     *
+     * Used by FacetTriangulationManager::buildTwinManager() to register
+     * surface-aware twin segment pairs by local 2D IDs.
+     *
+     * @param edgeId The edge ID to look up
+     * @return Pointer to the node sequence, or nullptr if the edge is not on this face
+     */
+    const std::vector<size_t>* getEdgeNodeSequence(const std::string& edgeId) const;
+
+    /**
+     * @brief Register a known 2D↔3D node mapping.
+     *
+     * Used by SurfaceMeshingContext3D when a boundary split is propagated to a
+     * twin surface — both the original and twin 2D nodes map to the same 3D node.
+     * Calling this before resolveRefinementNodes() prevents duplicate 3D IDs.
+     *
+     * @param node2DId  2D node ID (in this facet's MeshData2D)
+     * @param node3DId  3D node ID to associate with it
+     */
+    void registerNode(size_t node2DId, size_t node3DId);
+
+    /**
      * @brief Map any 2D refinement nodes (inserted during Shewchuk refinement) to new 3D node IDs.
      *
      * After refinement, the 2D mesh may contain nodes with no 3D peer (ShewchukRefiner2D
@@ -143,6 +170,10 @@ private:
     // Bidirectional mapping between 3D mesh node IDs and 2D facet node IDs
     std::map<size_t, size_t> node3DTo2DMap_;
     std::map<size_t, size_t> node2DTo3DMap_;
+
+    // Maps edge ID → ordered sequence of 2D node IDs along that edge.
+    // Built during initialize() and used by FacetTriangulationManager::buildTwinManager().
+    std::map<std::string, std::vector<size_t>> edgeIdToNode2DSeq_;
 };
 
 } // namespace Meshing

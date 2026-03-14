@@ -84,11 +84,9 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
         }
     }
 
-    // Star-shapedness verification: the visibility-based cavity may include
-    // triangles whose boundary edges are not visible from the insertion point
-    // (e.g. near concave constraint boundaries). Iteratively remove cavity
-    // triangles whose boundary edges would produce inverted triangles when
-    // connected to the insertion point.
+    // Star-shapedness verification: remove cavity triangles whose boundary edges
+    // would produce inverted triangles when connected to the insertion point
+    // (guards against degenerate cases near constraint boundaries).
     bool changed = true;
     while (changed)
     {

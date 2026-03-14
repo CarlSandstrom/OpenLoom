@@ -2,14 +2,17 @@
 
 #include <map>
 #include <optional>
-#include <utility>
+#include <string>
+#include <tuple>
 
 /**
  * @brief Tracks paired ("twin") mesh segments that must be split synchronously.
  *
- * Used for periodic boundary conditions: when a segment on one boundary edge
- * is split during refinement, the registered twin segment on the opposite
- * boundary edge must be split at the corresponding parametric position.
+ * Segments are identified by (surfaceId, n1, n2) triples. Use NO_SURFACE as
+ * the surface ID for pure-2D contexts (e.g. periodic boundaries on a single face).
+ *
+ * When a segment on one boundary is split during refinement, the registered
+ * twin segment must be split at the corresponding parametric position.
  *
  * Segments are stored as directed pairs (from, to) so that endpoint
  * correspondence is preserved across splits. All four lookup directions for
@@ -18,45 +21,48 @@
 class TwinManager
 {
 public:
+    /// Surface ID to use for pure-2D (no-surface) contexts.
+    static const std::string NO_SURFACE;
+
     /**
      * @brief Register two segments as twins.
      *
-     * Records that n1↔m1 and n2↔m2, meaning: when segment {n1,n2} is split
-     * at a new node `mid`, the twin segment {m1,m2} must be split at `twinMid`
-     * such that mid↔twinMid.
+     * Records that n1↔m1 and n2↔m2, meaning: when segment {n1,n2} on
+     * surfaceId is split at a new node `mid`, the twin segment {m1,m2}
+     * on twinSurfaceId must be split at `twinMid` such that mid↔twinMid.
      *
-     * Inserts all four directed entries so lookups work in any direction:
-     *   (n1,n2)→(m1,m2), (n2,n1)→(m2,m1),
-     *   (m1,m2)→(n1,n2), (m2,m1)→(n2,n1).
+     * Inserts all four directed entries so lookups work in any direction.
      */
-    void registerTwin(size_t n1, size_t n2, size_t m1, size_t m2);
+    void registerTwin(const std::string& surfaceId, size_t n1, size_t n2,
+                      const std::string& twinSurfaceId, size_t m1, size_t m2);
 
     /**
-     * @brief Return true if segment {n1,n2} (in either direction) has a twin.
+     * @brief Return true if segment {n1,n2} on surfaceId (in either direction) has a twin.
      */
-    bool hasTwin(size_t n1, size_t n2) const;
+    bool hasTwin(const std::string& surfaceId, size_t n1, size_t n2) const;
 
     /**
-     * @brief Return the directed twin of segment n1→n2.
+     * @brief Return the directed twin of segment n1→n2 on surfaceId.
      *
-     * If segment n1→n2 is registered, returns (m1, m2) such that n1↔m1 and
-     * n2↔m2. Returns nullopt if the segment is not registered.
+     * Returns (twinSurfaceId, m1, m2) such that n1↔m1 and n2↔m2.
+     * Returns nullopt if the segment is not registered.
      */
-    std::optional<std::pair<size_t, size_t>> getTwin(size_t n1, size_t n2) const;
+    std::optional<std::tuple<std::string, size_t, size_t>>
+        getTwin(const std::string& surfaceId, size_t n1, size_t n2) const;
 
     /**
      * @brief Update registry after a split.
      *
-     * Call this after segment {n1,n2} was split at node `mid` and its twin
-     * {m1,m2} was split at node `twinMid`. Removes the old registration and
-     * registers the two new sub-segment pairs:
-     *   {n1, mid} ↔ {m1, twinMid}
-     *   {mid, n2} ↔ {twinMid, m2}
+     * Call this after segment {n1,n2} on surfaceId was split at node `mid`
+     * and its twin {m1,m2} on twinSurfaceId was split at node `twinMid`.
+     * Removes the old registration and registers the two new sub-segment pairs.
      */
-    void recordSplit(size_t n1, size_t n2, size_t mid,
-                     size_t m1, size_t m2, size_t twinMid);
+    void recordSplit(const std::string& surfaceId, size_t n1, size_t n2, size_t mid,
+                     const std::string& twinSurfaceId, size_t m1, size_t m2, size_t twinMid);
 
 private:
-    // Key: directed (from, to). Value: directed twin (twinFrom, twinTo).
-    std::map<std::pair<size_t, size_t>, std::pair<size_t, size_t>> twinMap_;
+    using Key   = std::tuple<std::string, size_t, size_t>;
+    using Value = std::tuple<std::string, size_t, size_t>;
+
+    std::map<Key, Value> twinMap_;
 };

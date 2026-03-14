@@ -7,7 +7,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/Surface/FacetDiscretization2DBuilder.h"
+#include "Meshing/Core/3D/General/FacetDiscretization2DBuilder.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
 

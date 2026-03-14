@@ -1,8 +1,11 @@
-#include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
+#include "Common/TwinManager.h"
 #include "Common/Types.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/3D/Surface/FacetDiscretization2DBuilder.h"
+#include "Meshing/Core/3D/General/EdgeTwinTable.h"
+#include "Meshing/Core/3D/General/FacetDiscretization2DBuilder.h"
+#include "Meshing/Core/3D/General/TwinTableGenerator.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
@@ -56,6 +59,15 @@ FacetTriangulationManager FacetTriangulationManager::createForVolumeMesher(const
 }
 
 // -----------------------------------------------------------------------
+// Twin manager
+// -----------------------------------------------------------------------
+
+std::unique_ptr<TwinManager> FacetTriangulationManager::releaseTwinManager()
+{
+    return std::move(twinManager_);
+}
+
+// -----------------------------------------------------------------------
 // Private initialisation helpers
 // -----------------------------------------------------------------------
 
@@ -99,6 +111,8 @@ void FacetTriangulationManager::initializeForSurfaceMesher(const DiscretizationR
 
     spdlog::info("FacetTriangulationManager: Initialized {} facet triangulations",
                  facetTriangulations_.size());
+
+    buildTwinManager();
 }
 
 void FacetTriangulationManager::initializeForVolumeMesher(const DiscretizationResult3D& discretization,
@@ -145,6 +159,115 @@ void FacetTriangulationManager::initializeForVolumeMesher(const DiscretizationRe
 
     spdlog::info("FacetTriangulationManager: Initialized {} facet triangulations",
                  facetTriangulations_.size());
+}
+
+void FacetTriangulationManager::buildTwinManager()
+{
+    twinManager_ = std::make_unique<TwinManager>();
+
+    // -----------------------------------------------------------------------
+    // Cross-surface twins: edges shared between two different surfaces.
+    // The EdgeTwinTable gives us the orientation each surface uses when
+    // traversing the shared edge (Same = canonical direction, Reversed = opposite).
+    // -----------------------------------------------------------------------
+    const EdgeTwinTable twinTable = TwinTableGenerator::generate(*topology_);
+
+    for (const auto& [edgeId, entries] : twinTable)
+    {
+        if (entries.size() != 2)
+            continue;
+
+        const std::string& surfaceId0 = entries[0].surfaceId;
+        const std::string& surfaceId1 = entries[1].surfaceId;
+
+        auto* facet0 = getFacetTriangulation(surfaceId0);
+        auto* facet1 = getFacetTriangulation(surfaceId1);
+        if (!facet0 || !facet1)
+            continue;
+
+        const auto* seq0 = facet0->getEdgeNodeSequence(edgeId);
+        const auto* seq1 = facet1->getEdgeNodeSequence(edgeId);
+        if (!seq0 || !seq1 || seq0->size() < 2 || seq1->size() != seq0->size())
+        {
+            spdlog::warn("FacetTriangulationManager: Cannot build twin for edge {} "
+                         "(seq sizes: {}/{})",
+                         edgeId,
+                         seq0 ? seq0->size() : 0,
+                         seq1 ? seq1->size() : 0);
+            continue;
+        }
+
+        const size_t numberOfSegments = seq0->size() - 1;
+        for (size_t i = 0; i < numberOfSegments; ++i)
+        {
+            size_t s0From, s0To;
+            if (entries[0].orientation == TwinOrientation::Same)
+            {
+                s0From = (*seq0)[i];
+                s0To = (*seq0)[i + 1];
+            }
+            else
+            {
+                s0From = (*seq0)[numberOfSegments - i];
+                s0To = (*seq0)[numberOfSegments - i - 1];
+            }
+
+            size_t s1From, s1To;
+            if (entries[1].orientation == TwinOrientation::Same)
+            {
+                s1From = (*seq1)[i];
+                s1To = (*seq1)[i + 1];
+            }
+            else
+            {
+                s1From = (*seq1)[numberOfSegments - i];
+                s1To = (*seq1)[numberOfSegments - i - 1];
+            }
+
+            twinManager_->registerTwin(surfaceId0, s0From, s0To, surfaceId1, s1From, s1To);
+        }
+
+        spdlog::debug("FacetTriangulationManager: Registered {} cross-surface twin pairs for edge {}",
+                      numberOfSegments, edgeId);
+    }
+
+    // -----------------------------------------------------------------------
+    // Seam twins: both sides of a periodic seam on the same surface.
+    // The original seam sequence origSeq and the twin sequence twinSeq are
+    // related by: origSeq[i] ↔ twinSeq[N-i] (same 3D point, different UV).
+    // So segment i on the original side pairs with twinSeq[N-i]→twinSeq[N-i-1].
+    // -----------------------------------------------------------------------
+    const auto& seams = topology_->getSeamCollection();
+
+    for (const auto& twinEdgeId : seams.getSeamTwinEdgeIds())
+    {
+        const std::string& origEdgeId = seams.getOriginalEdgeId(twinEdgeId);
+
+        for (const auto& surfaceId : topology_->getAllSurfaceIds())
+        {
+            auto* facet = getFacetTriangulation(surfaceId);
+            if (!facet)
+                continue;
+
+            const auto* origSeq = facet->getEdgeNodeSequence(origEdgeId);
+            const auto* twinSeq = facet->getEdgeNodeSequence(twinEdgeId);
+            if (!origSeq || !twinSeq || origSeq->size() < 2 || twinSeq->size() != origSeq->size())
+                continue;
+
+            const size_t numberOfSegments = origSeq->size() - 1;
+            for (size_t i = 0; i < numberOfSegments; ++i)
+            {
+                twinManager_->registerTwin(
+                    surfaceId, (*origSeq)[i], (*origSeq)[i + 1],
+                    surfaceId, (*twinSeq)[numberOfSegments - i], (*twinSeq)[numberOfSegments - i - 1]);
+            }
+
+            spdlog::debug("FacetTriangulationManager: Registered {} seam twin pairs "
+                          "for surface {} (orig={}, twin={})",
+                          numberOfSegments, surfaceId, origEdgeId, twinEdgeId);
+            break; // Each seam pair belongs to exactly one surface
+        }
+    }
 }
 
 // -----------------------------------------------------------------------

@@ -7,7 +7,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"

@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/Surface/FacetTriangulation.h"
+#include "Meshing/Core/3D/General/FacetTriangulation.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
@@ -35,6 +35,7 @@ void FacetTriangulation::initialize(DiscretizationResult2D discretization2D,
 {
     node3DTo2DMap_.clear();
     node2DTo3DMap_.clear();
+    edgeIdToNode2DSeq_.clear();
 
     // Run constrained Delaunay: registers boundary segments, enforces them,
     // and removes exterior triangles.
@@ -54,6 +55,22 @@ void FacetTriangulation::initialize(DiscretizationResult2D discretization2D,
             node3DTo2DMap_[node3DId] = node2DId;
             node2DTo3DMap_[node2DId] = node3DId;
         }
+    }
+
+    // Build edge→node2D sequence map for TwinManager construction.
+    // Translates each edge's local-index sequence into the corresponding 2D node IDs.
+    for (const auto& [edgeId, localIndices] : discretization2D.edgeIdToPointIndicesMap)
+    {
+        std::vector<size_t> node2DIds;
+        node2DIds.reserve(localIndices.size());
+        for (size_t localIdx : localIndices)
+        {
+            auto it = pointIndexToNode2DMap.find(localIdx);
+            if (it != pointIndexToNode2DMap.end())
+                node2DIds.push_back(it->second);
+        }
+        if (!node2DIds.empty())
+            edgeIdToNode2DSeq_[edgeId] = std::move(node2DIds);
     }
 
     spdlog::debug("FacetTriangulation for surface {}: {} points, {} triangles, {} node mappings",
@@ -160,6 +177,20 @@ std::optional<size_t> FacetTriangulation::get3DNodeId(size_t node2DId) const
         return it->second;
     }
     return std::nullopt;
+}
+
+const std::vector<size_t>* FacetTriangulation::getEdgeNodeSequence(const std::string& edgeId) const
+{
+    auto it = edgeIdToNode2DSeq_.find(edgeId);
+    if (it != edgeIdToNode2DSeq_.end())
+        return &it->second;
+    return nullptr;
+}
+
+void FacetTriangulation::registerNode(size_t node2DId, size_t node3DId)
+{
+    node2DTo3DMap_[node2DId] = node3DId;
+    node3DTo2DMap_[node3DId] = node2DId;
 }
 
 } // namespace Meshing

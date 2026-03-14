@@ -24,21 +24,17 @@ double angleBetweenTangents(const std::array<double, 3>& a, const std::array<dou
 
 BoundaryDiscretizer3D::BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
                                              const Topology3D::Topology3D& topology,
-                                             const Geometry3D::DiscretizationSettings3D& settings,
-                                             const EdgeTwinTable& twinTable) :
+                                             const Geometry3D::DiscretizationSettings3D& settings) :
     geometry_(&geometry),
     topology_(&topology),
     settings_(settings),
-    twinTable_(twinTable),
-    result_(std::make_unique<DiscretizationResult3D>()),
-    twinManager_(std::make_unique<TwinManager>())
+    result_(std::make_unique<DiscretizationResult3D>())
 {
 }
 
 void BoundaryDiscretizer3D::discretize()
 {
     result_ = std::make_unique<DiscretizationResult3D>();
-    twinManager_ = std::make_unique<TwinManager>();
 
     // Step 1: Sample corner points
     for (const auto& cornerId : topology_->getAllCornerIds())
@@ -188,50 +184,6 @@ void BoundaryDiscretizer3D::discretize()
         result_->surfaceIdToPointIndicesMap[surfaceId] = surfacePointIndices;
     }
 
-    // Step 4: Build twin manager from shared-edge segment pairs
-    for (const auto& [edgeId, entries] : twinTable_)
-    {
-        if (entries.size() != 2)
-            continue;
-
-        if (!result_->edgeIdToPointIndicesMap.contains(edgeId))
-            continue;
-
-        const auto& edgePoints = result_->edgeIdToPointIndicesMap.at(edgeId);
-        if (edgePoints.size() < 2)
-            continue;
-
-        const size_t numberOfSegments = edgePoints.size() - 1;
-
-        for (size_t i = 0; i < numberOfSegments; ++i)
-        {
-            size_t s0From, s0To;
-            if (entries[0].orientation == TwinOrientation::Same)
-            {
-                s0From = edgePoints[i];
-                s0To = edgePoints[i + 1];
-            }
-            else
-            {
-                s0From = edgePoints[numberOfSegments - i];
-                s0To = edgePoints[numberOfSegments - i - 1];
-            }
-
-            size_t s1From, s1To;
-            if (entries[1].orientation == TwinOrientation::Same)
-            {
-                s1From = edgePoints[i];
-                s1To = edgePoints[i + 1];
-            }
-            else
-            {
-                s1From = edgePoints[numberOfSegments - i];
-                s1To = edgePoints[numberOfSegments - i - 1];
-            }
-
-            twinManager_->registerTwin(s0From, s0To, s1From, s1To);
-        }
-    }
 }
 
 const DiscretizationResult3D& BoundaryDiscretizer3D::getDiscretizationResult() const
@@ -242,16 +194,6 @@ const DiscretizationResult3D& BoundaryDiscretizer3D::getDiscretizationResult() c
 std::unique_ptr<DiscretizationResult3D> BoundaryDiscretizer3D::releaseDiscretizationResult()
 {
     return std::move(result_);
-}
-
-const TwinManager& BoundaryDiscretizer3D::getTwinManager() const
-{
-    return *twinManager_;
-}
-
-std::unique_ptr<TwinManager> BoundaryDiscretizer3D::releaseTwinManager()
-{
-    return std::move(twinManager_);
 }
 
 } // namespace Meshing

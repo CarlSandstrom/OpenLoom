@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/Surface/TwinTableGenerator.h"
+#include "Meshing/Core/3D/General/TwinTableGenerator.h"
 #include "Topology/Edge3D.h"
 #include "Topology/Topology3D.h"
 

@@ -18,7 +18,7 @@ public:
                                 double minAngleThresholdRadians,
                                 std::size_t elementLimit);
 
-    bool isMeshAcceptable(const MeshData2D& data, const MeshConnectivity& connectivity) const override;
+    bool isMeshAcceptable(const MeshData2D& data) const override;
     bool isTriangleAcceptable(const TriangleElement& element) const override;
     double getTargetElementQuality() const override;
     std::size_t getElementLimit() const override;

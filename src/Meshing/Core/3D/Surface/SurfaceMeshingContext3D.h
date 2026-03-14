@@ -28,9 +28,8 @@ class FacetTriangulationManager;
  * @brief Surface meshing context: owns all S1 infrastructure for the 3D surface mesher.
  *
  * Construction runs the full S1 initialization pipeline:
- *   1. TwinTableGenerator::generate(topology)         → EdgeTwinTable
- *   2. BoundaryDiscretizer3D::discretize()            → DiscretizationResult3D + TwinManager
- *   3. FacetTriangulationManager::createForSurfaceMesher() → per-face MeshData2D
+ *   1. BoundaryDiscretizer3D::discretize()                 → DiscretizationResult3D
+ *   2. FacetTriangulationManager::createForSurfaceMesher() → per-face MeshData2D + TwinManager
  *
  * No tetrahedral mesh data is created or owned here.
  */

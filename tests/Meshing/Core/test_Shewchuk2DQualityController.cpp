@@ -5,8 +5,6 @@
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/Base/MeshConnectivity.h"
 
 #include <cmath>
 
@@ -31,13 +29,7 @@ protected:
             std::make_unique<TriangleElement>(std::array<size_t, 3>{n0, n1, n2}));
     }
 
-    MeshConnectivity createDummyConnectivity()
-    {
-        return MeshConnectivity(dummyMeshData3D_);
-    }
-
     MeshData2D meshData_;
-    MeshData3D dummyMeshData3D_;
     std::unique_ptr<MeshMutator2D> mutator_;
 };
 
@@ -90,9 +82,8 @@ TEST_F(Shewchuk2DQualityControllerTest, IsMeshAcceptableWithGoodTriangles)
     addTriangle(n1, n3, n2);
 
     Shewchuk2DQualityController controller(meshData_, std::sqrt(2.0), M_PI / 9.0, 100000);
-    MeshConnectivity connectivity = createDummyConnectivity();
 
-    EXPECT_TRUE(controller.isMeshAcceptable(meshData_, connectivity));
+    EXPECT_TRUE(controller.isMeshAcceptable(meshData_));
 }
 
 TEST_F(Shewchuk2DQualityControllerTest, IsMeshAcceptableRejectsWithBadTriangle)
@@ -108,9 +99,8 @@ TEST_F(Shewchuk2DQualityControllerTest, IsMeshAcceptableRejectsWithBadTriangle)
     addTriangle(n3, n4, n5);
 
     Shewchuk2DQualityController controller(meshData_, std::sqrt(2.0), M_PI / 9.0, 100000);
-    MeshConnectivity connectivity = createDummyConnectivity();
 
-    EXPECT_FALSE(controller.isMeshAcceptable(meshData_, connectivity));
+    EXPECT_FALSE(controller.isMeshAcceptable(meshData_));
 }
 
 TEST_F(Shewchuk2DQualityControllerTest, GetTargetElementQualityReturnsRatioBound)

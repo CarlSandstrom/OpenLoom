@@ -21,7 +21,7 @@
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/Surface/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <TopoDS_Shape.hxx>

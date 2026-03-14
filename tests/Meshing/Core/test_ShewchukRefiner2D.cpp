@@ -216,7 +216,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     // Right edge (sq_e1) goes c1→c2 (bottom-to-top).
     // Correspondence: c3(y=1)↔c2(y=1)  and  c0(y=0)↔c1(y=0).
     TwinManager twinManager;
-    twinManager.registerTwin(c3Id, c0Id, c2Id, c1Id);
+    twinManager.registerTwin(TwinManager::NO_SURFACE, c3Id, c0Id, TwinManager::NO_SURFACE, c2Id, c1Id);
 
     Shewchuk2DQualityController qualityController(
         context.getMeshData(), 2.0, M_PI / 6.0, 10000);

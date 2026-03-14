@@ -9,8 +9,6 @@
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology2D/Topology2D.h"
 #include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
@@ -45,11 +43,7 @@ void ShewchukRefiner2D::refine()
     exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D", exportCounter_);
     while (true)
     {
-        // Check mesh quality
-        MeshData3D meshData3D(context_->getMeshData());
-        MeshConnectivity connectivity(meshData3D);
-
-        if (qualityController_->isMeshAcceptable(context_->getMeshData(), connectivity))
+        if (qualityController_->isMeshAcceptable(context_->getMeshData()))
         {
             break;
         }
@@ -120,7 +114,19 @@ bool ShewchukRefiner2D::refineStep()
     if (!encroachedSegments.empty())
     {
         spdlog::debug("ShewchukRefiner2D: Found {} encroached segments", encroachedSegments.size());
-        handleEncroachedSegment(encroachedSegments[0]);
+        // Handle all encroached segments found in this scan before rescanning.
+        // This amortizes the O(n³) scan cost across many segment splits instead of
+        // paying it once per segment.
+        for (const auto& seg : encroachedSegments)
+        {
+            // The segment may have already been split by a prior handleEncroachedSegment
+            // call in this same batch (e.g. via the inline seam-twin split).  Skip it if
+            // it no longer exists in the mesh.
+            auto adjacent = context_->getOperations().getQueries().findTrianglesAdjacentToEdge(
+                seg.nodeId1, seg.nodeId2);
+            if (!adjacent.empty())
+                handleEncroachedSegment(seg);
+        }
         return true;
     }
 

@@ -8,7 +8,7 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/2D/DiscretizationResult2D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
-#include "Meshing/Core/3D/Surface/FacetTriangulation.h"
+#include "Meshing/Core/3D/General/FacetTriangulation.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"
 #include "Topology/Surface3D.h"

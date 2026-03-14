@@ -19,11 +19,11 @@ BoundarySplitSynchronizer::BoundarySplitSynchronizer(MeshingContext2D& context,
 
 void BoundarySplitSynchronizer::operator()(size_t n1, size_t n2, size_t mid)
 {
-    auto twin = twinManager_->getTwin(n1, n2);
+    auto twin = twinManager_->getTwin(TwinManager::NO_SURFACE, n1, n2);
     if (!twin)
         return;
 
-    auto [t1, t2] = *twin;
+    auto [twinSurface, t1, t2] = *twin;
 
     // The stored ConstrainedSegment2D may use either endpoint order, so search
     // for both {t1,t2} and {t2,t1}.
@@ -52,7 +52,8 @@ void BoundarySplitSynchronizer::operator()(size_t n1, size_t n2, size_t mid)
         return;
 
     // Use TwinManager direction (t1, t2) so endpoint correspondence is preserved
-    twinManager_->recordSplit(n1, n2, mid, t1, t2, *twinMid);
+    twinManager_->recordSplit(TwinManager::NO_SURFACE, n1, n2, mid,
+                              TwinManager::NO_SURFACE, t1, t2, *twinMid);
 }
 
 } // namespace Meshing

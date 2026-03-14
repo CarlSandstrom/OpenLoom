@@ -4,7 +4,6 @@
 #include "ElementQuality2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/Base/MeshConnectivity.h"
 
 namespace Meshing
 {
@@ -21,9 +20,11 @@ Shewchuk2DQualityController::Shewchuk2DQualityController(const MeshData2D& meshD
 {
 }
 
-bool Shewchuk2DQualityController::isMeshAcceptable(const MeshData2D& data,
-                                                   const MeshConnectivity& /*connectivity*/) const
+bool Shewchuk2DQualityController::isMeshAcceptable(const MeshData2D& data) const
 {
+    if (data.getElementCount() >= elementLimit_)
+        return true;
+
     for (const auto& [id, element] : data.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
