@@ -129,12 +129,12 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
 | S1.1 | Define `SurfaceMesh3D` result type (nodes, triangles, per-face groups, edge node pairing) | `3D/Surface/SurfaceMesh3D.h` | Done |
-| S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/Surface/TwinTableGenerator.h/.cpp` | Done |
+| S1.2 | `TwinTableGenerator`: inspect topology, compute `EdgeTwinTable` (edgeId → adjacent surfaces + orientations) | `3D/General/TwinTableGenerator.h/.cpp` | Done |
 | S1.3 | Extend `BoundaryDiscretizer3D`: accept `EdgeTwinTable`, assign global node IDs from counter, populate `TwinManager` with segment-level twin groups | `3D/General/BoundaryDiscretizer3D` | Done |
-| S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/Surface/FacetTriangulationManager` | Done |
+| S1.4 | `FacetTriangulationManager`: surface-mesher initialisation using `DiscretizationResult3D` directly (no `MeshData3D`); each face gets a `MeshData2D` via `FacetTriangulation` | `3D/General/FacetTriangulationManager` | Done |
 | S1.5 | `SurfaceMeshingContext3D`: owns geometry + topology + `FacetTriangulationManager` + `TwinManager`; no tet data. Exposes `buildSurfaceMesh()` → `MeshData3D` of initial surface triangulation | `3D/Surface/SurfaceMeshingContext3D.h/.cpp` | Done |
 
-**Implementation note (S1.4):** `FacetTriangulation::initialize()` uses `ConstrainedDelaunay2D` (not bare `Delaunay2D`) so boundary edge constraints are registered, enforced, and exterior triangles removed for each face. The per-face `DiscretizationResult2D` is built inside `FacetTriangulationManager` from the 3D discretization result using local (face-scoped) point indices. `ConstrainedDelaunay2D` exposes `getPointIndexToNodeIdMap()` so callers can build 3D↔2D node ID mappings after triangulation.
+**Implementation note (S1.4):** `FacetTriangulation::initialize()` uses `ConstrainedDelaunay2D` (not bare `Delaunay2D`) so boundary edge constraints are registered, enforced, and exterior triangles removed for each face. The per-face `DiscretizationResult2D` is built by `FacetDiscretization2DBuilder` (extracted from `FacetTriangulationManager`) using local (face-scoped) point indices from the 3D discretization result. `ConstrainedDelaunay2D` exposes `getPointIndexToNodeIdMap()` so callers can build 3D↔2D node ID mappings after triangulation.
 
 **Implementation note (periodic surfaces):** Two bugs affecting cylindrical/toroidal faces were fixed. Bug 1: `initializeForSurfaceMesher` now uses `collectBoundaryPointIndices`, excluding interior surface sample points so the constrained Delaunay starts with boundary-only vertices. Bug 2: `buildFaceDiscretization2D` processes seam twin edges first to build a `realCornerToShiftedLocal` map, then uses it to close circular edges at U+uPeriod instead of doubling back to U=0.
 
@@ -454,7 +454,12 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 | `GeometryStructures3D.h` | Common data types (`ConstrainedSubsegment3D`, `ConstrainedSubfacet3D`) |
 | `GeometryUtilities3D.h/.cpp` | Shared geometric utilities |
 | `DiscretizationResult3D.h` | Result type from `BoundaryDiscretizer3D` |
+| `EdgeTwinTable.h` | `EdgeTwinTable` type and `TwinOrientation` enum (edgeId → adjacent surfaces + orientations) |
 | `BoundaryDiscretizer3D.h/.cpp` | Edge and surface parametric sampling |
+| `FacetDiscretization2DBuilder.h/.cpp` | Builds per-face `DiscretizationResult2D` from `DiscretizationResult3D`; handles seam twin edges |
+| `FacetTriangulation.h/.cpp` | UV-space 2D triangulation for one CAD face |
+| `FacetTriangulationManager.h/.cpp` | Manages all per-face triangulations |
+| `TwinTableGenerator.h/.cpp` | Topology-only: produces `EdgeTwinTable` |
 | `ConstraintRegistrar3D.h/.cpp` | Subsegment/subfacet registration |
 | `ConstraintChecker3D.h/.cpp` | Encroachment tests (diametral/equatorial sphere) |
 | `MeshingContext3D.h/.cpp` | Owns 3D mesh data and operations lifecycle |
@@ -468,9 +473,6 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 ### 3D/Surface (surface mesher)
 | File | Role |
 |------|------|
-| `FacetTriangulation.h/.cpp` | UV-space 2D triangulation for one CAD face |
-| `FacetTriangulationManager.h/.cpp` | Manages all per-face triangulations |
-| `TwinTableGenerator.h/.cpp` | Topology-only: produces `EdgeTwinTable` |
 | `SurfaceMeshingContext3D.h/.cpp` | Surface meshing context (geometry + topology + `FacetTriangulationManager` + `TwinManager`) |
 | `SurfaceMesher3D.h/.cpp` | Top-level surface mesher API (**TODO**) |
 | `SurfaceMesh3D.h` | Result type (nodes, triangles, per-face groups, edge node pairing) |
