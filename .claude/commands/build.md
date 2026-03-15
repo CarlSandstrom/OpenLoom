@@ -6,7 +6,7 @@ Build the OpenLoom project using CMake.
 
 If build directory doesn't exist, configure first:
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DOPENLOOM_USE_OPENMP=On
 ```
 
 Then build:
