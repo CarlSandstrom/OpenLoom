@@ -123,8 +123,8 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
     std::map<std::string, std::vector<PendingCrossFaceSplit>> pendingCrossFaceSplits;
 
     auto applyPendingSplit = [&](FacetTriangulation& targetFacet,
-                                  const std::string& twinSurfaceId,
-                                  const PendingCrossFaceSplit& pending)
+                                 const std::string& twinSurfaceId,
+                                 const PendingCrossFaceSplit& pending)
     {
         MeshingContext2D& twinContext = targetFacet.getContext();
         auto twinEdgeId = twinContext.getOperations().getQueries().findCommonGeometryId(pending.m1, pending.m2);
@@ -140,7 +140,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
         size_t twinMid = *twinMidOpt;
         targetFacet.registerNode(twinMid, pending.node3DId);
         twinManager_->recordSplit(pending.sourceSurfaceId, pending.n1, pending.n2, pending.mid,
-                                   twinSurfaceId, pending.m1, pending.m2, twinMid);
+                                  twinSurfaceId, pending.m1, pending.m2, twinMid);
     };
 
     for (const auto& surfaceId : topology_->getAllSurfaceIds())
@@ -167,10 +167,10 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                                                       minAngleRadians,
                                                       elementLimit);
 
-        ShewchukRefiner2D refiner(faceContext, qualityController);
+        ShewchukRefiner2D refiner(faceContext, qualityController, surfaceId);
 
         refiner.setOnBoundarySplit([&, surfaceId, facetTriang](size_t n1, size_t n2, size_t mid)
-        {
+                                   {
             auto twinOpt = twinManager_->getTwin(surfaceId, n1, n2);
             if (!twinOpt)
                 return;
@@ -216,8 +216,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                 // triangulation before its refiner has had a chance to run.
                 pendingCrossFaceSplits[twinSurfaceId].push_back(
                     {surfaceId, n1, n2, mid, node3DId, m1, m2});
-            }
-        });
+            } });
 
         refiner.refine();
 

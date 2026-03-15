@@ -4,6 +4,7 @@
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include "MeshingContext2D.h"
 #include <functional>
+#include <string>
 #include <unordered_set>
 
 namespace Meshing
@@ -31,7 +32,8 @@ public:
      * @param qualityController Quality controller defining acceptable mesh quality
      */
     ShewchukRefiner2D(MeshingContext2D& context,
-                      const IQualityController2D& qualityController);
+                      const IQualityController2D& qualityController,
+                      std::string exportPrefix = "");
 
     ~ShewchukRefiner2D();
 
@@ -89,6 +91,7 @@ private:
     BoundarySplitCallback onBoundarySplit_;
     size_t exportCounter_ = 0;
     std::unordered_set<size_t> unrefinableTriangles_; // Triangles that can't be refined (circumcenter in hole)
+    std::string exportPrefix_;
 };
 
 } // namespace Meshing

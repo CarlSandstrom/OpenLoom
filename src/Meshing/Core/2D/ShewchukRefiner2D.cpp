@@ -18,9 +18,11 @@ namespace Meshing
 {
 
 ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
-                                     const IQualityController2D& qualityController) :
+                                     const IQualityController2D& qualityController,
+                                     std::string exportPrefix) :
     context_(&context),
-    qualityController_(&qualityController)
+    qualityController_(&qualityController),
+    exportPrefix_(std::move(exportPrefix))
 {
 }
 
@@ -40,7 +42,7 @@ void ShewchukRefiner2D::refine()
     const size_t maxIterations = 10000;         // Safety limit to prevent infinite loops
     const size_t maxConsecutiveNoProgress = 10; // Exit if no progress for this many iterations
 
-    exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D", exportCounter_);
+    exportAndVerifyMesh(context_->getMeshData(), exportPrefix_ + "ShewchukRefiner2D", exportCounter_);
     while (true)
     {
         if (qualityController_->isMeshAcceptable(context_->getMeshData()))
@@ -89,7 +91,7 @@ void ShewchukRefiner2D::refine()
         }
 
         ++iterationCount;
-        exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D", exportCounter_);
+        exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D_" + exportPrefix_, exportCounter_);
     }
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);
