@@ -151,21 +151,12 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                                   twinSurfaceId, pending.m1, pending.m2, twinMid);
     };
 
-    for (const auto& surfaceId : topology_->getAllSurfaceIds())
+    // Refine one face: set up the boundary-split callback, run Shewchuk, resolve nodes.
+    // Cross-face splits targeting not-yet-refined faces are applied immediately so the
+    // TwinManager stays current for sub-splits. Splits targeting already-refined faces
+    // are deferred into pendingCrossFaceSplits for the iterative re-refinement below.
+    auto refineOneFace = [&](const std::string& surfaceId, FacetTriangulation* facetTriang)
     {
-        auto* facetTriang = manager.getFacetTriangulation(surfaceId);
-        if (!facetTriang)
-            continue;
-
-        // Apply any pending cross-face splits for this surface BEFORE refining it.
-        auto pendingIt = pendingCrossFaceSplits.find(surfaceId);
-        if (pendingIt != pendingCrossFaceSplits.end())
-        {
-            for (const auto& pending : pendingIt->second)
-                applyPendingSplit(*facetTriang, surfaceId, pending);
-            pendingCrossFaceSplits.erase(pendingIt);
-        }
-
         spdlog::info("SurfaceMeshingContext3D::refineSurfaces: refining surface '{}'", surfaceId);
 
         MeshingContext2D& faceContext = facetTriang->getContext();
@@ -222,11 +213,8 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             }
             else if (refinedSurfaces.count(twinSurfaceId) == 0)
             {
-                // Twin face not yet refined: apply immediately. Safe because the
-                // twin's refiner hasn't started — its triangulation can freely
-                // receive new boundary points. Immediate application also updates
-                // the TwinManager so subsequent sub-splits of this segment find
-                // their twins correctly.
+                // Twin face not yet refined: apply immediately so the TwinManager
+                // stays current for any further sub-splits of this segment.
                 auto* twinFacet = manager.getFacetTriangulation(twinSurfaceId);
                 if (twinFacet)
                     applyPendingSplit(*twinFacet, twinSurfaceId,
@@ -234,30 +222,58 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             }
             else
             {
-                // Twin face already refined: defer. The split will be applied after
-                // all faces are done, keeping geometry consistent even if the late
-                // triangles in the twin are not quality-refined.
+                // Twin face already refined: defer so it can be re-refined in the
+                // next iteration of the late-split loop below.
                 pendingCrossFaceSplits[twinSurfaceId].push_back(
                     {surfaceId, n1, n2, mid, node3DId, m1, m2});
             } });
 
         refiner.refine();
-        refinedSurfaces.insert(surfaceId);
 
-        // Assign 3D IDs to interior refinement nodes (boundary-split nodes already registered).
         for (const auto& pt : facetTriang->resolveRefinementNodes(nextNode3DId))
             refinementNodes_.push_back(pt);
+    };
+
+    // Initial pass: refine every face in topology order.
+    for (const auto& surfaceId : topology_->getAllSurfaceIds())
+    {
+        auto* facetTriang = manager.getFacetTriangulation(surfaceId);
+        if (!facetTriang)
+            continue;
+
+        // Apply any cross-face splits that arrived for this face before it runs.
+        auto pendingIt = pendingCrossFaceSplits.find(surfaceId);
+        if (pendingIt != pendingCrossFaceSplits.end())
+        {
+            for (const auto& pending : pendingIt->second)
+                applyPendingSplit(*facetTriang, surfaceId, pending);
+            pendingCrossFaceSplits.erase(pendingIt);
+        }
+
+        refineOneFace(surfaceId, facetTriang);
+        refinedSurfaces.insert(surfaceId);
     }
 
-    // Apply any splits that targeted a face already refined (can happen when iteration
-    // order means a later face splits a boundary shared with an earlier face).
-    for (auto& [twinSurfaceId, splits] : pendingCrossFaceSplits)
+    // Iterative late-split resolution: any face that received a deferred split
+    // gets it applied and is then re-refined so the new boundary nodes don't leave
+    // large unsplit triangles. Re-refinement may generate new deferred splits for
+    // other already-refined faces, so we loop until the queue empties.
+    while (!pendingCrossFaceSplits.empty())
     {
-        auto* twinFacet = manager.getFacetTriangulation(twinSurfaceId);
-        if (!twinFacet)
-            continue;
-        for (const auto& pending : splits)
-            applyPendingSplit(*twinFacet, twinSurfaceId, pending);
+        auto batch = std::move(pendingCrossFaceSplits);
+        pendingCrossFaceSplits.clear();
+
+        for (auto& [twinSurfaceId, splits] : batch)
+        {
+            auto* twinFacet = manager.getFacetTriangulation(twinSurfaceId);
+            if (!twinFacet)
+                continue;
+
+            for (const auto& pending : splits)
+                applyPendingSplit(*twinFacet, twinSurfaceId, pending);
+
+            refineOneFace(twinSurfaceId, twinFacet);
+        }
     }
 
     spdlog::info("SurfaceMeshingContext3D::refineSurfaces: complete ({} refinement nodes)",
