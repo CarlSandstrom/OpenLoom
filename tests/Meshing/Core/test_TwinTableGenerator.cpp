@@ -147,18 +147,6 @@ TEST(TwinTableGeneratorTest, SharedEdgeContainsBothSurfaces)
     EXPECT_TRUE(hasSurface("S2"));
 }
 
-TEST(TwinTableGeneratorTest, FirstSurfaceIsSameSecondIsReversed)
-{
-    auto topology = makeTriangleStripTopology();
-    auto table = TwinTableGenerator::generate(topology);
-
-    ASSERT_TRUE(table.contains("E23"));
-    const auto& entries = table.at("E23");
-
-    ASSERT_EQ(entries.size(), 2u);
-    EXPECT_EQ(entries[0].orientation, TwinOrientation::Same);
-    EXPECT_EQ(entries[1].orientation, TwinOrientation::Reversed);
-}
 
 TEST(TwinTableGeneratorTest, NonManifoldEdgeHasThreeEntries)
 {
@@ -169,7 +157,7 @@ TEST(TwinTableGeneratorTest, NonManifoldEdgeHasThreeEntries)
     EXPECT_EQ(table.at("E23").size(), 3u);
 }
 
-TEST(TwinTableGeneratorTest, NonManifoldEdgeFirstIsSameRestAreReversed)
+TEST(TwinTableGeneratorTest, NonManifoldEdgeContainsAllThreeSurfaces)
 {
     auto topology = makeNonManifoldTopology();
     auto table = TwinTableGenerator::generate(topology);
@@ -177,10 +165,16 @@ TEST(TwinTableGeneratorTest, NonManifoldEdgeFirstIsSameRestAreReversed)
     ASSERT_TRUE(table.contains("E23"));
     const auto& entries = table.at("E23");
 
+    auto hasSurface = [&](const std::string& id)
+    {
+        return std::any_of(entries.begin(), entries.end(),
+                           [&](const EdgeTwinEntry& e) { return e.surfaceId == id; });
+    };
+
     ASSERT_EQ(entries.size(), 3u);
-    EXPECT_EQ(entries[0].orientation, TwinOrientation::Same);
-    EXPECT_EQ(entries[1].orientation, TwinOrientation::Reversed);
-    EXPECT_EQ(entries[2].orientation, TwinOrientation::Reversed);
+    EXPECT_TRUE(hasSurface("S1"));
+    EXPECT_TRUE(hasSurface("S2"));
+    EXPECT_TRUE(hasSurface("S3"));
 }
 
 TEST(TwinTableGeneratorTest, OnlySharedEdgesProduceEntries)

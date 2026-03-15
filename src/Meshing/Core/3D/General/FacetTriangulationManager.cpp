@@ -197,34 +197,13 @@ void FacetTriangulationManager::buildTwinManager()
             continue;
         }
 
+        // Both sequences are in canonical (start→end) order from BoundaryDiscretizer3D,
+        // so seq0[i] and seq1[i] represent the same 3D point. Pair by index directly.
         const size_t numberOfSegments = seq0->size() - 1;
         for (size_t i = 0; i < numberOfSegments; ++i)
         {
-            size_t s0From, s0To;
-            if (entries[0].orientation == TwinOrientation::Same)
-            {
-                s0From = (*seq0)[i];
-                s0To = (*seq0)[i + 1];
-            }
-            else
-            {
-                s0From = (*seq0)[numberOfSegments - i];
-                s0To = (*seq0)[numberOfSegments - i - 1];
-            }
-
-            size_t s1From, s1To;
-            if (entries[1].orientation == TwinOrientation::Same)
-            {
-                s1From = (*seq1)[i];
-                s1To = (*seq1)[i + 1];
-            }
-            else
-            {
-                s1From = (*seq1)[numberOfSegments - i];
-                s1To = (*seq1)[numberOfSegments - i - 1];
-            }
-
-            twinManager_->registerTwin(surfaceId0, s0From, s0To, surfaceId1, s1From, s1To);
+            twinManager_->registerTwin(surfaceId0, (*seq0)[i], (*seq0)[i + 1],
+                                       surfaceId1, (*seq1)[i], (*seq1)[i + 1]);
         }
 
         spdlog::debug("FacetTriangulationManager: Registered {} cross-surface twin pairs for edge {}",

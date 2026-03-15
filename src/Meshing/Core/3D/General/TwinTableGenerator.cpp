@@ -23,10 +23,9 @@ EdgeTwinTable TwinTableGenerator::generate(const Topology3D::Topology3D& topolog
         std::vector<EdgeTwinEntry> entries;
         entries.reserve(adjacentSurfaces.size());
 
-        for (size_t i = 0; i < adjacentSurfaces.size(); ++i)
+        for (const auto& surfaceId : adjacentSurfaces)
         {
-            TwinOrientation orientation = (i == 0) ? TwinOrientation::Same : TwinOrientation::Reversed;
-            entries.push_back({adjacentSurfaces[i], orientation});
+            entries.push_back({surfaceId});
         }
 
         table[edgeId] = std::move(entries);
