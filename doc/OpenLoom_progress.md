@@ -158,7 +158,7 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 |----------|-------------|---------|--------|
 | S2.1 | Run `ShewchukRefiner2D` on each `FacetTriangulation` context in UV space | `FacetTriangulation`, `ShewchukRefiner2D` | Done |
 | S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via the surface's first fundamental form / metric tensor) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | **TODO** |
-| S2.3 | Respect edge constraints: boundary edges of each face (on shared topology edges) must not be modified | `FacetTriangulation` | **TODO** |
+| S2.3 | Respect edge constraints: boundary edges of each face (on shared topology edges) must not be modified | `FacetTriangulation` | Done |
 | S2.4 | Geometric deviation check: for each triangle evaluate the 3D distance from the triangle midpoint (and edge midpoints) to the actual CAD surface by evaluating the surface at the UV midpoint; refine any triangle whose chord deviation exceeds a user-specified tolerance | `3D/Surface/SurfaceMeshQuality.h/.cpp` | **TODO** |
 
 **Note on S2.2:** For mildly curved CAD surfaces the UV distance approximation is acceptable and can be used initially. For tightly curved faces (small fillets, tight bends) the pull-back metric correction matters. Can be deferred to a later iteration.
@@ -169,7 +169,7 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 **Implementation note (S2.1):** `SurfaceMeshingContext3D::refineSurfaces()` iterates over all surfaces, retrieves each face's `MeshingContext2D` from its `FacetTriangulation`, constructs a `Shewchuk2DQualityController` and `ShewchukRefiner2D`, wires in a `BoundarySplitSynchronizer`, then calls `refiner.refine()`. After all faces are refined, `resolveRefinementNodes()` is called per face to lift UV refinement nodes onto the 3D surface and assign global 3D node IDs. These are stored in `SurfaceMeshingContext3D::refinementNodes_` and included by `getSurfaceMesh3D()`.
 
-**Status: IN PROGRESS — S2.1 Done**
+**Status: IN PROGRESS — S2.1, S2.3 Done**
 
 ---
 
@@ -382,9 +382,6 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 8. ~~`CylinderSurfaceMesh` example: full pipeline validation (init → refine → export)~~ **Done**
 
 ### In Progress / Next Steps
-
-#### Phase I-A: Context infrastructure refactor
-6. Add `IMeshingContext` abstract base class; make `MeshingContext2D`, `SurfaceMeshingContext3D`, and `MeshingContext3D` inherit from it
 
 #### Phase I-B: Per-face quality meshing (Step S2)
 7. ~~Run `ShewchukRefiner2D` per face in UV space (S2.1)~~ **Done**

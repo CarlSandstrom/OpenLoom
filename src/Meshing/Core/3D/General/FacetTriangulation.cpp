@@ -193,4 +193,26 @@ void FacetTriangulation::registerNode(size_t node2DId, size_t node3DId)
     node3DTo2DMap_[node3DId] = node2DId;
 }
 
+void FacetTriangulation::updateEdgeNodeAfterSplit(size_t nodeId1, size_t nodeId2, size_t midNodeId)
+{
+    for (auto& [edgeId, nodeSeq] : edgeIdToNode2DSeq_)
+    {
+        for (size_t index = 0; index + 1 < nodeSeq.size(); ++index)
+        {
+            bool forwardMatch = (nodeSeq[index] == nodeId1 && nodeSeq[index + 1] == nodeId2);
+            bool reverseMatch = (nodeSeq[index] == nodeId2 && nodeSeq[index + 1] == nodeId1);
+            if (forwardMatch || reverseMatch)
+            {
+                nodeSeq.insert(nodeSeq.begin() + static_cast<std::ptrdiff_t>(index) + 1, midNodeId);
+                spdlog::debug("FacetTriangulation {}: updated edge '{}' sequence with mid node {} between ({}, {})",
+                              surfaceId_, edgeId, midNodeId, nodeId1, nodeId2);
+                return;
+            }
+        }
+    }
+
+    spdlog::warn("FacetTriangulation {}: updateEdgeNodeAfterSplit: segment ({}, {}) not found in any edge node sequence",
+                 surfaceId_, nodeId1, nodeId2);
+}
+
 } // namespace Meshing

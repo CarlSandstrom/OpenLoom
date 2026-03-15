@@ -139,6 +139,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             return;
         size_t twinMid = *twinMidOpt;
         targetFacet.registerNode(twinMid, pending.node3DId);
+        targetFacet.updateEdgeNodeAfterSplit(pending.m1, pending.m2, twinMid);
         twinManager_->recordSplit(pending.sourceSurfaceId, pending.n1, pending.n2, pending.mid,
                                   twinSurfaceId, pending.m1, pending.m2, twinMid);
     };
@@ -191,6 +192,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             size_t node3DId = nextNode3DId++;
             refinementNodes_.push_back(sourceSurface->getPoint(uv.x(), uv.y()));
             facetTriang->registerNode(mid, node3DId);
+            facetTriang->updateEdgeNodeAfterSplit(n1, n2, mid);
 
             if (twinSurfaceId == surfaceId)
             {
@@ -208,6 +210,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                     return;
                 size_t twinMid = *twinMidOpt;
                 facetTriang->registerNode(twinMid, node3DId);
+                facetTriang->updateEdgeNodeAfterSplit(m1, m2, twinMid);
                 twinManager_->recordSplit(surfaceId, n1, n2, mid, twinSurfaceId, m1, m2, twinMid);
             }
             else

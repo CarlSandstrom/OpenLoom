@@ -143,6 +143,24 @@ public:
     void registerNode(size_t node2DId, size_t node3DId);
 
     /**
+     * @brief Update the edge node sequence after a boundary segment split.
+     *
+     * When a boundary segment (nodeId1, nodeId2) is split during refinement,
+     * this method finds the edge whose sequence contains that adjacent pair and
+     * inserts midNodeId between them. This keeps edgeIdToNode2DSeq_ current
+     * throughout refinement so it accurately reflects the boundary discretization
+     * at every stage (required by S3.3 twin consistency verification).
+     *
+     * Must be called by SurfaceMeshingContext3D after every boundary split — both
+     * on the face where the split originates and on the twin face where it is applied.
+     *
+     * @param nodeId1   First endpoint of the split segment (2D node ID)
+     * @param nodeId2   Second endpoint of the split segment (2D node ID)
+     * @param midNodeId The new node inserted between nodeId1 and nodeId2 (2D node ID)
+     */
+    void updateEdgeNodeAfterSplit(size_t nodeId1, size_t nodeId2, size_t midNodeId);
+
+    /**
      * @brief Map any 2D refinement nodes (inserted during Shewchuk refinement) to new 3D node IDs.
      *
      * After refinement, the 2D mesh may contain nodes with no 3D peer (ShewchukRefiner2D
