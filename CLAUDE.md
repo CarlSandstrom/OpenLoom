@@ -2,6 +2,8 @@
 
 Constrained Delaunay triangulation library for 2D and 3D mesh generation with OpenCASCADE CAD support.
 
+Do not commit unless I ask you to
+
 ## Build & Run
 
 ```bash

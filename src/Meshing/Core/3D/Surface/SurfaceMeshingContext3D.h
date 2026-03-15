@@ -66,12 +66,23 @@ public:
     const FacetTriangulationManager& getFacetTriangulationManager() const;
 
     /**
-     * @brief Run ShewchukRefiner2D on every face in UV space (Step S2.1).
+     * @brief Run ShewchukRefiner2D on every face in UV space.
      *
-     * Must be called after construction and before buildSurfaceMesh().
-     * Within-face seam-edge twins (e.g. cylindrical faces) are kept
-     * synchronised via BoundarySplitSynchronizer. Cross-face twin
-     * propagation is deferred to S3.2.
+     * Must be called after construction and before getSurfaceMesh3D().
+     *
+     * Refinement runs in passes over all faces until a full pass produces no
+     * cross-face boundary splits. Within each pass, every boundary split fires
+     * a callback that immediately applies the matching split to the twin face
+     * (seam twins on the same surface, or cross-surface twins on an adjacent
+     * face). This keeps the TwinManager current so that sub-splits of the same
+     * segment also find their twins.
+     *
+     * A face that receives a cross-face split from an earlier face in the same
+     * pass is refined correctly when its own turn comes. A face that receives a
+     * split from a later face (i.e. the later face ran after this one in the
+     * same pass) will be re-refined in the next pass.
+     *
+     * See doc/Flowcharts/3D surface meshing algorithm.md for full details.
      *
      * @param circumradiusToEdgeRatio  Max circumradius/shortest-edge bound (default 2.0)
      * @param minAngleDegrees          Minimum interior angle in degrees (default 30.0)
