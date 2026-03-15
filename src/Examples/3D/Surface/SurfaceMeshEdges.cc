@@ -72,16 +72,14 @@ int main()
     context.refineSurfaces();
 
     const auto subfacetsRefined = context.getFacetTriangulationManager().getAllSubfacets();
-    std::cout << "Subfacets (refined): " << subfacetsRefined.size() << "\n";
-
-    // Export refined surface triangulation
-    exporter.writeSurfaceMesh(discResult, subfacetsRefined, "SurfaceMesh3D_Refined.vtu");
-    std::cout << "Exported refined surface mesh to SurfaceMesh3D_Refined.vtu\n";
-
-    // Build a MeshData3D for programmatic use (e.g. further processing)
     auto meshData = context.getSurfaceMesh3D();
+    std::cout << "Subfacets (refined): " << subfacetsRefined.size() << "\n";
     std::cout << "MeshData3D: " << meshData.getNodeCount() << " nodes, "
               << meshData.getElementCount() << " triangles\n";
+
+    // Export refined surface triangulation
+    exporter.writeSurfaceMesh(meshData, subfacetsRefined, "SurfaceMesh3D_Refined.vtu");
+    std::cout << "Exported refined surface mesh to SurfaceMesh3D_Refined.vtu\n";
 
     return 0;
 }
