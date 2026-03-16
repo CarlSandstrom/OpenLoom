@@ -7,6 +7,7 @@
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/3D/Surface/SurfaceMeshQuality.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
@@ -100,7 +101,8 @@ MeshData3D SurfaceMeshingContext3D::getSurfaceMesh3D() const
 
 void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                                              double minAngleDegrees,
-                                             size_t elementLimit)
+                                             size_t elementLimit,
+                                             double chordDeviationTolerance)
 {
     const double minAngleRadians = minAngleDegrees * (std::numbers::pi / 180.0);
     auto& manager = *facetTriangulationManager_;
@@ -138,18 +140,39 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
     // Cross-face splits are always applied immediately to the twin face so the
     // TwinManager stays current for sub-splits. Returns true if any cross-face
     // split occurred (so the outer loop knows whether to run another pass).
-    auto refineOneFace = [&](const std::string& surfaceId, FacetTriangulation* facetTriang) -> bool
+    //
+    // deviationPassOnly = false  → angle-quality pass (Shewchuk2DQualityController, UV space)
+    // deviationPassOnly = true   → chord-deviation pass (SurfaceMeshQualityController,
+    //                              angle bounds disabled, only chord height checked)
+    auto refineOneFace = [&](const std::string& surfaceId, FacetTriangulation* facetTriang,
+                             bool deviationPassOnly) -> bool
     {
-        spdlog::info("SurfaceMeshingContext3D::refineSurfaces: refining surface '{}'", surfaceId);
+        spdlog::info("SurfaceMeshingContext3D::refineSurfaces: refining surface '{}' ({})",
+                     surfaceId, deviationPassOnly ? "deviation" : "angle");
 
         MeshingContext2D& faceContext = facetTriang->getContext();
 
-        Shewchuk2DQualityController qualityController(faceContext.getMeshData(),
-                                                      circumradiusToEdgeRatio,
-                                                      minAngleRadians,
-                                                      elementLimit);
+        std::unique_ptr<IQualityController2D> controller;
+        if (!deviationPassOnly)
+        {
+            controller = std::make_unique<Shewchuk2DQualityController>(
+                faceContext.getMeshData(), circumradiusToEdgeRatio, minAngleRadians, elementLimit);
+        }
+        else
+        {
+            const auto* surface = geometryCollection3D_->getSurface(surfaceId);
+            if (!surface)
+                return false;
+            // Use very loose angle bounds so only chord deviation triggers refinement.
+            controller = std::make_unique<SurfaceMeshQualityController>(
+                faceContext.getMeshData(), *surface,
+                1e9,  // circumradius bound: effectively disabled
+                0.0,  // min angle: effectively disabled
+                elementLimit,
+                chordDeviationTolerance);
+        }
 
-        ShewchukRefiner2D refiner(faceContext, qualityController, surfaceId);
+        ShewchukRefiner2D refiner(faceContext, *controller, surfaceId);
 
         bool hadCrossFaceSplit = false;
 
@@ -217,9 +240,8 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
         return hadCrossFaceSplit;
     };
 
-    // Refine all faces in passes until a full pass produces no cross-face boundary
-    // splits. Each pass may apply splits to faces that have already been refined in
-    // the current pass; those faces will be re-refined on the next pass.
+    // Phase 1: Angle-quality passes (UV space). Repeat until a full pass produces
+    // no cross-face boundary splits.
     bool anyNewSplits = true;
     while (anyNewSplits)
     {
@@ -229,8 +251,30 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             auto* facetTriang = manager.getFacetTriangulation(surfaceId);
             if (!facetTriang)
                 continue;
-            if (refineOneFace(surfaceId, facetTriang))
+            if (refineOneFace(surfaceId, facetTriang, false))
                 anyNewSplits = true;
+        }
+    }
+
+    // Phase 2: Chord-deviation passes (optional). Refine any triangle whose chord
+    // height exceeds the tolerance, using the same pass-until-stable strategy.
+    if (chordDeviationTolerance > 0.0)
+    {
+        spdlog::info("SurfaceMeshingContext3D::refineSurfaces: starting chord-deviation pass "
+                     "(tolerance {})", chordDeviationTolerance);
+
+        bool anyDeviationSplits = true;
+        while (anyDeviationSplits)
+        {
+            anyDeviationSplits = false;
+            for (const auto& surfaceId : topology_->getAllSurfaceIds())
+            {
+                auto* facetTriang = manager.getFacetTriangulation(surfaceId);
+                if (!facetTriang)
+                    continue;
+                if (refineOneFace(surfaceId, facetTriang, true))
+                    anyDeviationSplits = true;
+            }
         }
     }
 

@@ -159,7 +159,7 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 | S2.1 | Run `ShewchukRefiner2D` on each `FacetTriangulation` context in UV space | `FacetTriangulation`, `ShewchukRefiner2D` | Done |
 | S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via the surface's first fundamental form / metric tensor) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | Done |
 | S2.3 | Respect edge constraints: boundary edges of each face (on shared topology edges) must not be modified | `FacetTriangulation` | Done |
-| S2.4 | Geometric deviation check: for each triangle evaluate the 3D distance from the triangle midpoint (and edge midpoints) to the actual CAD surface by evaluating the surface at the UV midpoint; refine any triangle whose chord deviation exceeds a user-specified tolerance | `3D/Surface/SurfaceMeshQuality.h/.cpp` | **TODO** |
+| S2.4 | Geometric deviation check: for each triangle evaluate the 3D distance from the triangle midpoint (and edge midpoints) to the actual CAD surface by evaluating the surface at the UV midpoint; refine any triangle whose chord deviation exceeds a user-specified tolerance | `3D/Surface/SurfaceMeshQuality.h/.cpp` | Done |
 
 **Note on S2.2:** For mildly curved CAD surfaces the UV distance approximation is acceptable and can be used initially. For tightly curved faces (small fillets, tight bends) the pull-back metric correction matters. Can be deferred to a later iteration.
 
@@ -171,7 +171,9 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 **Implementation note (S2.2):** `SurfaceMeshQualityController` implements `IQualityController2D` and holds an `ISurface3D&`. For each triangle check, the three UV-space vertices are lifted to 3D via `surface.getPoint()`, and the circumradius-to-shortest-edge ratio and minimum angle are computed from the resulting 3D triangle geometry. This replaces the flat UV-space metric used by `Shewchuk2DQualityController` and is wired into `SurfaceMeshingContext3D::refineSurfaces()` in place of the old controller. No new `ISurface3D` API was needed — `getPoint()` suffices.
 
-**Status: IN PROGRESS — S2.1, S2.2, S2.3 Done**
+**Implementation note (S2.4):** `SurfaceMeshQualityController` gains a `chordDeviationTolerance` parameter (default 0.0 = disabled). When enabled, `isTriangleAcceptable` lifts each UV vertex to 3D, then evaluates the actual CAD surface at the UV centroid and three UV edge midpoints and computes the distance to the flat-triangle approximation at those locations. If any sample exceeds the tolerance, the triangle is rejected for refinement. `refineSurfaces` adds a Phase 2 loop: if `chordDeviationTolerance > 0`, all faces are re-refined using `SurfaceMeshQualityController` with very loose angle bounds (effectively disabled) so only chord height drives subdivision. Boundary-split synchronisation (TwinManager) runs normally in this phase, preserving inter-face conformity. By default the tolerance is 0.0 and Phase 2 is skipped, so existing behaviour is unchanged.
+
+**Status: COMPLETE — S2.1, S2.2, S2.3, S2.4 Done**
 
 ---
 

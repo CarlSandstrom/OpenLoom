@@ -21,6 +21,12 @@ class TriangleElement;
  * This corrects the distortion introduced by the surface parametrisation and is
  * important for tightly curved faces where UV distances differ significantly from
  * 3D arc-lengths.
+ *
+ * If chordDeviationTolerance > 0 (S2.4), each triangle is also rejected when the
+ * chord height — the maximum 3D distance from the flat triangle to the actual CAD
+ * surface, sampled at the triangle centroid and three edge midpoints — exceeds the
+ * tolerance. This ensures the triangulation geometrically approximates the surface
+ * to within the given tolerance regardless of triangle size.
  */
 class SurfaceMeshQualityController : public IQualityController2D
 {
@@ -29,7 +35,8 @@ public:
                                  const Geometry3D::ISurface3D& surface,
                                  double circumradiusToShortestEdgeRatioBound,
                                  double minAngleThresholdRadians,
-                                 std::size_t elementLimit);
+                                 std::size_t elementLimit,
+                                 double chordDeviationTolerance = 0.0);
 
     bool isMeshAcceptable(const MeshData2D& data) const override;
     bool isTriangleAcceptable(const TriangleElement& element) const override;
@@ -42,6 +49,7 @@ private:
     double circumradiusToShortestEdgeRatioBound_;
     double minAngleThreshold_;
     std::size_t elementLimit_;
+    double chordDeviationTolerance_;
 };
 
 } // namespace Meshing

@@ -62,6 +62,11 @@ int main()
     exporter.writeEdgeMesh(discResult, "CylinderSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to CylinderSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
+    // Angle-quality pass only (chord deviation disabled).
+    // Uncomment the second argument to also enforce geometric fidelity:
+    //   context.refineSurfaces(2.0, 30.0, 50000, 0.05);
+    // 0.05 means every triangle must approximate the CAD surface to within 0.05
+    // model units at its centroid and edge midpoints.
     context.refineSurfaces();
 
     const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();

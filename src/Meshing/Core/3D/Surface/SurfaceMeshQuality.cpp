@@ -5,7 +5,6 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 
 namespace Meshing
@@ -13,22 +12,6 @@ namespace Meshing
 
 namespace
 {
-
-// Lift the three UV-space nodes of a triangle to 3D via the surface.
-std::array<Point3D, 3> getTrianglePoints3D(const TriangleElement& element,
-                                            const MeshData2D& meshData,
-                                            const Geometry3D::ISurface3D& surface)
-{
-    std::array<Point3D, 3> points;
-    const auto& nodeIds = element.getNodeIdArray();
-    for (std::size_t i = 0; i < 3; ++i)
-    {
-        const Node2D* node = meshData.getNode(nodeIds[i]);
-        const auto& uv = node->getCoordinates();
-        points[i] = surface.getPoint(uv.x(), uv.y());
-    }
-    return points;
-}
 
 // 3D area of a triangle given its three vertices.
 double computeArea3D(const Point3D& a, const Point3D& b, const Point3D& c)
@@ -82,12 +65,14 @@ SurfaceMeshQualityController::SurfaceMeshQualityController(
     const Geometry3D::ISurface3D& surface,
     double circumradiusToShortestEdgeRatioBound,
     double minAngleThresholdRadians,
-    std::size_t elementLimit) :
+    std::size_t elementLimit,
+    double chordDeviationTolerance) :
     meshData_(meshData),
     surface_(surface),
     circumradiusToShortestEdgeRatioBound_(circumradiusToShortestEdgeRatioBound),
     minAngleThreshold_(minAngleThresholdRadians),
-    elementLimit_(elementLimit)
+    elementLimit_(elementLimit),
+    chordDeviationTolerance_(chordDeviationTolerance)
 {
 }
 
@@ -107,26 +92,59 @@ bool SurfaceMeshQualityController::isMeshAcceptable(const MeshData2D& data) cons
 
 bool SurfaceMeshQualityController::isTriangleAcceptable(const TriangleElement& element) const
 {
-    const auto [a, b, c] = [&]() -> std::tuple<Point3D, Point3D, Point3D>
-    {
-        auto points = getTrianglePoints3D(element, meshData_, surface_);
-        return {points[0], points[1], points[2]};
-    }();
+    const auto& nodeIds = element.getNodeIdArray();
+    const auto& uvA = meshData_.getNode(nodeIds[0])->getCoordinates();
+    const auto& uvB = meshData_.getNode(nodeIds[1])->getCoordinates();
+    const auto& uvC = meshData_.getNode(nodeIds[2])->getCoordinates();
 
-    const double edgeLengthAB = (b - a).norm();
-    const double edgeLengthBC = (c - b).norm();
-    const double edgeLengthCA = (a - c).norm();
+    const Point3D vertexA = surface_.getPoint(uvA.x(), uvA.y());
+    const Point3D vertexB = surface_.getPoint(uvB.x(), uvB.y());
+    const Point3D vertexC = surface_.getPoint(uvC.x(), uvC.y());
+
+    const double edgeLengthAB = (vertexB - vertexA).norm();
+    const double edgeLengthBC = (vertexC - vertexB).norm();
+    const double edgeLengthCA = (vertexA - vertexC).norm();
     const double shortestEdge = std::min({edgeLengthAB, edgeLengthBC, edgeLengthCA});
 
     if (shortestEdge < 1e-10)
         return false;
 
-    const double circumradius = computeCircumradius3D(a, b, c);
+    const double circumradius = computeCircumradius3D(vertexA, vertexB, vertexC);
     if (circumradius / shortestEdge > circumradiusToShortestEdgeRatioBound_)
         return false;
 
-    if (computeMinAngle3D(a, b, c) < minAngleThreshold_)
+    if (computeMinAngle3D(vertexA, vertexB, vertexC) < minAngleThreshold_)
         return false;
+
+    if (chordDeviationTolerance_ > 0.0)
+    {
+        // Check chord deviation: compare the flat triangle against the actual CAD surface
+        // at the centroid and three edge midpoints. Reject if any exceeds the tolerance.
+        auto chordDeviation = [&](double u, double v, const Point3D& flatPoint) -> double
+        {
+            return (surface_.getPoint(u, v) - flatPoint).norm();
+        };
+
+        // Centroid
+        const Point3D flatCentroid = (vertexA + vertexB + vertexC) / 3.0;
+        if (chordDeviation((uvA.x() + uvB.x() + uvC.x()) / 3.0,
+                           (uvA.y() + uvB.y() + uvC.y()) / 3.0,
+                           flatCentroid) > chordDeviationTolerance_)
+            return false;
+
+        // Edge midpoints
+        if (chordDeviation((uvA.x() + uvB.x()) * 0.5, (uvA.y() + uvB.y()) * 0.5,
+                           (vertexA + vertexB) * 0.5) > chordDeviationTolerance_)
+            return false;
+
+        if (chordDeviation((uvB.x() + uvC.x()) * 0.5, (uvB.y() + uvC.y()) * 0.5,
+                           (vertexB + vertexC) * 0.5) > chordDeviationTolerance_)
+            return false;
+
+        if (chordDeviation((uvC.x() + uvA.x()) * 0.5, (uvC.y() + uvA.y()) * 0.5,
+                           (vertexC + vertexA) * 0.5) > chordDeviationTolerance_)
+            return false;
+    }
 
     return true;
 }

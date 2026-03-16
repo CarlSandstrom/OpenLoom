@@ -70,27 +70,32 @@ public:
      *
      * Must be called after construction and before getSurfaceMesh3D().
      *
-     * Refinement runs in passes over all faces until a full pass produces no
-     * cross-face boundary splits. Within each pass, every boundary split fires
-     * a callback that immediately applies the matching split to the twin face
-     * (seam twins on the same surface, or cross-surface twins on an adjacent
-     * face). This keeps the TwinManager current so that sub-splits of the same
-     * segment also find their twins.
+     * Refinement runs in two phases:
      *
-     * A face that receives a cross-face split from an earlier face in the same
-     * pass is refined correctly when its own turn comes. A face that receives a
-     * split from a later face (i.e. the later face ran after this one in the
-     * same pass) will be re-refined in the next pass.
+     * Phase 1 — Angle quality (UV space): passes over all faces using
+     * Shewchuk2DQualityController until a full pass produces no cross-face
+     * boundary splits. Within each pass, every boundary split fires a callback
+     * that immediately applies the matching split to the twin face (seam twins on
+     * the same surface, or cross-surface twins on an adjacent face).
+     *
+     * Phase 2 — Chord deviation (optional): if chordDeviationTolerance > 0, a
+     * second round of passes refines any triangle whose chord height — the
+     * distance from the flat triangle to the actual CAD surface, sampled at the
+     * centroid and three edge midpoints — exceeds the tolerance. This ensures the
+     * triangulation geometrically approximates the curved surface within the
+     * given tolerance regardless of triangle size.
      *
      * See doc/Flowcharts/3D surface meshing algorithm.md for full details.
      *
      * @param circumradiusToEdgeRatio  Max circumradius/shortest-edge bound (default 2.0)
      * @param minAngleDegrees          Minimum interior angle in degrees (default 30.0)
      * @param elementLimit             Safety cap on elements per face (default 50000)
+     * @param chordDeviationTolerance  Max chord height in model units; 0 disables (default 0.0)
      */
     void refineSurfaces(double circumradiusToEdgeRatio = 2.0,
                         double minAngleDegrees = 30.0,
-                        size_t elementLimit = 50000);
+                        size_t elementLimit = 50000,
+                        double chordDeviationTolerance = 0.1);
 
     /**
      * @brief Build a MeshData3D containing the surface triangulation.
