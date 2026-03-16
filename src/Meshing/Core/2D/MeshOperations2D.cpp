@@ -31,8 +31,8 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
 
     if (conflicting.empty())
     {
-        SPDLOG_WARN("MeshOperations2D: No conflicting triangles found for point ({}, {})",
-                    point.x(), point.y());
+        SPDLOG_DEBUG("MeshOperations2D: No conflicting triangles found for point ({}, {}) — blocked by constraints",
+                     point.x(), point.y());
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
                          OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
                          "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
@@ -303,15 +303,29 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
         if (!triangle)
             continue;
 
-        // Find the opposite vertex (the one not on the split edge)
         size_t opposite = triangle->getOppositeNode(edgeNode1, edgeNode2);
+
+        // Find the actual direction of the edge in this triangle's winding order.
+        // Each of the two adjacent triangles sees the shared edge in opposite directions,
+        // so we must use the triangle's stored order to preserve CCW orientation.
+        size_t first = edgeNode1;
+        size_t second = edgeNode2;
+        for (size_t i = 0; i < 3; ++i)
+        {
+            auto edge = triangle->getEdge(i);
+            if (edge[0] == edgeNode2 && edge[1] == edgeNode1)
+            {
+                std::swap(first, second);
+                break;
+            }
+        }
 
         mutator_->removeElement(triId);
 
         size_t t1 = mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{edgeNode1, midNodeId, opposite}));
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{first, midNodeId, opposite}));
         size_t t2 = mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{midNodeId, edgeNode2, opposite}));
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{midNodeId, second, opposite}));
 
         newTriangleIds.push_back(t1);
         newTriangleIds.push_back(t2);
@@ -405,14 +419,32 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         if (!GeometryUtilities2D::isPointInsideCircle(*circle, pD))
             continue;
 
-        // Flip: remove (a,b,c) and (a,b,d), add (a,c,d) and (b,d,c)
+        // Skip if the flip would produce a degenerate triangle (collinear vertices).
+        // This can happen when a, c, d or b, c, d are collinear — e.g. when the edge
+        // being flipped is the seam-split edge and the two opposite vertices are both
+        // on the same seam boundary line.
+        const double MIN_FLIP_AREA = 1e-10;
+        if (std::abs(GeometryUtilities2D::computeSignedArea(pA, pC, pD)) < MIN_FLIP_AREA ||
+            std::abs(GeometryUtilities2D::computeSignedArea(pB, pD, pC)) < MIN_FLIP_AREA)
+            continue;
+
+        // Flip: remove the two triangles sharing edge (a,b) and replace with two triangles
+        // sharing the new diagonal (c,d). The EdgeKey order (a,b) is by node ID (min,max),
+        // not by winding, so we cannot infer orientation from it. Instead, compute the
+        // signed area of each candidate triangle and reverse the vertex order if it is CW.
         mutator_->removeElement(adjacent[0]);
         mutator_->removeElement(adjacent[1]);
 
-        mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{a, c, d}));
-        mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{b, d, c}));
+        std::array<size_t, 3> tri1 = {a, c, d};
+        if (GeometryUtilities2D::computeSignedArea(pA, pC, pD) < 0)
+            std::swap(tri1[1], tri1[2]);
+
+        std::array<size_t, 3> tri2 = {b, d, c};
+        if (GeometryUtilities2D::computeSignedArea(pB, pD, pC) < 0)
+            std::swap(tri2[1], tri2[2]);
+
+        mutator_->addElement(std::make_unique<TriangleElement>(tri1));
+        mutator_->addElement(std::make_unique<TriangleElement>(tri2));
 
         // Push the 4 outer edges of the flipped quad for further checking
         std::array<EdgeKey, 4> outerEdges = {
@@ -474,28 +506,45 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
-    // Insert midpoint via Bowyer-Watson and re-enforce constraint edges
-    size_t newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
+    // Check if a node already exists at midPoint (e.g. seam twin whose UV midpoint
+    // coincides with a node just inserted for the original segment).
+    size_t newNodeId = 0;
+    bool nodeFound = false;
+    const double NODE_COINCIDENCE_TOL = 1e-10;
+    for (const auto& [nodeId, node] : meshData_.getNodes())
+    {
+        if ((node->getCoordinates() - midPoint).squaredNorm() < NODE_COINCIDENCE_TOL * NODE_COINCIDENCE_TOL)
+        {
+            spdlog::debug("splitConstrainedSegment: Reusing existing node {} at ({:.6f},{:.6f})",
+                          nodeId, midPoint.x(), midPoint.y());
+            newNodeId = nodeId;
+            nodeFound = true;
+            break;
+        }
+    }
 
-    enforceEdge(segment.nodeId1, newNodeId);
-    enforceEdge(newNodeId, segment.nodeId2);
+    if (!nodeFound)
+    {
+        newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
+    }
 
-    // Update constrained segments: replace old with two new
+    // Update constrained segments BEFORE Lawson flip so the new sub-segments are
+    // recognised as constrained during flipping (preventing them from being flipped away).
     ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
     ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
     mutator_->replaceConstrainedSegment(segment, seg1, seg2);
 
-    // Remove artifact triangle caused by concave constrained edges.
-    // After splitting (A, B) at M, edge (A, B) should no longer exist in the mesh.
-    // If exactly one triangle has edge (A, B), it's an artifact of the curved edge
-    // approximation. If two triangles share it, it's an internal boundary — keep both.
-    auto artifactTriangles = queries_.findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2);
-    if (artifactTriangles.size() == 1)
-    {
-        spdlog::debug("splitConstrainedSegment: Removing artifact triangle {} (contains old edge ({}, {}))",
-                      artifactTriangles[0], segment.nodeId1, segment.nodeId2);
-        mutator_->removeElement(artifactTriangles[0]);
-    }
+    // Split the triangles adjacent to the old constraint directly instead of using
+    // Bowyer-Watson.  BW is wrong here: the midpoint lies on the constraint boundary,
+    // so the cavity boundary always contains the old constraint edge, and the
+    // resulting "triangle" (midpoint, A, B) is collinear (area = 0) and gets skipped,
+    // leaving a mesh hole.  Direct splitting forms two non-degenerate triangles
+    // (A, mid, opposite) and (mid, B, opposite) which are always valid.
+    auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+
+    // Restore the Delaunay property for the new triangles via edge flipping.
+    if (!newTriangleIds.empty())
+        lawsonFlip(newTriangleIds);
 
     return newNodeId;
 }

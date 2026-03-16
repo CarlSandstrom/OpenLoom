@@ -35,7 +35,19 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
         }
 
         auto circle = geometry.computeCircumcircle(*triangle);
-        if (circle && GeometryUtilities2D::isPointInsideCircle(*circle, point))
+        bool inConflict = circle && GeometryUtilities2D::isPointInsideCircle(*circle, point);
+        if (!inConflict && !circle)
+        {
+            // Degenerate triangle: circumcircle is undefined (nearly collinear vertices).
+            // Fall back to direct containment — a point on the triangle boundary
+            // (e.g. the midpoint of a segment being split) must still be included.
+            const auto& ids = triangle->getNodeIdArray();
+            const Point2D& v0 = meshData_.getNode(ids[0])->getCoordinates();
+            const Point2D& v1 = meshData_.getNode(ids[1])->getCoordinates();
+            const Point2D& v2 = meshData_.getNode(ids[2])->getCoordinates();
+            inConflict = GeometryUtilities2D::isPointInsideOrOnTriangle(point, v0, v1, v2);
+        }
+        if (inConflict)
         {
             // Visibility check per constrained Delaunay definition (Shewchuk, p.2):
             // A triangle is in the conflict set only if the insertion point is visible
@@ -121,12 +133,8 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 
             if (area < -1e-10)
             {
-                size_t badId = edgeOwner[key];
-                std::erase(conflicting, badId);
+                std::erase(conflicting, edgeOwner[key]);
                 changed = true;
-                SPDLOG_DEBUG("findConflictingTriangles: Removed triangle {} from cavity "
-                             "(non-star-shaped boundary edge, signed area: {:.6f})",
-                             badId, area);
                 break;
             }
         }

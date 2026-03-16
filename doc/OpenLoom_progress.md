@@ -157,7 +157,7 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
 | S2.1 | Run `ShewchukRefiner2D` on each `FacetTriangulation` context in UV space | `FacetTriangulation`, `ShewchukRefiner2D` | Done |
-| S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via the surface's first fundamental form / metric tensor) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | **TODO** |
+| S2.2 | Quality criterion: use 3D arc-length metric instead of flat UV distance (pull-back metric via the surface's first fundamental form / metric tensor) | `3D/Surface/SurfaceMeshQuality.h/.cpp` (new) | Done |
 | S2.3 | Respect edge constraints: boundary edges of each face (on shared topology edges) must not be modified | `FacetTriangulation` | Done |
 | S2.4 | Geometric deviation check: for each triangle evaluate the 3D distance from the triangle midpoint (and edge midpoints) to the actual CAD surface by evaluating the surface at the UV midpoint; refine any triangle whose chord deviation exceeds a user-specified tolerance | `3D/Surface/SurfaceMeshQuality.h/.cpp` | **TODO** |
 
@@ -169,7 +169,9 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 
 **Implementation note (S2.1):** `SurfaceMeshingContext3D::refineSurfaces()` iterates over all surfaces, retrieves each face's `MeshingContext2D` from its `FacetTriangulation`, constructs a `Shewchuk2DQualityController` and `ShewchukRefiner2D`, wires in a `BoundarySplitSynchronizer`, then calls `refiner.refine()`. After all faces are refined, `resolveRefinementNodes()` is called per face to lift UV refinement nodes onto the 3D surface and assign global 3D node IDs. These are stored in `SurfaceMeshingContext3D::refinementNodes_` and included by `getSurfaceMesh3D()`.
 
-**Status: IN PROGRESS — S2.1, S2.3 Done**
+**Implementation note (S2.2):** `SurfaceMeshQualityController` implements `IQualityController2D` and holds an `ISurface3D&`. For each triangle check, the three UV-space vertices are lifted to 3D via `surface.getPoint()`, and the circumradius-to-shortest-edge ratio and minimum angle are computed from the resulting 3D triangle geometry. This replaces the flat UV-space metric used by `Shewchuk2DQualityController` and is wired into `SurfaceMeshingContext3D::refineSurfaces()` in place of the old controller. No new `ISurface3D` API was needed — `getPoint()` suffices.
+
+**Status: IN PROGRESS — S2.1, S2.2, S2.3 Done**
 
 ---
 
@@ -385,7 +387,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 #### Phase I-B: Per-face quality meshing (Step S2)
 7. ~~Run `ShewchukRefiner2D` per face in UV space (S2.1)~~ **Done**
-8. Quality criterion with 3D arc-length metric / pull-back metric (S2.2)
+8. ~~Quality criterion with 3D arc-length metric / pull-back metric (S2.2)~~ **Done**
 9. Geometric deviation check per triangle against actual CAD surface (S2.4)
 
 #### Phase I-C: Inter-face conformity via TwinManager (Step S3)

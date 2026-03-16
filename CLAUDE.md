@@ -97,6 +97,7 @@ When fixing a bug or adding a feature, make the right change — not the conveni
 - **Use logging to investigate**: Since there is no debugger access, use `spdlog` calls freely to inspect state during debugging (`SPDLOG_LEVEL=debug` is set by default). Remove temporary log statements once the bug is resolved, unless they are genuinely useful to keep.
 - **No other temporary scaffolding**: Do not add temporary assertions or diagnostic tests. Remove any that were added during investigation once the bug is resolved.
 - **Tests must be intentional**: Only add a test if it covers a real scenario worth keeping permanently. Do not add tests just to verify a fix during debugging.
+- **Mesh integrity checks**: When running examples or tests to investigate a bug, always set the environment variable `CHECK_MESH_EACH_ITERATION=1`. This enables per-iteration mesh consistency checks that help catch corruption early.
 
 ## Error Handling
 
