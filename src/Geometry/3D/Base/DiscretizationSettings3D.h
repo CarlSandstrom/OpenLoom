@@ -39,8 +39,8 @@ public:
      * @param numSamplesPerSurfaceDirection  Grid samples per direction on surfaces.
      */
     DiscretizationSettings3D(std::optional<size_t> numSegmentsPerEdge,
-                              std::optional<double> maxAngleBetweenSegments,
-                              size_t numSamplesPerSurfaceDirection) :
+                             std::optional<double> maxAngleBetweenSegments,
+                             size_t numSamplesPerSurfaceDirection) :
         numSegmentsPerEdge_(numSegmentsPerEdge),
         maxAngleBetweenSegments_(maxAngleBetweenSegments),
         numSamplesPerSurfaceDirection_(numSamplesPerSurfaceDirection)
@@ -53,7 +53,7 @@ public:
      * @param numSamplesPerSurfaceDirection Grid samples per direction on surfaces.
      */
     DiscretizationSettings3D(size_t numSegmentsPerEdge,
-                              size_t numSamplesPerSurfaceDirection) :
+                             size_t numSamplesPerSurfaceDirection) :
         numSegmentsPerEdge_(numSegmentsPerEdge),
         maxAngleBetweenSegments_(std::nullopt),
         numSamplesPerSurfaceDirection_(numSamplesPerSurfaceDirection)

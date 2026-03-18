@@ -131,9 +131,8 @@ int main()
     std::vector<std::string> hole2EdgeLoop;
     addCircularHole(*geometry, topoCorners, topoEdges, hole2EdgeLoop, "hole2", 6.0, 5.0, 1.0, 8);
 
-    auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop,
-        std::vector<std::vector<std::string>>{hole1EdgeLoop, hole2EdgeLoop});
+    auto topology = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, outerEdgeLoop,
+                                                             std::vector<std::vector<std::string>>{hole1EdgeLoop, hole2EdgeLoop});
 
     // Create meshing context and triangulate
     MeshingContext2D context(std::move(geometry), std::move(topology));

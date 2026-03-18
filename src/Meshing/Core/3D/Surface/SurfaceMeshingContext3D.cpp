@@ -7,12 +7,12 @@
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Shewchuk2DQualityController.h"
-#include "Meshing/Core/3D/Surface/SurfaceMeshQuality.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
+#include "Meshing/Core/3D/Surface/SurfaceMeshQuality.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
@@ -121,15 +121,12 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
     {
         MeshingContext2D& twinContext = twinFacet.getContext();
         auto twinEdgeId = twinContext.getOperations().getQueries().findCommonGeometryId(m1, m2);
-        if (!twinEdgeId)
-            return;
+        if (!twinEdgeId) return;
         const auto* twinEdge = twinContext.getGeometry().getEdge(*twinEdgeId);
-        if (!twinEdge)
-            return;
+        if (!twinEdge) return;
         ConstrainedSegment2D twinSeg{m1, m2};
         auto twinMidOpt = twinContext.getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
-        if (!twinMidOpt)
-            return;
+        if (!twinMidOpt) return;
         size_t twinMid = *twinMidOpt;
         twinFacet.registerNode(twinMid, node3DId);
         twinFacet.updateEdgeNodeAfterSplit(m1, m2, twinMid);
@@ -166,8 +163,8 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             // Use very loose angle bounds so only chord deviation triggers refinement.
             controller = std::make_unique<SurfaceMeshQualityController>(
                 faceContext.getMeshData(), *surface,
-                1e9,  // circumradius bound: effectively disabled
-                0.0,  // min angle: effectively disabled
+                1e9, // circumradius bound: effectively disabled
+                0.0, // min angle: effectively disabled
                 elementLimit,
                 chordDeviationTolerance);
         }
@@ -177,7 +174,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
         bool hadCrossFaceSplit = false;
 
         refiner.setOnBoundarySplit([&, surfaceId, facetTriang](size_t n1, size_t n2, size_t mid)
-        {
+                                   {
             auto twinOpt = twinManager_->getTwin(surfaceId, n1, n2);
             if (!twinOpt)
                 return;
@@ -229,8 +226,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                                        n1, n2, mid, node3DId, m1, m2);
                     hadCrossFaceSplit = true;
                 }
-            }
-        });
+            } });
 
         refiner.refine();
 
@@ -261,7 +257,8 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
     if (chordDeviationTolerance > 0.0)
     {
         spdlog::info("SurfaceMeshingContext3D::refineSurfaces: starting chord-deviation pass "
-                     "(tolerance {})", chordDeviationTolerance);
+                     "(tolerance {})",
+                     chordDeviationTolerance);
 
         bool anyDeviationSplits = true;
         while (anyDeviationSplits)
