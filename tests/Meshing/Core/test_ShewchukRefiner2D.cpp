@@ -11,6 +11,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
+#include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
@@ -26,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -112,6 +114,99 @@ void addCircularEdge(Geometry2D::GeometryCollection2D& geometry,
 }
 
 } // namespace
+
+// Regression test: splitting a curved constraint (arc) that borders a hole must
+// not produce CW-wound triangles.
+//
+// Root cause: splitTrianglesAtEdge placed the arc midpoint (which lies on the
+// circle boundary, not on the chord) into hole-interior triangles. The midpoint
+// falls geometrically outside those triangles, producing CW sub-triangles.
+// Fix (commit 8da8c8c): skip hole-interior triangles in splitTrianglesAtEdge.
+TEST(ShewchukRefiner2D, TwoCircularHoles_CurvedConstraintSplitProducesValidMesh)
+{
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+
+    std::vector<std::string> outerEdgeLoop;
+    addSquare(*geometry, topoCorners, topoEdges, outerEdgeLoop, "outer", 10.0);
+
+    const size_t numSegments = 8;
+    addCircularEdge(*geometry, topoCorners, topoEdges, "hole1", 4.0, 5.0, 0.95, numSegments);
+    addCircularEdge(*geometry, topoCorners, topoEdges, "hole2", 6.0, 5.0, 1.0, numSegments);
+
+    std::vector<std::string> hole1Loop, hole2Loop;
+    for (size_t i = 0; i < numSegments; ++i)
+    {
+        hole1Loop.push_back("hole1_e" + std::to_string(i));
+        hole2Loop.push_back("hole2_e" + std::to_string(i));
+    }
+
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topoCorners, topoEdges, outerEdgeLoop,
+        std::vector<std::vector<std::string>>{hole1Loop, hole2Loop});
+
+    MeshingContext2D context(std::move(geometry), std::move(topology));
+
+    EdgeDiscretizer2D discretizer(context);
+    auto discretization = discretizer.discretize();
+
+    ConstrainedDelaunay2D mesher(context, discretization);
+    mesher.triangulate();
+
+    // Enable per-iteration mesh checking so that a transient CW triangle
+    // (which would later be cleaned up by exterior-triangle removal) is caught
+    // immediately and surfaces as an exception rather than silently surviving.
+    setenv("CHECK_MESH_EACH_ITERATION", "1", 1);
+    struct Cleanup1 { ~Cleanup1() { unsetenv("CHECK_MESH_EACH_ITERATION"); } } cleanup;
+
+    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ASSERT_NO_THROW(refiner.refine());
+}
+
+// Regression test: splitting a curved constraint (arc) used as an internal
+// constraint (not a hole boundary) must not produce overlapping triangles.
+//
+// Root cause: splitTrianglesAtEdge was called even when the arc midpoint lies
+// off the chord. For domain-interior triangles, the off-chord midpoint is
+// outside one of the two adjacent triangles — the resulting sub-triangles
+// overlap those from the other triangle.
+// Fix (commit 71bb20a): detect off-chord midpoints and route them through
+// Bowyer-Watson instead of splitTrianglesAtEdge.
+TEST(ShewchukRefiner2D, InternalCircularConstraints_CurvedConstraintSplitProducesValidMesh)
+{
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+
+    std::vector<std::string> outerEdgeLoop;
+    addSquare(*geometry, topoCorners, topoEdges, outerEdgeLoop, "outer", 10.0);
+
+    addCircularEdge(*geometry, topoCorners, topoEdges, "circle1", 4.0, 5.0, 0.95, 8);
+    addCircularEdge(*geometry, topoCorners, topoEdges, "circle2", 6.0, 5.0, 1.0, 8);
+
+    // Circles are internal constraints, not holes — empty hole loop list
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topoCorners, topoEdges, outerEdgeLoop,
+        std::vector<std::vector<std::string>>{});
+
+    MeshingContext2D context(std::move(geometry), std::move(topology));
+
+    EdgeDiscretizer2D discretizer(context);
+    auto discretization = discretizer.discretize();
+
+    ConstrainedDelaunay2D mesher(context, discretization);
+    mesher.triangulate();
+
+    // Enable per-iteration mesh checking so that overlapping triangles (which
+    // would otherwise cause an infinite refinement loop) are caught immediately
+    // and surface as an exception rather than hanging the test.
+    setenv("CHECK_MESH_EACH_ITERATION", "1", 1);
+    struct Cleanup2 { ~Cleanup2() { unsetenv("CHECK_MESH_EACH_ITERATION"); } } cleanup;
+
+    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ASSERT_NO_THROW(refiner.refine());
+}
 
 // Regression test: refinement near internal circular constraints must terminate.
 // Previously, circumcenters of bad triangles near curved constraints would land
