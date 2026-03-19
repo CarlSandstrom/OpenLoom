@@ -537,28 +537,60 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
         }
     }
 
-    if (!nodeFound)
+    // Determine whether the midpoint lies on the straight chord (n1, n2).
+    // For straight constraint edges (e.g. seam edges), the arc midpoint equals
+    // the chord midpoint — splitTrianglesAtEdge produces a correct partition.
+    // For curved constraints (circular arcs), the arc midpoint is off the chord;
+    // splitTrianglesAtEdge would then create overlapping sub-triangles because
+    // the midpoint lies outside one of the two adjacent triangles. Bowyer-Watson
+    // handles off-chord midpoints correctly by rebuilding the local triangulation
+    // from a star-shaped cavity.
+    const Point2D& pN1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
+    const Point2D& pN2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
+    Point2D chord = pN2 - pN1;
+    double chordLenSq = chord.squaredNorm();
+    bool midOnChord = true;
+    if (chordLenSq > 1e-20)
     {
-        newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
+        Point2D projected = pN1 + chord.dot(midPoint - pN1) / chordLenSq * chord;
+        midOnChord = (midPoint - projected).squaredNorm() < 1e-12;
     }
 
-    // Update constrained segments BEFORE Lawson flip so the new sub-segments are
-    // recognised as constrained during flipping (preventing them from being flipped away).
-    ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
-    ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
-    mutator_->replaceConstrainedSegment(segment, seg1, seg2);
+    if (nodeFound || midOnChord)
+    {
+        // Straight edge or reused node: add the node directly then split the two
+        // adjacent triangles at the (chord) midpoint.  BW would be wrong here:
+        // the midpoint lies on the constraint boundary, so the BW cavity boundary
+        // always contains the old constraint edge, and the resulting triangle
+        // (midpoint, n1, n2) is collinear (area = 0) and gets skipped, leaving a
+        // mesh hole.  Direct splitting forms two non-degenerate triangles
+        // (n1, mid, opposite) and (mid, n2, opposite) which are always valid.
+        if (!nodeFound)
+            newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
 
-    // Split the triangles adjacent to the old constraint directly instead of using
-    // Bowyer-Watson.  BW is wrong here: the midpoint lies on the constraint boundary,
-    // so the cavity boundary always contains the old constraint edge, and the
-    // resulting "triangle" (midpoint, A, B) is collinear (area = 0) and gets skipped,
-    // leaving a mesh hole.  Direct splitting forms two non-degenerate triangles
-    // (A, mid, opposite) and (mid, B, opposite) which are always valid.
-    auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+        // Update constrained segments BEFORE the Lawson flip so the new sub-segments
+        // are recognised as constrained and are not flipped away.
+        ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
+        ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
+        mutator_->replaceConstrainedSegment(segment, seg1, seg2);
 
-    // Restore the Delaunay property for the new triangles via edge flipping.
-    if (!newTriangleIds.empty())
-        lawsonFlip(newTriangleIds);
+        auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+        if (!newTriangleIds.empty())
+            lawsonFlip(newTriangleIds);
+    }
+    else
+    {
+        // Curved edge: the arc midpoint is off the chord.  Use Bowyer-Watson,
+        // which rebuilds the local triangulation from a star-shaped cavity and
+        // correctly handles midpoints that do not lie on the chord.
+        newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
+        enforceEdge(segment.nodeId1, newNodeId);
+        enforceEdge(newNodeId, segment.nodeId2);
+
+        ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
+        ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
+        mutator_->replaceConstrainedSegment(segment, seg1, seg2);
+    }
 
     return newNodeId;
 }
