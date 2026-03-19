@@ -302,6 +302,20 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
         if (!triangle)
             continue;
 
+        // Skip hole-interior triangles. When a curved constraint (arc) is split,
+        // the arc midpoint lies on the hole boundary and can fall geometrically
+        // outside a bridging triangle, producing a CW-wound sub-triangle.
+        // These triangles will be removed by the next classifyAndRemoveExteriorTriangles
+        // call — skipping them here is correct.
+        {
+            const auto& nodeIds = triangle->getNodeIdArray();
+            const Point2D& p0 = meshData_.getNode(nodeIds[0])->getCoordinates();
+            const Point2D& p1 = meshData_.getNode(nodeIds[1])->getCoordinates();
+            const Point2D& p2 = meshData_.getNode(nodeIds[2])->getCoordinates();
+            if (!queries_.isPointInsideDomain((p0 + p1 + p2) / 3.0))
+                continue;
+        }
+
         size_t opposite = triangle->getOppositeNode(edgeNode1, edgeNode2);
 
         // Find the actual direction of the edge in this triangle's winding order.
