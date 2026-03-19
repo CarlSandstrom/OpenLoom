@@ -7,7 +7,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -148,11 +148,7 @@ int main()
 
     // Refine mesh with ShewchukRefiner2D
     spdlog::info("Refining mesh with ShewchukRefiner2D...");
-    Shewchuk2DQualityController qualityController(context.getMeshData(),
-                                                  2.0,        // Max circumradius to shortest edge ratio
-                                                  M_PI / 6.0, // Min angle 30 degrees
-                                                  10000);     // Max elements
-    ShewchukRefiner2D refiner(context, qualityController);
+    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
     refiner.refine();
 
     spdlog::info("Square with circular hole mesh generation complete!");

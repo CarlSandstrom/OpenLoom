@@ -9,19 +9,34 @@
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
+#include "Shewchuk2DQualityController.h"
 #include "Topology2D/Topology2D.h"
 #include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
+#include <numbers>
 
 namespace Meshing
 {
 
 ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
-                                     const IQualityController2D& qualityController,
+                                     const Mesh2DQualitySettings& qualitySettings,
                                      std::string exportPrefix) :
     context_(&context),
-    qualityController_(&qualityController),
+    qualityController_(std::make_unique<Shewchuk2DQualityController>(
+        context.getMeshData(),
+        qualitySettings.circumradiusToEdgeRatio,
+        qualitySettings.minAngleDegrees * (std::numbers::pi / 180.0),
+        qualitySettings.elementLimit)),
+    exportPrefix_(std::move(exportPrefix))
+{
+}
+
+ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
+                                     std::unique_ptr<IQualityController2D> controller,
+                                     std::string exportPrefix) :
+    context_(&context),
+    qualityController_(std::move(controller)),
     exportPrefix_(std::move(exportPrefix))
 {
 }

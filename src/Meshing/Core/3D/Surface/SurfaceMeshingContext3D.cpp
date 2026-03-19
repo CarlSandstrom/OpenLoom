@@ -6,7 +6,7 @@
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
@@ -18,16 +18,17 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
-#include <numbers>
 
 namespace Meshing
 {
 
 SurfaceMeshingContext3D::SurfaceMeshingContext3D(const Geometry3D::GeometryCollection3D& geometryCollection3D,
                                                  const Topology3D::Topology3D& topology3D,
-                                                 const Geometry3D::DiscretizationSettings3D& discretizationSettings3D) :
+                                                 const Geometry3D::DiscretizationSettings3D& discretizationSettings3D,
+                                                 const SurfaceMesh3DQualitySettings& qualitySettings) :
     geometryCollection3D_(&geometryCollection3D),
-    topology_(&topology3D)
+    topology_(&topology3D),
+    qualitySettings_(qualitySettings)
 {
     spdlog::info("SurfaceMeshingContext3D: initializing S1 pipeline");
 
@@ -99,12 +100,12 @@ MeshData3D SurfaceMeshingContext3D::getSurfaceMesh3D() const
     return mesh;
 }
 
-void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
-                                             double minAngleDegrees,
-                                             size_t elementLimit,
-                                             double chordDeviationTolerance)
+void SurfaceMeshingContext3D::refineSurfaces()
 {
-    const double minAngleRadians = minAngleDegrees * (std::numbers::pi / 180.0);
+    const double circumradiusToEdgeRatio = qualitySettings_.circumradiusToEdgeRatio;
+    const double minAngleDegrees = qualitySettings_.minAngleDegrees;
+    const size_t elementLimit = qualitySettings_.elementLimit;
+    const double chordDeviationTolerance = qualitySettings_.chordDeviationTolerance;
     auto& manager = *facetTriangulationManager_;
 
     refinementNodes_.clear();
@@ -149,11 +150,14 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
 
         MeshingContext2D& faceContext = facetTriang->getContext();
 
-        std::unique_ptr<IQualityController2D> controller;
+        std::unique_ptr<ShewchukRefiner2D> refiner;
         if (!deviationPassOnly)
         {
-            controller = std::make_unique<Shewchuk2DQualityController>(
-                faceContext.getMeshData(), circumradiusToEdgeRatio, minAngleRadians, elementLimit);
+            Mesh2DQualitySettings settings;
+            settings.circumradiusToEdgeRatio = circumradiusToEdgeRatio;
+            settings.minAngleDegrees         = minAngleDegrees;
+            settings.elementLimit            = elementLimit;
+            refiner = std::make_unique<ShewchukRefiner2D>(faceContext, settings, surfaceId);
         }
         else
         {
@@ -161,19 +165,19 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
             if (!surface)
                 return false;
             // Use very loose angle bounds so only chord deviation triggers refinement.
-            controller = std::make_unique<SurfaceMeshQualityController>(
+            auto controller = std::make_unique<SurfaceMeshQualityController>(
                 faceContext.getMeshData(), *surface,
                 1e9, // circumradius bound: effectively disabled
                 0.0, // min angle: effectively disabled
                 elementLimit,
                 chordDeviationTolerance);
+            refiner = std::make_unique<ShewchukRefiner2D>(
+                faceContext, std::move(controller), surfaceId);
         }
-
-        ShewchukRefiner2D refiner(faceContext, *controller, surfaceId);
 
         bool hadCrossFaceSplit = false;
 
-        refiner.setOnBoundarySplit([&, surfaceId, facetTriang](size_t n1, size_t n2, size_t mid)
+        refiner->setOnBoundarySplit([&, surfaceId, facetTriang](size_t n1, size_t n2, size_t mid)
                                    {
             auto twinOpt = twinManager_->getTwin(surfaceId, n1, n2);
             if (!twinOpt)
@@ -228,7 +232,7 @@ void SurfaceMeshingContext3D::refineSurfaces(double circumradiusToEdgeRatio,
                 }
             } });
 
-        refiner.refine();
+        refiner->refine();
 
         for (const auto& pt : facetTriang->resolveRefinementNodes(nextNode3DId))
             refinementNodes_.push_back(pt);

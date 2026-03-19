@@ -2,7 +2,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Readers/OpenCascade/StepReader2D.h"
@@ -49,11 +49,7 @@ int main(int argc, char* argv[])
 
     // Refine mesh
     spdlog::info("Refining mesh...");
-    Shewchuk2DQualityController qualityController(context.getMeshData(),
-                                                  2.0,        // Max circumradius to shortest edge ratio
-                                                  M_PI / 6.0, // Min angle 30 degrees
-                                                  10000);     // Max elements
-    ShewchukRefiner2D refiner(context, qualityController);
+    ShewchukRefiner2D refiner(context, Mesh2DQualitySettings{});
     refiner.refine();
 
     spdlog::info("Mesh generation complete!");

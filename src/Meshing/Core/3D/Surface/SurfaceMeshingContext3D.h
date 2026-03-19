@@ -2,6 +2,7 @@
 
 #include "Common/Types.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include <memory>
 #include <vector>
@@ -45,7 +46,8 @@ public:
      */
     SurfaceMeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
                             const Topology3D::Topology3D& topology,
-                            const Geometry3D::DiscretizationSettings3D& settings = {});
+                            const Geometry3D::DiscretizationSettings3D& discretizationSettings = {},
+                            const SurfaceMesh3DQualitySettings& qualitySettings = {});
 
     ~SurfaceMeshingContext3D();
 
@@ -69,6 +71,8 @@ public:
      * @brief Run ShewchukRefiner2D on every face in UV space.
      *
      * Must be called after construction and before getSurfaceMesh3D().
+     * Quality settings are taken from the SurfaceMesh3DQualitySettings passed
+     * at construction time.
      *
      * Refinement runs in two phases:
      *
@@ -78,24 +82,14 @@ public:
      * that immediately applies the matching split to the twin face (seam twins on
      * the same surface, or cross-surface twins on an adjacent face).
      *
-     * Phase 2 — Chord deviation (optional): if chordDeviationTolerance > 0, a
-     * second round of passes refines any triangle whose chord height — the
-     * distance from the flat triangle to the actual CAD surface, sampled at the
-     * centroid and three edge midpoints — exceeds the tolerance. This ensures the
-     * triangulation geometrically approximates the curved surface within the
-     * given tolerance regardless of triangle size.
+     * Phase 2 — Chord deviation (optional): if qualitySettings.chordDeviationTolerance > 0,
+     * a second round of passes refines any triangle whose chord height exceeds the
+     * tolerance. This ensures the triangulation geometrically approximates the curved
+     * surface within the given tolerance regardless of triangle size.
      *
      * See doc/Flowcharts/3D surface meshing algorithm.md for full details.
-     *
-     * @param circumradiusToEdgeRatio  Max circumradius/shortest-edge bound (default 2.0)
-     * @param minAngleDegrees          Minimum interior angle in degrees (default 30.0)
-     * @param elementLimit             Safety cap on elements per face (default 50000)
-     * @param chordDeviationTolerance  Max chord height in model units; 0 disables (default 0.0)
      */
-    void refineSurfaces(double circumradiusToEdgeRatio = 2.0,
-                        double minAngleDegrees = 30.0,
-                        size_t elementLimit = 50000,
-                        double chordDeviationTolerance = 0.1);
+    void refineSurfaces();
 
     /**
      * @brief Build a MeshData3D containing the surface triangulation.
@@ -108,6 +102,7 @@ public:
 private:
     const Geometry3D::GeometryCollection3D* geometryCollection3D_;
     const Topology3D::Topology3D* topology_;
+    SurfaceMesh3DQualitySettings qualitySettings_;
 
     std::unique_ptr<DiscretizationResult3D> discretizationResult_;
     std::unique_ptr<TwinManager> twinManager_;

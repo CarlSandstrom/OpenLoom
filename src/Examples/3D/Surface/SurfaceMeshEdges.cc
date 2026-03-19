@@ -13,6 +13,7 @@
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
@@ -48,7 +49,8 @@ int main()
     // S1 pipeline: TwinTableGenerator → BoundaryDiscretizer3D → FacetTriangulationManager
     Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
                                              converter.getTopology(),
-                                             settings);
+                                             settings,
+                                             Meshing::SurfaceMesh3DQualitySettings{});
 
     const auto& discResult = context.getDiscretizationResult();
     const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();

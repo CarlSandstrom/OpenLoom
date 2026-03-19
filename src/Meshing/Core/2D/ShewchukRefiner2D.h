@@ -1,9 +1,11 @@
 #pragma once
 
 #include "GeometryStructures2D.h"
+#include "Mesh2DQualitySettings.h"
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include "MeshingContext2D.h"
 #include <functional>
+#include <memory>
 #include <string>
 #include <unordered_set>
 
@@ -27,12 +29,30 @@ class ShewchukRefiner2D
 {
 public:
     /**
-     * @brief Construct a Shewchuk refiner
+     * @brief Construct a Shewchuk refiner with quality settings.
+     *
+     * Creates a Shewchuk2DQualityController internally from the given settings.
+     * This is the primary constructor for application code.
+     *
      * @param context The meshing context containing mesh data and operations
-     * @param qualityController Quality controller defining acceptable mesh quality
+     * @param qualitySettings Quality bounds for the refinement
      */
     ShewchukRefiner2D(MeshingContext2D& context,
-                      const IQualityController2D& qualityController,
+                      const Mesh2DQualitySettings& qualitySettings,
+                      std::string exportPrefix = "");
+
+    /**
+     * @brief Construct a Shewchuk refiner with a pre-built quality controller.
+     *
+     * Takes ownership of the controller. Intended for internal use by
+     * SurfaceMeshingContext3D, which needs to supply different controller
+     * implementations for Phase 1 and Phase 2 refinement.
+     *
+     * @param context The meshing context containing mesh data and operations
+     * @param controller Owning pointer to the quality controller
+     */
+    ShewchukRefiner2D(MeshingContext2D& context,
+                      std::unique_ptr<IQualityController2D> controller,
                       std::string exportPrefix = "");
 
     ~ShewchukRefiner2D();
@@ -67,7 +87,7 @@ public:
 
 private:
     MeshingContext2D* context_;
-    const IQualityController2D* qualityController_;
+    std::unique_ptr<IQualityController2D> qualityController_;
 
     /**
      * @brief Perform a single refinement step

@@ -72,8 +72,7 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
             continue;
         }
 
-        auto newTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]});
-        mutator_->addElement(std::move(newTriangle));
+        mutator_->addElement(std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]}));
     }
 
     return newVertex;
@@ -424,8 +423,9 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         // being flipped is the seam-split edge and the two opposite vertices are both
         // on the same seam boundary line.
         const double MIN_FLIP_AREA = 1e-10;
-        if (std::abs(GeometryUtilities2D::computeSignedArea(pA, pC, pD)) < MIN_FLIP_AREA ||
-            std::abs(GeometryUtilities2D::computeSignedArea(pB, pD, pC)) < MIN_FLIP_AREA)
+        double flipArea1 = GeometryUtilities2D::computeSignedArea(pA, pC, pD);
+        double flipArea2 = GeometryUtilities2D::computeSignedArea(pB, pD, pC);
+        if (std::abs(flipArea1) < MIN_FLIP_AREA || std::abs(flipArea2) < MIN_FLIP_AREA)
             continue;
 
         // Flip: remove the two triangles sharing edge (a,b) and replace with two triangles

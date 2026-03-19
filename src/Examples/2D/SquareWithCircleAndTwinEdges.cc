@@ -9,7 +9,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -205,13 +205,7 @@ int main()
     // -------------------------------------------------------------------------
     // Refine with BoundarySplitSynchronizer
     // -------------------------------------------------------------------------
-    Shewchuk2DQualityController qualityController(
-        context.getMeshData(),
-        2.0,        // max circumradius / shortest-edge ratio
-        M_PI / 6.0, // min angle 30°
-        10000);     // element limit
-
-    ShewchukRefiner2D refiner(context, qualityController);
+    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
     refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
 
     spdlog::info("Refining...");

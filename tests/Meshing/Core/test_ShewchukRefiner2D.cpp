@@ -12,7 +12,7 @@
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Topology2D/Topology2D.h"
@@ -141,11 +141,7 @@ TEST(ShewchukRefiner2D, SquareWithInternalCirclesTerminates)
     ConstrainedDelaunay2D mesher(context, discretization);
     mesher.triangulate();
 
-    Shewchuk2DQualityController qualityController(context.getMeshData(),
-                                                  2.0,
-                                                  M_PI / 6.0,
-                                                  10000);
-    ShewchukRefiner2D refiner(context, qualityController);
+    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
 
     // This must complete without throwing or running forever.
     // Before the fix, this would enter an infinite encroachment cascade.
@@ -218,9 +214,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     TwinManager twinManager;
     twinManager.registerTwin(TwinManager::NO_SURFACE, c3Id, c0Id, TwinManager::NO_SURFACE, c2Id, c1Id);
 
-    Shewchuk2DQualityController qualityController(
-        context.getMeshData(), 2.0, M_PI / 6.0, 10000);
-    ShewchukRefiner2D refiner(context, qualityController);
+    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
     refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
 
     ASSERT_NO_THROW(refiner.refine());
