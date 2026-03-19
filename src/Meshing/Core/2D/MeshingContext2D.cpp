@@ -186,6 +186,11 @@ MeshData2D& MeshingContext2D::getMeshData()
     return *meshData_;
 }
 
+const MeshData2D& MeshingContext2D::getMeshData() const
+{
+    return *meshData_;
+}
+
 MeshOperations2D& MeshingContext2D::getOperations()
 {
     ensureInitialized();

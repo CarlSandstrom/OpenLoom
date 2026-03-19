@@ -75,6 +75,7 @@ public:
 
     // Access to mesh data structures
     MeshData2D& getMeshData();
+    const MeshData2D& getMeshData() const;
     MeshOperations2D& getOperations();
 
 private:

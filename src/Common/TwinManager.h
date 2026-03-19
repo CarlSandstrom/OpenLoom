@@ -60,9 +60,16 @@ public:
     void recordSplit(const std::string& surfaceId, size_t n1, size_t n2, size_t mid,
                      const std::string& twinSurfaceId, size_t m1, size_t m2, size_t twinMid);
 
-private:
-    using Key   = std::tuple<std::string, size_t, size_t>;
-    using Value = std::tuple<std::string, size_t, size_t>;
+    /**
+     * @brief Return all registered directed segment pairs.
+     *
+     * Each entry maps a directed segment key (surfaceId, n1, n2) to its twin
+     * (twinSurfaceId, m1, m2). All four directions of each logical twin pair
+     * are present (see registerTwin). Used for verification.
+     */
+    using SegmentKey = std::tuple<std::string, size_t, size_t>;
+    const std::map<SegmentKey, SegmentKey>& getAllPairs() const { return twinMap_; }
 
-    std::map<Key, Value> twinMap_;
+private:
+    std::map<SegmentKey, SegmentKey> twinMap_;
 };

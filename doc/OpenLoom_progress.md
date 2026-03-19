@@ -185,13 +185,15 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 |----------|-------------|---------|--------|
 | S3.1 | `TwinManager` class: tracks segment twin groups, resolves split parameters, maps cross-mesh node IDs | `Common/TwinManager.h/.cpp` | Done |
 | S3.2 | Wire `TwinManager` into boundary split propagation: on each split, call `hasTwins()`, propagate to all twin segments | `BoundarySplitSynchronizer`, `SurfaceMeshingContext3D` | Done |
-| S3.3 | `MeshVerifier::verifyTwinConsistency()`: check all twin members have equal subdivision counts and all recorded vertex IDs exist in their meshes | `MeshVerifier` (2D) | **TODO** |
+| S3.3 | `MeshVerifier3D::verifyTwinConsistency()`: check all twin members have equal subdivision counts and all recorded vertex IDs exist in their meshes | `3D/General/MeshVerifier3D` | Done |
 
 **Validation gate:** For every shared topology edge, all adjacent face `MeshData2D` instances have identical node sequences along that edge. `verifyTwinConsistency()` passes. No cracks visible in ParaView output.
 
 **Implementation note (S3.2):** `BoundarySplitSynchronizer` is the `BoundarySplitCallback` implementation that propagates segment splits to twin edges via `TwinManager`. It is wired into `ShewchukRefiner2D` via `refiner.setOnBoundarySplit(sync)` inside `refineSurfaces()`. When the refiner splits a boundary segment, the callback resolves the twin segments through `TwinManager` and performs matching splits on all adjacent faces.
 
-**Status: IN PROGRESS — S3.1, S3.2 Done**
+**Implementation note (S3.3):** `MeshVerifier3D::verifyTwinConsistency()` is a static method that accepts a `TwinManager` and a `FacetTriangulationManager`. For every directed entry `(surfaceId, n1, n2) → (twinSurfaceId, m1, m2)` in the twin map it checks: (1) both n1, n2 exist as nodes in the face mesh for `surfaceId`; (2) both m1, m2 exist in the face mesh for `twinSurfaceId`; (3) the reverse entry exists and points back correctly. Symmetry of the map implies equal subdivision counts on all shared edges, since `recordSplit()` always inserts both sub-segment pairs together. The method lives in `MeshingCore3D` (not `MeshingCore2D`) because it depends on `FacetTriangulationManager`, which itself depends on the 2D layer — placing it in 2D would create a circular dependency. `TwinManager` gains a public `SegmentKey` type alias and a `getAllPairs()` const accessor to support iteration.
+
+**Status: COMPLETE — S3.1, S3.2, S3.3 Done**
 
 ---
 
@@ -394,7 +396,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 #### Phase I-C: Inter-face conformity via TwinManager (Step S3)
 10. ~~Wire twin split propagation into boundary splits via `BoundarySplitSynchronizer` (S3.2)~~ **Done**
-11. `MeshVerifier::verifyTwinConsistency()` (S3.3)
+11. ~~`MeshVerifier3D::verifyTwinConsistency()` (S3.3)~~ **Done**
 12. Validate: no cracks between faces in ParaView output
 
 #### Phase I-D: Surface mesher API (Step S4)
@@ -505,6 +507,7 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 # Future Improvements
 
+- [ ] **Rename `EdgeDiscretizer2D` / `BoundaryDiscretizer3D` to a consistent name** — These two classes do the same thing in different dimensions (sampling CAD boundary edges into discretization results) but have different names. They should share the same name apart from the `2D`/`3D` suffix (e.g. both `EdgeDiscretizer2D` / `EdgeDiscretizer3D`, or both `BoundaryDiscretizer2D` / `BoundaryDiscretizer3D`).
 - [ ] **No abbreviations in identifiers** *(do soon)* — All variable, parameter, and function names must use full words. Examples: `disc2D` → `discretization2D`, `globalPtIndices` → `globalPointIndices`, `ctx` → `context`, `mgr` → `manager`. Sweep all files under `src/` and rename abbreviated identifiers.
 - [ ] **`FacetTriangulation` — split into data and logic classes** *(do soon)* — `FacetTriangulation` currently mixes algorithmic logic with data ownership (e.g. `node3DTo2DMap_`, UV-space `MeshingContext2D`). Split into a plain data container (`FacetTriangulationData` or similar) and a separate logic class. Doing this before S2 quality refinement work will keep the logic class focused and testable. Files: `3D/Surface/FacetTriangulation.h/.cpp`.
 - [ ] **Topology3D string IDs → `size_t` indices** — `Edge3D`, `Surface3D`, `Corner3D` currently use `std::string` IDs both for self-identity and for cross-referencing neighbours. Switch to `size_t` indices, store entities in `std::vector` instead of `unordered_map`, and drop `getId()` (only 2 production call sites). Requires updating `TopoDS_ShapeConverter` on ingestion and all consumers of `getStartCornerId()`, `getBoundaryEdgeIds()`, etc. Separately, add `using NodeID = size_t;` and `using ElementID = size_t;` aliases for mesh data so function signatures are self-documenting and grep-able.

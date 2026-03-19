@@ -4,8 +4,12 @@
 #include <string>
 #include <vector>
 
+class TwinManager;
+
 namespace Meshing
 {
+
+class FacetTriangulationManager;
 
 /**
  * @brief Verification result containing details about any mesh issues found
@@ -52,6 +56,23 @@ public:
      * @return MeshVerificationResult containing details of any issues found
      */
     MeshVerificationResult verify() const;
+
+    /**
+     * @brief Verify that all twin segment pairs are consistent across adjacent faces.
+     *
+     * For each directed segment pair registered in the TwinManager, checks:
+     * 1. Both endpoint node IDs exist in their respective face meshes.
+     * 2. The twin map is symmetric: every A→B entry has a matching B→A entry.
+     *    Symmetry implies equal subdivision counts on all shared edges, because
+     *    recordSplit() always splits both twins together, so if the map is
+     *    symmetric every sub-segment on one side has exactly one twin on the other.
+     *
+     * @param twinManager   The TwinManager populated during surface discretization.
+     * @param facetManager  The FacetTriangulationManager owning all per-face meshes.
+     * @return MeshVerificationResult with any inconsistencies reported as errors.
+     */
+    static MeshVerificationResult verifyTwinConsistency(const TwinManager& twinManager,
+                                                        const FacetTriangulationManager& facetManager);
 
     /**
      * @brief Minimum volume threshold for degenerate detection

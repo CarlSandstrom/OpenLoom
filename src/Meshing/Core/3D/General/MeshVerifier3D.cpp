@@ -1,4 +1,9 @@
 #include "Meshing/Core/3D/General/MeshVerifier3D.h"
+#include "Common/TwinManager.h"
+#include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/3D/General/FacetTriangulation.h"
+#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "spdlog/spdlog.h"
@@ -177,6 +182,103 @@ bool MeshVerifier3D::verifyValidCoordinates() const
         }
     }
     return true;
+}
+
+MeshVerificationResult MeshVerifier3D::verifyTwinConsistency(
+    const TwinManager& twinManager,
+    const FacetTriangulationManager& facetManager)
+{
+    MeshVerificationResult result;
+
+    for (const auto& [key, value] : twinManager.getAllPairs())
+    {
+        const auto& [surfaceId, n1, n2] = key;
+        const auto& [twinSurfaceId, m1, m2] = value;
+
+        // Check both endpoint nodes exist on the source surface.
+        const FacetTriangulation* facet = facetManager.getFacetTriangulation(surfaceId);
+        if (!facet)
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map references unknown surface: " + surfaceId);
+            continue;
+        }
+
+        const MeshData2D& mesh = facet->getContext().getMeshData();
+        if (!mesh.getNode(n1))
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map node " + std::to_string(n1) +
+                                    " on surface " + surfaceId + " not found in mesh");
+        }
+        if (!mesh.getNode(n2))
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map node " + std::to_string(n2) +
+                                    " on surface " + surfaceId + " not found in mesh");
+        }
+
+        // Check both endpoint nodes exist on the twin surface.
+        const FacetTriangulation* twinFacet = facetManager.getFacetTriangulation(twinSurfaceId);
+        if (!twinFacet)
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map references unknown surface: " + twinSurfaceId);
+            continue;
+        }
+
+        const MeshData2D& twinMesh = twinFacet->getContext().getMeshData();
+        if (!twinMesh.getNode(m1))
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map node " + std::to_string(m1) +
+                                    " on surface " + twinSurfaceId + " not found in mesh");
+        }
+        if (!twinMesh.getNode(m2))
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map node " + std::to_string(m2) +
+                                    " on surface " + twinSurfaceId + " not found in mesh");
+        }
+
+        // Check symmetry: the reverse entry must exist and point back to (surfaceId, n1, n2).
+        // Symmetry also implies equal subdivision counts: since recordSplit() always inserts
+        // both new sub-segment pairs together, a symmetric map guarantees every sub-segment
+        // on one side has exactly one twin on the other side.
+        auto reverse = twinManager.getTwin(twinSurfaceId, m1, m2);
+        if (!reverse)
+        {
+            result.isValid = false;
+            result.errors.push_back("Twin map is not symmetric: no reverse entry for segment (" +
+                                    std::to_string(m1) + ", " + std::to_string(m2) +
+                                    ") on surface " + twinSurfaceId);
+        }
+        else
+        {
+            const auto& [reverseSurfaceId, r1, r2] = *reverse;
+            if (reverseSurfaceId != surfaceId || r1 != n1 || r2 != n2)
+            {
+                result.isValid = false;
+                result.errors.push_back("Twin map reverse entry mismatch for segment (" +
+                                        std::to_string(m1) + ", " + std::to_string(m2) +
+                                        ") on surface " + twinSurfaceId +
+                                        ": expected back to (" + std::to_string(n1) + ", " +
+                                        std::to_string(n2) + ") on " + surfaceId);
+            }
+        }
+    }
+
+    if (result.isValid)
+    {
+        SPDLOG_INFO("Twin consistency verification passed: {} directed pairs checked",
+                    twinManager.getAllPairs().size());
+    }
+    else
+    {
+        SPDLOG_ERROR("Twin consistency verification failed with {} errors", result.errors.size());
+    }
+
+    return result;
 }
 
 double MeshVerifier3D::computeSignedVolume(size_t nodeId1, size_t nodeId2,
