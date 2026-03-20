@@ -18,6 +18,7 @@
  */
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
@@ -35,6 +36,8 @@
 
 int main()
 {
+    Common::initLogging();
+
     // Plain cylinder: radius 3, height 8, centred at the origin along Z
     gp_Pnt origin(0.0, 0.0, 0.0);
     gp_Dir axisZ(0.0, 0.0, 1.0);

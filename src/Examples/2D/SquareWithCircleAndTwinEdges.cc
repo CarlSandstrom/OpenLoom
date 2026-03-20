@@ -14,6 +14,7 @@
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Topology2D.h"
+#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <Geom2d_Circle.hxx>
@@ -112,8 +113,7 @@ static void addCircularHole(Geometry2D::GeometryCollection2D& geometry,
 
 int main()
 {
-    spdlog::set_level(spdlog::level::info);
-    spdlog::set_pattern("[%H:%M:%S] %^%v%$");
+    Common::initLogging();
 
     // -------------------------------------------------------------------------
     // Geometry: 10×10 square with a circular hole near the top edge.

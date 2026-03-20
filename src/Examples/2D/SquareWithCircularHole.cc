@@ -13,6 +13,7 @@
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Topology2D/Topology2D.h"
+#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <Geom2d_Circle.hxx>
@@ -111,8 +112,7 @@ void addCircularHole(Geometry2D::GeometryCollection2D& geometry,
 
 int main()
 {
-    spdlog::set_level(spdlog::level::debug);
-    spdlog::set_pattern("[%H:%M:%S] %^%v%$");
+    Common::initLogging();
 
     spdlog::info("Creating 2D square with circular hole using OpenCASCADE geometry");
 

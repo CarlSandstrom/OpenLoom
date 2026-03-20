@@ -1,6 +1,7 @@
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/2D/Delaunay2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
+#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <vector>
@@ -9,8 +10,7 @@ using namespace Meshing;
 
 int main()
 {
-    spdlog::set_level(spdlog::level::info);
-    spdlog::set_pattern("[%H:%M:%S] %^%v%$");
+    Common::initLogging();
 
     spdlog::info("Simple Delaunay2D Example - Rectangle Corners");
 

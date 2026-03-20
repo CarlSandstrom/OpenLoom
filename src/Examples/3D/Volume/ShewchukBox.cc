@@ -27,6 +27,7 @@
 #include "Meshing/Core/3D/Volume/Shewchuk3DQualityController.h"
 #include "Meshing/Core/3D/Volume/ShewchukRefiner3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -36,8 +37,7 @@ using namespace Meshing;
 
 int main()
 {
-    spdlog::set_level(spdlog::level::info);
-    spdlog::set_pattern("[%H:%M:%S] %^%v%$");
+    Common::initLogging();
 
     spdlog::info("=== ShewchukRefiner3D Box Example ===");
 

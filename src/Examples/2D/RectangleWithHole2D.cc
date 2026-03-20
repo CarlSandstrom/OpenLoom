@@ -11,6 +11,7 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology2D/Topology2D.h"
+#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <memory>
@@ -22,8 +23,7 @@ using namespace Meshing;
 
 int main()
 {
-    spdlog::set_level(spdlog::level::info);
-    spdlog::set_pattern("[%H:%M:%S] %^%v%$");
+    Common::initLogging();
 
     spdlog::info("Creating 2D rectangle with hole example");
 

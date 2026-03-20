@@ -12,6 +12,7 @@
  */
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
@@ -31,6 +32,8 @@
 
 int main()
 {
+    Common::initLogging();
+
     // Build box-with-cylindrical-hole CAD shape (same geometry as BoxWithHole)
     TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
 

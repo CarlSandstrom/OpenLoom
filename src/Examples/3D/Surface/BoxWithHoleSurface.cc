@@ -12,6 +12,7 @@
  */
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
@@ -30,6 +31,8 @@
 
 int main()
 {
+    Common::initLogging();
+
     TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
 
     gp_Pnt center(5.0, 5.0, 0.0);
