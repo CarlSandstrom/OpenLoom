@@ -2,6 +2,7 @@
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
+#include "Geometry/2D/Base/SurfaceProjectedEdge2D.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ICorner3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
@@ -105,7 +106,22 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
             const std::string seamEndId = topoEdge.getEndCornerId() + "_seam";
             auto* seamEndCorner2D = geometry2D->getCorner(seamEndId);
             if (seamEndCorner2D != nullptr)
+            {
                 endCorner2D = seamEndCorner2D;
+            }
+            else
+            {
+                // Closed circle on a non-periodic face: LinearEdge2D would be zero-length,
+                // making getPoint(t) always return the corner UV. Use a surface-projected
+                // edge that evaluates the 3D arc and projects to UV.
+                const auto* edge3D = fullGeometry.getEdge(edgeId);
+                if (edge3D != nullptr && startCorner2D != nullptr)
+                {
+                    geometry2D->addEdge(std::make_unique<Geometry2D::SurfaceProjectedEdge2D>(
+                        edgeId, surface, *edge3D));
+                    continue;
+                }
+            }
         }
 
         if (startCorner2D != nullptr && endCorner2D != nullptr)

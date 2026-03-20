@@ -501,22 +501,42 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
         return std::nullopt;
     }
 
-    // Find the edge parameter index that corresponds to the parent edge
+    // Find the t-parameter pair for the parent edge that minimises |t2 - t1|.
+    // A closed-circle corner node stores both tMin (t=0) and tMax (t=1) under
+    // the same edge ID — always picking the first entry gives the wrong arc
+    // midpoint for the last sub-segment of the circle (which should end at t=1,
+    // not wrap back to t=0).  Choosing the pair with the smallest |t2 - t1|
+    // selects the "short arc" sub-segment, which is always correct because
+    // refinement only ever creates sub-segments shorter than a half-circle.
     std::string edgeId = parentEdge.getId();
-    auto it1 = std::find(geometryIds1.begin(), geometryIds1.end(), edgeId);
-    auto it2 = std::find(geometryIds2.begin(), geometryIds2.end(), edgeId);
-
-    if (it1 == geometryIds1.end() || it2 == geometryIds2.end())
+    double t1 = 0.0, t2 = 0.0;
     {
-        spdlog::error("splitConstrainedSegment: Parent edge {} not found in node geometry IDs", edgeId);
-        return std::nullopt;
+        double bestDiff = std::numeric_limits<double>::max();
+        bool found = false;
+        for (size_t k = 0; k < geometryIds1.size(); ++k)
+        {
+            if (geometryIds1[k] != edgeId)
+                continue;
+            for (size_t m = 0; m < geometryIds2.size(); ++m)
+            {
+                if (geometryIds2[m] != edgeId)
+                    continue;
+                double diff = std::abs(t2Params[m] - t1Params[k]);
+                if (diff < bestDiff)
+                {
+                    bestDiff = diff;
+                    t1       = t1Params[k];
+                    t2       = t2Params[m];
+                    found    = true;
+                }
+            }
+        }
+        if (!found)
+        {
+            spdlog::error("splitConstrainedSegment: Parent edge {} not found in node geometry IDs", edgeId);
+            return std::nullopt;
+        }
     }
-
-    size_t idx1 = std::distance(geometryIds1.begin(), it1);
-    size_t idx2 = std::distance(geometryIds2.begin(), it2);
-
-    double t1 = t1Params[idx1];
-    double t2 = t2Params[idx2];
     double tMid = (t1 + t2) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
@@ -574,9 +594,22 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
         ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
         mutator_->replaceConstrainedSegment(segment, seg1, seg2);
 
-        auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
-        if (!newTriangleIds.empty())
-            lawsonFlip(newTriangleIds);
+        if (midOnChord)
+        {
+            auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+            if (!newTriangleIds.empty())
+                lawsonFlip(newTriangleIds);
+        }
+        else
+        {
+            // nodeFound=true but midOnChord=false: an existing node coincides with the
+            // arc midpoint but lies off the chord. splitTrianglesAtEdge assumes the
+            // midpoint is on the chord and produces CW sub-triangles when it is not.
+            // Use enforceEdge instead, which rebuilds the local triangulation via
+            // ear-clipping and handles off-chord midpoints correctly.
+            enforceEdge(segment.nodeId1, newNodeId);
+            enforceEdge(newNodeId, segment.nodeId2);
+        }
     }
     else
     {
@@ -606,16 +639,16 @@ std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unorder
         }
     }
 
-    spdlog::info("removeExteriorTriangles: Removing {} triangles (outside or in holes)",
-                 trianglesToRemove.size());
+    spdlog::debug("removeExteriorTriangles: Removing {} triangles (outside or in holes)",
+                  trianglesToRemove.size());
 
     for (size_t elemId : trianglesToRemove)
     {
         mutator_->removeElement(elemId);
     }
 
-    spdlog::info("removeExteriorTriangles: Complete - {} triangles remaining",
-                 meshData_.getElements().size());
+    spdlog::debug("removeExteriorTriangles: Complete - {} triangles remaining",
+                  meshData_.getElements().size());
 
     return trianglesToRemove;
 }

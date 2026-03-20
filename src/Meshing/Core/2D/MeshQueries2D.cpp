@@ -269,9 +269,9 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(const T
 
                 constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId, role});
 
-                spdlog::info("Edge {} segment {}: Node IDs ({}, {}), role: {}",
-                             edgeId, i, startNodeId, endNodeId,
-                             role == EdgeRole::BOUNDARY ? "boundary" : "interior");
+                spdlog::debug("Edge {} segment {}: Node IDs ({}, {}), role: {}",
+                              edgeId, i, startNodeId, endNodeId,
+                              role == EdgeRole::BOUNDARY ? "boundary" : "interior");
             }
         }
         else
@@ -285,9 +285,9 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(const T
 
             constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId, role});
 
-            spdlog::info("Edge {}: Node IDs ({}, {}), role: {}",
-                         edgeId, startNodeId, endNodeId,
-                         role == EdgeRole::BOUNDARY ? "boundary" : "interior");
+            spdlog::debug("Edge {}: Node IDs ({}, {}), role: {}",
+                          edgeId, startNodeId, endNodeId,
+                          role == EdgeRole::BOUNDARY ? "boundary" : "interior");
         }
     }
 
@@ -520,7 +520,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         return insideTriangles;
     }
 
-    spdlog::info("classifyTrianglesInteriorExterior: Ray casting found interior seed triangle {}", seedTriangleId);
+    spdlog::debug("classifyTrianglesInteriorExterior: Ray casting found interior seed triangle {}", seedTriangleId);
 
     // Step 2: Build edge-to-triangles adjacency map
     EdgeToTrianglesMap edgeToTriangles = buildEdgeToTrianglesMap();
@@ -566,7 +566,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         }
     }
 
-    spdlog::info("classifyTrianglesInteriorExterior: Flood fill found {} interior triangles", insideTriangles.size());
+    spdlog::debug("classifyTrianglesInteriorExterior: Flood fill found {} interior triangles", insideTriangles.size());
 
     return insideTriangles;
 }

@@ -14,4 +14,5 @@ target_include_directories(Geometry2DBase PUBLIC
 
 target_link_libraries(Geometry2DBase PUBLIC
     Common
+    GeometryBase
 )

@@ -209,6 +209,15 @@ void SurfaceMeshingContext3D::refineSurfaces()
             if (!sourceSurface)
                 return;
 
+            // If this 2D node already has a 3D ID, the cross-face split was already
+            // propagated in a previous pass. Update the edge sequence and return early
+            // to avoid creating a duplicate 3D node or re-triggering the outer loop.
+            if (facetTriang->get3DNodeId(mid))
+            {
+                facetTriang->updateEdgeNodeAfterSplit(n1, n2, mid);
+                return;
+            }
+
             size_t node3DId = nextNode3DId++;
             refinementNodes_.push_back(sourceSurface->getPoint(uv.x(), uv.y()));
             facetTriang->registerNode(mid, node3DId);
