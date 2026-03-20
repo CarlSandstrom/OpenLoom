@@ -49,13 +49,14 @@ When the user provides a new sub-step:
    - project: the relevant project
    - milestone: the relevant milestone
    - state: Todo
+   - label: apply the appropriate label based on the issue type (e.g. "Bug" for bugs, "Feature" for new features, "Improvement" for enhancements, "Task" for general work)
 2. Confirm the new issue ID and title
 
 ---
 
 ## "Add a future improvement"
 
-1. Create a new issue in the "Tech Debt & Improvements" project (team: OpenLoom, state: Todo)
+1. Create a new issue in the "Tech Debt & Improvements" project (team: OpenLoom, state: Todo, label: "Improvement")
 2. Confirm the new issue ID
 
 ---
@@ -76,3 +77,4 @@ When the user provides a new sub-step:
 - Never speculatively change statuses — only update what was explicitly requested
 - Use issue numbers (OPE-XX) when referencing issues
 - After every update, briefly confirm what changed
+- Always apply a label when creating issues: "Bug" for bugs, "Feature" for new features, "Improvement" for enhancements/tech debt, "Task" for general work items
