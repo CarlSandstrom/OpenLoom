@@ -146,6 +146,23 @@ public:
                                const std::string& surfaceId);
 
     /**
+     * @brief Build the mapping from CAD edge ID to ordered 3D node IDs along that edge.
+     *
+     * Iterates all facet triangulations and collects each edge's 3D node sequence
+     * (post-refinement, so split nodes are included).  When an edge is shared by
+     * two faces both sequences agree after twin synchronisation; the first face
+     * encountered for each edge ID is used.
+     *
+     * Intended to populate SurfaceMesh3D::edgeNodeIds after refinement is complete.
+     */
+    std::map<std::string, std::vector<size_t>> buildEdgeNodeIds() const;
+
+    /**
+     * @brief Get all surface IDs managed by this instance.
+     */
+    std::vector<std::string> getSurfaceIds() const;
+
+    /**
      * @brief Get number of facet triangulations
      */
     size_t size() const { return facetTriangulations_.size(); }

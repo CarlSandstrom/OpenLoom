@@ -3,6 +3,7 @@
 #include "Meshing/Core/2D/GeometryStructures2D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -973,6 +974,89 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::MeshData3D& mesh,
     os << "      <CellData>\n";
     os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
     for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
+        os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "      </CellData>\n";
+    os << "    </Piece>\n";
+
+    writeFooter(os);
+    return true;
+}
+
+bool VtkExporter::writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh,
+                                   const std::string& filePath) const
+{
+    // Build a stable integer mapping: surfaceId string → 0-based index (sorted for stability).
+    std::vector<std::string> sortedSurfaceIds;
+    sortedSurfaceIds.reserve(surfaceMesh.faceTriangleIds.size());
+    for (const auto& [surfaceId, unused] : surfaceMesh.faceTriangleIds)
+        sortedSurfaceIds.push_back(surfaceId);
+    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
+
+    std::unordered_map<std::string, int> surfaceIdToIndex;
+    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
+        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
+
+    // Build per-triangle surface index array in triangle-ID order.
+    const size_t numTriangles = surfaceMesh.triangles.size();
+    std::vector<int> surfaceIndices(numTriangles, -1);
+    for (const auto& [surfaceId, triangleIds] : surfaceMesh.faceTriangleIds)
+    {
+        const int index = surfaceIdToIndex.at(surfaceId);
+        for (size_t triangleId : triangleIds)
+            surfaceIndices[triangleId] = index;
+    }
+
+    const size_t numPoints = surfaceMesh.nodes.size();
+
+    std::ofstream os;
+    os.exceptions(std::ios::failbit | std::ios::badbit);
+    os.open(filePath);
+
+    writeHeader(os);
+
+    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << numTriangles << "\">\n";
+
+    os << "      <Points>\n";
+    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+    for (const auto& p : surfaceMesh.nodes)
+        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
+    os << "        </DataArray>\n";
+    os << "      </Points>\n";
+
+    os << "      <PointData>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numPoints; ++i)
+        os << i << (i + 1 == numPoints ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "      </PointData>\n";
+
+    os << "      <Cells>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numTriangles; ++i)
+    {
+        const auto& tri = surfaceMesh.triangles[i];
+        os << tri[0] << ' ' << tri[1] << ' ' << tri[2];
+        os << (i + 1 == numTriangles ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numTriangles; ++i)
+        os << (i + 1) * 3 << (i + 1 == numTriangles ? "\n" : " ");
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numTriangles; ++i)
+        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numTriangles ? "\n" : " ");
+    os << "        </DataArray>\n";
+
+    os << "      </Cells>\n";
+
+    os << "      <CellData>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < surfaceIndices.size(); ++i)
         os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
     os << "        </DataArray>\n";
     os << "      </CellData>\n";

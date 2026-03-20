@@ -15,7 +15,6 @@
 #include "Meshing/Core/3D/Surface/SurfaceMeshQuality.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
@@ -74,28 +73,42 @@ const FacetTriangulationManager& SurfaceMeshingContext3D::getFacetTriangulationM
     return *facetTriangulationManager_;
 }
 
-MeshData3D SurfaceMeshingContext3D::getSurfaceMesh3D() const
+SurfaceMesh3D SurfaceMeshingContext3D::buildSurfaceMesh() const
 {
-    MeshData3D mesh;
-    MeshMutator3D mutator(mesh);
+    SurfaceMesh3D mesh;
 
-    // Add one node per discretization point (IDs 0..N-1).
-    for (const auto& pt : discretizationResult_->points)
-        mutator.addNode(pt);
+    // Nodes: discretization points (IDs 0..N-1) followed by refinement nodes.
+    mesh.nodes.insert(mesh.nodes.end(),
+                      discretizationResult_->points.begin(),
+                      discretizationResult_->points.end());
+    mesh.nodes.insert(mesh.nodes.end(), refinementNodes_.begin(), refinementNodes_.end());
 
-    // Add refinement nodes resolved during refineSurfaces() (IDs N..M-1).
-    for (const auto& pt : refinementNodes_)
-        mutator.addNode(pt);
-
-    // Add one triangle element per subfacet from all facet triangulations.
-    for (const auto& subfacet : facetTriangulationManager_->getAllSubfacets())
+    // Triangles and per-face groups: iterate all surfaces in the facet manager
+    // so we cover surfaces that have no interior sample points.
+    for (const auto& surfaceId : facetTriangulationManager_->getSurfaceIds())
     {
-        mutator.addElement(std::make_unique<TriangleElement>(
-            std::array<size_t, 3>{subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3}));
+        const size_t firstTriangleIndex = mesh.triangles.size();
+        for (const auto& subfacet : facetTriangulationManager_->getSubfacetsForSurface(surfaceId))
+        {
+            mesh.triangles.push_back({subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3});
+        }
+        const size_t lastTriangleIndex = mesh.triangles.size();
+
+        if (lastTriangleIndex > firstTriangleIndex)
+        {
+            auto& group = mesh.faceTriangleIds[surfaceId];
+            group.reserve(lastTriangleIndex - firstTriangleIndex);
+            for (size_t i = firstTriangleIndex; i < lastTriangleIndex; ++i)
+                group.push_back(i);
+        }
     }
 
-    spdlog::debug("SurfaceMeshingContext3D::buildSurfaceMesh: {} nodes, {} triangles",
-                  mesh.getNodeCount(), mesh.getElementCount());
+    // Edge node sequences (post-refinement, includes split nodes).
+    mesh.edgeNodeIds = facetTriangulationManager_->buildEdgeNodeIds();
+
+    spdlog::debug("SurfaceMeshingContext3D::buildSurfaceMesh: {} nodes, {} triangles, {} faces, {} edges",
+                  mesh.nodes.size(), mesh.triangles.size(),
+                  mesh.faceTriangleIds.size(), mesh.edgeNodeIds.size());
 
     return mesh;
 }

@@ -2,8 +2,8 @@
 
 #include "Common/Types.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
-#include "Meshing/Data/3D/MeshData3D.h"
 #include <memory>
 #include <vector>
 
@@ -92,12 +92,14 @@ public:
     void refineSurfaces();
 
     /**
-     * @brief Build a MeshData3D containing the surface triangulation.
+     * @brief Assemble a SurfaceMesh3D from the current triangulation state.
      *
-     * Adds one Node3D per discretization point (node ID == point index) plus any
-     * nodes inserted during refineSurfaces(), then one TriangleElement per subfacet.
+     * Collects all nodes (discretization points + refinement nodes), triangles,
+     * per-face triangle groups, and per-edge ordered node sequences.
+     *
+     * Must be called after refineSurfaces().
      */
-    MeshData3D getSurfaceMesh3D() const;
+    SurfaceMesh3D buildSurfaceMesh() const;
 
 private:
     const Geometry3D::GeometryCollection3D* geometryCollection3D_;

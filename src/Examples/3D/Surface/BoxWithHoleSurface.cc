@@ -64,13 +64,11 @@ int main()
 
     context.refineSurfaces();
 
-    const auto subfacetsRefined = context.getFacetTriangulationManager().getAllSubfacets();
-    auto meshData = context.getSurfaceMesh3D();
-    std::cout << "Subfacets (refined): " << subfacetsRefined.size() << "\n";
-    std::cout << "MeshData3D: " << meshData.getNodeCount() << " nodes, "
-              << meshData.getElementCount() << " triangles\n";
+    auto surfaceMesh = context.buildSurfaceMesh();
+    std::cout << "Refined: " << surfaceMesh.nodes.size() << " nodes, "
+              << surfaceMesh.triangles.size() << " triangles\n";
 
-    exporter.writeSurfaceMesh(meshData, subfacetsRefined, "BoxWithHoleSurface3D_Refined.vtu");
+    exporter.writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D_Refined.vtu");
     std::cout << "Exported refined surface mesh to BoxWithHoleSurface3D_Refined.vtu\n";
 
     return 0;

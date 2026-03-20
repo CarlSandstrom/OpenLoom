@@ -187,6 +187,33 @@ const std::vector<size_t>* FacetTriangulation::getEdgeNodeSequence(const std::st
     return nullptr;
 }
 
+std::vector<size_t> FacetTriangulation::getEdge3DNodeIds(const std::string& edgeId) const
+{
+    const std::vector<size_t>* sequence2D = getEdgeNodeSequence(edgeId);
+    if (!sequence2D)
+        return {};
+
+    std::vector<size_t> result;
+    result.reserve(sequence2D->size());
+    for (size_t node2DId : *sequence2D)
+    {
+        auto it = node2DTo3DMap_.find(node2DId);
+        if (it != node2DTo3DMap_.end())
+            result.push_back(it->second);
+    }
+    return result;
+}
+
+std::map<std::string, std::vector<size_t>> FacetTriangulation::getAllEdge3DNodeIds() const
+{
+    std::map<std::string, std::vector<size_t>> result;
+    for (const auto& [edgeId, unused] : edgeIdToNode2DSeq_)
+    {
+        result[edgeId] = getEdge3DNodeIds(edgeId);
+    }
+    return result;
+}
+
 void FacetTriangulation::registerNode(size_t node2DId, size_t node3DId)
 {
     node2DTo3DMap_[node2DId] = node3DId;

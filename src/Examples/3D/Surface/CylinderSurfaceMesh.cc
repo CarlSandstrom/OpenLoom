@@ -23,6 +23,7 @@
 #include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <TopoDS_Shape.hxx>
@@ -45,39 +46,36 @@ int main()
 
     // Angle-based discretization: insert edge points wherever the tangent
     // direction changes by more than π/8 (22.5°).
-    Geometry3D::DiscretizationSettings3D settings(std::nullopt, std::numbers::pi / 8.0, 2);
+    Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
-    // S1 pipeline: TwinTableGenerator → BoundaryDiscretizer3D → FacetTriangulationManager
+    // Export the discretized boundary edges before refinement.
+    // We need the raw context for this pre-refinement export.
     Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
                                              converter.getTopology(),
-                                             settings,
+                                             discSettings,
                                              Meshing::SurfaceMesh3DQualitySettings{});
 
     const auto& discResult = context.getDiscretizationResult();
-
     std::cout << "Points:         " << discResult.points.size() << "\n";
     std::cout << "Topology edges: " << discResult.edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << context.getFacetTriangulationManager().size() << "\n";
 
     Export::VtkExporter exporter;
-
     exporter.writeEdgeMesh(discResult, "CylinderSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to CylinderSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
-    // Angle-quality pass only (chord deviation disabled).
-    // Uncomment the second argument to also enforce geometric fidelity:
-    //   context.refineSurfaces(2.0, 30.0, 50000, 0.05);
-    // 0.05 means every triangle must approximate the CAD surface to within 0.05
-    // model units at its centroid and edge midpoints.
-    context.refineSurfaces();
+    // Run the full S1–S3 pipeline via SurfaceMesher3D and export the result.
+    Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
+                                    converter.getTopology(),
+                                    discSettings,
+                                    Meshing::SurfaceMesh3DQualitySettings{});
 
-    const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();
-    std::cout << "Subfacets: " << subfacets.size() << "\n";
+    auto surfaceMesh = mesher.mesh();
 
-    auto meshData = context.getSurfaceMesh3D();
-    std::cout << "MeshData3D: " << meshData.getNodeCount() << " nodes, " << meshData.getElementCount() << " triangles\n";
+    std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
+              << surfaceMesh.triangles.size() << " triangles\n";
 
-    exporter.writeSurfaceMesh(meshData, subfacets, "CylinderSurfaceMesh3D.vtu");
+    exporter.writeSurfaceMesh(surfaceMesh, "CylinderSurfaceMesh3D.vtu");
     std::cout << "Exported surface mesh to CylinderSurfaceMesh3D.vtu (color by SurfaceID)\n";
 
     return 0;

@@ -131,6 +131,27 @@ public:
     const std::vector<size_t>* getEdgeNodeSequence(const std::string& edgeId) const;
 
     /**
+     * @brief Get the ordered sequence of 3D node IDs for an edge.
+     *
+     * Converts the 2D node sequence for @p edgeId to 3D node IDs using the
+     * internal 2D→3D mapping.  Returns an empty vector if the edge is not on
+     * this face.
+     *
+     * @param edgeId The edge ID to look up
+     * @return Ordered 3D node IDs along the edge, or empty if not on this face
+     */
+    std::vector<size_t> getEdge3DNodeIds(const std::string& edgeId) const;
+
+    /**
+     * @brief Get 3D node sequences for all edges on this face.
+     *
+     * Returns a map from edge ID to ordered 3D node IDs for every edge whose
+     * node sequence is known to this face.  Used by FacetTriangulationManager
+     * to assemble SurfaceMesh3D::edgeNodeIds after refinement.
+     */
+    std::map<std::string, std::vector<size_t>> getAllEdge3DNodeIds() const;
+
+    /**
      * @brief Register a known 2D↔3D node mapping.
      *
      * Used by SurfaceMeshingContext3D when a boundary split is propagated to a

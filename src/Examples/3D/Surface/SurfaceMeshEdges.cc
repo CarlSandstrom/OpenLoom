@@ -4,8 +4,9 @@
  *
  * Demonstrates the S1 pipeline (TwinTableGenerator → BoundaryDiscretizer3D →
  * FacetTriangulationManager) on a box-with-hole CAD shape and exports:
- *   - SurfaceMeshEdges.vtu   : discretized boundary edges (color by EdgeID)
- *   - SurfaceMesh3D.vtu      : full surface triangulation (color by SurfaceID)
+ *   - SurfaceMeshEdges.vtu        : discretized boundary edges (color by EdgeID)
+ *   - SurfaceMesh3D.vtu           : initial surface triangulation (color by SurfaceID)
+ *   - SurfaceMesh3D_Refined.vtu   : refined surface triangulation (color by SurfaceID)
  *
  * Open both files in ParaView to verify each topology edge and surface triangulation.
  */
@@ -16,6 +17,7 @@
 #include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -66,21 +68,19 @@ int main()
     exporter.writeEdgeMesh(discResult, "SurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to SurfaceMeshEdges.vtu (color by EdgeID)\n";
 
-    // Export surface triangulation — color by SurfaceID to verify per-face triangulation
+    // Export initial surface triangulation — color by SurfaceID
     exporter.writeSurfaceMesh(discResult, subfacets, "SurfaceMesh3D.vtu");
     std::cout << "Exported surface mesh to SurfaceMesh3D.vtu (color by SurfaceID)\n";
 
-    // S2.1: Refine each face in UV space using Shewchuk's algorithm
+    // S2–S3: Refine each face in UV space using Shewchuk's algorithm
     context.refineSurfaces();
+    auto surfaceMesh = context.buildSurfaceMesh();
 
-    const auto subfacetsRefined = context.getFacetTriangulationManager().getAllSubfacets();
-    auto meshData = context.getSurfaceMesh3D();
-    std::cout << "Subfacets (refined): " << subfacetsRefined.size() << "\n";
-    std::cout << "MeshData3D: " << meshData.getNodeCount() << " nodes, "
-              << meshData.getElementCount() << " triangles\n";
+    std::cout << "Refined: " << surfaceMesh.nodes.size() << " nodes, "
+              << surfaceMesh.triangles.size() << " triangles\n";
 
     // Export refined surface triangulation
-    exporter.writeSurfaceMesh(meshData, subfacetsRefined, "SurfaceMesh3D_Refined.vtu");
+    exporter.writeSurfaceMesh(surfaceMesh, "SurfaceMesh3D_Refined.vtu");
     std::cout << "Exported refined surface mesh to SurfaceMesh3D_Refined.vtu\n";
 
     return 0;

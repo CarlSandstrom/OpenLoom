@@ -361,6 +361,30 @@ std::vector<ConstrainedSubfacet3D> FacetTriangulationManager::getSubfacetsForSur
     return {};
 }
 
+std::vector<std::string> FacetTriangulationManager::getSurfaceIds() const
+{
+    std::vector<std::string> ids;
+    ids.reserve(facetTriangulations_.size());
+    for (const auto& [surfaceId, unused] : facetTriangulations_)
+        ids.push_back(surfaceId);
+    return ids;
+}
+
+std::map<std::string, std::vector<size_t>> FacetTriangulationManager::buildEdgeNodeIds() const
+{
+    std::map<std::string, std::vector<size_t>> result;
+    for (const auto& [surfaceId, facetTriang] : facetTriangulations_)
+    {
+        for (auto& [edgeId, node3DIds] : facetTriang->getAllEdge3DNodeIds())
+        {
+            // First face encountered for each edge wins; all adjacent faces
+            // agree on the sequence after twin synchronisation.
+            result.emplace(edgeId, std::move(node3DIds));
+        }
+    }
+    return result;
+}
+
 FacetTriangulation* FacetTriangulationManager::getFacetTriangulation(const std::string& surfaceId)
 {
     auto it = facetTriangulations_.find(surfaceId);

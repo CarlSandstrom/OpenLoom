@@ -13,6 +13,7 @@ class MeshData3D;
 class IElement;
 class DiscretizationResult3D;
 struct ConstrainedSubfacet3D;
+struct SurfaceMesh3D;
 } // namespace Meshing
 
 namespace Export
@@ -49,6 +50,11 @@ public:
     // Use this after refineSurfaces() when subfacet node IDs exceed disc3D.points.size().
     bool writeSurfaceMesh(const Meshing::MeshData3D& mesh,
                           const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
+                          const std::string& filePath) const;
+
+    // Overload that takes a fully assembled SurfaceMesh3D (output of SurfaceMesher3D).
+    // Triangles are coloured by SurfaceID using the per-face groups in the struct.
+    bool writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh,
                           const std::string& filePath) const;
 
     // Overloaded methods for 2D meshes (exported with z=0)
