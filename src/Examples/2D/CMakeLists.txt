@@ -10,6 +10,7 @@ set(EXAMPLE_SOURCES_2D
     SquareWithInternalCircles.cc
     MeshStepFile2D.cc
     ThinSliverDomain.cc
+    StarPolygon.cc
 )
 
 # Link external libraries
