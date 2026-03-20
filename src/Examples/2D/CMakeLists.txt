@@ -9,6 +9,7 @@ set(EXAMPLE_SOURCES_2D
     SquareWithCircleAndTwinEdges.cc
     SquareWithInternalCircles.cc
     MeshStepFile2D.cc
+    ThinSliverDomain.cc
 )
 
 # Link external libraries
