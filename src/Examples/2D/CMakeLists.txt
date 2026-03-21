@@ -12,6 +12,7 @@ set(EXAMPLE_SOURCES_2D
     ThinSliverDomain.cc
     StarPolygon.cc
     NestedConcentricRings.cc
+    SpiralChannel.cc
 )
 
 # Link external libraries
