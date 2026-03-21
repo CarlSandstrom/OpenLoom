@@ -11,6 +11,7 @@ set(EXAMPLE_SOURCES_2D
     MeshStepFile2D.cc
     ThinSliverDomain.cc
     StarPolygon.cc
+    NestedConcentricRings.cc
 )
 
 # Link external libraries
