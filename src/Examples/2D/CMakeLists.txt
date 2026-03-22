@@ -14,6 +14,7 @@ set(EXAMPLE_SOURCES_2D
     NestedConcentricRings.cc
     ManyCirclesInSquare.cc
     SpiralChannel.cc
+    NearCoincidentConstraintEdges.cc
 )
 
 # Link external libraries
