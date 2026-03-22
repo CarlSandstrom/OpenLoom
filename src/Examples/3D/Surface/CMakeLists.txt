@@ -4,6 +4,7 @@ set(EXAMPLE_SOURCES_3D_SURFACE
     CylinderSurfaceMesh.cc
     SurfaceMeshEdges.cc
     BoxWithHoleSurface.cc
+    TorusSurfaceMesh.cc
 )
 
 # Link external libraries

@@ -52,12 +52,21 @@ public:
     std::vector<size_t> takeLocalIndexToNode3DId() { return std::move(localIndexToNode3DId_); }
 
 private:
+    // Maps from global point index to the local index of the period-shifted duplicate.
+    // Separated by direction because a doubly-periodic surface (torus) may have two twins
+    // that each shift a different period, and non-seam edges need to choose the right one.
+    struct ShiftedLocalMaps
+    {
+        std::map<size_t, size_t> uShifted; // global → local for U-period-shifted copies
+        std::map<size_t, size_t> vShifted; // global → local for V-period-shifted copies
+    };
+
     void buildGlobalToLocalMap();
     void buildPoints();
     void buildCornerMap();
     void buildEdgeMaps();
-    std::map<size_t, size_t> processSeamEdges();
-    void processNonSeamEdges(const std::map<size_t, size_t>& realCornerToShiftedLocal);
+    ShiftedLocalMaps processSeamEdges();
+    void processNonSeamEdges(const ShiftedLocalMaps& shiftedLocals);
 
     const Geometry3D::ISurface3D& surface_;
     const Topology3D::Surface3D& topoSurface_;

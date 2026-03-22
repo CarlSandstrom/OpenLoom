@@ -549,8 +549,6 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     {
         if ((node->getCoordinates() - midPoint).squaredNorm() < NODE_COINCIDENCE_TOL * NODE_COINCIDENCE_TOL)
         {
-            spdlog::debug("splitConstrainedSegment: Reusing existing node {} at ({:.6f},{:.6f})",
-                          nodeId, midPoint.x(), midPoint.y());
             newNodeId = nodeId;
             nodeFound = true;
             break;

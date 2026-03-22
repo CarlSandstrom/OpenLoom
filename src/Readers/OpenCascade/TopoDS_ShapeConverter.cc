@@ -5,10 +5,14 @@
 #include "../../Geometry/3D/OpenCascade/OpenCascadeCorner.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeEdge.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeSurface.h"
+#include <BRep_Tool.hxx>
+#include <BRepTools.hxx>
 #include <BRepTools_WireExplorer.hxx>
+#include <Geom2d_Curve.hxx>
 #include <TopExp.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
+#include <cmath>
 #include <optional>
 #include <set>
 using namespace Readers;
@@ -203,9 +207,14 @@ void TopoDS_ShapeConverter::createEdges()
 
     // Create synthetic seam twin edges for any "_seam" boundary entries in surfaces_.
     // A seam twin is the same physical edge traversed in reverse to close the UV domain.
-    // Its corner IDs carry a "_seam" suffix to distinguish their UV positions (U + period).
-    // The ID suffix is used here only as a bootstrapping signal from createSurfaces();
-    // all downstream code queries SeamCollection instead.
+    // Each twin uses edge-specific corner IDs ("<twinId>_start" / "<twinId>_end") so that
+    // doubly-periodic surfaces (torus) — where multiple twins share the same 3D vertex —
+    // get distinct corners at the correct UV positions.
+    // The direction (U or V) and the twin's UV endpoints are computed here from the 2D
+    // parametric curve of the original edge and stored in SeamCollection for downstream use.
+    const auto& occFaceMap = openCascadeGeometryCollection_->getFaceMap();
+    const auto& occEdgeMap = openCascadeGeometryCollection_->getEdgeMap();
+
     for (const auto& [surfId, surf] : surfaces_)
     {
         for (const auto& edgeId : surf.getBoundaryEdgeIds())
@@ -221,12 +230,70 @@ void TopoDS_ShapeConverter::createEdges()
                 continue;
 
             const auto& orig = origIt->second;
+
+            // Detect seam direction and compute the twin's UV endpoints by evaluating
+            // the 2D parametric curve of the original edge on this face.
+            // The twin traverses the original in reverse at the opposite period boundary:
+            //   U-seam: twin = original shifted by uPeriod in U
+            //   V-seam: twin = original shifted by vPeriod in V
+            // twinStartUV = origEnd UV + shift  (twin topology-start = original end)
+            // twinEndUV   = origStart UV + shift (twin topology-end   = original start)
+            Topology3D::SeamCollection::SeamDirection direction =
+                Topology3D::SeamCollection::SeamDirection::U;
+            std::array<double, 2> twinStartUV = {0.0, 0.0};
+            std::array<double, 2> twinEndUV = {0.0, 0.0};
+
+            auto faceIt = occFaceMap.find(surfId);
+            auto edgeIt = occEdgeMap.find(originalId);
+
+            if (faceIt != occFaceMap.end() && edgeIt != occEdgeMap.end())
+            {
+                const TopoDS_Face& occFace = faceIt->second;
+                const TopoDS_Edge& occEdge = edgeIt->second;
+
+                Standard_Real first, last;
+                Handle(Geom2d_Curve) curve2D =
+                    BRep_Tool::CurveOnSurface(occEdge, occFace, first, last);
+
+                if (!curve2D.IsNull())
+                {
+                    gp_Pnt2d pStart = curve2D->Value(first);
+                    gp_Pnt2d pEnd = curve2D->Value(last);
+
+                    double deltaU = std::abs(pEnd.X() - pStart.X());
+                    double deltaV = std::abs(pEnd.Y() - pStart.Y());
+
+                    Standard_Real uMin, uMax, vMin, vMax;
+                    BRepTools::UVBounds(occFace, uMin, uMax, vMin, vMax);
+
+                    if (deltaV >= deltaU)
+                    {
+                        // Edge runs along V → U-direction seam.
+                        // projectPoint always returns the principal value (near uMin), so the twin
+                        // must sit at uMax regardless of which boundary the original seam is on.
+                        direction = Topology3D::SeamCollection::SeamDirection::U;
+                        twinStartUV = {uMax, pEnd.Y()};
+                        twinEndUV = {uMax, pStart.Y()};
+                    }
+                    else
+                    {
+                        // Edge runs along U → V-direction seam.
+                        // projectPoint returns the principal value (near vMin), so the twin sits at vMax.
+                        direction = Topology3D::SeamCollection::SeamDirection::V;
+                        twinStartUV = {pEnd.X(), vMax};
+                        twinEndUV = {pStart.X(), vMax};
+                    }
+                }
+            }
+
+            // Each twin gets unique corner IDs so that doubly-periodic surfaces with a
+            // single shared 3D vertex (torus) produce distinct UV corners per twin.
             edges_.emplace(edgeId,
                            Topology3D::Edge3D(edgeId,
-                                              orig.getEndCornerId() + "_seam",
-                                              orig.getStartCornerId() + "_seam",
+                                              edgeId + "_start",
+                                              edgeId + "_end",
                                               orig.getAdjacentSurfaceIds()));
-            seams_.addPair(originalId, edgeId);
+            seams_.addPair(originalId, edgeId, direction, twinStartUV, twinEndUV);
         }
     }
 }

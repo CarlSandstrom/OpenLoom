@@ -42,39 +42,48 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
 
     // Get boundary edges and project them to 2D parametric space
     const auto& edgeIds = topoSurface.getBoundaryEdgeIds();
-    const auto surfBounds = surface.getParameterBounds();
-    const double uPeriod = surfBounds.getUMax() - surfBounds.getUMin();
+    const auto& seams = fullTopology.getSeamCollection();
 
-    // Pass 1: seam twin edges — registers virtual "_seam" corners at U + uPeriod.
-    // Must run before pass 2 so that closed-circle edges can resolve their shifted endpoints.
-    auto addVirtualCorner = [&](const std::string& virtualId)
-    {
-        if (geometry2D->getCorner(virtualId) != nullptr)
-            return;
-        // Strip "_seam" to get the original corner ID
-        std::string origCornerId = virtualId.substr(0, virtualId.size() - 5);
-        auto* origCorner = fullGeometry.getCorner(origCornerId);
-        if (!origCorner)
-            return;
-        Point2D uv = surface.projectPoint(origCorner->getPoint());
-        geometry2D->addCorner(std::make_unique<Geometry2D::Corner2D>(
-            virtualId, Point2D(uv.x() + uPeriod, uv.y())));
-    };
+    // Pass 1: seam twin edges.
+    // Creates edge-specific Corner2D objects at the precomputed UV positions stored in
+    // SeamCollection (derived from BRep_Tool::CurveOnSurface in the converter). Using
+    // edge-specific corner IDs ("<twinId>_start" / "<twinId>_end") avoids UV ambiguity
+    // for doubly-periodic surfaces (e.g. torus) where multiple twins share the same 3D vertex.
+    //
+    // Builds direction-separated shifted-corner maps for pass 2:
+    //   uShiftedCorner: corner → U-shifted ICorner2D* (from U-seam twins)
+    //   vShiftedCorner: corner → V-shifted ICorner2D* (from V-seam twins)
+    // Using two maps avoids overwrite conflicts on doubly-periodic surfaces where a single
+    // 3D vertex appears in both U-seam and V-seam twins (e.g. the torus shared vertex).
+    // Also records which original seam edges are U-seams vs V-seams so pass 2 can pick the
+    // correct shifted endpoint for closed-loop seam originals.
+    std::unordered_map<std::string, const Geometry2D::ICorner2D*> uShiftedCorner;
+    std::unordered_map<std::string, const Geometry2D::ICorner2D*> vShiftedCorner;
+    std::unordered_map<std::string, Topology3D::SeamCollection::SeamDirection> originalToSeamDir;
 
     for (const auto& edgeId : edgeIds)
     {
-        if (!fullTopology.getSeamCollection().isSeamTwin(edgeId))
+        if (!seams.isSeamTwin(edgeId))
             continue;
 
-        const auto& topoEdge = fullTopology.getEdge(edgeId);
-        const std::string& seamStartId = topoEdge.getStartCornerId();
-        const std::string& seamEndId = topoEdge.getEndCornerId();
+        const auto twinStartArr = seams.getTwinStartUV(edgeId);
+        const auto twinEndArr = seams.getTwinEndUV(edgeId);
 
-        addVirtualCorner(seamStartId);
-        addVirtualCorner(seamEndId);
+        const Point2D twinStartUV(twinStartArr[0], twinStartArr[1]);
+        const Point2D twinEndUV(twinEndArr[0], twinEndArr[1]);
 
-        auto* sc2D = geometry2D->getCorner(seamStartId);
-        auto* ec2D = geometry2D->getCorner(seamEndId);
+        const std::string startCornerId = edgeId + "_start";
+        const std::string endCornerId = edgeId + "_end";
+
+        if (!geometry2D->getCorner(startCornerId))
+            geometry2D->addCorner(
+                std::make_unique<Geometry2D::Corner2D>(startCornerId, twinStartUV));
+        if (!geometry2D->getCorner(endCornerId))
+            geometry2D->addCorner(
+                std::make_unique<Geometry2D::Corner2D>(endCornerId, twinEndUV));
+
+        auto* sc2D = geometry2D->getCorner(startCornerId); // twin start = orig end + shift
+        auto* ec2D = geometry2D->getCorner(endCornerId);   // twin end   = orig start + shift
         if (sc2D && ec2D)
         {
             // The seam twin topology traverses from seamStart→seamEnd (reverse of the original
@@ -84,6 +93,20 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
             geometry2D->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
                 edgeId, ec2D->getPoint(), sc2D->getPoint()));
         }
+
+        // Build the shifted-corner lookups for pass 2, separated by seam direction so that
+        // doubly-periodic surfaces (torus) with a single shared vertex can store both the
+        // U-shifted and V-shifted copies without the second overwriting the first.
+        const Topology3D::SeamCollection::SeamDirection seamDir = seams.getSeamDirection(edgeId);
+        const std::string& origEdgeId = seams.getOriginalEdgeId(edgeId);
+        const auto& origTopoEdge = fullTopology.getEdge(origEdgeId);
+        originalToSeamDir[origEdgeId] = seamDir;
+
+        auto& targetMap = (seamDir == Topology3D::SeamCollection::SeamDirection::U)
+                              ? uShiftedCorner
+                              : vShiftedCorner;
+        targetMap[origTopoEdge.getEndCornerId()] = sc2D;
+        targetMap[origTopoEdge.getStartCornerId()] = ec2D;
     }
 
     // Pass 2: non-seam-twin edges.
@@ -91,9 +114,14 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
     // close at the seam-shifted virtual corner in UV space rather than the original corner.
     // Without this the LinearEdge2D would be zero-length, making getPoint(t) always return
     // the seam corner and producing invalid split midpoints during refinement.
+    //
+    // Selection rule for doubly-periodic (torus) seam originals:
+    //   U-seam original runs along the V direction → its far end is V-shifted → use vShiftedCorner.
+    //   V-seam original runs along the U direction → its far end is U-shifted → use uShiftedCorner.
+    // For non-seam closed-circle edges (e.g. cylinder cap), use whichever shifted copy exists.
     for (const auto& edgeId : edgeIds)
     {
-        if (fullTopology.getSeamCollection().isSeamTwin(edgeId))
+        if (seams.isSeamTwin(edgeId))
             continue;
 
         const auto& topoEdge = fullTopology.getEdge(edgeId);
@@ -103,11 +131,36 @@ MeshingContext2D MeshingContext2D::fromSurface(const Geometry3D::ISurface3D& sur
 
         if (topoEdge.getStartCornerId() == topoEdge.getEndCornerId())
         {
-            const std::string seamEndId = topoEdge.getEndCornerId() + "_seam";
-            auto* seamEndCorner2D = geometry2D->getCorner(seamEndId);
-            if (seamEndCorner2D != nullptr)
+            const Geometry2D::ICorner2D* shiftedCorner = nullptr;
+            const auto seamDirIt = originalToSeamDir.find(edgeId);
+
+            if (seamDirIt != originalToSeamDir.end())
             {
-                endCorner2D = seamEndCorner2D;
+                // Seam original: pick the shifted corner from the perpendicular direction.
+                const bool isUSeamOriginal =
+                    (seamDirIt->second == Topology3D::SeamCollection::SeamDirection::U);
+                const auto& srcMap = isUSeamOriginal ? vShiftedCorner : uShiftedCorner;
+                auto it = srcMap.find(topoEdge.getEndCornerId());
+                if (it != srcMap.end())
+                    shiftedCorner = it->second;
+            }
+            else
+            {
+                // Non-seam closed-circle (e.g. cylinder rim): use whichever shifted copy exists.
+                auto it = uShiftedCorner.find(topoEdge.getEndCornerId());
+                if (it != uShiftedCorner.end())
+                    shiftedCorner = it->second;
+                else
+                {
+                    auto itV = vShiftedCorner.find(topoEdge.getEndCornerId());
+                    if (itV != vShiftedCorner.end())
+                        shiftedCorner = itV->second;
+                }
+            }
+
+            if (shiftedCorner != nullptr)
+            {
+                endCorner2D = shiftedCorner;
             }
             else
             {

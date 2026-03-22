@@ -154,13 +154,15 @@ TEST(FacetDiscretization2DBuilderTest, SeamSurface_DuplicatesSeamPointsAtUPlusPe
     discretization3D.cornerIdToPointIndexMap = {{"c0", 0}, {"c1", 2}};
     discretization3D.edgeIdToPointIndicesMap = {
         {"e_seam", {0, 1, 2}},
-        {"e_twin", {0, 1, 2}}, // same 3D points as e_seam
+        {"e_twin", {2, 1, 0}}, // BoundaryDiscretizer3D reverses the original seam sequence
     };
 
     MockSurface surface(0.0, 2.0, 0.0, 1.0);
     Topology3D::Surface3D topologySurface("s_seam", {"e_seam", "e_twin"}, {"c0", "c1"});
     Topology3D::SeamCollection seams;
-    seams.addPair("e_seam", "e_twin");
+    seams.addPair("e_seam", "e_twin",
+                  Topology3D::SeamCollection::SeamDirection::U,
+                  {2.0, 1.0}, {2.0, 0.0});
 
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
     edges["e_seam"] = std::make_unique<MockEdge3D>(0.0, 1.0);
@@ -177,21 +179,21 @@ TEST(FacetDiscretization2DBuilderTest, SeamSurface_DuplicatesSeamPointsAtUPlusPe
     // 3 original + 3 seam-shifted duplicates
     ASSERT_EQ(result.points.size(), 6u);
 
-    // Shifted copies sit at U + 2.0
+    // Shifted copies sit at U + 2.0 (reversed twin: c1 first, interior, c0 last)
     EXPECT_DOUBLE_EQ(result.points[3].x(), 2.0);
-    EXPECT_DOUBLE_EQ(result.points[3].y(), 0.0);
+    EXPECT_DOUBLE_EQ(result.points[3].y(), 1.0); // c1 (reversed twin start)
     EXPECT_DOUBLE_EQ(result.points[4].x(), 2.0);
-    EXPECT_DOUBLE_EQ(result.points[4].y(), 0.5);
+    EXPECT_DOUBLE_EQ(result.points[4].y(), 0.5); // interior
     EXPECT_DOUBLE_EQ(result.points[5].x(), 2.0);
-    EXPECT_DOUBLE_EQ(result.points[5].y(), 1.0);
+    EXPECT_DOUBLE_EQ(result.points[5].y(), 0.0); // c0 (reversed twin end)
 
     // Interior point's geometry ID must be remapped from e_seam to e_twin
     ASSERT_EQ(result.geometryIds[4].size(), 1u);
     EXPECT_EQ(result.geometryIds[4][0], "e_twin");
 
     // Corner points' geometry IDs are unchanged
-    ASSERT_EQ(result.geometryIds[3].size(), 1u);
-    EXPECT_EQ(result.geometryIds[3][0], "c0");
+    ASSERT_EQ(result.geometryIds[5].size(), 1u);
+    EXPECT_EQ(result.geometryIds[5][0], "c0");
 
     EXPECT_EQ(result.edgeIdToPointIndicesMap.at("e_twin"), (std::vector<size_t>{3, 4, 5}));
     EXPECT_EQ(result.edgeIdToPointIndicesMap.at("e_seam"), (std::vector<size_t>{0, 1, 2}));
@@ -199,9 +201,9 @@ TEST(FacetDiscretization2DBuilderTest, SeamSurface_DuplicatesSeamPointsAtUPlusPe
     // Shifted copies map back to the same 3D node IDs as the originals
     const auto& nodeIds = builder.getLocalIndexToNode3DId();
     ASSERT_EQ(nodeIds.size(), 6u);
-    EXPECT_EQ(nodeIds[3], 0u);
-    EXPECT_EQ(nodeIds[4], 1u);
-    EXPECT_EQ(nodeIds[5], 2u);
+    EXPECT_EQ(nodeIds[3], 2u); // reversed: c1
+    EXPECT_EQ(nodeIds[4], 1u); // interior
+    EXPECT_EQ(nodeIds[5], 0u); // reversed: c0
 }
 
 // ============================================================================
@@ -230,7 +232,9 @@ TEST(FacetDiscretization2DBuilderTest, SeamSurface_ClosedCircleEdgeEndpointUsesS
     MockSurface surface(0.0, 2.0, 0.0, 1.0);
     Topology3D::Surface3D topologySurface("s_circle", {"e_twin", "e_circle"}, {"c0"});
     Topology3D::SeamCollection seams;
-    seams.addPair("e_seam", "e_twin");
+    seams.addPair("e_seam", "e_twin",
+                  Topology3D::SeamCollection::SeamDirection::U,
+                  {2.0, 0.0}, {2.0, 0.0});
 
     std::vector<size_t> globalPointIndices = {0, 1};
     auto geometry = makeGeometry({});
