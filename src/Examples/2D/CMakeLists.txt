@@ -15,6 +15,7 @@ set(EXAMPLE_SOURCES_2D
     ManyCirclesInSquare.cc
     SpiralChannel.cc
     NearCoincidentConstraintEdges.cc
+    FullyPeriodicSquare.cc
 )
 
 # Link external libraries
