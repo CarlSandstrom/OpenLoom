@@ -1,6 +1,8 @@
 #include "ElementGeometry2D.h"
+#include "PeriodicMeshData2D.h"
 #include "Common/Exceptions/GeometryException.h"
 #include "GeometryUtilities2D.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,14 +11,22 @@ namespace Meshing
 {
 
 ElementGeometry2D::ElementGeometry2D(const MeshData2D& mesh) :
-    mesh_(mesh)
+    mesh_(mesh),
+    periodicData_(nullptr)
 {
 }
 
-std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(const TriangleElement& tri) const
+ElementGeometry2D::ElementGeometry2D(const MeshData2D& mesh, PeriodicMeshData2D* periodicData) :
+    mesh_(mesh),
+    periodicData_(periodicData)
 {
-    auto [p0, p1, p2] = getElementNodeCoordinates(tri);
+}
 
+// --- shared math helpers ---
+
+static std::optional<Circle2D> computeCircumcircleFromPoints(
+    const Point2D& p0, const Point2D& p1, const Point2D& p2)
+{
     const double ax = p1.x() - p0.x();
     const double ay = p1.y() - p0.y();
     const double bx = p2.x() - p0.x();
@@ -25,10 +35,7 @@ std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(const TriangleEle
     const double d = 2.0 * (ax * by - ay * bx);
 
     if (std::abs(d) < 1e-10)
-    {
-        // Degenerate triangle
         return std::nullopt;
-    }
 
     const double aSq = ax * ax + ay * ay;
     const double bSq = bx * bx + by * by;
@@ -43,14 +50,20 @@ std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(const TriangleEle
     return circle;
 }
 
+// --- TriangleElement& overloads (canonical coordinates) ---
+
+std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(const TriangleElement& element) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(element);
+    return computeCircumcircleFromPoints(p0, p1, p2);
+}
+
 std::optional<Point2D> ElementGeometry2D::computeCircumcenter(const TriangleElement& element) const
 {
-    auto circumcircle = computeCircumcircle(element);
-    if (!circumcircle.has_value())
-    {
+    auto circle = computeCircumcircle(element);
+    if (!circle)
         return std::nullopt;
-    }
-    return circumcircle->center;
+    return circle->center;
 }
 
 double ElementGeometry2D::computeArea(const TriangleElement& element) const
@@ -87,7 +100,8 @@ Point2D ElementGeometry2D::computeCentroid(const TriangleElement& element) const
                    (p0.y() + p1.y() + p2.y()) / 3.0);
 }
 
-std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(const TriangleElement& element) const
+std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(
+    const TriangleElement& element) const
 {
     const auto& nodeIds = element.getNodeIdArray();
     const auto* n0 = mesh_.getNode(nodeIds[0]);
@@ -97,6 +111,39 @@ std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinat
     OPENLOOM_REQUIRE_NOT_NULL(n1, "triangle node 1");
     OPENLOOM_REQUIRE_NOT_NULL(n2, "triangle node 2");
     return {n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()};
+}
+
+// --- element ID overloads (offset-aware when periodicData_ is set) ---
+
+std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(size_t elementId) const
+{
+    if (periodicData_ && periodicData_->getOffsetTable().hasOffsets(elementId))
+        return periodicData_->getTriangleCoordinates(elementId);
+
+    const auto* element = dynamic_cast<const TriangleElement*>(mesh_.getElement(elementId));
+    OPENLOOM_REQUIRE_NOT_NULL(element, "triangle element");
+    return getElementNodeCoordinates(*element);
+}
+
+std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(size_t elementId) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(elementId);
+    return computeCircumcircleFromPoints(p0, p1, p2);
+}
+
+std::optional<Point2D> ElementGeometry2D::computeCircumcenter(size_t elementId) const
+{
+    auto circle = computeCircumcircle(elementId);
+    if (!circle)
+        return std::nullopt;
+    return circle->center;
+}
+
+Point2D ElementGeometry2D::computeCentroid(size_t elementId) const
+{
+    auto [p0, p1, p2] = getElementNodeCoordinates(elementId);
+    return Point2D((p0.x() + p1.x() + p2.x()) / 3.0,
+                   (p0.y() + p1.y() + p2.y()) / 3.0);
 }
 
 } // namespace Meshing

@@ -2,6 +2,7 @@
 #include "ConstraintChecker2D.h"
 #include "ElementGeometry2D.h"
 #include "GeometryUtilities2D.h"
+#include "PeriodicMeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Edge2D.h"
 #include "Topology2D/Topology2D.h"
@@ -15,7 +16,14 @@ namespace Meshing
 {
 
 MeshQueries2D::MeshQueries2D(const MeshData2D& meshData) :
-    meshData_(meshData)
+    meshData_(meshData),
+    periodicData_(nullptr)
+{
+}
+
+MeshQueries2D::MeshQueries2D(const MeshData2D& meshData, PeriodicMeshData2D* periodicData) :
+    meshData_(meshData),
+    periodicData_(periodicData)
 {
 }
 
@@ -23,7 +31,7 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 {
     std::vector<size_t> conflicting;
 
-    ElementGeometry2D geometry(meshData_);
+    ElementGeometry2D geometry(meshData_, periodicData_);
 
     for (const auto& [id, element] : meshData_.getElements())
     {
@@ -34,7 +42,7 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
             continue;
         }
 
-        auto circle = geometry.computeCircumcircle(*triangle);
+        auto circle = geometry.computeCircumcircle(id);
         bool inConflict = circle && GeometryUtilities2D::isPointInsideCircle(*circle, point);
         if (!inConflict && !circle)
         {
@@ -53,7 +61,7 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
             // A triangle is in the conflict set only if the insertion point is visible
             // from the triangle's interior, i.e. the line from point to centroid does
             // not properly cross any constrained segment.
-            Point2D centroid = geometry.computeCentroid(*triangle);
+            Point2D centroid = geometry.computeCentroid(id);
 
             bool visible = true;
             const auto& nodeIds = triangle->getNodeIdArray();
@@ -298,7 +306,7 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments() const
 {
     std::vector<ConstrainedSegment2D> encroached;
 
-    ConstraintChecker2D checker(meshData_);
+    ConstraintChecker2D checker(meshData_, periodicData_);
 
     for (const auto& segment : meshData_.getConstrainedSegments())
     {
@@ -330,7 +338,7 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
 {
     std::vector<ConstrainedSegment2D> encroached;
 
-    ConstraintChecker2D checker(meshData_);
+    ConstraintChecker2D checker(meshData_, periodicData_);
 
     for (const auto& segment : meshData_.getConstrainedSegments())
     {
@@ -497,7 +505,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
     }
 
     // Step 1: Find an interior seed triangle using ray casting
-    ElementGeometry2D geometry(meshData_);
+    ElementGeometry2D geometry(meshData_, periodicData_);
     size_t seedTriangleId = SIZE_MAX;
 
     for (const auto& [elemId, element] : meshData_.getElements())

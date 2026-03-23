@@ -90,9 +90,9 @@ void ShewchukRefiner2D::refine()
         {
             consecutiveNoProgress = 0; // Reset counter on successful refinement
 
-            // Periodically re-classify triangles to remove any that ended up in holes
-            // This prevents accumulation of invalid triangles during refinement
-            if (iterationCount % 10 == 0)
+            // Periodically re-classify triangles to remove any that ended up in holes.
+            // Skipped for periodic domains — no exterior exists.
+            if (!context_->getPeriodicData() && iterationCount % 10 == 0)
             {
                 spdlog::debug("ShewchukRefiner2D: Periodic triangle re-classification at iteration {}", iterationCount);
                 auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
@@ -111,15 +111,20 @@ void ShewchukRefiner2D::refine()
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);
 
-    // Re-classify triangles after refinement to remove any that ended up in holes
-    // Refinement can create triangles that cross constraint boundaries
-    spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
-    auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
-
-    // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
-    for (size_t id : removedIds)
+    // In a periodic domain there is no exterior: every triangle is interior.
+    // Skip classification/removal to preserve the full periodic triangulation.
+    if (!context_->getPeriodicData())
     {
-        unrefinableTriangles_.erase(id);
+        // Re-classify triangles after refinement to remove any that ended up in holes
+        // Refinement can create triangles that cross constraint boundaries
+        spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
+        auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
+
+        // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
+        for (size_t id : removedIds)
+        {
+            unrefinableTriangles_.erase(id);
+        }
     }
 }
 
@@ -226,7 +231,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         return false;
     }
 
-    ElementGeometry2D geometry(context_->getMeshData());
+    ElementGeometry2D geometry(context_->getMeshData(), context_->getPeriodicData());
     ElementQuality2D quality(context_->getMeshData());
 
     // Check if triangle is too small to refine reliably
@@ -244,8 +249,8 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         return false;
     }
 
-    // Compute circumcenter
-    auto circumcenterOpt = geometry.computeCircumcenter(*triangle);
+    // Compute circumcenter using offset-aware coordinates (no-op for non-periodic meshes)
+    auto circumcenterOpt = geometry.computeCircumcenter(triangleId);
 
     if (!circumcenterOpt.has_value())
     {

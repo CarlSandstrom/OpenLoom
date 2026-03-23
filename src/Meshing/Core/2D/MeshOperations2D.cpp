@@ -4,6 +4,7 @@
 #include "GeometryUtilities2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
+#include "PeriodicMeshData2D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
@@ -17,9 +18,19 @@ namespace Meshing
 
 MeshOperations2D::MeshOperations2D(MeshData2D& meshData) :
     meshData_(meshData),
+    periodicData_(nullptr),
     queries_(meshData),
     mutator_(std::make_unique<MeshMutator2D>(meshData)),
     geometry_(std::make_unique<ElementGeometry2D>(meshData))
+{
+}
+
+MeshOperations2D::MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* periodicData) :
+    meshData_(meshData),
+    periodicData_(periodicData),
+    queries_(meshData, periodicData),
+    mutator_(std::make_unique<MeshMutator2D>(meshData)),
+    geometry_(std::make_unique<ElementGeometry2D>(meshData, periodicData))
 {
 }
 
@@ -40,6 +51,43 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
 
     std::vector<std::array<size_t, 2>> boundary = queries_.findCavityBoundary(conflicting);
 
+    // In a periodic triangulation, collect the per-vertex offsets for each boundary edge
+    // before removing the conflicting triangles.  The new triangle {newVertex, e0, e1}
+    // inherits the offsets that the removed triangle assigned to e0 and e1.
+    // Key = {min(e0,e1), max(e0,e1)}, value = {offset_for_min_node, offset_for_max_node}.
+    using EdgeKey = MeshQueries2D::EdgeKey;
+    using EdgeKeyHash = MeshQueries2D::EdgeKeyHash;
+    std::unordered_map<EdgeKey, std::array<PeriodicOffset, 2>, EdgeKeyHash> boundaryEdgeOffsets;
+
+    if (periodicData_)
+    {
+        auto& offsetTable = periodicData_->getOffsetTable();
+        for (size_t conflictId : conflicting)
+        {
+            if (!offsetTable.hasOffsets(conflictId))
+                continue;
+
+            const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(conflictId));
+            if (!tri)
+                continue;
+
+            const auto& triOffsets = offsetTable.getOffsets(conflictId);
+            const auto& nodeIds = tri->getNodeIdArray();
+
+            for (int i = 0; i < 3; ++i)
+            {
+                int j = (i + 1) % 3;
+                int oi = i, oj = j;
+                size_t ni = nodeIds[i], nj = nodeIds[j];
+                if (ni > nj) { std::swap(ni, nj); std::swap(oi, oj); }
+                boundaryEdgeOffsets[{ni, nj}] = {triOffsets[oi], triOffsets[oj]};
+            }
+        }
+
+        for (size_t conflictId : conflicting)
+            offsetTable.removeOffsets(conflictId);
+    }
+
     for (auto conflictingElementId : conflicting)
     {
         mutator_->removeElement(conflictingElementId);
@@ -59,10 +107,30 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
 
     for (const auto& edge : boundary)
     {
-        // Check if triangle would be degenerate before creating it
-        const Point2D& pNew = meshData_.getNode(newVertex)->getCoordinates();
-        const Point2D& pE0 = meshData_.getNode(edge[0])->getCoordinates();
-        const Point2D& pE1 = meshData_.getNode(edge[1])->getCoordinates();
+        // Resolve offset-aware coordinates for the degenerate area check.
+        Point2D pNew = meshData_.getNode(newVertex)->getCoordinates();
+        Point2D pE0, pE1;
+
+        PeriodicOffset off0 = {}, off1 = {};
+        if (periodicData_)
+        {
+            EdgeKey key = MeshQueries2D::makeEdgeKey(edge[0], edge[1]);
+            auto it = boundaryEdgeOffsets.find(key);
+            if (it != boundaryEdgeOffsets.end())
+            {
+                // stored as {offset_for_min_node, offset_for_max_node}
+                if (edge[0] <= edge[1]) { off0 = it->second[0]; off1 = it->second[1]; }
+                else                    { off0 = it->second[1]; off1 = it->second[0]; }
+            }
+            pE0 = periodicData_->applyOffset(meshData_.getNode(edge[0])->getCoordinates(), off0);
+            pE1 = periodicData_->applyOffset(meshData_.getNode(edge[1])->getCoordinates(), off1);
+        }
+        else
+        {
+            pE0 = meshData_.getNode(edge[0])->getCoordinates();
+            pE1 = meshData_.getNode(edge[1])->getCoordinates();
+        }
+
         double area = GeometryUtilities2D::computeSignedArea(pNew, pE0, pE1);
 
         if (std::abs(area) < MIN_TRIANGLE_AREA)
@@ -72,7 +140,15 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
             continue;
         }
 
-        mutator_->addElement(std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]}));
+        size_t newTriId = mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]}));
+
+        // Register offsets for the new triangle: newVertex has offset {0,0};
+        // the two boundary vertices inherit their offsets from the removed triangle.
+        if (periodicData_)
+        {
+            periodicData_->getOffsetTable().setOffsets(newTriId, {PeriodicOffset{}, off0, off1});
+        }
     }
 
     return newVertex;
@@ -425,7 +501,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
             continue;
 
         // Check Delaunay criterion: is d inside circumcircle of (a, b, c)?
-        auto circle = geom.computeCircumcircle(*elem1);
+        auto circle = geom.computeCircumcircle(adjacent[0]);
         if (!circle.has_value())
             continue;
 
@@ -446,6 +522,12 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         // sharing the new diagonal (c,d). The EdgeKey order (a,b) is by node ID (min,max),
         // not by winding, so we cannot infer orientation from it. Instead, compute the
         // signed area of each candidate triangle and reverse the vertex order if it is CW.
+        if (periodicData_)
+        {
+            periodicData_->getOffsetTable().removeOffsets(adjacent[0]);
+            periodicData_->getOffsetTable().removeOffsets(adjacent[1]);
+        }
+
         mutator_->removeElement(adjacent[0]);
         mutator_->removeElement(adjacent[1]);
 
@@ -457,8 +539,16 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         if (GeometryUtilities2D::computeSignedArea(pB, pD, pC) < 0)
             std::swap(tri2[1], tri2[2]);
 
-        mutator_->addElement(std::make_unique<TriangleElement>(tri1));
-        mutator_->addElement(std::make_unique<TriangleElement>(tri2));
+        size_t id1 = mutator_->addElement(std::make_unique<TriangleElement>(tri1));
+        size_t id2 = mutator_->addElement(std::make_unique<TriangleElement>(tri2));
+
+        // Register zero offsets for the flipped triangles so they use canonical
+        // coordinates until a proper offset propagation pass is done in Phase 3.
+        if (periodicData_)
+        {
+            periodicData_->getOffsetTable().setOffsets(id1, {PeriodicOffset{}, PeriodicOffset{}, PeriodicOffset{}});
+            periodicData_->getOffsetTable().setOffsets(id2, {PeriodicOffset{}, PeriodicOffset{}, PeriodicOffset{}});
+        }
 
         // Push the 4 outer edges of the flipped quad for further checking
         std::array<EdgeKey, 4> outerEdges = {

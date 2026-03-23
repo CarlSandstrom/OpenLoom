@@ -1,9 +1,11 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "Geometry/2D/Base/GeometryCollection2D.h"
+#include "Meshing/Core/2D/PeriodicDomain2D.h"
 #include "Topology2D/Topology2D.h"
 
 namespace Geometry3D
@@ -24,6 +26,7 @@ namespace Meshing
 class MeshData2D;
 class MeshMutator2D;
 class MeshOperations2D;
+class PeriodicMeshData2D;
 
 /**
  * @brief Central orchestrator for 2D meshing in parametric space
@@ -78,11 +81,21 @@ public:
     const MeshData2D& getMeshData() const;
     MeshOperations2D& getOperations();
 
+    /// Configure the context for periodic meshing.
+    /// Must be called before the first call to getMeshData() or getOperations().
+    void setPeriodicConfig(const PeriodicDomainConfig& config);
+
+    /// Returns the periodic data layer, or nullptr for non-periodic contexts.
+    PeriodicMeshData2D* getPeriodicData() const { return periodicData_.get(); }
+
 private:
     std::unique_ptr<Geometry2D::GeometryCollection2D> geometry_;
     std::unique_ptr<Topology2D::Topology2D> topology_;
 
+    std::optional<PeriodicDomainConfig> periodicConfig_;
+
     std::unique_ptr<MeshData2D> meshData_;
+    std::unique_ptr<PeriodicMeshData2D> periodicData_;
     std::unique_ptr<MeshMutator2D> meshMutator_;
     std::unique_ptr<MeshOperations2D> meshOperations_;
 

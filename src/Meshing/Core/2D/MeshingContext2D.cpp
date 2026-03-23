@@ -1,4 +1,5 @@
 #include "MeshingContext2D.h"
+#include "PeriodicMeshData2D.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
@@ -249,6 +250,14 @@ MeshingContext2D::~MeshingContext2D() = default;
 MeshingContext2D::MeshingContext2D(MeshingContext2D&&) noexcept = default;
 MeshingContext2D& MeshingContext2D::operator=(MeshingContext2D&&) noexcept = default;
 
+void MeshingContext2D::setPeriodicConfig(const PeriodicDomainConfig& config)
+{
+    periodicConfig_ = config;
+    // Reset lazy-initialized objects so they are rebuilt with the new config.
+    meshOperations_.reset();
+    periodicData_.reset();
+}
+
 MeshData2D& MeshingContext2D::getMeshData()
 {
     ensureInitialized();
@@ -272,13 +281,17 @@ void MeshingContext2D::ensureInitialized()
     {
         meshData_ = std::make_unique<MeshData2D>();
     }
+    if (!periodicData_ && periodicConfig_)
+    {
+        periodicData_ = std::make_unique<PeriodicMeshData2D>(*meshData_, *periodicConfig_);
+    }
     if (!meshMutator_)
     {
         meshMutator_ = std::make_unique<MeshMutator2D>(*meshData_);
     }
     if (!meshOperations_)
     {
-        meshOperations_ = std::make_unique<MeshOperations2D>(*meshData_);
+        meshOperations_ = std::make_unique<MeshOperations2D>(*meshData_, periodicData_.get());
     }
 }
 

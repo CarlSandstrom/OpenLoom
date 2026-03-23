@@ -25,6 +25,8 @@ class Topology2D;
 namespace Meshing
 {
 
+class PeriodicMeshData2D;
+
 /**
  * @brief Query operations for 2D meshes (read-only)
  *
@@ -52,6 +54,10 @@ public:
      * @param meshData Reference to the 2D mesh data (read-only)
      */
     explicit MeshQueries2D(const MeshData2D& meshData);
+
+    /// Periodic-aware constructor.
+    /// periodicData may be null (equivalent to the non-periodic constructor).
+    MeshQueries2D(const MeshData2D& meshData, PeriodicMeshData2D* periodicData);
 
     /**
      * @brief Find triangles whose circumcircle contains the point
@@ -192,6 +198,7 @@ public:
 
 private:
     const MeshData2D& meshData_;
+    PeriodicMeshData2D* periodicData_ = nullptr;
 };
 
 } // namespace Meshing

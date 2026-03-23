@@ -28,6 +28,7 @@ namespace Meshing
 {
 
 class MeshMutator2D;
+class PeriodicMeshData2D;
 
 /**
  * @brief Mutation operations for 2D meshes
@@ -44,6 +45,10 @@ public:
      * @param meshData Reference to the 2D mesh data
      */
     explicit MeshOperations2D(MeshData2D& meshData);
+
+    /// Periodic-aware constructor.
+    /// periodicData may be null (equivalent to the non-periodic constructor).
+    MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* periodicData);
 
     /**
      * @brief Insert a vertex using 2D Bowyer-Watson algorithm
@@ -151,6 +156,7 @@ private:
     void lawsonFlip(const std::vector<size_t>& newTriangleIds);
 
     MeshData2D& meshData_;
+    PeriodicMeshData2D* periodicData_ = nullptr;
     MeshQueries2D queries_;
     std::unique_ptr<MeshMutator2D> mutator_;
     std::unique_ptr<ElementGeometry2D> geometry_;
