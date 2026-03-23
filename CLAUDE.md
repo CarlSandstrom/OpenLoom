@@ -94,8 +94,8 @@ When fixing a bug or adding a feature, make the right change — not the conveni
 - **Architectural changes when needed**: If the correct fix requires refactoring or restructuring, do that. Discuss the plan with the user first, then execute it properly.
 - **One change at a time**: Apply a fix, build, and test before trying anything else. Do not layer multiple speculative fixes on top of each other.
 - **Remove failed attempts**: If a fix attempt didn't work, remove it entirely before trying the next approach. Never leave dead or commented-out code behind.
-- **Use logging to investigate**: Since there is no debugger access, use `spdlog` calls freely to inspect state during debugging (`SPDLOG_LEVEL=debug` is set by default). Remove temporary log statements once the bug is resolved, unless they are genuinely useful to keep.
-- **No other temporary scaffolding**: Do not add temporary assertions or diagnostic tests. Remove any that were added during investigation once the bug is resolved.
+- **Use the debugger to investigate**: An lldb debugger is available via MCP. Prefer it over adding `spdlog` statements — use breakpoints, backtraces, and expression evaluation to inspect state. Only add permanent `spdlog` calls when they provide ongoing diagnostic value beyond a single debugging session. (`SPDLOG_LEVEL=debug` is set by default.)
+- **No temporary scaffolding**: Do not add temporary assertions, diagnostic tests, or throwaway log statements. Remove any that were added during investigation once the bug is resolved.
 - **Tests must be intentional**: Only add a test if it covers a real scenario worth keeping permanently. Do not add tests just to verify a fix during debugging.
 - **Mesh integrity checks**: When running examples or tests to investigate a bug, always set the environment variable `CHECK_MESH_EACH_ITERATION=1`. This enables per-iteration mesh consistency checks that help catch corruption early.
 
