@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <string>
 
 #include "Common/BoundingBox2D.h"
@@ -24,6 +25,11 @@ public:
     virtual Common::BoundingBox2D getParameterBounds() const = 0;
     virtual double getGap(const Meshing::Point3D& point) const = 0;
     virtual Meshing::Point2D projectPoint(const Meshing::Point3D& point) const = 0;
+    virtual std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
+        const Meshing::Point3D& point) const = 0;
+    virtual std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
+        const Meshing::Point3D& point,
+        const Meshing::Point2D& seedUV) const = 0;
 
     virtual std::string getId() const = 0;
 };

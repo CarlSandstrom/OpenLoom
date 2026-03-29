@@ -7,6 +7,7 @@
 #include <GeomLProp_SLProps.hxx>
 #include <Precision.hxx>
 #include <ShapeAnalysis.hxx>
+#include <ShapeAnalysis_Surface.hxx>
 #include <TopoDS_Shape.hxx>
 #include <functional>
 #include <gp_Pnt.hxx>
@@ -93,6 +94,39 @@ Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point)
     const Common::BoundingBox2D bounds = getParameterBounds();
     return Meshing::Point2D((bounds.getUMin() + bounds.getUMax()) / 2.0,
                             (bounds.getVMin() + bounds.getVMax()) / 2.0);
+}
+
+std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurface(
+    const Meshing::Point3D& point) const
+{
+    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+    if (geomSurface.IsNull())
+    {
+        return std::nullopt;
+    }
+
+    ShapeAnalysis_Surface analyzer(geomSurface);
+    gp_Pnt2d uv = analyzer.ValueOfUV(gp_Pnt(point.x(), point.y(), point.z()),
+                                      Precision::Confusion());
+    return Meshing::Point2D(uv.X(), uv.Y());
+}
+
+std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurface(
+    const Meshing::Point3D& point,
+    const Meshing::Point2D& seedUV) const
+{
+    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+    if (geomSurface.IsNull())
+    {
+        return std::nullopt;
+    }
+
+    ShapeAnalysis_Surface analyzer(geomSurface);
+    gp_Pnt2d seed(seedUV.x(), seedUV.y());
+    gp_Pnt2d uv = analyzer.NextValueOfUV(seed,
+                                          gp_Pnt(point.x(), point.y(), point.z()),
+                                          Precision::Confusion());
+    return Meshing::Point2D(uv.X(), uv.Y());
 }
 
 std::string OpenCascadeSurface::getId() const

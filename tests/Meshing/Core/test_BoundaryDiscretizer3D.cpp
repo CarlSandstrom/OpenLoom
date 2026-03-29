@@ -82,6 +82,18 @@ public:
     {
         return Point2D(point.x(), point.y());
     }
+
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
+    {
+        return Point2D(point.x(), point.y());
+    }
+
+    std::optional<Point2D> projectPointToUnderlyingSurface(
+        const Point3D& point, const Point2D& /*seedUV*/) const override
+    {
+        return Point2D(point.x(), point.y());
+    }
+
     std::string getId() const override { return id_; }
 
 private:

@@ -53,6 +53,8 @@ public:
     Common::BoundingBox2D getParameterBounds() const override { return bounds_; }
     double getGap(const Point3D& point) const override { return std::abs(point.z()); }
     Point2D projectPoint(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point, const Point2D& /*seedUV*/) const override { return Point2D(point.x(), point.y()); }
     std::string getId() const override { return {}; }
 
 private:
