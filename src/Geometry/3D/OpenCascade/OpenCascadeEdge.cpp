@@ -87,6 +87,20 @@ double OpenCascadeEdge::getLength() const
     return tMax - tMin;
 }
 
+double OpenCascadeEdge::getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const
+{
+    BRepAdaptor_Curve curve(edge_);
+    double totalLength = GCPnts_AbscissaPoint::Length(curve, tStart, tEnd);
+
+    if (totalLength <= Precision::Confusion())
+    {
+        return tStart + fraction * (tEnd - tStart);
+    }
+
+    GCPnts_AbscissaPoint solver(curve, fraction * totalLength, tStart);
+    return solver.Parameter();
+}
+
 double OpenCascadeEdge::getCurvature(double t) const
 {
     BRepAdaptor_Curve curve(edge_);

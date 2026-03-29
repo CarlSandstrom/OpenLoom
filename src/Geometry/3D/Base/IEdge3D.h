@@ -23,6 +23,7 @@ public:
     virtual Meshing::Point3D getEndPoint() const = 0;
     virtual std::pair<double, double> getParameterBounds() const = 0;
     virtual double getLength() const = 0;
+    virtual double getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const = 0;
     virtual double getCurvature(double t) const = 0;
 
     virtual std::string getId() const = 0;
