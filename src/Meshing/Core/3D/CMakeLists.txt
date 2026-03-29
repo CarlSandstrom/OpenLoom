@@ -3,6 +3,7 @@ add_library(MeshingCore3D STATIC)
 
 file(GLOB MESHING_CORE_3D_SOURCES CONFIGURE_DEPENDS
     "General/*.cpp"
+    "RCDT/*.cpp"
     "Surface/*.cpp"
     "Volume/*.cpp"
 )
