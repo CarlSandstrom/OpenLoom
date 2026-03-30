@@ -86,15 +86,10 @@ void MeshConnectivity::buildFaceToElementsMap()
                 FaceKey key = makeFaceKey(faceNodes);
 
                 // Add this element to the face
-                auto& elemPair = faceToElements_[key];
-                if (elemPair.first == INVALID_ID)
-                {
-                    elemPair.first = elementId; // First element on this face
-                }
-                else
-                {
-                    elemPair.second = elementId; // Second element on this face
-                }
+                auto [it, inserted] =
+                    faceToElements_.emplace(key, std::make_pair(elementId, INVALID_ID));
+                if (!inserted)
+                    it->second.second = elementId;
             }
         }
     }
