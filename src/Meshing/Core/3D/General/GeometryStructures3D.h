@@ -13,20 +13,6 @@ struct CircumscribedSphere
 };
 
 /**
- * @brief Represents a constrained edge segment in 3D mesh
- *
- * A subsegment is part of a constrained edge (segment) that must be
- * preserved in the final mesh. During refinement, segments may be
- * subdivided into multiple subsegments.
- */
-struct ConstrainedSubsegment3D
-{
-    size_t nodeId1;         // First endpoint node ID
-    size_t nodeId2;         // Second endpoint node ID
-    std::string geometryId; // Parent edge geometry ID
-};
-
-/**
  * @brief Represents a constrained triangular face in 3D mesh
  *
  * A subfacet is part of a constrained facet (surface) that must be

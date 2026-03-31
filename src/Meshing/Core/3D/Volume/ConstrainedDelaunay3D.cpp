@@ -6,6 +6,7 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
@@ -33,9 +34,8 @@ void ConstrainedDelaunay3D::tetrahedralize()
                  discretization_.points.size());
 
     // Step 1: Create initial Delaunay tetrahedralization (unconstrained)
-    Delaunay3D delaunay(        discretization_.points,
+    Delaunay3D delaunay(discretization_.points,
         meshData3D_,
-        discretization_.edgeParameters,
         discretization_.geometryIds);
     delaunay.triangulate();
 
@@ -58,7 +58,7 @@ void ConstrainedDelaunay3D::tetrahedralize()
     storeSubfacets();
 
     spdlog::info("ConstrainedDelaunay3D: Constraint setup complete - {} subsegments, {} subfacets",
-                 meshData3D_->getConstrainedSubsegments().size(),
+                 meshData3D_->getConstrainedSubsegmentCount(),
                  meshData3D_->getConstrainedSubfacets().size());
 }
 
@@ -71,22 +71,23 @@ void ConstrainedDelaunay3D::extractAndStoreSubsegments()
         return;
     }
 
-    // Extract subsegments using MeshQueries3D
     MeshQueries3D queries(*meshData3D_);
-    auto subsegments = queries.extractConstrainedSubsegments(
+    CurveSegmentManager manager = queries.extractConstrainedSubsegments(
         *topology,
         discretization_.cornerIdToPointIndexMap,
         pointIndexToNodeIdMap_,
-        discretization_.edgeIdToPointIndicesMap);
+        discretization_.edgeIdToPointIndicesMap,
+        discretization_.edgeParameters,
+        discretization_.geometryIds);
 
-    // Store subsegments in MeshData3D
     auto& mutator = context_->getMutator();
-    for (const auto& subsegment : subsegments)
+    for (const auto& [id, segment] : manager.getAllSegments())
     {
-        mutator.addConstrainedSubsegment(subsegment);
+        mutator.addCurveSegment(segment);
     }
 
-    spdlog::debug("ConstrainedDelaunay3D: Extracted and stored {} subsegments", subsegments.size());
+    spdlog::debug("ConstrainedDelaunay3D: Extracted and stored {} segments",
+                  meshData3D_->getConstrainedSubsegmentCount());
 }
 
 void ConstrainedDelaunay3D::createFacetTriangulations()

@@ -10,11 +10,9 @@ namespace Meshing
 
 Delaunay3D::Delaunay3D(const std::vector<Point3D>& points,
                        MeshData3D* meshData,
-                       const std::vector<std::vector<double>>& edgeParameters,
                        const std::vector<std::vector<std::string>>& geometryIds) :
     meshData_(meshData),
     points_(points),
-    edgeParameters_(edgeParameters),
     geometryIds_(geometryIds)
 {
 }
@@ -39,20 +37,12 @@ void Delaunay3D::triangulate()
 
     for (size_t i = 0; i < points_.size(); ++i)
     {
-        // Check if this point has edge parameters and geometry IDs
-        bool hasEdgeParams = i < edgeParameters_.size() && !edgeParameters_[i].empty();
         bool hasGeomIds = i < geometryIds_.size() && !geometryIds_[i].empty();
 
         size_t nodeId;
-        if (hasEdgeParams && hasGeomIds)
+        if (hasGeomIds)
         {
-            nodeId = operations.insertVertexBowyerWatson(points_[i],
-                                                          edgeParameters_[i],
-                                                          geometryIds_[i]);
-        }
-        else if (hasGeomIds)
-        {
-            nodeId = operations.insertVertexBowyerWatson(points_[i], {}, geometryIds_[i]);
+            nodeId = operations.insertVertexBowyerWatson(points_[i], geometryIds_[i]);
         }
         else
         {

@@ -127,9 +127,9 @@ struct FlatPlaneSetup
     FlatPlaneSetup()
     {
         MeshMutator3D mutator(meshData);
-        n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {}, {SURFACE_ID});
-        n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {}, {SURFACE_ID});
-        n2 = mutator.addBoundaryNode(Point3D(0.0, 1.0, 0.0), {}, {SURFACE_ID});
+        n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {SURFACE_ID});
+        n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {SURFACE_ID});
+        n2 = mutator.addBoundaryNode(Point3D(0.0, 1.0, 0.0), {SURFACE_ID});
         n3 = mutator.addNode(Point3D(0.33, 0.33, 10.0));
         n4 = mutator.addNode(Point3D(0.33, 0.33, -10.0));
 
@@ -197,7 +197,7 @@ TEST(RestrictedTriangulationTest, UpdateAfterInsertion_MatchesFullRebuild)
     // Insert a new surface node n5 inside the original triangle
     MeshMutator3D mutator(setup.meshData);
     const size_t n5 =
-        mutator.addBoundaryNode(Point3D(0.3, 0.3, 0.0), {}, {FlatPlaneSetup::SURFACE_ID});
+        mutator.addBoundaryNode(Point3D(0.3, 0.3, 0.0), {FlatPlaneSetup::SURFACE_ID});
 
     // Remove the original two tets and replace with six new ones
     mutator.removeElement(setup.tet0);
@@ -250,9 +250,9 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ElongatedTriangle_ReportedAsBa
     MeshMutator3D mutator(meshData);
 
     constexpr const char* SURFACE_ID = "surface";
-    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {}, {SURFACE_ID});
-    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {}, {SURFACE_ID});
-    const size_t n2 = mutator.addBoundaryNode(Point3D(0.5, 0.01, 0.0), {}, {SURFACE_ID});
+    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {SURFACE_ID});
+    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {SURFACE_ID});
+    const size_t n2 = mutator.addBoundaryNode(Point3D(0.5, 0.01, 0.0), {SURFACE_ID});
     const size_t n3 = mutator.addNode(Point3D(0.5, 0.01, 10.0));
     const size_t n4 = mutator.addNode(Point3D(0.5, 0.01, -10.0));
 
@@ -295,9 +295,9 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_GoodTriangle_NotReported)
     const double height = halfBase * std::sqrt(3.0);
     const double centroidY = height / 3.0;
 
-    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {}, {SURFACE_ID});
-    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {}, {SURFACE_ID});
-    const size_t n2 = mutator.addBoundaryNode(Point3D(halfBase, height, 0.0), {}, {SURFACE_ID});
+    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {SURFACE_ID});
+    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {SURFACE_ID});
+    const size_t n2 = mutator.addBoundaryNode(Point3D(halfBase, height, 0.0), {SURFACE_ID});
     const size_t n3 = mutator.addNode(Point3D(halfBase, centroidY, 10.0));
     const size_t n4 = mutator.addNode(Point3D(halfBase, centroidY, -10.0));
 
@@ -333,9 +333,9 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ChordDeviationFailure)
     constexpr const char* SURFACE_ID = "surface";
     constexpr double offsetZ = 0.5;
 
-    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, offsetZ), {}, {SURFACE_ID});
-    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, offsetZ), {}, {SURFACE_ID});
-    const size_t n2 = mutator.addBoundaryNode(Point3D(0.0, 1.0, offsetZ), {}, {SURFACE_ID});
+    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, offsetZ), {SURFACE_ID});
+    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, offsetZ), {SURFACE_ID});
+    const size_t n2 = mutator.addBoundaryNode(Point3D(0.0, 1.0, offsetZ), {SURFACE_ID});
     // Interior nodes straddle z=0 so circumcenters of the two tets are on opposite sides
     const size_t n3 = mutator.addNode(Point3D(0.33, 0.33, 10.0));
     const size_t n4 = mutator.addNode(Point3D(0.33, 0.33, -10.0));

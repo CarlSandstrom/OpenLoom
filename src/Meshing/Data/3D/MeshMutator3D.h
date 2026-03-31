@@ -3,6 +3,7 @@
 #include "../Operations/ITransactionListener.h"
 #include "MeshData3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -25,7 +26,6 @@ public:
     // Node operations
     size_t addNode(const Point3D& coordinates);
     size_t addBoundaryNode(const Point3D& coordinates,
-                           const std::vector<double>& edgeParameters,
                            const std::vector<std::string>& geometryIds);
     void moveNode(size_t id, const Point3D& newCoords);
     void removeNode(size_t id);
@@ -34,13 +34,10 @@ public:
     size_t addElement(std::unique_ptr<IElement> element);
     void removeElement(size_t id);
 
-    // Constrained subsegment operations
-    void addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment);
-    void removeConstrainedSubsegment(size_t nodeId1, size_t nodeId2);
-    void replaceConstrainedSubsegment(const ConstrainedSubsegment3D& oldSeg,
-                                      const ConstrainedSubsegment3D& newSeg1,
-                                      const ConstrainedSubsegment3D& newSeg2);
-    void clearConstrainedSubsegments();
+    // Curve segment operations
+    void addCurveSegment(const CurveSegment& segment);
+    std::pair<size_t, size_t> splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid);
+    void clearCurveSegments();
 
     // Constrained subfacet operations
     void addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet);

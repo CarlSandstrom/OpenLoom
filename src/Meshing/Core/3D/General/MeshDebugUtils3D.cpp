@@ -59,18 +59,18 @@ void verifyBasicIntegrity(const MeshData3D& meshData, std::vector<std::string>& 
 void verifySubsegmentsPresent(const MeshData3D& meshData, std::vector<std::string>& errors)
 {
     MeshQueries3D queries(meshData);
-    const auto& subsegments = meshData.getConstrainedSubsegments();
+    const auto& segments = meshData.getCurveSegmentManager().getAllSegments();
     size_t missingCount = 0;
 
-    for (const auto& subsegment : subsegments)
+    for (const auto& [id, segment] : segments)
     {
-        if (!queries.edgeExistsInMesh(subsegment.nodeId1, subsegment.nodeId2))
+        if (!queries.edgeExistsInMesh(segment.nodeId1, segment.nodeId2))
         {
             missingCount++;
             if (missingCount <= 5)
             {
-                spdlog::debug("MeshDebugUtils3D: Subsegment ({}, {}) missing from mesh",
-                              subsegment.nodeId1, subsegment.nodeId2);
+                spdlog::debug("MeshDebugUtils3D: Segment ({}, {}) missing from mesh",
+                              segment.nodeId1, segment.nodeId2);
             }
         }
     }
@@ -78,8 +78,8 @@ void verifySubsegmentsPresent(const MeshData3D& meshData, std::vector<std::strin
     if (missingCount > 0)
     {
         std::ostringstream oss;
-        oss << missingCount << " of " << subsegments.size()
-            << " subsegment(s) missing from mesh edges";
+        oss << missingCount << " of " << segments.size()
+            << " segment(s) missing from mesh edges";
         errors.push_back(oss.str());
     }
 }

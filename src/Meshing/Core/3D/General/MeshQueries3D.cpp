@@ -1,5 +1,6 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/ConstraintChecker3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
@@ -215,18 +216,18 @@ std::vector<size_t> MeshQueries3D::findSkinnyTetrahedra(double ratioBound) const
     return skinnyTets;
 }
 
-std::vector<ConstrainedSubsegment3D> MeshQueries3D::findEncroachingSubsegments(
+std::vector<CurveSegment> MeshQueries3D::findEncroachingSubsegments(
     const Point3D& point,
-    const std::vector<ConstrainedSubsegment3D>& subsegments) const
+    const std::vector<CurveSegment>& segments) const
 {
-    std::vector<ConstrainedSubsegment3D> encroached;
+    std::vector<CurveSegment> encroached;
     ConstraintChecker3D checker(meshData_);
 
-    for (const auto& subsegment : subsegments)
+    for (const auto& segment : segments)
     {
-        if (checker.isSubsegmentEncroached(subsegment, point))
+        if (checker.isSubsegmentEncroached(segment, point))
         {
-            encroached.push_back(subsegment);
+            encroached.push_back(segment);
         }
     }
 
@@ -251,13 +252,29 @@ std::vector<ConstrainedSubfacet3D> MeshQueries3D::findEncroachingSubfacets(
     return encroached;
 }
 
-std::vector<ConstrainedSubsegment3D> MeshQueries3D::extractConstrainedSubsegments(
+CurveSegmentManager MeshQueries3D::extractConstrainedSubsegments(
     const Topology3D::Topology3D& topology,
     const std::map<std::string, size_t>& cornerIdToPointIndexMap,
     const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
+    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
+    const std::vector<std::vector<double>>& pointEdgeParameters,
+    const std::vector<std::vector<std::string>>& pointGeometryIds) const
 {
-    std::vector<ConstrainedSubsegment3D> constrainedSubsegments;
+    CurveSegmentManager manager;
+
+    auto findT = [&](size_t pointIndex, const std::string& edgeId) -> double
+    {
+        if (pointIndex >= pointGeometryIds.size())
+            return 0.0;
+        const auto& geomIds = pointGeometryIds[pointIndex];
+        const auto& params = pointEdgeParameters[pointIndex];
+        for (size_t k = 0; k < geomIds.size() && k < params.size(); ++k)
+        {
+            if (geomIds[k] == edgeId)
+                return params[k];
+        }
+        return 0.0;
+    };
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
@@ -275,16 +292,21 @@ std::vector<ConstrainedSubsegment3D> MeshQueries3D::extractConstrainedSubsegment
                 size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
                 size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
 
-                constrainedSubsegments.push_back(
-                    ConstrainedSubsegment3D{startNodeId, endNodeId, edgeId});
+                CurveSegment segment;
+                segment.nodeId1 = startNodeId;
+                segment.nodeId2 = endNodeId;
+                segment.edgeId = edgeId;
+                segment.tStart = findT(startPointIdx, edgeId);
+                segment.tEnd = findT(endPointIdx, edgeId);
+                manager.addSegment(segment);
 
-                spdlog::debug("Edge {} subsegment {}: Node IDs ({}, {})",
-                              edgeId, i, startNodeId, endNodeId);
+                spdlog::debug("Edge {} subsegment {}: Node IDs ({}, {}), t=[{}, {}]",
+                              edgeId, i, startNodeId, endNodeId, segment.tStart, segment.tEnd);
             }
         }
         else
         {
-            // Edge has no intermediate points; create single subsegment from corners
+            // Edge has no intermediate points; create single segment from corners
             const auto& edgeTopology = topology.getEdge(edgeId);
 
             auto startCornerIt = cornerIdToPointIndexMap.find(edgeTopology.getStartCornerId());
@@ -293,18 +315,27 @@ std::vector<ConstrainedSubsegment3D> MeshQueries3D::extractConstrainedSubsegment
             if (startCornerIt != cornerIdToPointIndexMap.end() &&
                 endCornerIt != cornerIdToPointIndexMap.end())
             {
-                size_t startNodeId = pointIndexToNodeIdMap.at(startCornerIt->second);
-                size_t endNodeId = pointIndexToNodeIdMap.at(endCornerIt->second);
+                size_t startPointIdx = startCornerIt->second;
+                size_t endPointIdx = endCornerIt->second;
 
-                constrainedSubsegments.push_back(
-                    ConstrainedSubsegment3D{startNodeId, endNodeId, edgeId});
+                size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
+                size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
 
-                spdlog::debug("Edge {}: Node IDs ({}, {})", edgeId, startNodeId, endNodeId);
+                CurveSegment segment;
+                segment.nodeId1 = startNodeId;
+                segment.nodeId2 = endNodeId;
+                segment.edgeId = edgeId;
+                segment.tStart = findT(startPointIdx, edgeId);
+                segment.tEnd = findT(endPointIdx, edgeId);
+                manager.addSegment(segment);
+
+                spdlog::debug("Edge {}: Node IDs ({}, {}), t=[{}, {}]",
+                              edgeId, startNodeId, endNodeId, segment.tStart, segment.tEnd);
             }
         }
     }
 
-    return constrainedSubsegments;
+    return manager;
 }
 
 } // namespace Meshing

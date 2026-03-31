@@ -94,7 +94,6 @@ int main()
 
     Delaunay3D delaunay(discretization.points,
                         &context.getMeshData(),
-                        discretization.edgeParameters,
                         discretization.geometryIds);
     delaunay.triangulate();
 

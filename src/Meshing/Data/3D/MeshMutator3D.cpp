@@ -48,12 +48,11 @@ size_t MeshMutator3D::addNode(const Point3D& coordinates)
 }
 
 size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
-                                      const std::vector<double>& edgeParameters,
                                       const std::vector<std::string>& geometryIds)
 {
     size_t id = nextNodeId_++;
 
-    auto node = std::make_unique<Node3D>(coordinates, edgeParameters, geometryIds);
+    auto node = std::make_unique<Node3D>(coordinates, geometryIds);
     geometry_.addNodeInternal(id, std::move(node));
 
     // Notify transaction listener
@@ -188,28 +187,21 @@ void MeshMutator3D::restoreNode(size_t id, const Point3D& coordinates)
     }
 }
 
-// ========== Constrained Subsegment Operations ==========
+// ========== Curve Segment Operations ==========
 
-void MeshMutator3D::addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment)
+void MeshMutator3D::addCurveSegment(const CurveSegment& segment)
 {
-    geometry_.addConstrainedSubsegmentInternal(subsegment);
+    geometry_.curveSegmentManager_.addSegment(segment);
 }
 
-void MeshMutator3D::removeConstrainedSubsegment(size_t nodeId1, size_t nodeId2)
+std::pair<size_t, size_t> MeshMutator3D::splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid)
 {
-    geometry_.removeConstrainedSubsegmentInternal(nodeId1, nodeId2);
+    return geometry_.curveSegmentManager_.splitAt(segmentId, newNodeId, tMid);
 }
 
-void MeshMutator3D::replaceConstrainedSubsegment(const ConstrainedSubsegment3D& oldSeg,
-                                                   const ConstrainedSubsegment3D& newSeg1,
-                                                   const ConstrainedSubsegment3D& newSeg2)
+void MeshMutator3D::clearCurveSegments()
 {
-    geometry_.replaceConstrainedSubsegmentInternal(oldSeg, newSeg1, newSeg2);
-}
-
-void MeshMutator3D::clearConstrainedSubsegments()
-{
-    geometry_.clearConstrainedSubsegmentsInternal();
+    geometry_.curveSegmentManager_.clear();
 }
 
 // ========== Constrained Subfacet Operations ==========

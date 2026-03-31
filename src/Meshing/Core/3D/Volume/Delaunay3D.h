@@ -24,12 +24,10 @@ public:
      * @brief Construct a Delaunay3D triangulator with input points
      * @param points Vector of Point3D representing the input vertices
      * @param meshData Pointer to mesh data storage
-     * @param edgeParameters Edge parameters for each point (empty vector for interior points)
      * @param geometryIds Geometry IDs for each point (corner/edge/surface IDs)
      */
     explicit Delaunay3D(const std::vector<Point3D>& points,
                         MeshData3D* meshData,
-                        const std::vector<std::vector<double>>& edgeParameters = {},
                         const std::vector<std::vector<std::string>>& geometryIds = {});
 
     /**
@@ -46,7 +44,6 @@ public:
 private:
     MeshData3D* meshData_;
     std::vector<Point3D> points_;
-    std::vector<std::vector<double>> edgeParameters_;
     std::vector<std::vector<std::string>> geometryIds_;
     std::map<size_t, size_t> pointIndexToNodeIdMap_;
 };

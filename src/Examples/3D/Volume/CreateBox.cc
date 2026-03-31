@@ -35,7 +35,6 @@ int main()
     // Create initial (unconstrained) Delaunay tetrahedralization
     Delaunay3D delaunay(discretization.points,
                         &context.getMeshData(),
-                        discretization.edgeParameters,
                         discretization.geometryIds);
     delaunay.triangulate();
 

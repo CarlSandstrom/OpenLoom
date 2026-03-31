@@ -11,6 +11,7 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 
 using namespace Meshing;
 
@@ -987,12 +988,12 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubsegmentsDetectsEncroachment)
     MeshOperations3D operations(meshData_);
 
     // Create a subsegment
-    ConstrainedSubsegment3D subseg;
+    CurveSegment subseg;
     subseg.nodeId1 = n0;
     subseg.nodeId2 = n1;
-    subseg.geometryId = "edge1";
+    subseg.edgeId = "edge1";
 
-    std::vector<ConstrainedSubsegment3D> subsegments = {subseg};
+    std::vector<CurveSegment> subsegments = {subseg};
 
     // Point at midpoint of subsegment's diametral sphere
     Point3D midpoint(1.0, 0.0, 0.0);
@@ -1014,12 +1015,12 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubsegmentsNoEncroachment)
 
     MeshOperations3D operations(meshData_);
 
-    ConstrainedSubsegment3D subseg;
+    CurveSegment subseg;
     subseg.nodeId1 = n0;
     subseg.nodeId2 = n1;
-    subseg.geometryId = "edge1";
+    subseg.edgeId = "edge1";
 
-    std::vector<ConstrainedSubsegment3D> subsegments = {subseg};
+    std::vector<CurveSegment> subsegments = {subseg};
 
     // Point far from subsegment
     Point3D farPoint(10.0, 10.0, 10.0);

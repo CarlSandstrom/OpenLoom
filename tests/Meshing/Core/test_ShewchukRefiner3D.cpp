@@ -14,6 +14,7 @@
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 
 #include <cmath>
 #include <vector>
@@ -47,7 +48,7 @@ protected:
 
     void addConstrainedSubsegment(size_t n1, size_t n2, const std::string& geomId)
     {
-        context_->getMutator().addConstrainedSubsegment({n1, n2, geomId});
+        context_->getMutator().addCurveSegment(CurveSegment{n1, n2, geomId});
     }
 
     void addConstrainedSubfacet(size_t n1, size_t n2, size_t n3, const std::string& geomId)
@@ -206,9 +207,10 @@ TEST_F(ShewchukRefiner3DTest, DetectsEncroachedSubsegment)
     ConstraintChecker3D checker(context_->getMeshData());
 
     // Verify encroachment is detected
-    const auto& subsegments = context_->getMeshData().getConstrainedSubsegments();
+    const auto& segmentMap = context_->getMeshData().getCurveSegmentManager().getAllSegments();
+    ASSERT_FALSE(segmentMap.empty());
     Point3D p2 = context_->getMeshData().getNode(n2)->getCoordinates();
-    EXPECT_TRUE(checker.isSubsegmentEncroached(subsegments[0], p2));
+    EXPECT_TRUE(checker.isSubsegmentEncroached(segmentMap.begin()->second, p2));
 }
 
 TEST_F(ShewchukRefiner3DTest, SplitsEncroachedSubsegmentDuringRefinement)

@@ -3,6 +3,7 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
@@ -46,19 +47,22 @@ void ConstraintRegistrar3D::registerSubsegments()
     }
 
     MeshQueries3D queries(context_->getMeshData());
-    auto subsegments = queries.extractConstrainedSubsegments(
+    CurveSegmentManager manager = queries.extractConstrainedSubsegments(
         *topology,
         discretization_->cornerIdToPointIndexMap,
         pointIndexToNodeIdMap_,
-        discretization_->edgeIdToPointIndicesMap);
+        discretization_->edgeIdToPointIndicesMap,
+        discretization_->edgeParameters,
+        discretization_->geometryIds);
 
     auto& mutator = context_->getMutator();
-    for (const auto& subsegment : subsegments)
+    for (const auto& [id, segment] : manager.getAllSegments())
     {
-        mutator.addConstrainedSubsegment(subsegment);
+        mutator.addCurveSegment(segment);
     }
 
-    spdlog::debug("ConstraintRegistrar3D: Registered {} subsegments", subsegments.size());
+    spdlog::debug("ConstraintRegistrar3D: Registered {} segments",
+                  context_->getMeshData().getConstrainedSubsegmentCount());
 }
 
 void ConstraintRegistrar3D::registerSubfacets()

@@ -5,6 +5,7 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <memory>
 #include <optional>
@@ -79,26 +80,24 @@ public:
      * and retriangulates with the new vertex. Maintains Delaunay property.
      *
      * @param point The 3D point to insert
-     * @param edgeParameters Optional parametric coordinates on parent edges
-     * @param edgeIds Optional geometry entity IDs this vertex belongs to
+     * @param geometryIds Optional geometry entity IDs this vertex belongs to
      * @return Node ID of the inserted vertex
      */
     size_t insertVertexBowyerWatson(const Point3D& point,
-                                    const std::vector<double>& edgeParameters = {},
-                                    const std::vector<std::string>& edgeIds = {});
+                                    const std::vector<std::string>& geometryIds = {});
 
     /**
-     * @brief Split a constrained subsegment at its parametric midpoint
+     * @brief Split a constrained segment at its parametric midpoint
      *
      * Uses the parent edge geometry to find the correct midpoint on curved edges.
-     * Inserts the new node via Bowyer-Watson and updates constraint lists.
+     * Inserts the new node via Bowyer-Watson and updates the CurveSegmentManager.
      *
-     * @param subsegment The constrained subsegment to split
-     * @param parentEdge The geometric edge the subsegment lies on
-     * @return Pair of new subsegments, or nullopt if split failed
+     * @param segmentId The ID of the CurveSegment to split
+     * @param parentEdge The geometric edge the segment lies on
+     * @return Pair of new segment IDs, or nullopt if split failed
      */
-    std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>> splitConstrainedSubsegment(
-        const ConstrainedSubsegment3D& subsegment,
+    std::optional<std::pair<size_t, size_t>> splitConstrainedSubsegment(
+        size_t segmentId,
         const Geometry3D::IEdge3D& parentEdge);
 
     /**

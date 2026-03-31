@@ -166,8 +166,7 @@ void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& bo
 }
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
-                                                  const std::vector<double>& edgeParameters,
-                                                  const std::vector<std::string>& edgeIds)
+                                                  const std::vector<std::string>& geometryIds)
 {
     // Find conflicting tetrahedra (those whose circumsphere contains the point)
     std::vector<size_t> conflicting = queries_.findConflictingTetrahedra(point);
@@ -191,9 +190,9 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 
     // Insert the new vertex (use boundary node if geometry IDs provided)
     size_t nodeId;
-    if (!edgeParameters.empty() || !edgeIds.empty())
+    if (!geometryIds.empty())
     {
-        nodeId = mutator_->addBoundaryNode(point, edgeParameters, edgeIds);
+        nodeId = mutator_->addBoundaryNode(point, geometryIds);
     }
     else
     {
@@ -251,13 +250,14 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
     }
 }
 
-std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>>
-MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment,
+std::optional<std::pair<size_t, size_t>>
+MeshOperations3D::splitConstrainedSubsegment(size_t segmentId,
                                              const Geometry3D::IEdge3D& parentEdge)
 {
-    // Get the two endpoint nodes
-    const auto* node1 = meshData_.getNode(subsegment.nodeId1);
-    const auto* node2 = meshData_.getNode(subsegment.nodeId2);
+    const CurveSegment& segment = meshData_.getCurveSegmentManager().getSegment(segmentId);
+
+    const auto* node1 = meshData_.getNode(segment.nodeId1);
+    const auto* node2 = meshData_.getNode(segment.nodeId2);
 
     if (!node1 || !node2)
     {
@@ -265,57 +265,20 @@ MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subs
         return std::nullopt;
     }
 
-    // Compute the midpoint on the geometry (handles curved edges)
-    // Default to Euclidean midpoint
     Point3D midpoint = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
 
-    // Use subsegment endpoint parameters to compute the parametric midpoint
-    const auto& params1 = node1->getEdgeParameters();
-    const auto& params2 = node2->getEdgeParameters();
-    const auto& geoIds1 = node1->getGeometryIds();
-    const auto& geoIds2 = node2->getGeometryIds();
-
-    // Find the edge parameter for each endpoint on the parent edge
-    std::optional<double> t1, t2;
-    for (size_t i = 0; i < geoIds1.size() && i < params1.size(); ++i)
+    if (segment.tStart != segment.tEnd)
     {
-        if (geoIds1[i] == subsegment.geometryId)
-        {
-            t1 = params1[i];
-            break;
-        }
-    }
-    for (size_t i = 0; i < geoIds2.size() && i < params2.size(); ++i)
-    {
-        if (geoIds2[i] == subsegment.geometryId)
-        {
-            t2 = params2[i];
-            break;
-        }
-    }
-
-    if (t1.has_value() && t2.has_value())
-    {
-        double tMid = (*t1 + *t2) * 0.5;
+        double tMid = (segment.tStart + segment.tEnd) * 0.5;
         midpoint = parentEdge.getPoint(tMid);
     }
 
-    // Insert the midpoint vertex
-    std::vector<std::string> geometryIds = {subsegment.geometryId};
-    size_t midNodeId = insertVertexBowyerWatson(midpoint, {}, geometryIds);
+    size_t midNodeId = insertVertexBowyerWatson(midpoint, {segment.edgeId});
 
-    // Create two new subsegments
-    ConstrainedSubsegment3D sub1;
-    sub1.nodeId1 = subsegment.nodeId1;
-    sub1.nodeId2 = midNodeId;
-    sub1.geometryId = subsegment.geometryId;
+    double tMid = (segment.tStart + segment.tEnd) * 0.5;
+    auto [segmentId1, segmentId2] = mutator_->splitCurveSegment(segmentId, midNodeId, tMid);
 
-    ConstrainedSubsegment3D sub2;
-    sub2.nodeId1 = midNodeId;
-    sub2.nodeId2 = subsegment.nodeId2;
-    sub2.geometryId = subsegment.geometryId;
-
-    return std::make_pair(sub1, sub2);
+    return std::make_pair(segmentId1, segmentId2);
 }
 
 std::optional<size_t>
@@ -346,8 +309,7 @@ MeshOperations3D::splitConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet
     // TODO: Project onto parent surface to handle curved surfaces
 
     // Insert the circumcenter vertex
-    std::vector<std::string> geometryIds = {subfacet.geometryId};
-    size_t centerNodeId = insertVertexBowyerWatson(circumcenter, {}, geometryIds);
+    size_t centerNodeId = insertVertexBowyerWatson(circumcenter, {subfacet.geometryId});
 
     return centerNodeId;
 }

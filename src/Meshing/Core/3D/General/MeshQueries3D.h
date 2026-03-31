@@ -4,6 +4,7 @@
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <map>
 #include <string>
@@ -123,18 +124,18 @@ public:
     std::vector<size_t> findSkinnyTetrahedra(double ratioBound) const;
 
     /**
-     * @brief Find encroached subsegments for a given point
+     * @brief Find encroached segments for a given point
      *
-     * Checks all provided subsegments and returns those that would be
+     * Checks all provided segments and returns those that would be
      * encroached if the given point were inserted.
      *
      * @param point The point to test
-     * @param subsegments The subsegments to check
-     * @return Vector of subsegments encroached by the point
+     * @param segments The segments to check
+     * @return Vector of segments encroached by the point
      */
-    std::vector<ConstrainedSubsegment3D> findEncroachingSubsegments(
+    std::vector<CurveSegment> findEncroachingSubsegments(
         const Point3D& point,
-        const std::vector<ConstrainedSubsegment3D>& subsegments) const;
+        const std::vector<CurveSegment>& segments) const;
 
     /**
      * @brief Find encroached subfacets for a given point
@@ -151,24 +152,27 @@ public:
         const std::vector<ConstrainedSubfacet3D>& subfacets) const;
 
     /**
-     * @brief Extract constrained subsegments from topology edges
+     * @brief Extract curve segments from topology edges and build a CurveSegmentManager
      *
-     * Creates a list of subsegments from the topology edges, mapping
-     * discretization point indices to mesh node IDs. Each subsegment
-     * represents a portion of a CAD edge that should eventually appear
-     * as an edge in the tetrahedralization.
+     * Creates a CurveSegmentManager from the topology edges, mapping
+     * discretization point indices to mesh node IDs and capturing tStart/tEnd
+     * from the discretization edge parameters.
      *
      * @param topology The 3D topology containing edge definitions
      * @param cornerIdToPointIndexMap Maps corner IDs to discretization point indices
      * @param pointIndexToNodeIdMap Maps discretization point indices to mesh node IDs
      * @param edgeIdToPointIndicesMap Maps edge IDs to ordered discretization point indices
-     * @return Vector of ConstrainedSubsegment3D representing all edge subsegments
+     * @param pointEdgeParameters Per-point edge parameter values (indexed by point index)
+     * @param pointGeometryIds Per-point geometry IDs corresponding to each parameter value
+     * @return CurveSegmentManager populated with all edge segments
      */
-    std::vector<ConstrainedSubsegment3D> extractConstrainedSubsegments(
+    CurveSegmentManager extractConstrainedSubsegments(
         const Topology3D::Topology3D& topology,
         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
         const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const;
+        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
+        const std::vector<std::vector<double>>& pointEdgeParameters,
+        const std::vector<std::vector<std::string>>& pointGeometryIds) const;
 
 private:
     const MeshData3D& meshData_;
