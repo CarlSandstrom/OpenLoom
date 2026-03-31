@@ -225,6 +225,9 @@ std::vector<CurveSegment> MeshQueries3D::findEncroachingSubsegments(
 
     for (const auto& segment : segments)
     {
+        if (segment.role != ConstraintRole::Boundary)
+            continue;
+
         if (checker.isSubsegmentEncroached(segment, point))
         {
             encroached.push_back(segment);

@@ -428,7 +428,7 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     {
         auto key = makeEdgeKey(seg.nodeId1, seg.nodeId2);
         allConstraintEdges.insert(key);
-        if (seg.role == Meshing::EdgeRole::Boundary)
+        if (seg.role == Meshing::ConstraintRole::Boundary)
             boundaryEdges.insert(key);
     }
 
@@ -451,7 +451,7 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
         int crossings = 0;
         for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
         {
-            if (seg.role != Meshing::EdgeRole::Boundary)
+            if (seg.role != Meshing::ConstraintRole::Boundary)
                 continue;
 
             const auto& p1 = mesh.getNode(seg.nodeId1)->getCoordinates();
@@ -868,12 +868,19 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& disc3D
 
     os << "      </Cells>\n";
 
-    // CellData: SurfaceID for color-by-surface inspection in ParaView
+    // CellData: SurfaceID and ConstraintRole per subfacet
     os << "      <CellData>\n";
     os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
     for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
     {
         os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"ConstraintRole\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numCells; ++i)
+    {
+        int value = subfacets[i].role == Meshing::ConstraintRole::Boundary ? 0 : 1;
+        os << value << (i + 1 == numCells ? "\n" : " ");
     }
     os << "        </DataArray>\n";
     os << "      </CellData>\n";
@@ -975,6 +982,13 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::MeshData3D& mesh,
     os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
     for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
         os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"ConstraintRole\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numCells; ++i)
+    {
+        int value = subfacets[i].role == Meshing::ConstraintRole::Boundary ? 0 : 1;
+        os << value << (i + 1 == numCells ? "\n" : " ");
+    }
     os << "        </DataArray>\n";
     os << "      </CellData>\n";
     os << "    </Piece>\n";

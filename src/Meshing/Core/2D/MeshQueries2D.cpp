@@ -276,7 +276,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
-        EdgeRole role = boundaryEdgeIds.count(edgeId) ? EdgeRole::Boundary : EdgeRole::Interior;
+        ConstraintRole role = boundaryEdgeIds.count(edgeId) ? ConstraintRole::Boundary : ConstraintRole::Interior;
 
         auto edgePointsIt = edgeIdToPointIndicesMap.find(edgeId);
 
@@ -298,7 +298,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
 
                 spdlog::debug("Edge {} segment {}: Node IDs ({}, {}), t=[{},{}], role: {}",
                               edgeId, i, startNodeId, endNodeId, tStart, tEnd,
-                              role == EdgeRole::Boundary ? "boundary" : "interior");
+                              role == ConstraintRole::Boundary ? "boundary" : "interior");
             }
         }
         else
@@ -317,7 +317,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
 
             spdlog::debug("Edge {}: Node IDs ({}, {}), t=[{},{}], role: {}",
                           edgeId, startNodeId, endNodeId, tStart, tEnd,
-                          role == EdgeRole::Boundary ? "boundary" : "interior");
+                          role == ConstraintRole::Boundary ? "boundary" : "interior");
         }
     }
 
@@ -478,7 +478,7 @@ bool MeshQueries2D::isPointInsideDomain(const Point2D& point) const
 
     for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        if (segment.role != EdgeRole::Boundary)
+        if (segment.role != ConstraintRole::Boundary)
             continue;
 
         const Node2D* n1 = meshData_.getNode(segment.nodeId1);
@@ -626,7 +626,7 @@ bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId
 {
     for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        if (segment.role != EdgeRole::Boundary)
+        if (segment.role != ConstraintRole::Boundary)
             continue;
 
         if ((segment.nodeId1 == edgeId[0] && segment.nodeId2 == edgeId[1]) ||

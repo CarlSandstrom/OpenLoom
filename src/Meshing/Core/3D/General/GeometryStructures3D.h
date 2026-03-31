@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Data/ConstraintRole.h"
 #include <string>
 
 namespace Meshing
@@ -21,10 +22,11 @@ struct CircumscribedSphere
  */
 struct ConstrainedSubfacet3D
 {
-    size_t nodeId1;         // First vertex node ID
-    size_t nodeId2;         // Second vertex node ID
-    size_t nodeId3;         // Third vertex node ID
-    std::string geometryId; // Parent surface geometry ID
+    size_t nodeId1;                                  // First vertex node ID
+    size_t nodeId2;                                  // Second vertex node ID
+    size_t nodeId3;                                  // Third vertex node ID
+    std::string geometryId;                          // Parent surface geometry ID
+    ConstraintRole role = ConstraintRole::Boundary;  // Boundary or interior constraint
 };
 
 /**

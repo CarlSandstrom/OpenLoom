@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Meshing/Data/ConstraintRole.h"
+
 #include <map>
 #include <optional>
 #include <string>
@@ -9,12 +11,6 @@
 namespace Meshing
 {
 
-enum class EdgeRole
-{
-    Boundary,
-    Interior
-};
-
 struct CurveSegment
 {
     size_t nodeId1 = 0;
@@ -22,7 +18,7 @@ struct CurveSegment
     std::string edgeId;
     double tStart = 0.0;
     double tEnd = 0.0;
-    EdgeRole role = EdgeRole::Boundary;
+    ConstraintRole role = ConstraintRole::Boundary;
 };
 
 class CurveSegmentManager

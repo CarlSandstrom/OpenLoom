@@ -92,7 +92,7 @@ protected:
         mutator_->addCurveSegment({n3, n0});
 
         // Interior constraint dividing the two domains
-        mutator_->addCurveSegment({.nodeId1 = n1, .nodeId2 = n2, .role = Meshing::EdgeRole::Interior});
+        mutator_->addCurveSegment({.nodeId1 = n1, .nodeId2 = n2, .role = Meshing::ConstraintRole::Interior});
     }
 };
 
