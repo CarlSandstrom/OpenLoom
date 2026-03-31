@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Common/Types.h"
 #include "Meshing/Data/ConstraintRole.h"
 
 #include <map>
@@ -7,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace Meshing
 {
@@ -36,6 +38,11 @@ public:
     std::optional<size_t> findSegmentId(size_t nodeId1, size_t nodeId2) const;
 
     const std::unordered_map<size_t, CurveSegment>& getAllSegments() const;
+
+    /// Returns the IDs of segments whose diametral sphere contains point.
+    /// nodePositions maps each node ID to its 3D position.
+    std::vector<size_t> findEncroached(const Point3D& point,
+                                       const std::unordered_map<size_t, Point3D>& nodePositions) const;
 
     size_t size() const;
     bool empty() const;
