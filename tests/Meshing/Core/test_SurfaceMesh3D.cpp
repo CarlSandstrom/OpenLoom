@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
 
 using namespace Meshing;
 

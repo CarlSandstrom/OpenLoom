@@ -21,7 +21,7 @@
 #include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"

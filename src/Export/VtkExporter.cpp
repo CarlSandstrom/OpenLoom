@@ -3,7 +3,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
-#include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"

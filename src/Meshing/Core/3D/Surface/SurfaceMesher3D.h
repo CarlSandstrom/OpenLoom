@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
-#include "Meshing/Core/3D/Surface/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 namespace Geometry3D
 {
