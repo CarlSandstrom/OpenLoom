@@ -1,6 +1,6 @@
 #pragma once
 
-#include "GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Mesh2DQualitySettings.h"
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include "MeshingContext2D.h"
@@ -99,7 +99,7 @@ private:
      * @brief Handle an encroached segment by splitting it
      * @param segment The encroached segment to split
      */
-    void handleEncroachedSegment(const ConstrainedSegment2D& segment);
+    void handleEncroachedSegment(const CurveSegment& segment);
 
     /**
      * @brief Handle a poor quality triangle by inserting its circumcenter

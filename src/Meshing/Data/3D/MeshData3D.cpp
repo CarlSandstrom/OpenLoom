@@ -21,11 +21,9 @@ MeshData3D::MeshData3D(const MeshData2D& mesh2D)
         const Point2D& coords2D = node2D->getCoordinates();
         Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
 
-        // Copy edge parameters and geometry IDs from 2D node
-        const auto& edgeParams = node2D->getEdgeParameters();
         const auto& geometryIds = node2D->getGeometryIds();
 
-        auto node3D = std::make_unique<Node3D>(coords3D, edgeParams, geometryIds);
+        auto node3D = std::make_unique<Node3D>(coords3D, std::vector<double>{}, geometryIds);
         addNodeInternal(id, std::move(node3D));
     }
 

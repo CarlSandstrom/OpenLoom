@@ -5,7 +5,7 @@
 
 #include "Common/Types.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -83,16 +83,16 @@ protected:
         mutator_->addElement(std::make_unique<Meshing::TriangleElement>(
             std::array<size_t, 3>{n1, n5, n2}));
 
-        // Outer boundary constraints
-        mutator_->addConstrainedSegment({n0, n1, Meshing::EdgeRole::BOUNDARY});
-        mutator_->addConstrainedSegment({n1, n4, Meshing::EdgeRole::BOUNDARY});
-        mutator_->addConstrainedSegment({n4, n5, Meshing::EdgeRole::BOUNDARY});
-        mutator_->addConstrainedSegment({n5, n2, Meshing::EdgeRole::BOUNDARY});
-        mutator_->addConstrainedSegment({n2, n3, Meshing::EdgeRole::BOUNDARY});
-        mutator_->addConstrainedSegment({n3, n0, Meshing::EdgeRole::BOUNDARY});
+        // Outer boundary constraints (role defaults to Boundary)
+        mutator_->addCurveSegment({n0, n1});
+        mutator_->addCurveSegment({n1, n4});
+        mutator_->addCurveSegment({n4, n5});
+        mutator_->addCurveSegment({n5, n2});
+        mutator_->addCurveSegment({n2, n3});
+        mutator_->addCurveSegment({n3, n0});
 
         // Interior constraint dividing the two domains
-        mutator_->addConstrainedSegment({n1, n2, Meshing::EdgeRole::INTERIOR});
+        mutator_->addCurveSegment({.nodeId1 = n1, .nodeId2 = n2, .role = Meshing::EdgeRole::Interior});
     }
 };
 

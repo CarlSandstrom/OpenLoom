@@ -3,7 +3,7 @@
 #include "Common/TwinManager.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/Mesh2DQualitySettings.h"
@@ -134,12 +134,12 @@ void SurfaceMeshingContext3D::refineSurfaces()
                                    size_t m1, size_t m2)
     {
         MeshingContext2D& twinContext = twinFacet.getContext();
-        auto twinEdgeId = twinContext.getOperations().getQueries().findCommonGeometryId(m1, m2);
-        if (!twinEdgeId) return;
-        const auto* twinEdge = twinContext.getGeometry().getEdge(*twinEdgeId);
+        auto twinSegIdOpt = twinContext.getMeshData().getCurveSegmentManager().findSegmentId(m1, m2);
+        if (!twinSegIdOpt) return;
+        const Meshing::CurveSegment twinSegment = twinContext.getMeshData().getCurveSegmentManager().getSegment(*twinSegIdOpt);
+        const auto* twinEdge = twinContext.getGeometry().getEdge(twinSegment.edgeId);
         if (!twinEdge) return;
-        ConstrainedSegment2D twinSeg{m1, m2};
-        auto twinMidOpt = twinContext.getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
+        auto twinMidOpt = twinContext.getOperations().splitConstrainedSegment(twinSegment, *twinEdge);
         if (!twinMidOpt) return;
         size_t twinMid = *twinMidOpt;
         twinFacet.registerNode(twinMid, node3DId);
@@ -226,14 +226,14 @@ void SurfaceMeshingContext3D::refineSurfaces()
             if (twinSurfaceId == surfaceId)
             {
                 // Seam twin (same surface): split immediately.
-                auto twinEdgeId = faceContext.getOperations().getQueries().findCommonGeometryId(m1, m2);
-                if (!twinEdgeId)
+                auto twinSegIdOpt = faceContext.getMeshData().getCurveSegmentManager().findSegmentId(m1, m2);
+                if (!twinSegIdOpt)
                     return;
-                const auto* twinEdge = faceContext.getGeometry().getEdge(*twinEdgeId);
+                const Meshing::CurveSegment twinSegment = faceContext.getMeshData().getCurveSegmentManager().getSegment(*twinSegIdOpt);
+                const auto* twinEdge = faceContext.getGeometry().getEdge(twinSegment.edgeId);
                 if (!twinEdge)
                     return;
-                ConstrainedSegment2D twinSeg{m1, m2};
-                auto twinMidOpt = faceContext.getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
+                auto twinMidOpt = faceContext.getOperations().splitConstrainedSegment(twinSegment, *twinEdge);
                 if (!twinMidOpt)
                     return;
                 size_t twinMid = *twinMidOpt;

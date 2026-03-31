@@ -65,7 +65,7 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 
             bool visible = true;
             const auto& nodeIds = triangle->getNodeIdArray();
-            for (const auto& segment : meshData_.getConstrainedSegments())
+            for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
             {
                 // Skip segments that share a node with this triangle
                 if (segment.nodeId1 == nodeIds[0] || segment.nodeId1 == nodeIds[1] ||
@@ -236,12 +236,29 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
     return result;
 }
 
-std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(const Topology2D::Topology2D& topology,
-                                                                         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-                                                                         const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-                                                                         const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap) const
+CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
+    const Topology2D::Topology2D& topology,
+    const std::map<std::string, size_t>& cornerIdToPointIndexMap,
+    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
+    const std::vector<std::vector<double>>& tParameters,
+    const std::vector<std::vector<std::string>>& geometryIds) const
 {
-    std::vector<ConstrainedSegment2D> constrainedEdges;
+    CurveSegmentManager manager;
+
+    auto findT = [&](size_t pointIdx, const std::string& edgeId) -> double
+    {
+        if (pointIdx >= tParameters.size() || pointIdx >= geometryIds.size())
+            return 0.0;
+        const auto& gIds = geometryIds[pointIdx];
+        const auto& tParams = tParameters[pointIdx];
+        for (size_t k = 0; k < gIds.size(); ++k)
+        {
+            if (gIds[k] == edgeId)
+                return tParams[k];
+        }
+        return 0.0;
+    };
 
     // Build set of boundary edge IDs (outer loop + hole loops)
     std::unordered_set<std::string> boundaryEdgeIds;
@@ -259,7 +276,7 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(const T
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
-        EdgeRole role = boundaryEdgeIds.count(edgeId) ? EdgeRole::BOUNDARY : EdgeRole::INTERIOR;
+        EdgeRole role = boundaryEdgeIds.count(edgeId) ? EdgeRole::Boundary : EdgeRole::Interior;
 
         auto edgePointsIt = edgeIdToPointIndicesMap.find(edgeId);
 
@@ -274,41 +291,46 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::extractConstrainedEdges(const T
 
                 size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
                 size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
+                double tStart = findT(startPointIdx, edgeId);
+                double tEnd = findT(endPointIdx, edgeId);
 
-                constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId, role});
+                manager.addSegment(CurveSegment{startNodeId, endNodeId, edgeId, tStart, tEnd, role});
 
-                spdlog::debug("Edge {} segment {}: Node IDs ({}, {}), role: {}",
-                              edgeId, i, startNodeId, endNodeId,
-                              role == EdgeRole::BOUNDARY ? "boundary" : "interior");
+                spdlog::debug("Edge {} segment {}: Node IDs ({}, {}), t=[{},{}], role: {}",
+                              edgeId, i, startNodeId, endNodeId, tStart, tEnd,
+                              role == EdgeRole::Boundary ? "boundary" : "interior");
             }
         }
         else
         {
             const auto edgeTopology = topology.getEdge(edgeId);
 
-            size_t startNodeId = pointIndexToNodeIdMap.at(
-                cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId()));
-            size_t endNodeId = pointIndexToNodeIdMap.at(
-                cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId()));
+            size_t startPointIdx = cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
+            size_t endPointIdx = cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
 
-            constrainedEdges.push_back(ConstrainedSegment2D{startNodeId, endNodeId, role});
+            size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
+            size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
+            double tStart = findT(startPointIdx, edgeId);
+            double tEnd = findT(endPointIdx, edgeId);
 
-            spdlog::debug("Edge {}: Node IDs ({}, {}), role: {}",
-                          edgeId, startNodeId, endNodeId,
-                          role == EdgeRole::BOUNDARY ? "boundary" : "interior");
+            manager.addSegment(CurveSegment{startNodeId, endNodeId, edgeId, tStart, tEnd, role});
+
+            spdlog::debug("Edge {}: Node IDs ({}, {}), t=[{},{}], role: {}",
+                          edgeId, startNodeId, endNodeId, tStart, tEnd,
+                          role == EdgeRole::Boundary ? "boundary" : "interior");
         }
     }
 
-    return constrainedEdges;
+    return manager;
 }
 
-std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments() const
+std::vector<CurveSegment> MeshQueries2D::findEncroachedSegments() const
 {
-    std::vector<ConstrainedSegment2D> encroached;
+    std::vector<CurveSegment> encroached;
 
     ConstraintChecker2D checker(meshData_, periodicData_);
 
-    for (const auto& segment : meshData_.getConstrainedSegments())
+    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         for (const auto& [nodeId, node] : meshData_.getNodes())
         {
@@ -333,14 +355,14 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findEncroachedSegments() const
     return encroached;
 }
 
-std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
+std::vector<CurveSegment> MeshQueries2D::findSegmentsEncroachedByPoint(
     const Point2D& point) const
 {
-    std::vector<ConstrainedSegment2D> encroached;
+    std::vector<CurveSegment> encroached;
 
     ConstraintChecker2D checker(meshData_, periodicData_);
 
-    for (const auto& segment : meshData_.getConstrainedSegments())
+    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         if (checker.isSegmentEncroached(segment, point))
         {
@@ -356,7 +378,7 @@ std::vector<ConstrainedSegment2D> MeshQueries2D::findSegmentsEncroachedByPoint(
     return encroached;
 }
 
-bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const ConstrainedSegment2D& segment) const
+bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const CurveSegment& segment) const
 {
     // Compute the midpoint of the subsegment
     const Point2D& s1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
@@ -366,7 +388,7 @@ bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const Constr
     // Check if the line from point to midpoint properly crosses any other
     // constrained segment. "Properly" means the segments cross in their interiors,
     // not just touch at endpoints.
-    for (const auto& other : meshData_.getConstrainedSegments())
+    for (const auto& [otherId, other] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         // Skip the segment itself
         if (other.nodeId1 == segment.nodeId1 && other.nodeId2 == segment.nodeId2)
@@ -454,9 +476,9 @@ bool MeshQueries2D::isPointInsideDomain(const Point2D& point) const
     double px = point.x();
     double py = point.y();
 
-    for (const auto& segment : meshData_.getConstrainedSegments())
+    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        if (segment.role != EdgeRole::BOUNDARY)
+        if (segment.role != EdgeRole::Boundary)
             continue;
 
         const Node2D* n1 = meshData_.getNode(segment.nodeId1);
@@ -496,9 +518,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         return insideTriangles;
     }
 
-    const auto& constrainedEdges = meshData_.getConstrainedSegments();
-
-    if (constrainedEdges.empty())
+    if (meshData_.getCurveSegmentManager().empty())
     {
         spdlog::warn("classifyTrianglesInteriorExterior: No constraint edges, skipping classification");
         return insideTriangles;
@@ -604,13 +624,10 @@ MeshQueries2D::EdgeToTrianglesMap MeshQueries2D::buildEdgeToTrianglesMap() const
 
 bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId) const
 {
-    const auto& constrainedEdges = meshData_.getConstrainedSegments();
-    for (const auto& segment : constrainedEdges)
+    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        if (segment.role != EdgeRole::BOUNDARY)
-        {
+        if (segment.role != EdgeRole::Boundary)
             continue;
-        }
 
         if ((segment.nodeId1 == edgeId[0] && segment.nodeId2 == edgeId[1]) ||
             (segment.nodeId1 == edgeId[1] && segment.nodeId2 == edgeId[0]))

@@ -17,7 +17,7 @@ ConstraintChecker2D::ConstraintChecker2D(const MeshData2D& mesh, PeriodicMeshDat
 {
 }
 
-bool ConstraintChecker2D::isSegmentEncroached(const ConstrainedSegment2D& segment, const Point2D& point) const
+bool ConstraintChecker2D::isSegmentEncroached(const CurveSegment& segment, const Point2D& point) const
 {
     const auto* node1 = mesh_.getNode(segment.nodeId1);
     const auto* node2 = mesh_.getNode(segment.nodeId2);

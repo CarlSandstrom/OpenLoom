@@ -43,41 +43,30 @@ Node2D* MeshData2D::getNodeMutable(size_t id)
     return (it != nodes_.end()) ? it->second.get() : nullptr;
 }
 
-void MeshData2D::addConstrainedSegmentInternal(const ConstrainedSegment2D& segment)
+size_t MeshData2D::addCurveSegmentInternal(const CurveSegment& segment)
 {
-    constrainedSegments_.push_back(segment);
+    return curveSegmentManager_.addSegment(segment);
 }
 
-void MeshData2D::removeConstrainedSegmentInternal(size_t nodeId1, size_t nodeId2)
+void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
 {
-    std::erase_if(constrainedSegments_,
-        [nodeId1, nodeId2](const ConstrainedSegment2D& seg)
-        {
-            return (seg.nodeId1 == nodeId1 && seg.nodeId2 == nodeId2) ||
-                   (seg.nodeId1 == nodeId2 && seg.nodeId2 == nodeId1);
-        });
+    curveSegmentManager_ = std::move(manager);
 }
 
-void MeshData2D::replaceConstrainedSegmentInternal(const ConstrainedSegment2D& oldSegment,
-                                                    const ConstrainedSegment2D& newSeg1,
-                                                    const ConstrainedSegment2D& newSeg2)
+std::pair<size_t, size_t> MeshData2D::splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
+                                                                  size_t newNodeId, double tMid)
 {
-    for (auto it = constrainedSegments_.begin(); it != constrainedSegments_.end(); ++it)
+    auto segmentIdOpt = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
+    if (!segmentIdOpt)
     {
-        if ((it->nodeId1 == oldSegment.nodeId1 && it->nodeId2 == oldSegment.nodeId2) ||
-            (it->nodeId1 == oldSegment.nodeId2 && it->nodeId2 == oldSegment.nodeId1))
-        {
-            *it = newSeg1;
-            constrainedSegments_.push_back(newSeg2);
-            return;
-        }
+        return {0, 0};
     }
-    // Segment not found - this is a no-op (may happen during mesh modifications)
+    return curveSegmentManager_.splitAt(*segmentIdOpt, newNodeId, tMid);
 }
 
-void MeshData2D::clearConstrainedSegmentsInternal()
+void MeshData2D::clearCurveSegmentsInternal()
 {
-    constrainedSegments_.clear();
+    curveSegmentManager_.clear();
 }
 
 } // namespace Meshing

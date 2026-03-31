@@ -18,9 +18,9 @@ size_t MeshMutator2D::addNode(const Point2D& coordinates)
     return id;
 }
 
-size_t MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vector<double>& edgeParameters, const std::vector<std::string>& geometryIds)
+size_t MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds)
 {
-    auto node = std::make_unique<Node2D>(coordinates, edgeParameters, geometryIds);
+    auto node = std::make_unique<Node2D>(coordinates, geometryIds);
     size_t id = meshData_.addNodeInternal(std::move(node));
     return id;
 }
@@ -53,26 +53,25 @@ void MeshMutator2D::removeElement(size_t id)
     meshData_.removeElementInternal(id);
 }
 
-void MeshMutator2D::addConstrainedSegment(const ConstrainedSegment2D& segment)
+void MeshMutator2D::addCurveSegment(const CurveSegment& segment)
 {
-    meshData_.addConstrainedSegmentInternal(segment);
+    meshData_.addCurveSegmentInternal(segment);
 }
 
-void MeshMutator2D::removeConstrainedSegment(size_t nodeId1, size_t nodeId2)
+void MeshMutator2D::setCurveSegmentManager(CurveSegmentManager manager)
 {
-    meshData_.removeConstrainedSegmentInternal(nodeId1, nodeId2);
+    meshData_.setCurveSegmentManagerInternal(std::move(manager));
 }
 
-void MeshMutator2D::replaceConstrainedSegment(const ConstrainedSegment2D& oldSegment,
-                                               const ConstrainedSegment2D& newSeg1,
-                                               const ConstrainedSegment2D& newSeg2)
+std::pair<size_t, size_t> MeshMutator2D::splitCurveSegment(size_t nodeId1, size_t nodeId2,
+                                                             size_t newNodeId, double tMid)
 {
-    meshData_.replaceConstrainedSegmentInternal(oldSegment, newSeg1, newSeg2);
+    return meshData_.splitCurveSegmentInternal(nodeId1, nodeId2, newNodeId, tMid);
 }
 
-void MeshMutator2D::clearConstrainedSegments()
+void MeshMutator2D::clearCurveSegments()
 {
-    meshData_.clearConstrainedSegmentsInternal();
+    meshData_.clearCurveSegmentsInternal();
 }
 
 } // namespace Meshing

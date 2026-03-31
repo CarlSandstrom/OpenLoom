@@ -1,6 +1,6 @@
 #include "VtkExporter.h"
 
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
@@ -240,7 +240,7 @@ void VtkExporter::writePoints2D(std::ostream& os, const Meshing::MeshData2D& mes
     }
     std::sort(outNodeIds.begin(), outNodeIds.end());
 
-    const std::size_t totalCells = mesh.getElements().size() + mesh.getConstrainedSegmentCount();
+    const std::size_t totalCells = mesh.getElements().size() + mesh.getCurveSegmentManager().size();
     os << "    <Piece NumberOfPoints=\"" << outNodeIds.size()
        << "\" NumberOfCells=\"" << totalCells << "\">\n";
 
@@ -280,9 +280,9 @@ void VtkExporter::writeCells2D(std::ostream& os, const Meshing::MeshData2D& mesh
     std::vector<unsigned int> offsets;
     std::vector<unsigned char> types;
 
-    const auto& constraints = mesh.getConstrainedSegments();
-    const std::size_t totalCells = elemIds.size() + constraints.size();
-    connectivity.reserve(elemIds.size() * 3 + constraints.size() * 2);
+    const auto& curveSegmentManager = mesh.getCurveSegmentManager();
+    const std::size_t totalCells = elemIds.size() + curveSegmentManager.size();
+    connectivity.reserve(elemIds.size() * 3 + curveSegmentManager.size() * 2);
     offsets.reserve(totalCells);
     types.reserve(totalCells);
     outElementIds.clear();
@@ -309,8 +309,8 @@ void VtkExporter::writeCells2D(std::ostream& os, const Meshing::MeshData2D& mesh
     }
 
     // Write constraint segments as VTK_LINE cells
-    outConstraintCount = constraints.size();
-    for (const auto& seg : constraints)
+    outConstraintCount = curveSegmentManager.size();
+    for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
     {
         connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId1)));
         connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId2)));
@@ -402,8 +402,8 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
 {
     std::unordered_map<std::size_t, int> domainIds;
 
-    const auto& constraints = mesh.getConstrainedSegments();
-    if (constraints.empty())
+    const auto& curveSegmentManager = mesh.getCurveSegmentManager();
+    if (curveSegmentManager.empty())
         return domainIds;
 
     // Edge key helper (canonical ordering)
@@ -424,11 +424,11 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     std::unordered_set<EdgeKey, EdgeKeyHash> boundaryEdges;
     std::unordered_set<EdgeKey, EdgeKeyHash> allConstraintEdges;
 
-    for (const auto& seg : constraints)
+    for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
     {
         auto key = makeEdgeKey(seg.nodeId1, seg.nodeId2);
         allConstraintEdges.insert(key);
-        if (seg.role == Meshing::EdgeRole::BOUNDARY)
+        if (seg.role == Meshing::EdgeRole::Boundary)
             boundaryEdges.insert(key);
     }
 
@@ -449,9 +449,9 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     auto isInsideDomain = [&](const Meshing::Point2D& point) -> bool
     {
         int crossings = 0;
-        for (const auto& seg : constraints)
+        for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
         {
-            if (seg.role != Meshing::EdgeRole::BOUNDARY)
+            if (seg.role != Meshing::EdgeRole::Boundary)
                 continue;
 
             const auto& p1 = mesh.getNode(seg.nodeId1)->getCoordinates();
