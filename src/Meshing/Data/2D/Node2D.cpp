@@ -8,10 +8,4 @@ Node2D::Node2D(const Point2D& coordinates) :
 {
 }
 
-Node2D::Node2D(const Point2D& coordinates, const std::vector<std::string>& geometryIds) :
-    coordinates_(coordinates),
-    geometryIds_(geometryIds)
-{
-}
-
 } // namespace Meshing

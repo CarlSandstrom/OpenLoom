@@ -21,10 +21,11 @@ MeshData3D::MeshData3D(const MeshData2D& mesh2D)
         const Point2D& coords2D = node2D->getCoordinates();
         Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
 
-        const auto& geometryIds = node2D->getGeometryIds();
+        addNodeInternal(id, std::make_unique<Node3D>(coords3D));
 
-        auto node3D = std::make_unique<Node3D>(coords3D, geometryIds);
-        addNodeInternal(id, std::move(node3D));
+        const auto& geometryIds = mesh2D.getGeometryIds(id);
+        if (!geometryIds.empty())
+            setNodeGeometryIdsInternal(id, geometryIds);
     }
 
     for (const auto& [id, element2D] : elements2D)
@@ -80,6 +81,7 @@ void MeshData3D::addElementInternal(size_t id, std::unique_ptr<IElement> element
 void MeshData3D::removeNodeInternal(size_t id)
 {
     nodes_.erase(id);
+    nodeGeometryIds_.erase(id);
 }
 
 void MeshData3D::removeElementInternal(size_t id)
@@ -91,6 +93,24 @@ Node3D* MeshData3D::getNodeMutable(size_t id)
 {
     auto it = nodes_.find(id);
     return (it != nodes_.end()) ? it->second.get() : nullptr;
+}
+
+const std::vector<std::string>& MeshData3D::getGeometryIds(size_t nodeId) const
+{
+    static const std::vector<std::string> empty;
+    auto it = nodeGeometryIds_.find(nodeId);
+    return it != nodeGeometryIds_.end() ? it->second : empty;
+}
+
+bool MeshData3D::isBoundaryNode(size_t nodeId) const
+{
+    auto it = nodeGeometryIds_.find(nodeId);
+    return it != nodeGeometryIds_.end() && !it->second.empty();
+}
+
+void MeshData3D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids)
+{
+    nodeGeometryIds_[nodeId] = std::move(ids);
 }
 
 const CurveSegmentManager& MeshData3D::getCurveSegmentManager() const

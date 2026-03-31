@@ -142,11 +142,10 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(
     bool firstNode = true;
     for (const size_t nodeId : face.nodeIds)
     {
-        const Node3D* node = meshData.getNode(nodeId);
-        if (!node)
+        if (!meshData.getNode(nodeId))
             return std::nullopt;
 
-        const auto nodeSurfaces = effectiveSurfaceIds(node->getGeometryIds());
+        const auto nodeSurfaces = effectiveSurfaceIds(meshData.getGeometryIds(nodeId));
         if (firstNode)
         {
             candidates = nodeSurfaces;

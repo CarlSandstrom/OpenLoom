@@ -5,6 +5,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Node3D.h"
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -35,12 +36,17 @@ public:
     size_t getConstrainedSubsegmentCount() const;
     size_t getConstrainedSubfacetCount() const;
 
+    // Geometry ID association (boundary node metadata)
+    const std::vector<std::string>& getGeometryIds(size_t nodeId) const;
+    bool isBoundaryNode(size_t nodeId) const;
+
     // Internal access for operations classes (friends)
     friend class MeshMutator3D;
 
 private:
     std::unordered_map<size_t, std::unique_ptr<Node3D>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
+    std::unordered_map<size_t, std::vector<std::string>> nodeGeometryIds_;
     CurveSegmentManager curveSegmentManager_;
     std::vector<ConstrainedSubfacet3D> constrainedSubfacets_;
 
@@ -50,6 +56,8 @@ private:
     void removeNodeInternal(size_t id);
     void removeElementInternal(size_t id);
     Node3D* getNodeMutable(size_t id);
+
+    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
 
     void addConstrainedSubfacetInternal(const ConstrainedSubfacet3D& subfacet);
     void removeConstrainedSubfacetInternal(size_t nodeId1, size_t nodeId2, size_t nodeId3);

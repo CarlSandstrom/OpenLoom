@@ -52,8 +52,8 @@ size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
 {
     size_t id = nextNodeId_++;
 
-    auto node = std::make_unique<Node3D>(coordinates, geometryIds);
-    geometry_.addNodeInternal(id, std::move(node));
+    geometry_.addNodeInternal(id, std::make_unique<Node3D>(coordinates));
+    geometry_.setNodeGeometryIdsInternal(id, geometryIds);
 
     // Notify transaction listener
     if (transactionListener_)

@@ -20,8 +20,8 @@ size_t MeshMutator2D::addNode(const Point2D& coordinates)
 
 size_t MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds)
 {
-    auto node = std::make_unique<Node2D>(coordinates, geometryIds);
-    size_t id = meshData_.addNodeInternal(std::move(node));
+    size_t id = meshData_.addNodeInternal(std::make_unique<Node2D>(coordinates));
+    meshData_.setNodeGeometryIdsInternal(id, geometryIds);
     return id;
 }
 

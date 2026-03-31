@@ -420,16 +420,11 @@ bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const CurveS
 
 std::optional<std::string> MeshQueries2D::findCommonGeometryId(size_t nodeId1, size_t nodeId2) const
 {
-    const Node2D* node1 = meshData_.getNode(nodeId1);
-    const Node2D* node2 = meshData_.getNode(nodeId2);
-
-    if (node1 == nullptr || node2 == nullptr)
-    {
+    if (!meshData_.getNode(nodeId1) || !meshData_.getNode(nodeId2))
         return std::nullopt;
-    }
 
-    const auto& geometryIds1 = node1->getGeometryIds();
-    const auto& geometryIds2 = node2->getGeometryIds();
+    const auto& geometryIds1 = meshData_.getGeometryIds(nodeId1);
+    const auto& geometryIds2 = meshData_.getGeometryIds(nodeId2);
 
     for (const auto& id1 : geometryIds1)
     {

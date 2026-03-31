@@ -4,6 +4,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Node2D.h"
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -27,12 +28,17 @@ public:
 
     const CurveSegmentManager& getCurveSegmentManager() const { return curveSegmentManager_; }
 
+    // Geometry ID association (boundary node metadata)
+    const std::vector<std::string>& getGeometryIds(size_t nodeId) const;
+    bool isBoundaryNode(size_t nodeId) const;
+
     // Internal access for operations classes (friends)
     friend class MeshMutator2D;
 
 private:
     std::unordered_map<size_t, std::unique_ptr<Node2D>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
+    std::unordered_map<size_t, std::vector<std::string>> nodeGeometryIds_;
     CurveSegmentManager curveSegmentManager_;
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
@@ -43,6 +49,8 @@ private:
     void removeNodeInternal(size_t id);
     void removeElementInternal(size_t id);
     Node2D* getNodeMutable(size_t id);
+
+    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
 
     size_t addCurveSegmentInternal(const CurveSegment& segment);
     void setCurveSegmentManagerInternal(CurveSegmentManager manager);
