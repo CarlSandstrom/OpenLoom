@@ -44,6 +44,9 @@ public:
     std::vector<size_t> findEncroached(const Point3D& point,
                                        const std::unordered_map<size_t, Point3D>& nodePositions) const;
 
+    /// Returns all segments for a given edge ID, sorted by tStart (ascending).
+    std::vector<CurveSegment> getSegmentsForEdge(const std::string& edgeId) const;
+
     size_t size() const;
     bool empty() const;
     void clear();

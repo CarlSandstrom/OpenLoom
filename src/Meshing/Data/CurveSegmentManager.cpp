@@ -85,6 +85,19 @@ std::vector<size_t> CurveSegmentManager::findEncroached(const Point3D& point,
     return encroached;
 }
 
+std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::string& edgeId) const
+{
+    std::vector<CurveSegment> result;
+    for (const auto& [segmentId, segment] : segments_)
+    {
+        if (segment.edgeId == edgeId)
+            result.push_back(segment);
+    }
+    std::sort(result.begin(), result.end(),
+              [](const CurveSegment& a, const CurveSegment& b) { return a.tStart < b.tStart; });
+    return result;
+}
+
 size_t CurveSegmentManager::size() const
 {
     return segments_.size();
