@@ -15,7 +15,7 @@ namespace Meshing
 class SurfaceProjector
 {
 public:
-    explicit SurfaceProjector(double maximumProjectionGap = 1e-3);
+    SurfaceProjector() = default;
 
     double signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surface) const;
 
@@ -27,7 +27,6 @@ public:
                                             const Geometry3D::ISurface3D& surface) const;
 
 private:
-    double maximumProjectionGap_;
 
     static constexpr double NEAR_TANGENT_RELATIVE_TOLERANCE = 1e-10;
 

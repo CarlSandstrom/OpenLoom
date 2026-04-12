@@ -143,6 +143,70 @@ struct FlatPlaneSetup
 } // namespace
 
 // ============================================================================
+// Helpers to build topology with an edge adjacent to a surface
+// ============================================================================
+
+namespace
+{
+
+Topology3D::Topology3D makeEdgeAdjacentToSurfaceTopology(const std::string& surfaceId,
+                                                         const std::string& edgeId)
+{
+    std::unordered_map<std::string, Topology3D::Surface3D> surfaces;
+    surfaces.emplace(surfaceId, Topology3D::Surface3D(surfaceId, {edgeId}, {}));
+
+    std::unordered_map<std::string, Topology3D::Edge3D> edges;
+    edges.emplace(edgeId, Topology3D::Edge3D(edgeId, "", "", {surfaceId}));
+
+    std::unordered_map<std::string, Topology3D::Corner3D> corners;
+    return Topology3D::Topology3D(surfaces, edges, corners);
+}
+
+} // namespace
+
+// ============================================================================
+// buildFrom: nodes carrying only edge IDs (not surface IDs) — OPE-149
+//
+//  Same geometry as FlatPlaneSetup but n0/n1/n2 are tagged with an edge ID,
+//  not the surface ID directly.  The topology maps that edge to the surface.
+//  effectiveSurfaceIds must expand the edge ID so the face is still found.
+// ============================================================================
+
+TEST(RestrictedTriangulationTest, BuildFrom_EdgeOnlyGeometryIds_FindsRestrictedFace)
+{
+    constexpr const char* SURFACE_ID = "surface";
+    constexpr const char* EDGE_ID = "edge";
+
+    MeshData3D meshData;
+    MeshMutator3D mutator(meshData);
+
+    // Surface nodes tagged with edge ID only — not the surface ID
+    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {EDGE_ID});
+    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {EDGE_ID});
+    const size_t n2 = mutator.addBoundaryNode(Point3D(0.0, 1.0, 0.0), {EDGE_ID});
+    const size_t n3 = mutator.addNode(Point3D(0.33, 0.33, 10.0));
+    const size_t n4 = mutator.addNode(Point3D(0.33, 0.33, -10.0));
+
+    mutator.addElement(std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
+    mutator.addElement(std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n1, n2, n4}));
+
+    MeshConnectivity connectivity(meshData);
+
+    const auto topology = makeEdgeAdjacentToSurfaceTopology(SURFACE_ID, EDGE_ID);
+    const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID);
+
+    RestrictedTriangulation rt;
+    rt.buildFrom(meshData, connectivity, geometry, topology);
+
+    const auto& restricted = rt.getRestrictedFaces();
+    ASSERT_EQ(restricted.size(), 1u);
+
+    const FaceKey expectedFace(n0, n1, n2);
+    ASSERT_EQ(restricted.count(expectedFace), 1u);
+    EXPECT_EQ(restricted.at(expectedFace), SURFACE_ID);
+}
+
+// ============================================================================
 // buildFrom: restricted face is classified correctly
 // ============================================================================
 

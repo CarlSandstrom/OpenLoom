@@ -10,11 +10,6 @@
 namespace Meshing
 {
 
-SurfaceProjector::SurfaceProjector(double maximumProjectionGap)
-    : maximumProjectionGap_(maximumProjectionGap)
-{
-}
-
 double SurfaceProjector::signedDistance(const Point3D& point,
                                         const Geometry3D::ISurface3D& surface) const
 {
@@ -55,9 +50,6 @@ std::optional<Point3D> SurfaceProjector::projectToSurface(
     const Point3D& point,
     const Geometry3D::ISurface3D& surface) const
 {
-    if (surface.getGap(point) > maximumProjectionGap_)
-        return std::nullopt;
-
     const auto uv = surface.projectPointToUnderlyingSurface(point);
     if (!uv)
         return std::nullopt;

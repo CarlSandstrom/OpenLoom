@@ -201,9 +201,16 @@ TEST_F(SurfaceProjectorTest, ProjectToSurface_RoundTrip)
     EXPECT_NEAR(result->z(), onSurface.z(), 1e-10);
 }
 
-TEST_F(SurfaceProjectorTest, ProjectToSurface_TooFar)
+TEST_F(SurfaceProjectorTest, ProjectToSurface_FarPoint_ProjectsCorrectly)
 {
-    // Default maximumProjectionGap is 1e-3; a point at gap = 5.0 should return nullopt.
+    // A point far from the surface (gap = 5.0) must still project onto the cylinder.
+    // The gap guard was removed (OPE-150); projectPointToUnderlyingSurface handles
+    // arbitrary distances.
     const Point3D farPoint(6.0, 0.0, 1.0);
-    EXPECT_FALSE(projector.projectToSurface(farPoint, cylinder).has_value());
+    const auto result = projector.projectToSurface(farPoint, cylinder);
+
+    ASSERT_TRUE(result.has_value());
+    EXPECT_NEAR(result->x(), RADIUS, 1e-10);
+    EXPECT_NEAR(result->y(), 0.0, 1e-10);
+    EXPECT_NEAR(result->z(), 1.0, 1e-10);
 }

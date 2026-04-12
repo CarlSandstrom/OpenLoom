@@ -103,20 +103,14 @@ void RCDTContext::buildInitial()
     spdlog::info("RCDTContext::buildInitial: {} restricted faces",
                  restrictedTriangulation_->getRestrictedFaces().size());
 
-    // Phase 1.6: Build cornerIdToNodeId from discretization result + Delaunay mapping.
-    std::unordered_map<std::string, size_t> cornerIdToNodeId;
-    for (const auto& [cornerId, pointIndex] : discretizationResult->cornerIdToPointIndexMap)
-    {
-        auto nodeIt = pointIndexToNodeIdMap.find(pointIndex);
-        if (nodeIt != pointIndexToNodeIdMap.end())
-            cornerIdToNodeId[cornerId] = nodeIt->second;
-    }
-
-    // Phase 1.7: Build curve segments. buildCurveSegments requires a mutable
+    // Phase 1.6: Build curve segments. buildCurveSegments requires a mutable
     // CurveSegmentManager, so we build into a temporary and transfer to MeshData3D
     // via the mutator.
     CurveSegmentManager temporarySegmentManager;
-    buildCurveSegments(temporarySegmentManager, *topology_, *geometry_, cornerIdToNodeId);
+    buildCurveSegments(temporarySegmentManager, *topology_, *geometry_,
+                       discretizationResult->edgeIdToPointIndicesMap,
+                       pointIndexToNodeIdMap,
+                       discretizationResult->edgeParameters);
 
     auto& mutator = meshingContext_->getMutator();
     for (const auto& [segmentId, segment] : temporarySegmentManager.getAllSegments())

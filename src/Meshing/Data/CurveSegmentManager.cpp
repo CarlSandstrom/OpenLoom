@@ -78,7 +78,7 @@ std::vector<size_t> CurveSegmentManager::findEncroached(const Point3D& point,
         const double radiusSquared = (p2 - p1).squaredNorm() * 0.25;
         const double distanceSquared = (point - center).squaredNorm();
 
-        if (distanceSquared <= radiusSquared)
+        if (distanceSquared < radiusSquared)
             encroached.push_back(segmentId);
     }
 

@@ -16,9 +16,11 @@
 #include <array>
 #include <cmath>
 #include <gtest/gtest.h>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 using namespace Meshing;
 
@@ -167,7 +169,7 @@ Topology3D::Topology3D makeTopology(
 
 TEST(CurveSegmentManagerTest, BuildFrom_CylinderLikeTopology_SkipsSeamTwin)
 {
-    // Corners: c_top, c_bot
+    // Corners: c_top (point 0), c_bot (point 1)
     // Edges:
     //   "top_circle"  : c_top → c_top (full circle, self-loop)
     //   "bot_circle"  : c_bot → c_bot (full circle, self-loop)
@@ -191,8 +193,18 @@ TEST(CurveSegmentManagerTest, BuildFrom_CylinderLikeTopology_SkipsSeamTwin)
     edges["seam_twin"] = std::make_unique<MockCircularArcEdge>("seam_twin", 1.0, 0.0, 0.0, 1.0);
     auto geometry = makeGeometry(std::move(edges));
 
+    // Corner-only sequences: no interior nodes.
+    // Point 0 = c_top, point 1 = c_bot.
+    const std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap = {
+        {"top_circle", {0, 0}},
+        {"bot_circle", {1, 1}},
+        {"seam",       {0, 1}}};
+    const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
+    const std::vector<std::vector<double>> edgeParameters = {{}, {}};
+
     CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry, {{"c_top", 0}, {"c_bot", 1}});
+    buildCurveSegments(manager, topology, geometry,
+                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
 
     // seam_twin must be skipped → 3 segments only
     EXPECT_EQ(manager.size(), 3u);
@@ -213,8 +225,15 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
     edges["edge_a"] = std::make_unique<MockCircularArcEdge>("edge_a", 1.0, 0.0, 0.5, 2.0);
     auto geometry = makeGeometry(std::move(edges));
 
+    // Point 0 = c0, point 1 = c1; no interior nodes.
+    const std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap = {
+        {"edge_a", {0, 1}}};
+    const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 10}, {1, 11}};
+    const std::vector<std::vector<double>> edgeParameters = {{}, {}};
+
     CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry, {{"c0", 10}, {"c1", 11}});
+    buildCurveSegments(manager, topology, geometry,
+                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
 
     ASSERT_EQ(manager.size(), 1u);
     const auto& segment = manager.getAllSegments().begin()->second;
@@ -222,6 +241,53 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
     EXPECT_DOUBLE_EQ(segment.tEnd, 2.0);
     EXPECT_EQ(segment.nodeId1, 10u);
     EXPECT_EQ(segment.nodeId2, 11u);
+}
+
+// ============================================================================
+// buildCurveSegments: edge with intermediate nodes produces one segment per gap
+// ============================================================================
+
+TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegments)
+{
+    // edge_b: c0 → c1, parameter range [0, π].
+    // Two interior nodes at π/3 and 2π/3 → 4 points total → 3 segments.
+    auto topology = makeTopology({"c0", "c1"}, {{"edge_b", "c0", "c1"}});
+
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
+    edges["edge_b"] = std::make_unique<MockCircularArcEdge>("edge_b", 1.0, 0.0, 0.0, M_PI);
+    auto geometry = makeGeometry(std::move(edges));
+
+    // Points: 0=c0 corner, 1=interior@π/3, 2=interior@2π/3, 3=c1 corner
+    const std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap = {
+        {"edge_b", {0, 1, 2, 3}}};
+    const std::map<size_t, size_t> pointIndexToNodeIdMap = {
+        {0, 10}, {1, 11}, {2, 12}, {3, 13}};
+    const std::vector<std::vector<double>> edgeParameters = {
+        {}, {M_PI / 3.0}, {2.0 * M_PI / 3.0}, {}};
+
+    CurveSegmentManager manager;
+    buildCurveSegments(manager, topology, geometry,
+                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
+
+    ASSERT_EQ(manager.size(), 3u);
+
+    const auto segments = manager.getSegmentsForEdge("edge_b");
+    ASSERT_EQ(segments.size(), 3u);
+
+    EXPECT_EQ(segments[0].nodeId1, 10u);
+    EXPECT_EQ(segments[0].nodeId2, 11u);
+    EXPECT_DOUBLE_EQ(segments[0].tStart, 0.0);
+    EXPECT_DOUBLE_EQ(segments[0].tEnd, M_PI / 3.0);
+
+    EXPECT_EQ(segments[1].nodeId1, 11u);
+    EXPECT_EQ(segments[1].nodeId2, 12u);
+    EXPECT_DOUBLE_EQ(segments[1].tStart, M_PI / 3.0);
+    EXPECT_DOUBLE_EQ(segments[1].tEnd, 2.0 * M_PI / 3.0);
+
+    EXPECT_EQ(segments[2].nodeId1, 12u);
+    EXPECT_EQ(segments[2].nodeId2, 13u);
+    EXPECT_DOUBLE_EQ(segments[2].tStart, 2.0 * M_PI / 3.0);
+    EXPECT_DOUBLE_EQ(segments[2].tEnd, M_PI);
 }
 
 // ============================================================================
@@ -273,6 +339,32 @@ TEST(CurveSegmentManagerTest, FindEncroached_PointOutsideSphere_ReturnsEmpty)
     // Point at (3,0,0): distance to center = 2 > radius 1 → not encroached
     const auto encroached = manager.findEncroached(Point3D(3.0, 0.0, 0.0), nodePositions);
     EXPECT_TRUE(encroached.empty());
+}
+
+// ============================================================================
+// findEncroached: a segment's own endpoints lie exactly on the diametral sphere
+// and must NOT be reported as encroaching (the OPE-148 regression case)
+// ============================================================================
+
+TEST(CurveSegmentManagerTest, FindEncroached_SegmentEndpoint_NotReported)
+{
+    // Segment between (0,0,0) and (2,0,0): center=(1,0,0), radius=1.
+    // Both endpoints have distanceSquared == radiusSquared exactly.
+    CurveSegment segment;
+    segment.nodeId1 = 0;
+    segment.nodeId2 = 1;
+    segment.edgeId = "e";
+    segment.tStart = 0.0;
+    segment.tEnd = 1.0;
+
+    CurveSegmentManager manager;
+    manager.addSegment(segment);
+
+    const std::unordered_map<size_t, Point3D> nodePositions = {{0, Point3D(0.0, 0.0, 0.0)},
+                                                               {1, Point3D(2.0, 0.0, 0.0)}};
+
+    EXPECT_TRUE(manager.findEncroached(Point3D(0.0, 0.0, 0.0), nodePositions).empty());
+    EXPECT_TRUE(manager.findEncroached(Point3D(2.0, 0.0, 0.0), nodePositions).empty());
 }
 
 // ============================================================================
@@ -399,8 +491,15 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
     edges["seam_twin"] = std::make_unique<MockCircularArcEdge>("seam_twin", 1.0, 0.0, 0.0, 1.0);
     auto geometry = makeGeometry(std::move(edges));
 
+    // Point 0 = c_top, point 1 = c_bot; no interior nodes.
+    const std::map<std::string, std::vector<size_t>> edgeIdToPointIndicesMap = {
+        {"seam", {0, 1}}};
+    const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
+    const std::vector<std::vector<double>> edgeParameters = {{}, {}};
+
     CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry, {{"c_top", 0}, {"c_bot", 1}});
+    buildCurveSegments(manager, topology, geometry,
+                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
 
     // Only one segment (seam), not two
     ASSERT_EQ(manager.size(), 1u);
