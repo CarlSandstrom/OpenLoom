@@ -1,12 +1,67 @@
 # Surface Mesh Quality
 
-This document describes how triangle quality is evaluated and enforced during 3D surface mesh refinement. It covers the quality interface, the two concrete controllers, how the Shewchuk refiner uses them, and the two-phase structure of `refineSurfaces`.
+This document describes how triangle quality is evaluated and enforced during 3D surface mesh refinement. The primary mechanism is `RCDTQualitySettings` used by `RCDTRefiner`. The legacy UV-space quality controllers (`Shewchuk2DQualityController`, `SurfaceMeshQualityController`) used by the old per-face mesher are documented at the end for reference.
 
 ---
 
-## Quality Controller Interface
+## RCDT Quality Settings
 
-`IQualityController2D` (in `src/Meshing/Interfaces/IQualityController2D.h`) is the single abstraction that the refiner talks to. Any quality strategy must implement four methods:
+`RCDTQualitySettings` (`src/Meshing/Core/3D/RCDT/RCDTQualitySettings.h`) is a plain struct that carries the two quality bounds consumed by `RCDTRefiner`:
+
+```cpp
+struct RCDTQualitySettings
+{
+    double maximumCircumradiusToShortestEdgeRatio = 1.0;
+    double maximumChordDeviation                  = 0.1;
+};
+```
+
+| Field | Description |
+|-------|-------------|
+| `maximumCircumradiusToShortestEdgeRatio` | Maximum allowed ratio of the circumradius of a restricted triangle to its shortest edge, measured in 3D ambient space |
+| `maximumChordDeviation` | Maximum allowed distance from the flat triangle to the actual CAD surface, in model units |
+
+A restricted triangle fails quality when either bound is exceeded. Both checks are evaluated in 3D ambient space against the actual CAD surface geometry.
+
+---
+
+## How RCDTRefiner Uses Quality Settings
+
+`RCDTRefiner` (`src/Meshing/Core/3D/RCDT/RCDTRefiner.h`) drives refinement via a two-priority loop. Quality settings are consulted through `RestrictedTriangulation::getBadTriangles`.
+
+**Main loop (`refine`):**
+```
+while any work remains:
+    refineStep()
+```
+
+**Each refinement step (`refineStep`):**
+
+1. **Priority 1 — split encroached curve segments**: A `CurveSegment` is encroached if any mesh vertex other than its endpoints lies inside or on its diametral sphere (the sphere whose diameter equals the segment length). If any encroached segments exist, split the first one at its arc-length midpoint via Bowyer-Watson. Update `RestrictedTriangulation` incrementally after insertion.
+
+2. **Priority 2 — split bad restricted triangles** (only when no encroached segments remain): Call `restrictedTriangulation.getBadTriangles(settings, meshData, geometry)` to find restricted faces that violate `RCDTQualitySettings`. For each bad triangle:
+   - Compute its circumcircle center (in the surface's tangent plane).
+   - If inserting that point would encroach a curve segment, do not insert; split the encroached segment instead (back to Priority 1).
+   - Otherwise, insert the circumcircle center via Bowyer-Watson and update `RestrictedTriangulation`. The bad triangle is eliminated because its circumsphere is no longer empty.
+
+The circumcenter demotion rule (Priority 2 falling back to Priority 1) is the key termination guarantee: it prevents arbitrarily small insertions near curve segments.
+
+**Quality evaluation in `getBadTriangles`:**
+
+For each restricted face (a face of the tetrahedralization restricted to some surface S):
+1. Lift the three nodes to 3D and compute the circumradius and shortest edge length in ambient space.
+2. If `circumradius / shortestEdge > maximumCircumradiusToShortestEdgeRatio`, the triangle is bad.
+3. Sample the distance from the flat triangle to the CAD surface at the circumcenter and edge midpoints. If any sample exceeds `maximumChordDeviation`, the triangle is bad.
+
+---
+
+## Legacy UV-Space Quality Controllers
+
+The following quality infrastructure belongs to the legacy UV-space surface mesher (`SurfaceMesher3D` / `SurfaceMeshingContext3D`) and the 2D mesher. They are retained for the 2D meshing pipeline and for reference.
+
+### Quality Controller Interface
+
+`IQualityController2D` (`src/Meshing/Interfaces/IQualityController2D.h`) is the abstraction used by `ShewchukRefiner2D`:
 
 ```cpp
 bool isMeshAcceptable(const MeshData2D& data) const;
@@ -15,16 +70,14 @@ double getTargetElementQuality() const;
 std::size_t getElementLimit() const;
 ```
 
-- `isMeshAcceptable` — returns true when the whole mesh satisfies the quality goal **or** when the element count has reached `getElementLimit()`. The refiner calls this at the top of every iteration to decide whether to stop.
-- `isTriangleAcceptable` — returns true when a single triangle satisfies the quality goal. The refiner calls this to identify which triangles need refinement.
-- `getTargetElementQuality` — returns the circumradius-to-shortest-edge bound. Used by `ElementQuality2D` to sort triangles by how far they are from the target.
-- `getElementLimit` — safety cap on the number of triangles per face. When reached, refinement stops regardless of quality.
+- `isMeshAcceptable` — returns true when the whole mesh satisfies the quality goal or when the element count has reached `getElementLimit()`.
+- `isTriangleAcceptable` — returns true when a single triangle satisfies the quality goal.
+- `getTargetElementQuality` — returns the circumradius-to-shortest-edge bound used to sort triangles by distance from the target.
+- `getElementLimit` — safety cap on the number of triangles per face.
 
----
+### Shewchuk2DQualityController — UV-space angle quality
 
-## Shewchuk2DQualityController — UV-space angle quality
-
-`Shewchuk2DQualityController` (`src/Meshing/Core/2D/Shewchuk2DQualityController.h/.cpp`) evaluates triangles entirely in UV (parametric) space. All distances and angles are computed from the flat 2D coordinates stored in `MeshData2D`.
+`Shewchuk2DQualityController` (`src/Meshing/Core/2D/Shewchuk2DQualityController.h/.cpp`) evaluates triangles in UV (parametric) space. Used by the 2D mesher and the legacy UV-space surface mesher.
 
 **Constructor parameters:**
 
@@ -35,21 +88,11 @@ std::size_t getElementLimit() const;
 | `minAngleThresholdRadians` | `double` | Minimum interior angle in radians (default corresponds to 30°) |
 | `elementLimit` | `size_t` | Safety cap on triangle count (default 50 000) |
 
-**Triangle acceptance rule:**
+A triangle is acceptable if its circumradius-to-shortest-edge ratio and minimum interior angle both satisfy their bounds, computed in flat UV space.
 
-A triangle is acceptable if and only if:
-1. Its circumradius-to-shortest-edge ratio ≤ `circumradiusToShortestEdgeRatioBound`, and
-2. Its minimum interior angle ≥ `minAngleThresholdRadians`.
+### SurfaceMeshQualityController — 3D quality with optional chord deviation
 
-Both metrics are computed in flat UV space using `ElementGeometry2D` and `ElementQuality2D`.
-
-**When to use:** Phase 1 of `refineSurfaces`. This controller is fast and produces reliable angle-quality meshes. It is the primary driver of refinement.
-
----
-
-## SurfaceMeshQualityController — 3D quality with optional chord deviation
-
-`SurfaceMeshQualityController` (`src/Meshing/Core/3D/Surface/SurfaceMeshQuality.h/.cpp`) lifts triangles from UV space to 3D before evaluating them. It requires access to the CAD surface via `ISurface3D::getPoint(u, v)`.
+`SurfaceMeshQualityController` (`src/Meshing/Core/3D/Surface/SurfaceMeshQuality.h/.cpp`) lifts triangles from UV space to 3D before evaluating them. Used by the legacy UV-space surface mesher's second refinement phase.
 
 **Constructor parameters:**
 
@@ -57,98 +100,19 @@ Both metrics are computed in flat UV space using `ElementGeometry2D` and `Elemen
 |-----------|------|-------------|
 | `meshData` | `const MeshData2D&` | The face's UV-space mesh |
 | `surface` | `const ISurface3D&` | The CAD surface for UV→3D evaluation |
-| `circumradiusToShortestEdgeRatioBound` | `double` | Maximum allowed circumradius / shortest-edge ratio in 3D |
-| `minAngleThresholdRadians` | `double` | Minimum interior angle in 3D, in radians |
-| `elementLimit` | `size_t` | Safety cap on triangle count |
-| `chordDeviationTolerance` | `double` | Maximum allowed chord height in model units; 0 disables (default 0.0) |
+| `circumradiusToShortestEdgeRatioBound` | `double` | Maximum ratio in 3D |
+| `minAngleThresholdRadians` | `double` | Minimum interior angle in 3D |
+| `elementLimit` | `size_t` | Safety cap |
+| `chordDeviationTolerance` | `double` | Maximum chord height; 0 disables (default 0.0) |
 
-**Triangle acceptance rule:**
+A triangle is acceptable when its 3D circumradius ratio, minimum angle, and chord deviation (sampled at the centroid and three edge midpoints) all satisfy their bounds.
 
-A triangle is acceptable if and only if **all** of the following hold:
+### Two-phase refinement in the legacy surface mesher
 
-1. **Non-degenerate:** shortest 3D edge length ≥ 1e-10.
-2. **Circumradius ratio:** 3D circumradius / shortest 3D edge ≤ `circumradiusToShortestEdgeRatioBound`.
-3. **Minimum angle:** minimum interior angle of the 3D triangle ≥ `minAngleThresholdRadians`.
-4. **Chord deviation** (only when `chordDeviationTolerance > 0`): the distance from the flat triangle to the actual CAD surface, sampled at four UV locations — the triangle centroid and each of the three edge midpoints — must not exceed `chordDeviationTolerance` at any sample point.
+`SurfaceMeshingContext3D::refineSurfaces` runs two sequential phases:
 
-For the chord deviation check, each sample is computed as:
+- **Phase 1 — Angle quality**: `Shewchuk2DQualityController` drives `ShewchukRefiner2D` on each face until UV-space angle criteria are met. Cross-face boundary splits are propagated via `TwinManager`.
 
-```
-deviation(u, v, flatPoint) = |surface.getPoint(u, v) − flatPoint|
-```
+- **Phase 2 — Chord deviation** (when `chordDeviationTolerance > 0`): `SurfaceMeshQualityController` (with angle bounds disabled) drives `ShewchukRefiner2D` to subdivide triangles whose flat approximation deviates from the CAD surface.
 
-where `flatPoint` is the corresponding point on the flat linear triangle (barycentric centroid or edge midpoint interpolated from the 3D vertex positions).
-
-**When to use:** Phase 2 of `refineSurfaces` (chord deviation pass). In this phase the angle bounds are set to effectively disabled values (`circumradiusToShortestEdgeRatioBound = 1e9`, `minAngleThresholdRadians = 0.0`) so that only chord deviation drives refinement.
-
----
-
-## How ShewchukRefiner2D uses the quality controller
-
-`ShewchukRefiner2D` (`src/Meshing/Core/2D/ShewchukRefiner2D.h/.cpp`) implements Ruppert's algorithm. It holds a `const IQualityController2D*` and drives refinement as follows:
-
-**Main loop (`refine`):**
-```
-while !qualityController.isMeshAcceptable(mesh):
-    refineStep()
-```
-
-**Each refinement step (`refineStep`):**
-1. **Priority 1 — encroached segments:** Scan all constrained segments for encroachment (a mesh node falls inside the diametral circle of the segment). If any are found, split the first encroached segment at its midpoint. After a successful boundary split, fire the `onBoundarySplit` callback so twin faces can mirror the split.
-2. **Priority 2 — poor-quality triangles:** Sort all triangles by `ElementQuality2D` (worst first). For each triangle, check `qualityController.isTriangleAcceptable`. On the first failing triangle:
-   a. Compute its circumcenter.
-   b. If the circumcenter would encroach a visible constrained segment, split that segment instead (back to Priority 1).
-   c. Otherwise, insert the circumcenter via Bowyer-Watson.
-
-**Safety guards:**
-- Hard iteration limit (10 000) prevents infinite loops.
-- Triangles that survive circumcenter insertion (circumcenter blocked by a constraint) are added to an `unrefinableTriangles_` set and skipped in future iterations.
-- Triangles below minimum area/edge thresholds (1e-12 / 1e-8) are skipped.
-- After every 10 successful refinements, exterior triangles are re-classified and removed.
-- A final exterior-triangle cleanup runs after the loop exits.
-
----
-
-## Two-phase refinement in refineSurfaces
-
-`SurfaceMeshingContext3D::refineSurfaces` (`src/Meshing/Core/3D/Surface/SurfaceMeshingContext3D.cpp`) orchestrates the per-face refinement in two sequential phases.
-
-**Signature:**
-```cpp
-void refineSurfaces(double circumradiusToEdgeRatio = 2.0,
-                    double minAngleDegrees = 30.0,
-                    size_t elementLimit = 50000,
-                    double chordDeviationTolerance = 0.0);
-```
-
-### Phase 1 — Angle quality (always runs)
-
-For each face, a `Shewchuk2DQualityController` is constructed with the supplied `circumradiusToEdgeRatio`, `minAngleDegrees`, and `elementLimit`. `ShewchukRefiner2D` is run until the mesh is acceptable.
-
-Passes repeat until a complete sweep over all faces produces no new cross-face boundary splits. A cross-face split occurs when a boundary segment shared with an adjacent face is split: the split is immediately applied to the twin face via the `onBoundarySplit` callback and `TwinManager`, and the outer loop runs another pass to give the twin face a chance to re-refine.
-
-### Phase 2 — Chord deviation (runs only when `chordDeviationTolerance > 0`)
-
-For each face, a `SurfaceMeshQualityController` is constructed with:
-- `circumradiusToShortestEdgeRatioBound = 1e9` (effectively disabled)
-- `minAngleThresholdRadians = 0.0` (effectively disabled)
-- the supplied `chordDeviationTolerance`
-
-`ShewchukRefiner2D` is run on each face with this controller. The same cross-face boundary-split synchronisation applies: the phase repeats until a full sweep produces no new cross-face splits.
-
-Phase 2 only subdivides triangles whose flat approximation deviates from the actual curved surface by more than `chordDeviationTolerance`. It does not re-check angle quality; the angle-quality invariant is maintained because Delaunay circumcenter insertion is generally angle-preserving for interior points.
-
-### Default behaviour
-
-With `chordDeviationTolerance = 0.0` (the default), Phase 2 is skipped entirely and behaviour is identical to the pre-S2.4 pipeline.
-
----
-
-## Parameter summary
-
-| Parameter | Where | Default | Effect |
-|-----------|-------|---------|--------|
-| `circumradiusToEdgeRatio` | `refineSurfaces` | 2.0 | Max circumradius/shortest-edge in UV space (Phase 1) |
-| `minAngleDegrees` | `refineSurfaces` | 30.0 | Min interior angle in UV space, degrees (Phase 1) |
-| `elementLimit` | `refineSurfaces` | 50 000 | Triangle count cap per face (both phases) |
-| `chordDeviationTolerance` | `refineSurfaces` | 0.0 | Max chord height in model units; 0 = disabled (Phase 2) |
+Both phases repeat until a complete sweep over all faces produces no new cross-face boundary splits.

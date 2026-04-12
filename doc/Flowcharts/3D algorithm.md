@@ -1,128 +1,173 @@
-# 3D Tetrahedral Mesh Generation by Delaunay Refinement
+# 3D Tetrahedral Mesh Generation by RCDT Refinement
 
-Based on Shewchuk's algorithm: "Tetrahedral Mesh Generation by Delaunay Refinement"
+Based on the algorithm in "Restricted Constrained Delaunay Triangulations".
 
-## Key Difference from 2D
+## Key Difference from the Shewchuk Approach
 
-In 2D constrained Delaunay triangulation, constraint edges are directly enforced into the mesh. In 3D, this approach does not work because:
+Shewchuk's algorithm recovers surface constraints explicitly: a separate facet recovery
+phase tracks subsegments and subfacets, inserts circumcenters to recover missing faces,
+and uses a strict priority ordering to guarantee termination.
 
-1. The tetrahedralization is **unconstrained Delaunay** — constraints (subsegments, subfacets) may be **missing** from the initial mesh
-2. Constraints are **tracked** separately and **recovered** through iterative refinement by vertex insertion
-3. Each facet maintains an **independent 2D Delaunay triangulation** that defines what subfacets *should* exist
-4. The algorithm compares facet triangulations against tetrahedralization faces to identify missing subfacets
+RCDT takes a different route. Surface constraints are never "recovered" — they emerge
+implicitly from the tetrahedralization. A face of the 3D Delaunay tetrahedralization is
+**restricted** to a CAD surface S if all three of its nodes lie on S and the two adjacent
+tetrahedra are on opposite sides of S. Refining the vertex set (by splitting encroached
+segments and bad restricted triangles) drives the restricted triangulation to converge to
+the input geometry without a dedicated recovery pass.
 
-This refinement-based recovery guarantees termination and good element quality, which direct constraint enforcement cannot.
+The refinement loop has three priorities:
+
+1. Split encroached curve segments (highest)
+2. Split bad restricted surface triangles
+3. Split skinny tetrahedra (lowest)
+
+---
 
 ## 1. Input Processing
 
-- **1.1** Receive Piecewise Linear Complex (PLC): vertices, constraining segments, and planar constraining facets from CAD geometry and topology
-- **1.2** Discretize edges: sample vertices along edges respecting curved CAD geometry via parametric evaluation
-- **1.3** Discretize surfaces: sample vertices on facets
-- **1.4** Extract constraint lists:
-  - **1.4.1** Segments → initial subsegment list (each segment starts as one subsegment)
-  - **1.4.2** For each facet, create an independent 2D Delaunay triangulation of its vertices → initial subfacet list. These facet triangulations are maintained separately from the tetrahedralization throughout the entire algorithm
+- **1.1** Receive Piecewise Linear Complex (PLC): vertices, constraining curve segments
+  along topology edges, and bounding CAD surfaces.
+- **1.2** Discretize edges: sample vertices along each topology edge respecting curved
+  CAD geometry via parametric evaluation (`BoundaryDiscretizer3D`).
+- **1.3** Discretize surface interiors: sample vertices on each topology surface.
+- **1.4** Build initial constraint data structures:
+  - **1.4.1** Register one `CurveSegment` per consecutive pair of boundary nodes along
+    each topology edge (`CurveSegmentManager`). Each segment records its parametric
+    range on the parent edge curve.
+  - **1.4.2** No per-surface triangulation is built; surface constraints will emerge from
+    the restricted triangulation in step 3.
 
-## 2. Initial Delaunay Tetrahedralization (Unconstrained)
+## 2. Initial Delaunay Tetrahedralization
 
-Create an **unconstrained** Delaunay tetrahedralization of all input vertices. Some input segments and facets may be missing from this mesh — they will be recovered in steps 3-4.
+Create an **unconstrained** Delaunay tetrahedralization of all input vertices. Surface
+constraints are not enforced here; they will emerge in step 3.
 
-- **2.1** Create a bounding tetrahedron that encloses all input vertices with large margin
-- **2.2** Insert each vertex incrementally via 3D Bowyer-Watson:
-  - **2.2.1** Find a seed tetrahedron containing the point
-  - **2.2.2** Circumsphere test: find all tetrahedra whose circumsphere contains the new point (BFS flood fill from seed). No constraint-awareness at this stage — the mesh is pure Delaunay
-  - **2.2.3** Extract cavity boundary: triangular faces appearing exactly once among conflicting tetrahedra form the boundary; faces appearing twice are interior and are removed
-  - **2.2.4** Remove all conflicting tetrahedra
-  - **2.2.5** Retriangulate: create new tetrahedra connecting each boundary face to the inserted vertex
-- **2.3** Remove the bounding tetrahedron and all tetrahedra sharing its vertices
+- **2.1** Create a bounding tetrahedron enclosing all input vertices with a large margin.
+- **2.2** Insert each vertex incrementally via Bowyer-Watson:
+  - **2.2.1** Find a seed tetrahedron containing the point.
+  - **2.2.2** Find all tetrahedra whose circumsphere contains the new point (BFS from seed).
+  - **2.2.3** Extract the cavity boundary (faces appearing exactly once among conflicting
+    tetrahedra).
+  - **2.2.4** Remove all conflicting tetrahedra.
+  - **2.2.5** Retriangulate: connect each boundary face to the inserted vertex.
+- **2.3** Remove the bounding tetrahedron and all tetrahedra sharing its vertices.
 
-**Note:** After this step, the subsegment and subfacet lists from step 1.4 define what *should* exist in the mesh, but many may be missing. The Delaunay property does not guarantee constraint edges/faces appear.
+## 3. Build Restricted Triangulation
 
-## 3. Segment Recovery (Priority 1 — "Stitching")
+Classify every face of the tetrahedralization to identify surface constraints:
 
-This phase ensures every input segment is represented as a contiguous chain of mesh edges.
+- **3.1** For each tetrahedral face, resolve each node's geometry IDs to the set of CAD
+  surface IDs it touches (direct surface membership, or edge membership → adjacent
+  surfaces via `RestrictedTriangulation::effectiveSurfaceIds`).
+- **3.2** A face is a candidate for surface S if all three nodes touch S.
+- **3.3** Confirm with `SurfaceProjector.crossesSurface`: the opposite vertices of the
+  two adjacent tetrahedra must lie on opposite sides of S (opposite sign of signed distance).
+- **3.4** Store all confirmed restricted faces in `RestrictedTriangulation`.
 
-- **3.1** For each subsegment, check if it exists as a mesh edge
-- **3.2** If a subsegment is missing from the mesh, it is necessarily encroached (by the Delaunay property: the tetrahedralization always connects a vertex to its nearest neighbor)
-- **3.3** Split the missing subsegment at its midpoint:
-  - **3.3.1** Compute the midpoint (on the parent edge's parametric curve for curved geometry)
-  - **3.3.2** Insert the midpoint via Bowyer-Watson (step 2.2)
-  - **3.3.3** Replace the original subsegment with two new subsegments in the constraint list
-  - **3.3.4** Also insert the midpoint into every facet triangulation (step 1.4.2) that contains this subsegment
-- **3.4** Repeat from 3.1 for each resulting subsegment until all subsegments are present as mesh edges. Convergence is guaranteed: once vertex spacing along a segment is small enough, the Delaunay property forces the edges to appear
+After this step the restricted triangulation exists but may be coarse or incomplete where
+the initial vertex set is sparse.
 
-## 4. Facet Recovery (Priority 2)
+## 4. RCDT Quality Refinement
 
-This phase ensures every input facet is represented as a union of triangular mesh faces. Facets are recovered after all segments (step 3), so facet boundaries are already present in the mesh.
+A three-priority loop. Each iteration selects the highest-priority action available.
 
-- **4.1** For each facet, compare its independent 2D Delaunay triangulation (step 1.4.2) against the faces of the tetrahedralization. Identify subfacets that are missing from the tetrahedralization
-- **4.2** For each missing subfacet f of facet F, apply the Projection Lemma:
-  - **4.2.1** If a vertex p encroaches f but the projection proj_F(p) lies outside F, then p also encroaches a boundary subsegment of F → split that subsegment instead (return to step 3.3). The Projection Lemma guarantees the encroachment on f is resolved as a side effect
-  - **4.2.2** If proj_F(p) lies inside F, then split the subfacet g of F that contains proj_F(p) first (not f). This ordering yields a tighter quality bound
-- **4.3** Split the selected subfacet at its circumcenter:
-  - **4.3.1** Compute the circumcenter of the subfacet triangle (in the facet plane)
-  - **4.3.2** Check if the circumcenter would encroach any subsegment. If yes, split all encroached subsegments instead (return to step 3.3)
-  - **4.3.3** Otherwise, insert the circumcenter into both the facet's 2D triangulation and the 3D tetrahedralization via Bowyer-Watson (step 2.2)
-- **4.4** Repeat from 4.1 until no subfacets are missing. Handle cocircularity degeneracies: if a facet's Delaunay triangulation is non-unique, correct it to match the tetrahedralization
+### 4.1 Priority 1 — Split encroached curve segments
+
+A `CurveSegment` `[a, b]` is encroached if any mesh vertex other than its endpoints lies
+inside or on its diametral sphere.
+
+- **4.1.1** Scan `CurveSegmentManager` for encroached segments.
+- **4.1.2** For the first encroached segment, compute the split point at the arc-length
+  midpoint of the segment's parametric range on the parent edge curve
+  (`CurveSegmentOperations::computeSplitPoint`).
+- **4.1.3** Pre-compute cavity interior faces before Bowyer-Watson insertion.
+- **4.1.4** Insert the split point via Bowyer-Watson. After insertion, remove cavity
+  interior faces from `RestrictedTriangulation` and re-classify all new faces adjacent
+  to the inserted node.
+- **4.1.5** Replace the original segment with two sub-segments in `CurveSegmentManager`.
+- **4.1.6** Repeat until no encroached segments remain.
+
+### 4.2 Priority 2 — Split bad restricted surface triangles (only when no encroached segments)
+
+A restricted face is bad if either quality bound in `RCDTQualitySettings` is exceeded
+(`maximumCircumradiusToShortestEdgeRatio` or `maximumChordDeviation`), measured in 3D
+ambient space against the CAD surface.
+
+- **4.2.1** Call `RestrictedTriangulation::getBadTriangles` to collect failing faces with
+  their circumcircle centres.
+- **4.2.2** For the worst bad triangle, attempt to insert its circumcircle centre.
+- **4.2.3** **Circumcenter demotion**: if inserting the circumcircle centre would
+  encroach any curve segment, do not insert it; split all encroached segments instead
+  (return to 4.1). This prevents unbounded refinement near curve features.
+- **4.2.4** Otherwise, insert the circumcircle centre via Bowyer-Watson and update
+  `RestrictedTriangulation`. The bad triangle is eliminated because its circumsphere is
+  no longer empty.
+- **4.2.5** Repeat until no bad restricted triangles remain.
+
+### 4.3 Priority 3 — Split skinny tetrahedra (only when no encroached segments or bad restricted triangles)
+
+A tetrahedron is skinny if its circumradius-to-shortest-edge ratio exceeds the volume
+quality bound.
+
+- **4.3.1** Find the tetrahedron with the worst ratio.
+- **4.3.2** Compute its circumcenter.
+- **4.3.3** Check cascade:
+  - If the circumcenter would encroach a curve segment → do not insert; split the
+    segment instead (return to 4.1).
+  - If the circumcenter would create a bad restricted triangle → do not insert; handle
+    that triangle instead (return to 4.2).
+  - Otherwise → insert the circumcenter via Bowyer-Watson and update
+    `RestrictedTriangulation`. The skinny tetrahedron is eliminated.
+- **4.3.4** Repeat until all tetrahedra satisfy the volume quality bound.
+
+### 4.4 Termination
+
+The strict priority ordering guarantees termination when the quality bounds are not
+too aggressive:
+
+- Every segment split reduces maximum segment length; sub-segments cannot be
+  immediately re-encroached by their own split point.
+- The circumcenter demotion rule (4.2.3, 4.3.3) ensures insertions near curve features
+  are always preceded by sufficient segment refinement, breaking the parent-child cycle
+  that would otherwise cause non-termination.
 
 ## 5. Exterior Removal
 
-- **5.1** Once all segments and facets are recovered (steps 3-4 complete), every facet is a union of mesh faces. These faces partition the tetrahedralization into interior and exterior regions
-- **5.2** Identify exterior tetrahedra: those lying inside the convex hull of the input vertices but outside the facet-bounded PLC domain
-- **5.3** Remove all exterior tetrahedra before any quality refinement. This prevents overrefinement from spurious small angles formed between the PLC boundary and the convex hull
+- **5.1** Once refinement is complete, the restricted faces partition the tetrahedralization
+  into interior and exterior regions.
+- **5.2** Flood-fill from tetrahedra adjacent to the bounding tetrahedron's removal region
+  to identify exterior tetrahedra (those outside the PLC domain).
+- **5.3** Remove all exterior tetrahedra.
 
-## 6. Shewchuk's 3D Delaunay Refinement
+## 6. Output
 
-A three-priority loop. Each iteration selects the highest-priority action available:
+- The **volume mesh** (all remaining tetrahedra) is accessible via `MeshingContext3D`.
+- The **surface mesh** (all restricted faces) can be assembled via
+  `RestrictedTriangulation::getRestrictedFaces()`.
 
-- **6.1** Priority 1 — Split encroached subsegments:
-  - **6.1.1** A subsegment is encroached if any vertex (other than its endpoints) lies inside or on its diametral sphere (the smallest sphere enclosing the subsegment; centered at its midpoint, radius = half its length)
-  - **6.1.2** Split at the midpoint: insert via Bowyer-Watson (step 2.2), replace with two new subsegments, update all affected facet triangulations
-  - **6.1.3** The new subsegments may or may not be encroached; if they are, they will be caught in the next iteration
-  - **6.1.4** Repeat until no encroached subsegments remain
-- **6.2** Priority 2 — Split encroached subfacets (only when no encroached subsegments exist):
-  - **6.2.1** A subfacet is encroached if any non-coplanar vertex lies inside or on its equatorial sphere (the smallest sphere passing through the subfacet's three vertices; centered in the facet plane)
-  - **6.2.2** Apply the Projection Lemma ordering (step 4.2) to choose which subfacet to split first
-  - **6.2.3** Compute the circumcenter of the subfacet. If it would encroach any subsegment, do not insert it; split those subsegments instead (return to 6.1)
-  - **6.2.4** Otherwise, insert the circumcenter into both the facet triangulation and the tetrahedralization
-  - **6.2.5** Repeat until no encroached subfacets remain
-- **6.3** Priority 3 — Split skinny tetrahedra (only when no encroached subsegments or subfacets exist):
-  - **6.3.1** A tetrahedron is skinny if its circumradius-to-shortest-edge ratio exceeds bound B (B > 2 guarantees termination; in practice B ~ 1.2 often works)
-  - **6.3.2** Select the tetrahedron with the worst (largest) ratio
-  - **6.3.3** Compute its circumcenter
-  - **6.3.4** Check encroachment:
-    - **6.3.4.1** If the circumcenter would encroach any subsegment → do not insert; split all encroached subsegments instead (return to 6.1)
-    - **6.3.4.2** If the circumcenter would encroach any subfacet (but no subsegment) → do not insert; split all encroached subfacets instead (return to 6.2)
-    - **6.3.4.3** Otherwise → insert the circumcenter via Bowyer-Watson (step 2.2). The skinny tetrahedron is eliminated because its circumsphere is no longer empty
-  - **6.3.5** Repeat until all tetrahedra satisfy the quality bound
-- **6.4** Termination is guaranteed when B > 2 and the PLC satisfies the projection condition (incident segments and facets separated by at least 90 degrees). The proof follows from the dataflow graph: vertex insertion radii cannot diminish without bound because no cycle of parent-child relationships has a product less than one
-
-## 7. Post-Processing
-
-- **7.1** Sliver removal (heuristic, no theoretical guarantee):
-  - **7.1.1** Slivers are tetrahedra with acceptable circumradius-to-edge ratio but near-zero volume and extreme dihedral angles (near 0 or 180 degrees). They arise from near-coplanar vertex configurations
-  - **7.1.2** Target slivers by treating tetrahedra with dihedral angles below a threshold (e.g. 19-21 degrees) as skinny, and split at their circumcenters using the same mechanism as step 6.3. In practice this eliminates most slivers
-  - **7.1.3** Prioritize by circumradius-to-edge ratio (not dihedral angle) so that slivers are addressed last, reducing tet count and improving termination likelihood
-- **7.2** Mesh smoothing and optimization (optional):
-  - **7.2.1** Optimization-based vertex smoothing to improve worst dihedral angles
-  - **7.2.2** Topological transforms (2-3 and 3-2 flips) to improve local connectivity
-  - **7.2.3** These techniques can remove boundary slivers that Delaunay refinement alone cannot handle
+---
 
 ## Key Invariants
 
-- After step 2: tetrahedralization is Delaunay but constraints may be missing
-- After step 3: every input segment is a chain of mesh edges (segments recovered)
-- After step 4: every input facet is a union of mesh faces (facets recovered)
-- After step 5: mesh contains only interior tetrahedra
-- During step 6: the strict priority ordering (subsegments > subfacets > skinny tets) guarantees that subfacet circumcenters lie in their containing facet (when no subsegments are encroached), and tetrahedron circumcenters lie in the mesh (when no subfacets are encroached)
-- The Projection Lemma (steps 4.2, 6.2.2) prevents cross-feature cascade: encroachment caused by a vertex near one facet never triggers unbounded refinement on an incident facet
+| After step | Invariant |
+|------------|-----------|
+| 2 | Tetrahedralization is Delaunay; all boundary vertices inserted |
+| 3 | `RestrictedTriangulation` holds the initial surface triangulation |
+| 3 | `CurveSegmentManager` holds one segment per consecutive boundary node pair |
+| During 4 | `RestrictedTriangulation` is current: updated after every insertion |
+| After 4.1 | No encroached curve segments |
+| After 4.2 | No bad restricted triangles |
+| After 4.3 | All tetrahedra satisfy the volume quality bound |
+| After 5 | Mesh contains only interior tetrahedra |
 
 ## Data Structure Summary
 
 | Structure | Purpose | Lifetime |
 |-----------|---------|----------|
-| Subsegment list | Tracks edge segments that must appear in mesh | Created in 1.4.1, updated during refinement |
-| Facet triangulations | Independent 2D Delaunay per surface; defines required subfacets | Created in 1.4.2, updated when vertices inserted on surfaces |
-| Subfacet list | Derived from facet triangulations; tracks face constraints | Regenerated from facet triangulations as needed |
-| Tetrahedralization | The actual 3D mesh being refined | Created in step 2, modified throughout |
+| `CurveSegmentManager` | Constrained curve segments; updated as segments are split | Created in 1.4.1, mutated during 4.1 |
+| `MeshData3D` (via `MeshingContext3D`) | The 3D Delaunay tetrahedralization | Created in step 2, refined throughout |
+| `RestrictedTriangulation` | Map from tetrahedral face → surface ID for all restricted faces | Built in step 3, updated after every insertion |
 
-The separation between constraint tracking (subsegments, facet triangulations) and the tetrahedralization is fundamental to the algorithm's correctness and termination guarantees.
+The key architectural difference from Shewchuk: there is no separate subsegment list or
+per-surface facet triangulation. The restricted triangulation replaces both. Surface
+constraints emerge from the tetrahedralization rather than being explicitly recovered.
