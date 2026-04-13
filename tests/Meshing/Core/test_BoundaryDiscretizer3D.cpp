@@ -8,6 +8,7 @@
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"
+#include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
 #include <gtest/gtest.h>
@@ -223,4 +224,120 @@ TEST(BoundaryDiscretizer3D, EdgePoints_TwoSegments_HasMidpoint)
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E23"));
     const auto& e23pts = result.edgeIdToPointIndicesMap.at("E23");
     ASSERT_EQ(e23pts.size(), 3u); // [C2, mid, C3]
+}
+
+TEST(BoundaryDiscretizer3D, EdgePoints_InteriorPoint_HasCorrectEdgeParameter)
+{
+    TriangleStripFixture fixture;
+
+    Geometry3D::DiscretizationSettings3D settings(2, 0);
+    BoundaryDiscretizer3D discretizer(*fixture.geometry, *fixture.topology, settings);
+    discretizer.discretize();
+
+    const auto& result = discretizer.getDiscretizationResult();
+
+    ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E12"));
+    const auto& edgePointIndices = result.edgeIdToPointIndicesMap.at("E12");
+    ASSERT_EQ(edgePointIndices.size(), 3u); // start, interior, end
+
+    size_t interiorIndex = edgePointIndices[1];
+    ASSERT_EQ(result.edgeParameters[interiorIndex].size(), 1u);
+    EXPECT_DOUBLE_EQ(result.edgeParameters[interiorIndex][0], 0.5);
+}
+
+TEST(BoundaryDiscretizer3D, EdgePoints_TwoInteriorPoints_HaveCorrectEdgeParameters)
+{
+    TriangleStripFixture fixture;
+
+    Geometry3D::DiscretizationSettings3D settings(3, 0);
+    BoundaryDiscretizer3D discretizer(*fixture.geometry, *fixture.topology, settings);
+    discretizer.discretize();
+
+    const auto& result = discretizer.getDiscretizationResult();
+
+    ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E12"));
+    const auto& edgePointIndices = result.edgeIdToPointIndicesMap.at("E12");
+    ASSERT_EQ(edgePointIndices.size(), 4u); // start, interior1, interior2, end
+
+    ASSERT_EQ(result.edgeParameters[edgePointIndices[1]].size(), 1u);
+    ASSERT_EQ(result.edgeParameters[edgePointIndices[2]].size(), 1u);
+    EXPECT_DOUBLE_EQ(result.edgeParameters[edgePointIndices[1]][0], 1.0 / 3.0);
+    EXPECT_DOUBLE_EQ(result.edgeParameters[edgePointIndices[2]][0], 2.0 / 3.0);
+}
+
+TEST(BoundaryDiscretizer3D, SeamTwinEdge_SequenceIsReverseOfOriginalEdge)
+{
+    Point3D ptCA(0.0, 0.0, 0.0);
+    Point3D ptCB(1.0, 0.0, 0.0);
+
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
+    corners["CA"] = std::make_unique<MockCorner3D>("CA", ptCA);
+    corners["CB"] = std::make_unique<MockCorner3D>("CB", ptCB);
+
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
+    edges["seam"] = std::make_unique<MockEdge3D>("seam", ptCA, ptCB);
+    // seam_twin has no 3D geometry — the discretizer derives its sequence by reversing "seam"
+
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
+
+    auto geometry = std::make_unique<Geometry3D::GeometryCollection3D>(
+        std::move(surfaces), std::move(edges), std::move(corners));
+
+    std::unordered_map<std::string, Topology3D::Corner3D> topoCorners;
+    topoCorners.emplace("CA", Topology3D::Corner3D("CA", {"seam", "seam_twin"}, {}));
+    topoCorners.emplace("CB", Topology3D::Corner3D("CB", {"seam", "seam_twin"}, {}));
+
+    std::unordered_map<std::string, Topology3D::Edge3D> topoEdges;
+    topoEdges.emplace("seam", Topology3D::Edge3D("seam", "CA", "CB", {}));
+    topoEdges.emplace("seam_twin", Topology3D::Edge3D("seam_twin", "CB", "CA", {}));
+
+    std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;
+
+    Topology3D::SeamCollection seams;
+    seams.addPair("seam", "seam_twin", Topology3D::SeamCollection::SeamDirection::U,
+                  {0.0, 0.0}, {0.0, 0.0});
+
+    auto topology = std::make_unique<Topology3D::Topology3D>(
+        topoSurfaces, topoEdges, topoCorners, std::move(seams));
+
+    Geometry3D::DiscretizationSettings3D settings(2, 0);
+    BoundaryDiscretizer3D discretizer(*geometry, *topology, settings);
+    discretizer.discretize();
+
+    const auto& result = discretizer.getDiscretizationResult();
+
+    ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("seam"));
+    ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("seam_twin"));
+
+    const auto& originalSequence = result.edgeIdToPointIndicesMap.at("seam");
+    const auto& twinSequence = result.edgeIdToPointIndicesMap.at("seam_twin");
+
+    ASSERT_EQ(originalSequence.size(), twinSequence.size());
+    for (size_t i = 0; i < originalSequence.size(); ++i)
+        EXPECT_EQ(originalSequence[i], twinSequence[originalSequence.size() - 1 - i]);
+}
+
+TEST(BoundaryDiscretizer3D, SurfaceInterior_NonzeroSamples_SurfaceMapIsPopulated)
+{
+    TriangleStripFixture fixture;
+
+    // 2 samples per surface direction → 1×1 = 1 interior point per surface
+    Geometry3D::DiscretizationSettings3D settings(1, 2);
+    BoundaryDiscretizer3D discretizer(*fixture.geometry, *fixture.topology, settings);
+    discretizer.discretize();
+
+    const auto& result = discretizer.getDiscretizationResult();
+
+    ASSERT_TRUE(result.surfaceIdToPointIndicesMap.contains("S1"));
+    ASSERT_TRUE(result.surfaceIdToPointIndicesMap.contains("S2"));
+    EXPECT_EQ(result.surfaceIdToPointIndicesMap.at("S1").size(), 1u);
+    EXPECT_EQ(result.surfaceIdToPointIndicesMap.at("S2").size(), 1u);
+
+    size_t s1InteriorIndex = result.surfaceIdToPointIndicesMap.at("S1")[0];
+    ASSERT_EQ(result.geometryIds[s1InteriorIndex].size(), 1u);
+    EXPECT_EQ(result.geometryIds[s1InteriorIndex][0], "S1");
+
+    size_t s2InteriorIndex = result.surfaceIdToPointIndicesMap.at("S2")[0];
+    ASSERT_EQ(result.geometryIds[s2InteriorIndex].size(), 1u);
+    EXPECT_EQ(result.geometryIds[s2InteriorIndex][0], "S2");
 }

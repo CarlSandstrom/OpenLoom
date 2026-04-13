@@ -36,6 +36,7 @@ set(TEST_SOURCES
     Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_ConstrainedDelaunay3D.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
+    Meshing/Core/test_RCDTContext.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
