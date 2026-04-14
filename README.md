@@ -9,21 +9,22 @@ A constrained Delaunay triangulation library for 2D and 3D mesh generation with 
 | Component | Status |
 |-----------|--------|
 | 2D constrained Delaunay mesher | Working |
-| 3D surface mesher | Under development |
-| 3D volume mesher | Not yet started |
+| 3D surface mesher — UV-space (legacy) | Complete (superseded by RCDT) |
+| 3D surface mesher — RCDT | Under development |
+| 3D volume mesher — RCDT | Under development |
 
 ## Background
 
 OpenLoom is designed with extensibility as a core principle. The architecture makes it straightforward to add new meshing algorithms, refinement strategies, and import/export formats without touching the existing pipeline. Key extension points are defined as interfaces (`IMesher`, `ICorner`, `IEdge`, `ISurface`), and the context pattern cleanly separates geometry, topology, and mesh data.
 
-The current meshing and refinement implementation is based on **Shewchuk's algorithm** — a quality Delaunay refinement method that guarantees well-shaped elements by iteratively inserting Steiner points to eliminate poorly-conditioned triangles and tetrahedra. This is used in both the 2D and 3D meshers.
+The 2D mesher uses Ruppert's algorithm (implemented as `ShewchukRefiner2D`) for quality refinement — iteratively inserting Steiner points to eliminate poorly-conditioned triangles. The 3D surface and volume meshers use the **Restricted Constrained Delaunay Triangulation** (RCDT) algorithm by Khoury & Shewchuk (SoCG 2021). RCDT works in ambient 3D space: a single Delaunay tetrahedralization is built over all boundary vertices, and surface triangles emerge implicitly as faces whose adjacent tetrahedra lie on opposite sides of the CAD surface. A legacy UV-space surface mesher (`SurfaceMesher3D`) also exists but is superseded by the RCDT pipeline.
 
 ## Features
 
 - 2D constrained Delaunay triangulation (CDT)
 - OpenCASCADE integration for importing STEP/IGES CAD geometry
 - VTK export (`.vtu`) for visualization in ParaView
-- Quality-driven mesh refinement (Shewchuk-style)
+- Quality-driven mesh refinement: Ruppert's algorithm for 2D, RCDT (Khoury & Shewchuk 2021) for 3D
 - Mesh verification and debug utilities
 
 ## Dependencies
@@ -90,15 +91,24 @@ After building, executables are in `build/src/Examples2D/` and `build/src/Exampl
 | `SquareWithInternalCircles` | Multiple internal circle constraints |
 | `MeshStepFile2D` | Mesh a 2D profile loaded from a STEP file |
 
-### 3D examples
+### 3D surface examples
 
 | Executable | Description |
 |-----------|-------------|
-| `CreateBox` | Basic 3D box mesh |
+| `CylinderSurfaceMesh` | RCDT surface mesh of a cylinder |
+| `SurfaceMeshEdges` | Visualise edge discretization and initial surface triangulation |
+| `BoxWithHoleSurface` | RCDT surface mesh of a box with a through-hole |
+| `ThinFinSurfaceMesh` | RCDT surface mesh of a thin fin geometry |
+| `TorusSurfaceMesh` | RCDT surface mesh of a torus |
+
+### 3D volume examples
+
+| Executable | Description |
+|-----------|-------------|
+| `CreateBox` | Basic 3D box volume mesh |
 | `BoxWithHole` | 3D box with a through-hole |
-| `ShewchukBox` | Quality-refined 3D box mesh |
-| `ShewchukBoxWithHole` | Quality refinement with hole constraints |
-| `ConstrainedBoxExample` | 3D constrained mesh example |
+| `ShewchukBox` | Legacy Shewchuk-refined 3D box mesh |
+| `ShewchukBoxWithHole` | Legacy Shewchuk refinement with hole constraints |
 
 ```bash
 # Run an example and view the result
@@ -172,9 +182,13 @@ Contributions are welcome. Please open an issue before starting significant work
 
 ## Acknowledgements
 
-The meshing and refinement algorithms are based on the work of J.R. Shewchuk:
+The 2D mesher and its quality refinement are based on:
 
 > J.R. Shewchuk, "Delaunay Refinement Algorithms for Triangular Mesh Generation," *Computational Geometry: Theory and Applications*, 22(1-3):21-74, 2002.
+
+The 3D surface and volume meshers are based on:
+
+> M. Khoury and J.R. Shewchuk, "Restricted Constrained Delaunay Triangulations," *37th International Symposium on Computational Geometry (SoCG 2021)*, LIPIcs, vol. 189, pp. 49:1–49:16, 2021.
 
 ## About
 
