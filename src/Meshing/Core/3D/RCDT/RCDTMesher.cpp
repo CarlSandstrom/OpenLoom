@@ -25,7 +25,11 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        const Topology3D::Topology3D& topology,
                        Geometry3D::DiscretizationSettings3D discretizationSettings,
                        RCDTQualitySettings qualitySettings) :
-    context_(geometry, topology, discretizationSettings, qualitySettings)
+    geometry_(&geometry),
+    topology_(&topology),
+    discretizationSettings_(discretizationSettings),
+    qualitySettings_(qualitySettings),
+    meshingContext_(std::make_unique<MeshingContext3D>(geometry, topology))
 {
 }
 
@@ -45,11 +49,11 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: discretizing boundary (edges + corners only)");
 
     const Geometry3D::DiscretizationSettings3D edgeOnlySettings(
-        context_.getDiscretizationSettings().getNumSegmentsPerEdge(),
-        context_.getDiscretizationSettings().getMaxAngleBetweenSegments(),
+        discretizationSettings_.getNumSegmentsPerEdge(),
+        discretizationSettings_.getMaxAngleBetweenSegments(),
         0);
 
-    BoundaryDiscretizer3D discretizer(context_.getGeometry(), context_.getTopology(), edgeOnlySettings);
+    BoundaryDiscretizer3D discretizer(*geometry_, *topology_, edgeOnlySettings);
     discretizer.discretize();
     auto discretizationResult = discretizer.releaseDiscretizationResult();
 
@@ -57,8 +61,8 @@ void RCDTMesher::buildInitial()
                  discretizationResult->points.size());
 
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces;
-    for (const auto& edgeId : context_.getTopology().getAllEdgeIds())
-        edgeToAdjacentSurfaces[edgeId] = context_.getTopology().getEdge(edgeId).getAdjacentSurfaceIds();
+    for (const auto& edgeId : topology_->getAllEdgeIds())
+        edgeToAdjacentSurfaces[edgeId] = topology_->getEdge(edgeId).getAdjacentSurfaceIds();
 
     auto enrichedGeometryIds = discretizationResult->geometryIds;
     for (auto& ids : enrichedGeometryIds)
@@ -81,8 +85,7 @@ void RCDTMesher::buildInitial()
         ids.insert(ids.end(), toAdd.begin(), toAdd.end());
     }
 
-    auto& meshingContext = context_.getMeshingContext();
-    auto& meshData = meshingContext.getMeshData();
+    auto& meshData = meshingContext_->getMeshData();
 
     Delaunay3D delaunay(discretizationResult->points, &meshData, enrichedGeometryIds);
     delaunay.triangulate();
@@ -91,36 +94,33 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
 
-    meshingContext.rebuildConnectivity();
+    meshingContext_->rebuildConnectivity();
 
-    auto restrictedTriangulation = std::make_unique<RestrictedTriangulation>();
+    restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
     const MeshConnectivity connectivity(meshData);
-    restrictedTriangulation->buildFrom(meshData, connectivity, context_.getGeometry(), context_.getTopology());
+    restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_);
 
     spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
-                 restrictedTriangulation->getRestrictedFaces().size());
+                 restrictedTriangulation_->getRestrictedFaces().size());
 
     CurveSegmentManager temporarySegmentManager;
-    buildCurveSegments(temporarySegmentManager, context_.getTopology(), context_.getGeometry(),
+    buildCurveSegments(temporarySegmentManager, *topology_, *geometry_,
                        discretizationResult->edgeIdToPointIndicesMap,
                        pointIndexToNodeIdMap,
                        discretizationResult->edgeParameters);
 
-    auto& mutator = meshingContext.getMutator();
+    auto& mutator = meshingContext_->getMutator();
     for (const auto& [segmentId, segment] : temporarySegmentManager.getAllSegments())
         mutator.addCurveSegment(segment);
 
     spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
                  meshData.getCurveSegmentManager().size());
-
-    context_.setRestrictedTriangulation(std::move(restrictedTriangulation));
 }
 
 void RCDTMesher::refine()
 {
     spdlog::info("RCDTMesher::refine: starting RCDT refinement");
-    RCDTRefiner refiner(context_.getMeshingContext(), context_.getRestrictedTriangulation(),
-                        context_.getQualitySettings());
+    RCDTRefiner refiner(*meshingContext_, *restrictedTriangulation_, qualitySettings_);
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
 }
@@ -128,8 +128,7 @@ void RCDTMesher::refine()
 SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
 {
     SurfaceMesh3D surfaceMesh;
-    const auto& meshData = context_.getMeshingContext().getMeshData();
-    const auto& restrictedTriangulation = context_.getRestrictedTriangulation();
+    const auto& meshData = meshingContext_->getMeshData();
 
     if (meshData.getNodeCount() > 0)
     {
@@ -142,7 +141,7 @@ SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
             surfaceMesh.nodes[nodeId] = node->getCoordinates();
     }
 
-    for (const auto& [faceKey, surfaceId] : restrictedTriangulation.getRestrictedFaces())
+    for (const auto& [faceKey, surfaceId] : restrictedTriangulation_->getRestrictedFaces())
     {
         const size_t triangleIndex = surfaceMesh.triangles.size();
         surfaceMesh.triangles.push_back({faceKey.nodeIds[0], faceKey.nodeIds[1], faceKey.nodeIds[2]});
@@ -150,7 +149,7 @@ SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
     }
 
     const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-    for (const auto& edgeId : context_.getTopology().getAllEdgeIds())
+    for (const auto& edgeId : topology_->getAllEdgeIds())
     {
         const auto segments = curveSegmentManager.getSegmentsForEdge(edgeId);
         if (segments.empty())
