@@ -40,6 +40,8 @@ public:
 
     SurfaceMesh3D mesh();
 
+    const MeshingContext3D& getMeshingContext() const;
+
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
     const Topology3D::Topology3D* topology_;

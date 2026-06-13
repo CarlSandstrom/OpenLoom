@@ -1,8 +1,10 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
+#include "Common/Exceptions/GeometryException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
@@ -40,8 +42,15 @@ RCDTMesher& RCDTMesher::operator=(RCDTMesher&&) noexcept = default;
 SurfaceMesh3D RCDTMesher::mesh()
 {
     buildInitial();
+    Meshing::exportAndVerifyMesh3D(*meshingContext_, "rcdt_initial.vtk");
     refine();
     return buildSurfaceMesh();
+}
+
+const MeshingContext3D& RCDTMesher::getMeshingContext() const
+{
+    OPENLOOM_REQUIRE_NOT_NULL(meshingContext_.get(), "meshingContext_");
+    return *meshingContext_;
 }
 
 void RCDTMesher::buildInitial()
