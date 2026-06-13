@@ -41,10 +41,9 @@ void RCDTContext::buildInitial()
     spdlog::info("RCDTContext::buildInitial: discretizing boundary (edges + corners only)");
 
     // Phase 1.1: Discretize edges and corners only — no surface interior grid.
-    const Geometry3D::DiscretizationSettings3D edgeOnlySettings(
-        discretizationSettings_.getNumSegmentsPerEdge(),
-        discretizationSettings_.getMaxAngleBetweenSegments(),
-        0);
+    const Geometry3D::DiscretizationSettings3D edgeOnlySettings(discretizationSettings_.getNumSegmentsPerEdge(),
+                                                                discretizationSettings_.getMaxAngleBetweenSegments(),
+                                                                0);
 
     BoundaryDiscretizer3D discretizer(*geometry_, *topology_, edgeOnlySettings);
     discretizer.discretize();
@@ -58,7 +57,9 @@ void RCDTContext::buildInitial()
     // membership for nodes that lie on topology edges.
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces;
     for (const auto& edgeId : topology_->getAllEdgeIds())
+    {
         edgeToAdjacentSurfaces[edgeId] = topology_->getEdge(edgeId).getAdjacentSurfaceIds();
+    }
 
     auto enrichedGeometryIds = discretizationResult->geometryIds;
     for (auto& ids : enrichedGeometryIds)

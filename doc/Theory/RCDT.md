@@ -10,12 +10,28 @@ RCDT sidesteps this entirely. **It never works in UV space.** It builds a single
 
 ---
 
+## Relationship to the Khoury–Shewchuk paper
+
+The source paper (Khoury & Shewchuk, SoCG 2021) defines the restricted CDT via **portals and topological surgery**: constraining segments cut slits into the surface, extrusions are glued in, and the restricted CDT is the dual of a Voronoi diagram on the resulting extended surface Σ̃. This machinery gives a theoretical guarantee that every constraining segment appears as an edge in the output.
+
+**OpenLoom does not implement portals or the extended Voronoi diagram.** Instead it implements:
+- A plain **restricted Delaunay triangulation (RDT)** using the circumcenter-crossing test, and
+- Segment enforcement via **encroachment-based refinement** (splitting encroached curve segments before inserting circumcenters), borrowed from the 2D Delaunay refinement tradition.
+
+In practice this achieves the same effect — constraining segments end up in the output because the refinement loop inserts enough points that they appear naturally — and is simpler to implement. The paper itself (Section 6) suggests this incremental segment-insertion approach as likely faster in practice.
+
+---
+
 ## Two key definitions
 
 ### Restricted face
 A triangular face of the 3D tetrahedralization is **restricted to surface S** if:
 1. All three of its nodes lie on S (or on curves/corners adjacent to S), **and**
-2. The two tetrahedra sharing that face lie on **opposite sides** of S (one has a positive signed distance to S, the other negative).
+2. The **circumcenters** of the two tetrahedra sharing that face lie on opposite sides of S (one has positive signed distance to S, the other negative).
+
+This is the practical implementation of the theoretical definition: the Voronoi edge dual to the face — connecting the two circumcenters — crosses S.
+
+A special case arises for faces on the convex hull of the initial triangulation (mesh boundary faces with only one adjacent tetrahedron). For these, the dual Voronoi edge is a half-infinite ray from the single circumcenter outward; it necessarily crosses S when the circumcenter is on the interior side, which holds for any well-formed initial triangulation of boundary points on a closed solid. So condition (1) alone is sufficient for convex-hull faces.
 
 The union of all restricted faces for surface S *is* the surface triangulation — automatically conforming, automatically shared across adjacent surfaces.
 
@@ -29,8 +45,9 @@ A `CurveSegment [a, b]` is a straight mesh edge whose endpoints `a` and `b` are 
 **Goal:** Get a valid Delaunay tetrahedralization and identify the initial surface triangulation.
 
 **R1.1 — Discretize boundary** (`BoundaryDiscretizer3D`)
-- Walk every corner, edge, and surface interior in the CAD topology.
-- Sample 3D points parametrically. Store results in `DiscretizationResult3D` with point arrays and index maps per corner/edge/surface.
+- Walk every corner and edge in the CAD topology — **no surface interior points are pre-seeded**.
+- Sample 3D points parametrically. Store results in `DiscretizationResult3D` with point arrays and index maps per corner/edge.
+- Surface interiors are populated by the Phase 2 refinement loop, not here.
 
 **R1.2 — Build unconstrained Delaunay** (`Delaunay3D`, Bowyer-Watson)
 - Create a bounding tetrahedron that encloses all points.
@@ -47,7 +64,7 @@ No constraints are enforced here. The tetrahedralization is purely Delaunay.
 **R1.3 — Build restricted triangulation** (`RestrictedTriangulation::buildFrom`)
 - For every tetrahedral face, resolve each node's geometry IDs to the set of CAD surface IDs it touches (direct surface membership, or via curve/corner adjacency — `effectiveSurfaceIds`).
 - A face is a **candidate** for surface S if all three nodes touch S.
-- **Confirm** with `SurfaceProjector::crossesSurface`: the opposite vertices of the two adjacent tets must have opposite sign of signed distance to S.
+- **Confirm** with `SurfaceProjector::crossesSurface`: the **circumcenters** of the two adjacent tets must have opposite sign of signed distance to S (one inside, one outside). For convex-hull faces with only one adjacent tet, a non-empty candidate set is sufficient (see the Restricted face definition above).
 - Store all confirmed faces in `restrictedFaces_` (a map from `FaceKey` → `surfaceId`).
 
 After R1.3, the restricted triangulation exists but may be coarse — areas with no interior sample points will have large triangles.
@@ -98,9 +115,9 @@ A restricted face is **bad** if either:
 **Steps:**
 1. Call `RestrictedTriangulation::getBadTriangles(settings, meshData, geometry)` — returns a list sorted by severity, each annotated with `surfaceId` and `circumcircleCenter`.
 2. For the worst bad triangle:
-   - The `circumcircleCenter` is computed in the tangent plane of the surface at the triangle centroid.
-3. **Circumcenter demotion** (key rule): Check whether inserting the circumcircle centre would encroach any `CurveSegment`. If yes — **do not insert it**. Instead, split those encroached segments (Priority 1). Return `true`.
-4. If no encroachment: insert the circumcircle centre via `insertAndUpdate` (same as step 4 of Priority 1). The bad triangle is eliminated because a vertex now lies inside its circumsphere.
+   - The `circumcircleCenter` is the circumcenter of the restricted triangle as a 3D face (in the plane of the triangle). It is then **projected onto the CAD surface** via `SurfaceProjector::projectToSurface`. This projection is the actual insertion candidate, since the raw circumcenter sits in the plane of the face, not on the surface.
+3. **Circumcenter demotion** (key rule): Check whether inserting the **projected** circumcenter would encroach any `CurveSegment`. If yes — **do not insert it**. Instead, split those encroached segments (Priority 1). Return `true`.
+4. If no encroachment: insert the **projected** circumcenter via `insertAndUpdate` (same as step 4 of Priority 1). The bad triangle is eliminated because a vertex now lies inside its circumsphere.
 5. Return `true`.
 
 **Why circumcenter demotion is the termination guarantee:** Without it, inserting a circumcenter near a curve boundary could create a tiny new segment, whose encroachment forces another insertion, ad infinitum. Demotion ensures that insertions near features are always preceded by sufficient segment refinement, breaking the size-reduction cycle.

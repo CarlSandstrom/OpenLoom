@@ -38,6 +38,13 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
     for (const auto& edgeId : topology.getAllEdgeIds())
         edgeToAdjacentSurfaces_[edgeId] = topology.getEdge(edgeId).getAdjacentSurfaceIds();
 
+    for (const auto& cornerId : topology.getAllCornerIds())
+    {
+        const auto& connectedSurfaces = topology.getCorner(cornerId).getConnectedSurfaceIds();
+        cornerToAdjacentSurfaces_[cornerId] =
+            std::vector<std::string>(connectedSurfaces.begin(), connectedSurfaces.end());
+    }
+
     for (const auto& [elementId, element] : meshData.getElements())
     {
         const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
@@ -168,18 +175,35 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(
 
     // Get the two adjacent tet circumcenters.
     const auto& [elementId1, elementId2] = connectivity.getFaceElements(face);
-    if (elementId1 == INVALID_ID || elementId2 == INVALID_ID)
+    if (elementId1 == INVALID_ID)
         return std::nullopt;
 
     const auto* tet1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
-    const auto* tet2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
-    if (!tet1 || !tet2)
+    if (!tet1)
         return std::nullopt;
 
     const ElementGeometry3D elementGeometry(meshData);
     const auto sphere1 = elementGeometry.computeCircumscribingSphere(*tet1);
+    if (!sphere1)
+        return std::nullopt;
+
+    // Convex-hull (boundary) face: the dual Voronoi edge is a half-infinite ray
+    // from sphere1->center outward. It always crosses the surface when the
+    // circumcenter is on the interior side, which is guaranteed for Delaunay
+    // triangulations of boundary points on a closed solid.
+    if (elementId2 == INVALID_ID)
+    {
+        if (!candidates.empty())
+            return *candidates.begin();
+        return std::nullopt;
+    }
+
+    const auto* tet2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
+    if (!tet2)
+        return std::nullopt;
+
     const auto sphere2 = elementGeometry.computeCircumscribingSphere(*tet2);
-    if (!sphere1 || !sphere2)
+    if (!sphere2)
         return std::nullopt;
 
     for (const auto& surfaceId : candidates)
@@ -206,10 +230,19 @@ std::unordered_set<std::string> RestrictedTriangulation::effectiveSurfaceIds(
         }
         else
         {
-            const auto it = edgeToAdjacentSurfaces_.find(id);
-            if (it != edgeToAdjacentSurfaces_.end())
-                for (const auto& surfaceId : it->second)
+            const auto edgeIt = edgeToAdjacentSurfaces_.find(id);
+            if (edgeIt != edgeToAdjacentSurfaces_.end())
+            {
+                for (const auto& surfaceId : edgeIt->second)
                     result.insert(surfaceId);
+            }
+            else
+            {
+                const auto cornerIt = cornerToAdjacentSurfaces_.find(id);
+                if (cornerIt != cornerToAdjacentSurfaces_.end())
+                    for (const auto& surfaceId : cornerIt->second)
+                        result.insert(surfaceId);
+            }
         }
     }
     return result;

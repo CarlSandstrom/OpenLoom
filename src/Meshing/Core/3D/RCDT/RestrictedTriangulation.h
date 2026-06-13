@@ -72,7 +72,8 @@ private:
                                             const Geometry3D::GeometryCollection3D& geometry) const;
 
     /// Resolves a node's geometryIds to the set of surface IDs it touches:
-    /// direct surface IDs pass through; edge IDs expand to adjacent surface IDs.
+    /// surface IDs pass through; edge IDs expand to adjacent surface IDs;
+    /// corner IDs expand to connected surface IDs.
     std::unordered_set<std::string> effectiveSurfaceIds(const std::vector<std::string>& geometryIds) const;
 
     std::unordered_map<FaceKey, std::string, FaceKeyHash> restrictedFaces_;
@@ -81,6 +82,7 @@ private:
     // Built from topology in buildFrom(); reused by classifyFace() thereafter.
     std::unordered_set<std::string> surfaceIds_;
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces_;
+    std::unordered_map<std::string, std::vector<std::string>> cornerToAdjacentSurfaces_;
 };
 
 } // namespace Meshing
