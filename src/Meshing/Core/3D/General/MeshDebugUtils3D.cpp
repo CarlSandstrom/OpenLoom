@@ -137,57 +137,45 @@ void verifyQualityBound(const MeshData3D& meshData, double qualityBound,
 
 } // namespace
 
-void exportAndVerifyMesh3D(MeshData3D& meshData,
-                           MeshingPhase3D phase,
-                           const std::string& filenamePrefix,
-                           size_t& exportCounter,
-                           double qualityBound)
+void exportMesh3D(MeshData3D& meshData, const std::string& filenamePrefix, size_t& exportCounter)
 {
     if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
         Export::VtkExporter exporter;
         exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter++) + ".vtu");
     }
+}
 
-    if (OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+void verifyMesh3D(MeshData3D& meshData, MeshingPhase3D phase,
+                  const std::string& filenamePrefix, size_t stepNumber, double qualityBound)
+{
+    if (!OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+        return;
+
+    spdlog::info("{} [{}]: Verifying mesh at step {} ({} nodes, {} elements)",
+                 filenamePrefix, phaseToString(phase), stepNumber,
+                 meshData.getNodeCount(), meshData.getElementCount());
+
+    std::vector<std::string> errors;
+
+    verifyBasicIntegrity(meshData, errors);
+
+    if (phase >= MeshingPhase3D::SegmentRecovery)
+        verifySubsegmentsPresent(meshData, errors);
+
+    if (phase >= MeshingPhase3D::FacetRecovery)
+        verifySubfacetsPresent(meshData, errors);
+
+    if (phase >= MeshingPhase3D::Refined)
+        verifyQualityBound(meshData, qualityBound, errors);
+
+    if (!errors.empty())
     {
-        spdlog::info("{} [{}]: Verifying mesh at step {} ({} nodes, {} elements)",
-                     filenamePrefix, phaseToString(phase), exportCounter,
-                     meshData.getNodeCount(), meshData.getElementCount());
-
-        std::vector<std::string> errors;
-
-        // All phases: basic mesh integrity
-        verifyBasicIntegrity(meshData, errors);
-
-        // SegmentRecovery and later: all subsegments must be mesh edges
-        if (phase >= MeshingPhase3D::SegmentRecovery)
-        {
-            verifySubsegmentsPresent(meshData, errors);
-        }
-
-        // FacetRecovery and later: all subfacets must be mesh faces
-        if (phase >= MeshingPhase3D::FacetRecovery)
-        {
-            verifySubfacetsPresent(meshData, errors);
-        }
-
-        // Refined and later: quality bound satisfied
-        if (phase >= MeshingPhase3D::Refined)
-        {
-            verifyQualityBound(meshData, qualityBound, errors);
-        }
-
-        if (!errors.empty())
-        {
-            for (const auto& error : errors)
-            {
-                spdlog::error(" - {}", error);
-            }
-            OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase "
-                                                 + std::string(phaseToString(phase)),
-                                             errors);
-        }
+        for (const auto& error : errors)
+            spdlog::error(" - {}", error);
+        OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase "
+                                             + std::string(phaseToString(phase)),
+                                         errors);
     }
 }
 
