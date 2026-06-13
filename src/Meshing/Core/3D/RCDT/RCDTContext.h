@@ -2,7 +2,6 @@
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
-#include "Meshing/Data/3D/SurfaceMesh3D.h"
 
 #include <memory>
 
@@ -22,18 +21,6 @@ namespace Meshing
 class MeshingContext3D;
 class RestrictedTriangulation;
 
-/**
- * @brief Orchestrates the three phases of ambient-space RCDT surface meshing.
- *
- * Analogous to SurfaceMeshingContext3D but operates in 3D ambient space rather
- * than per-face UV space.
- *
- * Usage:
- *   RCDTContext context(geometry, topology, discSettings, qualitySettings);
- *   context.buildInitial();
- *   context.refine();
- *   SurfaceMesh3D result = context.buildSurfaceMesh();
- */
 class RCDTContext
 {
 public:
@@ -44,33 +31,23 @@ public:
 
     ~RCDTContext();
 
-    // Prevent copying
     RCDTContext(const RCDTContext&) = delete;
     RCDTContext& operator=(const RCDTContext&) = delete;
 
-    // Allow moving
     RCDTContext(RCDTContext&&) noexcept;
     RCDTContext& operator=(RCDTContext&&) noexcept;
 
-    /**
-     * @brief Phase 1: discretize boundary, run Delaunay3D, build RestrictedTriangulation
-     * and CurveSegmentManager.
-     */
-    void buildInitial();
+    const Geometry3D::GeometryCollection3D& getGeometry() const { return *geometry_; }
+    const Topology3D::Topology3D& getTopology() const { return *topology_; }
+    const Geometry3D::DiscretizationSettings3D& getDiscretizationSettings() const { return discretizationSettings_; }
+    const RCDTQualitySettings& getQualitySettings() const { return qualitySettings_; }
 
-    /**
-     * @brief Phase 2: refine restricted triangulation to meet quality criteria.
-     *
-     * Must be called after buildInitial().
-     */
-    void refine();
+    MeshingContext3D& getMeshingContext();
+    const MeshingContext3D& getMeshingContext() const;
 
-    /**
-     * @brief Phase 3: assemble and return the final SurfaceMesh3D.
-     *
-     * Must be called after refine().
-     */
-    SurfaceMesh3D buildSurfaceMesh() const;
+    RestrictedTriangulation& getRestrictedTriangulation();
+    const RestrictedTriangulation& getRestrictedTriangulation() const;
+    void setRestrictedTriangulation(std::unique_ptr<RestrictedTriangulation> restrictedTriangulation);
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;

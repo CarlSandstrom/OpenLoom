@@ -18,18 +18,6 @@ class Topology3D;
 namespace Meshing
 {
 
-/**
- * @brief Top-level ambient-space RCDT surface mesher.
- *
- * Runs the three RCDT phases and returns a conforming SurfaceMesh3D.
- * Constructor signature matches SurfaceMesher3D for straightforward substitution.
- *
- * Usage:
- * @code
- *   RCDTMesher mesher(geometry, topology, discSettings, qualitySettings);
- *   SurfaceMesh3D result = mesher.mesh();
- * @endcode
- */
 class RCDTMesher
 {
 public:
@@ -40,23 +28,20 @@ public:
 
     ~RCDTMesher();
 
-    // Prevent copying
     RCDTMesher(const RCDTMesher&) = delete;
     RCDTMesher& operator=(const RCDTMesher&) = delete;
 
-    // Allow moving
     RCDTMesher(RCDTMesher&&) noexcept;
     RCDTMesher& operator=(RCDTMesher&&) noexcept;
 
-    /**
-     * @brief Run all three RCDT phases and return the surface mesh.
-     *
-     * May only be called once per instance.
-     */
     SurfaceMesh3D mesh();
 
 private:
     RCDTContext context_;
+
+    void buildInitial();
+    void refine();
+    SurfaceMesh3D buildSurfaceMesh() const;
 };
 
 } // namespace Meshing
