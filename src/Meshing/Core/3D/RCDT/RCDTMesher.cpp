@@ -4,6 +4,7 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
@@ -40,8 +41,13 @@ RCDTMesher& RCDTMesher::operator=(RCDTMesher&&) noexcept = default;
 
 SurfaceMesh3D RCDTMesher::mesh()
 {
+    size_t counter = 0;
     buildInitial();
+    Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_initial", counter);
+
     refine();
+    Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_refined", counter);
+
     return buildSurfaceMesh();
 }
 
