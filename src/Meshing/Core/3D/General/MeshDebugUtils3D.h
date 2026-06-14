@@ -37,11 +37,11 @@ enum class MeshingPhase3D
  *
  * @param meshData The mesh data to export
  * @param filenamePrefix Prefix for the exported VTU filename
- * @param exportCounter Counter tracking export iterations (incremented on each export)
+ * @param exportCounter Counter used as the filename index (not modified).
  */
 void exportMesh3D(MeshData3D& meshData,
                   const std::string& filenamePrefix,
-                  size_t& exportCounter);
+                  size_t exportCounter);
 
 /**
  * @brief Conditionally verify a 3D mesh when CHECK_MESH_EACH_ITERATION is enabled.

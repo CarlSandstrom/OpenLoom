@@ -46,6 +46,7 @@ void ConstrainedDelaunay3D::tetrahedralize()
                  meshData3D_->getNodeCount(), meshData3D_->getElementCount());
 
     exportMesh3D(*meshData3D_, "constrained_delaunay_3d", exportCounter_);
+    ++exportCounter_;
     verifyMesh3D(*meshData3D_, MeshingPhase3D::InitialDelaunay, "constrained_delaunay_3d", exportCounter_);
 
     // Step 2: Extract and store constrained subsegments

@@ -137,12 +137,12 @@ void verifyQualityBound(const MeshData3D& meshData, double qualityBound,
 
 } // namespace
 
-void exportMesh3D(MeshData3D& meshData, const std::string& filenamePrefix, size_t& exportCounter)
+void exportMesh3D(MeshData3D& meshData, const std::string& filenamePrefix, size_t exportCounter)
 {
     if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
         Export::VtkExporter exporter;
-        exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter++) + ".vtu");
+        exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter) + ".vtu");
     }
 }
 

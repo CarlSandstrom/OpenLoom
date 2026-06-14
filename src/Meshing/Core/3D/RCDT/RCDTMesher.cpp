@@ -44,9 +44,11 @@ SurfaceMesh3D RCDTMesher::mesh()
     size_t counter = 0;
     buildInitial();
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_initial", counter);
+    ++counter;
 
     refine();
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_refined", counter);
+    ++counter;
 
     return buildSurfaceMesh();
 }

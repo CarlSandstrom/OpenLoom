@@ -39,6 +39,7 @@ void ShewchukRefiner3D::refine()
     double qualityBound = qualityController_->getTargetElementQuality();
 
     exportMesh3D(context_->getMeshData(), "ShewchukRefiner3D", exportCounter_);
+    ++exportCounter_;
     verifyMesh3D(context_->getMeshData(), MeshingPhase3D::Refined, "ShewchukRefiner3D", exportCounter_, qualityBound);
 
     while (iterationCount < maxIterations)
@@ -70,6 +71,7 @@ void ShewchukRefiner3D::refine()
 
         ++iterationCount;
         exportMesh3D(context_->getMeshData(), "ShewchukRefiner3D", exportCounter_);
+        ++exportCounter_;
         verifyMesh3D(context_->getMeshData(), MeshingPhase3D::Refined, "ShewchukRefiner3D", exportCounter_, qualityBound);
     }
 
