@@ -3,10 +3,10 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
-#include "Meshing/Data/2D/TriangleElement.h"
 #include "Topology/Topology3D.h"
 
 #include <algorithm>
@@ -93,6 +93,17 @@ void RestrictedTriangulation::updateAfterInsertion(
     }
 }
 
+void RestrictedTriangulation::invalidateFacesWithEdge(size_t nodeId1, size_t nodeId2)
+{
+    for (auto it = restrictedFaces_.begin(); it != restrictedFaces_.end();)
+    {
+        const auto& ids = it->first.nodeIds;
+        const bool hasNode1 = ids[0] == nodeId1 || ids[1] == nodeId1 || ids[2] == nodeId1;
+        const bool hasNode2 = ids[0] == nodeId2 || ids[1] == nodeId2 || ids[2] == nodeId2;
+        it = (hasNode1 && hasNode2) ? restrictedFaces_.erase(it) : std::next(it);
+    }
+}
+
 std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
     const RCDTQualitySettings& settings,
     const MeshData3D& meshData,
@@ -118,12 +129,12 @@ std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
         }
 
         const bool failsRatio = shortestEdge > 0.0 &&
-            circumcircle->radius / shortestEdge > settings.maximumCircumradiusToShortestEdgeRatio;
+                                circumcircle->radius / shortestEdge > settings.maximumCircumradiusToShortestEdgeRatio;
 
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         const bool failsChordDeviation = surface &&
-            std::abs(surfaceProjector_.signedDistance(circumcircle->center, *surface)) >
-                settings.maximumChordDeviation;
+                                         std::abs(surfaceProjector_.signedDistance(circumcircle->center, *surface)) >
+                                             settings.maximumChordDeviation;
 
         if (failsRatio || failsChordDeviation)
             badTriangles.push_back({face, surfaceId, circumcircle->center});
@@ -132,18 +143,18 @@ std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
     return badTriangles;
 }
 
-const std::unordered_map<FaceKey, std::string, FaceKeyHash>&
-RestrictedTriangulation::getRestrictedFaces() const
+const std::unordered_map<FaceKey, std::string, FaceKeyHash>& RestrictedTriangulation::getRestrictedFaces() const
 {
     return restrictedFaces_;
 }
 
-std::optional<std::string> RestrictedTriangulation::classifyFace(
-    const FaceKey& face,
-    const MeshData3D& meshData,
-    const MeshConnectivity& connectivity,
-    const Geometry3D::GeometryCollection3D& geometry) const
+std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& face,
+                                                                 const MeshData3D& meshData,
+                                                                 const MeshConnectivity& connectivity,
+                                                                 const Geometry3D::GeometryCollection3D& geometry) const
 {
+    // NOTE: This is a fragile function.
+
     // Intersect effective surface IDs across all 3 nodes to find candidate surfaces.
     std::unordered_set<std::string> candidates;
     bool firstNode = true;

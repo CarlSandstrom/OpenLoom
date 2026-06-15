@@ -3,6 +3,7 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
+#include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
@@ -28,7 +29,7 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t MAX_ITERATIONS = 50000;
+constexpr size_t MAX_ITERATIONS = 5;
 
 } // namespace
 
@@ -51,8 +52,8 @@ void RCDTRefiner::refine()
     size_t iteration = 0;
     while (iteration < MAX_ITERATIONS)
     {
-        if (!refineStep())
-            break;
+        if (!refineStep()) break;
+        exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
         ++iteration;
     }
 
@@ -74,7 +75,7 @@ bool RCDTRefiner::refineStep()
     const auto nodePositionMap = buildNodePositionMap();
 
     std::unordered_set<size_t> encroached;
-    for (const auto& [nodeId, node] : meshData.getNodes())
+    for (const auto& [nodeId, node] : meshData.getNodes()) // TODO: Why do we find all encroached segments instead of stopping at the first one?
     {
         for (const size_t segmentId :
              curveSegmentManager.findEncroached(node->getCoordinates(), nodePositionMap))
@@ -178,7 +179,7 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     if (!geometry)
         return false;
 
-    const CurveSegment& segment = meshData.getCurveSegmentManager().getSegment(segmentId);
+    const CurveSegment segment = meshData.getCurveSegmentManager().getSegment(segmentId);
     const Geometry3D::IEdge3D* edge = geometry->getEdge(segment.edgeId);
     if (!edge)
         return false;
@@ -195,9 +196,10 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
         edge->getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
     context_->getMutator().splitCurveSegment(segmentId, newNodeId, tMid);
 
+    restrictedTriangulation_->invalidateFacesWithEdge(segment.nodeId1, segment.nodeId2);
+
     const MeshConnectivity postConnectivity(meshData);
-    restrictedTriangulation_->updateAfterInsertion(
-        interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
+    restrictedTriangulation_->updateAfterInsertion(interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
 
     unrefinableTriangles_.clear();
     return true;

@@ -56,6 +56,11 @@ public:
                               const MeshConnectivity& connectivity,
                               const Geometry3D::GeometryCollection3D& geometry);
 
+    /// Removes any restricted face whose node set contains both nodeId1 and nodeId2.
+    /// Call this after splitting the curve segment between those two nodes, so that
+    /// faces spanning the now-subdivided edge are not left as stale entries.
+    void invalidateFacesWithEdge(size_t nodeId1, size_t nodeId2);
+
     /// Returns restricted faces that violate quality criteria.
     std::vector<BadRestrictedTriangle> getBadTriangles(const RCDTQualitySettings& settings,
                                                        const MeshData3D& meshData,

@@ -40,13 +40,17 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     os.exceptions(std::ios::failbit | std::ios::badbit);
     os.open(filePath);
 
+    const std::size_t totalCellCount =
+        mesh.getElements().size() + mesh.getCurveSegmentManager().size();
+
     std::vector<std::size_t> nodeIds;
     std::vector<std::size_t> elementIds;
+    std::vector<std::size_t> segmentIds;
     writeHeader(os);
-    writePoints(os, mesh, nodeIds);
+    writePoints(os, mesh, nodeIds, totalCellCount);
     writePointData(os, nodeIds);
-    writeCells(os, mesh, elementIds);
-    writeCellData(os, elementIds);
+    writeCells(os, mesh, elementIds, segmentIds);
+    writeCellData(os, elementIds, segmentIds);
     writeFooter(os);
     return true;
 }
@@ -86,7 +90,7 @@ void VtkExporter::writeFooter(std::ostream& os) const
 }
 
 void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
-                              std::vector<std::size_t>& outNodeIds) const
+                              std::vector<std::size_t>& outNodeIds, std::size_t totalCellCount) const
 {
     // For a deterministic index mapping, sort node IDs
     outNodeIds.clear();
@@ -97,7 +101,7 @@ void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
     }
     std::sort(outNodeIds.begin(), outNodeIds.end());
 
-    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size() << "\" NumberOfCells=\"" << mesh.getElements().size() << "\">\n";
+    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size() << "\" NumberOfCells=\"" << totalCellCount << "\">\n";
 
     os << "      <Points>\n";
     os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
@@ -138,7 +142,8 @@ static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData3D& mesh
 }
 
 void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
-                             std::vector<std::size_t>& outElementIds) const
+                             std::vector<std::size_t>& outElementIds,
+                             std::vector<std::size_t>& outSegmentIds) const
 {
     // Build node ID -> contiguous index mapping (sorted by ID to match points order)
     std::vector<std::size_t> nodeIds;
@@ -188,6 +193,17 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
         outElementIds.push_back(eid);
     }
 
+    outSegmentIds.clear();
+    for (const auto& [segId, seg] : mesh.getCurveSegmentManager().getAllSegments())
+    {
+        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId1)));
+        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId2)));
+        runningOffset += 2;
+        offsets.push_back(runningOffset);
+        types.push_back(static_cast<unsigned char>(VTK_LINE));
+        outSegmentIds.push_back(segId);
+    }
+
     os << "      <Cells>\n";
 
     os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
@@ -214,15 +230,29 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
     os << "      </Cells>\n";
 }
 
-void VtkExporter::writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds) const
+void VtkExporter::writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds,
+                                const std::vector<std::size_t>& segmentIds) const
 {
+    const std::size_t totalCells = elementIds.size() + segmentIds.size();
+
     os << "      <CellData>\n";
+
     os << "        <DataArray type=\"Int64\" Name=\"ElementID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < elementIds.size(); ++i)
+    for (std::size_t i = 0; i < totalCells; ++i)
     {
-        os << elementIds[i] << (i + 1 == elementIds.size() ? "\n" : " ");
+        os << (i < elementIds.size() ? elementIds[i] : segmentIds[i - elementIds.size()]);
+        os << (i + 1 == totalCells ? "\n" : " ");
     }
     os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"EdgeRole\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < totalCells; ++i)
+    {
+        os << (i < elementIds.size() ? 0 : 1);
+        os << (i + 1 == totalCells ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
     os << "      </CellData>\n";
 
     // Close Piece tag started in writePoints

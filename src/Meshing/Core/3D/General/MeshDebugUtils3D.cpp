@@ -113,7 +113,7 @@ void verifySubfacetsPresent(const MeshData3D& meshData, std::vector<std::string>
 }
 
 void verifyQualityBound(const MeshData3D& meshData, double qualityBound,
-                         std::vector<std::string>& errors)
+                        std::vector<std::string>& errors)
 {
     if (qualityBound <= 0.0)
     {
@@ -173,9 +173,8 @@ void verifyMesh3D(MeshData3D& meshData, MeshingPhase3D phase,
     {
         for (const auto& error : errors)
             spdlog::error(" - {}", error);
-        OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase "
-                                             + std::string(phaseToString(phase)),
-                                         errors);
+        OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase " + std::string(phaseToString(phase)),
+                                           errors);
     }
 }
 

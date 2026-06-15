@@ -53,8 +53,7 @@ protected:
         converter_ = std::make_unique<Readers::TopoDS_ShapeConverter>(shape_);
 
         // Edge-only discretization: RCDT handles the surface interior itself.
-        const Geometry3D::DiscretizationSettings3D discSettings(
-            std::nullopt, std::numbers::pi / 8.0, 0);
+        const Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 0);
 
         RCDTMesher mesher(converter_->getGeometryCollection(),
                           converter_->getTopology(),
