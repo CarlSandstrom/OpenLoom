@@ -230,9 +230,16 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
         const Point3D& p1 = n1->getCoordinates();
         const Point3D& p2 = n2->getCoordinates();
 
-        // Compute signed volume: positive means vertex is on the correct side
-        // signedVolume = (1/6) * (p1-p0) . ((p2-p0) x (v-p0))
-        double signedVolume = (p1 - p0).dot((p2 - p0).cross(v - p0));
+        const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
+        const double faceNormalLength = faceNormal.norm();
+        if (faceNormalLength < 1e-10)
+            continue;
+
+        // signedVolume = faceNormal · (v - p0) — the scalar triple product.
+        // Skip if v is coplanar with this face: would produce a zero-volume tetrahedron.
+        const double signedVolume = faceNormal.dot(v - p0);
+        if (std::abs(signedVolume) < 1e-10 * faceNormalLength)
+            continue;
 
         std::array<size_t, 4> nodeIds;
         if (signedVolume >= 0.0)

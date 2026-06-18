@@ -29,7 +29,7 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t MAX_ITERATIONS = 5;
+constexpr size_t MAX_ITERATIONS = 50;
 
 } // namespace
 
@@ -50,6 +50,9 @@ void RCDTRefiner::refine()
                  meshData.getCurveSegmentManager().size());
 
     size_t iteration = 0;
+    exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
+    ++iteration;
+
     while (iteration < MAX_ITERATIONS)
     {
         if (!refineStep()) break;
