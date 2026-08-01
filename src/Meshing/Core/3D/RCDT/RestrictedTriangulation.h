@@ -35,6 +35,7 @@ struct BadRestrictedTriangle
     FaceKey face;
     std::string surfaceId;
     Point3D circumcircleCenter;
+    double shortestEdge;
 };
 
 class RestrictedTriangulation

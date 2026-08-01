@@ -57,9 +57,6 @@ private:
     /// Returns true on success.
     bool splitSegment(size_t segmentId);
 
-    /// Returns the diagonal of the axis-aligned bounding box of all mesh nodes.
-    double computeMeshDiameter() const;
-
     /// Builds a node-ID → position lookup from the current mesh.
     std::unordered_map<size_t, Point3D> buildNodePositionMap() const;
 

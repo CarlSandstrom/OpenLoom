@@ -17,9 +17,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
-#include <algorithm>
 #include <cmath>
-#include <limits>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -102,8 +100,6 @@ bool RCDTRefiner::refineStep()
     if (badTriangles.empty())
         return false;
 
-    const double diameter = computeMeshDiameter();
-
     for (const auto& bad : badTriangles)
     {
         if (unrefinableTriangles_.count(bad.face))
@@ -126,11 +122,12 @@ bool RCDTRefiner::refineStep()
 
         const Point3D& projected = *projectedOpt;
 
-        // Proximity guard: skip if too close to any existing node.
+        // Proximity guard: skip if too close to any existing node relative to
+        // the bad triangle's own shortest edge.
         bool tooClose = false;
         for (const auto& [nodeId, node] : meshData.getNodes())
         {
-            if ((projected - node->getCoordinates()).norm() < 1e-10 * diameter)
+            if ((projected - node->getCoordinates()).norm() < bad.shortestEdge)
             {
                 tooClose = true;
                 break;
@@ -212,25 +209,6 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
 
     unrefinableTriangles_.clear();
     return true;
-}
-
-double RCDTRefiner::computeMeshDiameter() const
-{
-    const auto& meshData = context_->getMeshData();
-    if (meshData.getNodeCount() == 0)
-        return 1.0;
-
-    Point3D minPoint = Point3D::Constant(std::numeric_limits<double>::max());
-    Point3D maxPoint = Point3D::Constant(std::numeric_limits<double>::lowest());
-
-    for (const auto& [nodeId, node] : meshData.getNodes())
-    {
-        const Point3D& coordinates = node->getCoordinates();
-        minPoint = minPoint.cwiseMin(coordinates);
-        maxPoint = maxPoint.cwiseMax(coordinates);
-    }
-
-    return (maxPoint - minPoint).norm();
 }
 
 std::unordered_map<size_t, Point3D> RCDTRefiner::buildNodePositionMap() const

@@ -137,7 +137,7 @@ std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
                                              settings.maximumChordDeviation;
 
         if (failsRatio || failsChordDeviation)
-            badTriangles.push_back({face, surfaceId, circumcircle->center});
+            badTriangles.push_back({face, surfaceId, circumcircle->center, shortestEdge});
     }
 
     return badTriangles;
