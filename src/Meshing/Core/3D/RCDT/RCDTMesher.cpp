@@ -10,6 +10,7 @@
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
@@ -53,7 +54,17 @@ SurfaceMesh3D RCDTMesher::mesh()
 
     removeBoundingTetrahedron();
 
-    return buildSurfaceMesh();
+    SurfaceMesh3D surfaceMesh = buildSurfaceMesh();
+
+    if (qualitySettings_.smoothingIterations > 0)
+    {
+        spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)",
+                     qualitySettings_.smoothingIterations);
+        const SurfaceMeshSmoother smoother(*geometry_);
+        smoother.smooth(surfaceMesh, qualitySettings_.smoothingIterations);
+    }
+
+    return surfaceMesh;
 }
 
 const MeshingContext3D& RCDTMesher::getMeshingContext() const
