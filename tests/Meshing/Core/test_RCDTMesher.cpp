@@ -1,6 +1,7 @@
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
+#include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
@@ -58,9 +59,19 @@ protected:
         const Geometry3D::DiscretizationSettings3D discSettings(
             std::nullopt, std::numbers::pi * 2.0 / 3.0 + 0.01, 0);
 
+        // Loosened from RCDTQualitySettings' defaults (ratio 1.0, chord deviation 0.1):
+        // at this deliberately coarse discretization (radius 3, 3 points per circle),
+        // the default chord deviation bound in particular is unreachable without
+        // refining far past what this test needs -- it would keep splitting the
+        // lateral surface for thousands of iterations to flatten a curve that starts
+        // 1.5 units away from its chord. A coarser quality target keeps this test fast
+        // while still exercising real refinement.
+        const RCDTQualitySettings qualitySettings{2.0, 0.5};
+
         RCDTMesher mesher(converter_->getGeometryCollection(),
                           converter_->getTopology(),
-                          discSettings);
+                          discSettings,
+                          qualitySettings);
 
         mesh_ = mesher.mesh();
     }

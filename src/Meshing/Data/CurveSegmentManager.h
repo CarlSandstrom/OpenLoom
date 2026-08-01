@@ -41,8 +41,15 @@ public:
 
     /// Returns the IDs of segments whose diametral sphere contains point.
     /// nodePositions maps each node ID to its 3D position.
+    /// If point is the position of an existing mesh node, pass its ID as excludeNodeId so a
+    /// segment is never reported as encroached by its own endpoint: mathematically, an
+    /// endpoint lies exactly on its segment's diametral sphere boundary (distance == radius,
+    /// not < radius), but floating-point rounding in the distance/radius computations can make
+    /// that boundary case register as inside, which would otherwise trigger an unbounded
+    /// self-encroachment split cascade.
     std::vector<size_t> findEncroached(const Point3D& point,
-                                       const std::unordered_map<size_t, Point3D>& nodePositions) const;
+                                       const std::unordered_map<size_t, Point3D>& nodePositions,
+                                       std::optional<size_t> excludeNodeId = std::nullopt) const;
 
     /// Returns all segments for a given edge ID, sorted by tStart (ascending).
     std::vector<CurveSegment> getSegmentsForEdge(const std::string& edgeId) const;

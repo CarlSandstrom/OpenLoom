@@ -29,7 +29,7 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t MAX_ITERATIONS = 50;
+constexpr size_t MAX_ITERATIONS = 200;
 
 } // namespace
 
@@ -81,7 +81,7 @@ bool RCDTRefiner::refineStep()
     for (const auto& [nodeId, node] : meshData.getNodes()) // TODO: Why do we find all encroached segments instead of stopping at the first one?
     {
         for (const size_t segmentId :
-             curveSegmentManager.findEncroached(node->getCoordinates(), nodePositionMap))
+             curveSegmentManager.findEncroached(node->getCoordinates(), nodePositionMap, nodeId))
         {
             encroached.insert(segmentId);
         }

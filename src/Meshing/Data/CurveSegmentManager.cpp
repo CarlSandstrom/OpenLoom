@@ -59,12 +59,16 @@ const std::unordered_map<size_t, CurveSegment>& CurveSegmentManager::getAllSegme
 }
 
 std::vector<size_t> CurveSegmentManager::findEncroached(const Point3D& point,
-                                                        const std::unordered_map<size_t, Point3D>& nodePositions) const
+                                                        const std::unordered_map<size_t, Point3D>& nodePositions,
+                                                        std::optional<size_t> excludeNodeId) const
 {
     std::vector<size_t> encroached;
 
     for (const auto& [segmentId, segment] : segments_)
     {
+        if (excludeNodeId && (*excludeNodeId == segment.nodeId1 || *excludeNodeId == segment.nodeId2))
+            continue;
+
         const auto it1 = nodePositions.find(segment.nodeId1);
         const auto it2 = nodePositions.find(segment.nodeId2);
 
