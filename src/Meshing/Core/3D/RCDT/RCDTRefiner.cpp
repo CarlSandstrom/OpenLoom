@@ -148,8 +148,14 @@ bool RCDTRefiner::refineStep()
             return splitSegment(encroachingIds[0]);
 
         // Insert the projected circumcenter.
+        // Do NOT clear unrefinableTriangles_ here: faces blocked by proximity
+        // to an existing node stay blocked (the node is never removed, so the
+        // same projection will always be too close). Clearing was the cascade
+        // bug — it caused those faces to be retried forever after each
+        // subsequent insertion cleared the set.  Clearing on segment splits
+        // (in splitSegment()) is still correct because splitting a segment
+        // changes the constraint structure and may unblock previously stuck faces.
         insertAndUpdate(projected, {bad.surfaceId});
-        unrefinableTriangles_.clear();
         return true;
     }
 
