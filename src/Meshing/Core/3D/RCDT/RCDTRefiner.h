@@ -43,6 +43,25 @@ private:
     SurfaceProjector surfaceProjector_;
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
 
+    /// Per-vertex insertion radius: the distance to the nearest other node at
+    /// the moment this vertex was inserted. Recorded once and never updated —
+    /// it is a fixed property of the vertex, not a measure of its current
+    /// surroundings. Used by the proximity guard in refineStep() to bound how
+    /// close a new Steiner point may land to an existing one, relative to how
+    /// fine the mesh already was when that existing point was created. This
+    /// is what makes each generation of insertions provably smaller than the
+    /// last by a bounded factor, guaranteeing termination.
+    std::unordered_map<size_t, double> insertionRadius_;
+
+    /// Seeds insertionRadius_ for every node present before refinement starts
+    /// (the initial boundary/corner discretization and the supertet corners).
+    void initializeInsertionRadii();
+
+    /// Distance from point to its nearest existing node. Used both to check
+    /// the insertion-radius guard and, after a successful insertion, to seed
+    /// the new node's own entry in insertionRadius_.
+    double computeNearestNeighborDistance(const Point3D& point) const;
+
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
 
