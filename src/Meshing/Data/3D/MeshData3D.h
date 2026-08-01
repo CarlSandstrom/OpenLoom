@@ -4,7 +4,9 @@
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Node3D.h"
+#include <array>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -40,6 +42,12 @@ public:
     const std::vector<std::string>& getGeometryIds(size_t nodeId) const;
     bool isBoundaryNode(size_t nodeId) const;
 
+    // Node IDs of the bounding (super-)tetrahedron currently resident in the
+    // mesh, if any. Set while the bounding tetrahedron is present (see
+    // MeshOperations3D::createBoundingTetrahedron/removeBoundingTetrahedron),
+    // used by VtkExporter to tag those cells for filtering in ParaView.
+    const std::optional<std::array<size_t, 4>>& getBoundingNodeIds() const;
+
     // Internal access for operations classes (friends)
     friend class MeshMutator3D;
 
@@ -47,6 +55,7 @@ private:
     std::unordered_map<size_t, std::unique_ptr<Node3D>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
     std::unordered_map<size_t, std::vector<std::string>> nodeGeometryIds_;
+    std::optional<std::array<size_t, 4>> boundingNodeIds_;
     CurveSegmentManager curveSegmentManager_;
     std::vector<ConstrainedSubfacet3D> constrainedSubfacets_;
 
@@ -58,6 +67,9 @@ private:
     Node3D* getNodeMutable(size_t id);
 
     void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
+
+    void setBoundingNodeIdsInternal(const std::array<size_t, 4>& boundingNodeIds);
+    void clearBoundingNodeIdsInternal();
 
     void addConstrainedSubfacetInternal(const ConstrainedSubfacet3D& subfacet);
     void removeConstrainedSubfacetInternal(size_t nodeId1, size_t nodeId2, size_t nodeId3);

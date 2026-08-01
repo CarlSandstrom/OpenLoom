@@ -4,6 +4,7 @@
 #include "MeshData3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,6 +34,10 @@ public:
     // Element operations
     size_t addElement(std::unique_ptr<IElement> element);
     void removeElement(size_t id);
+
+    // Bounding (super-)tetrahedron tracking
+    void setBoundingNodeIds(const std::array<size_t, 4>& boundingNodeIds);
+    void clearBoundingNodeIds();
 
     // Curve segment operations
     void addCurveSegment(const CurveSegment& segment);

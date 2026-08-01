@@ -187,6 +187,16 @@ void MeshMutator3D::restoreNode(size_t id, const Point3D& coordinates)
     }
 }
 
+void MeshMutator3D::setBoundingNodeIds(const std::array<size_t, 4>& boundingNodeIds)
+{
+    geometry_.setBoundingNodeIdsInternal(boundingNodeIds);
+}
+
+void MeshMutator3D::clearBoundingNodeIds()
+{
+    geometry_.clearBoundingNodeIdsInternal();
+}
+
 // ========== Curve Segment Operations ==========
 
 void MeshMutator3D::addCurveSegment(const CurveSegment& segment)

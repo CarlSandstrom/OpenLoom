@@ -113,6 +113,21 @@ void MeshData3D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::stri
     nodeGeometryIds_[nodeId] = std::move(ids);
 }
 
+const std::optional<std::array<size_t, 4>>& MeshData3D::getBoundingNodeIds() const
+{
+    return boundingNodeIds_;
+}
+
+void MeshData3D::setBoundingNodeIdsInternal(const std::array<size_t, 4>& boundingNodeIds)
+{
+    boundingNodeIds_ = boundingNodeIds;
+}
+
+void MeshData3D::clearBoundingNodeIdsInternal()
+{
+    boundingNodeIds_.reset();
+}
+
 const CurveSegmentManager& MeshData3D::getCurveSegmentManager() const
 {
     return curveSegmentManager_;

@@ -50,7 +50,7 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     writePoints(os, mesh, nodeIds, totalCellCount);
     writePointData(os, nodeIds);
     writeCells(os, mesh, elementIds, segmentIds);
-    writeCellData(os, elementIds, segmentIds);
+    writeCellData(os, mesh, elementIds, segmentIds);
     writeFooter(os);
     return true;
 }
@@ -230,10 +230,12 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
     os << "      </Cells>\n";
 }
 
-void VtkExporter::writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds,
+void VtkExporter::writeCellData(std::ostream& os, const Meshing::MeshData3D& mesh,
+                                const std::vector<std::size_t>& elementIds,
                                 const std::vector<std::size_t>& segmentIds) const
 {
     const std::size_t totalCells = elementIds.size() + segmentIds.size();
+    const auto& boundingNodeIds = mesh.getBoundingNodeIds();
 
     os << "      <CellData>\n";
 
@@ -249,6 +251,21 @@ void VtkExporter::writeCellData(std::ostream& os, const std::vector<std::size_t>
     for (std::size_t i = 0; i < totalCells; ++i)
     {
         os << (i < elementIds.size() ? 0 : 1);
+        os << (i + 1 == totalCells ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"IsSupertet\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < totalCells; ++i)
+    {
+        int isSupertet = 0;
+        if (boundingNodeIds && i < elementIds.size())
+        {
+            const auto* element = mesh.getElement(elementIds[i]);
+            isSupertet = std::any_of(boundingNodeIds->begin(), boundingNodeIds->end(),
+                                     [element](size_t nodeId) { return element->hasNode(nodeId); });
+        }
+        os << isSupertet;
         os << (i + 1 == totalCells ? "\n" : " ");
     }
     os << "        </DataArray>\n";

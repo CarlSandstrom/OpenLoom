@@ -100,6 +100,8 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
         std::array<size_t, 4>{id0, id1, id2, id3});
     mutator_->addElement(std::move(boundingTet));
 
+    mutator_->setBoundingNodeIds({id0, id1, id2, id3});
+
     spdlog::debug("MeshOperations3D::createBoundingTetrahedron: Created with nodes ({}, {}, {}, {})",
                   id0, id1, id2, id3);
 
@@ -181,6 +183,8 @@ void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& bo
     {
         mutator_->removeNode(nodeId);
     }
+
+    mutator_->clearBoundingNodeIds();
 
     spdlog::info("MeshOperations3D::removeBoundingTetrahedron: Removed {} tetrahedra and 4 bounding nodes",
                  tetsToRemove.size());

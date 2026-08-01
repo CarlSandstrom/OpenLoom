@@ -69,7 +69,8 @@ private:
     void writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
                     std::vector<std::size_t>& outElementIds,
                     std::vector<std::size_t>& outSegmentIds) const;
-    void writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds,
+    void writeCellData(std::ostream& os, const Meshing::MeshData3D& mesh,
+                       const std::vector<std::size_t>& elementIds,
                        const std::vector<std::size_t>& segmentIds) const;
     void writeFooter(std::ostream& os) const;
 
