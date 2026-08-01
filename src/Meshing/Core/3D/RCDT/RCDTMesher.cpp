@@ -5,6 +5,7 @@
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
+#include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
@@ -49,6 +50,8 @@ SurfaceMesh3D RCDTMesher::mesh()
     refine();
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_refined", counter);
     ++counter;
+
+    removeBoundingTetrahedron();
 
     return buildSurfaceMesh();
 }
@@ -102,9 +105,10 @@ void RCDTMesher::buildInitial()
 
     auto& meshData = meshingContext_->getMeshData();
 
-    Delaunay3D delaunay(discretizationResult->points, &meshData, enrichedGeometryIds);
+    Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();
+    boundingNodeIds_ = delaunay.getBoundingNodeIds();
 
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
@@ -138,6 +142,12 @@ void RCDTMesher::refine()
     RCDTRefiner refiner(*meshingContext_, *restrictedTriangulation_, qualitySettings_);
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
+}
+
+void RCDTMesher::removeBoundingTetrahedron()
+{
+    meshingContext_->getOperations().removeBoundingTetrahedron(boundingNodeIds_);
+    meshingContext_->rebuildConnectivity();
 }
 
 SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const

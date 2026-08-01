@@ -1,17 +1,14 @@
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
 #include "spdlog/spdlog.h"
 
 namespace Meshing
 {
 
-Delaunay3D::Delaunay3D(const std::vector<Point3D>& points,
-                       MeshData3D* meshData,
+Delaunay3D::Delaunay3D(MeshOperations3D& operations,
+                       const std::vector<Point3D>& points,
                        const std::vector<std::vector<std::string>>& geometryIds) :
-    meshData_(meshData),
+    operations_(operations),
     points_(points),
     geometryIds_(geometryIds)
 {
@@ -27,10 +24,8 @@ void Delaunay3D::triangulate()
 
     spdlog::info("Delaunay3D::triangulate: Starting with {} points", points_.size());
 
-    MeshOperations3D operations(*meshData_);
-
-    // Create bounding tetrahedron
-    auto boundingIds = operations.createBoundingTetrahedron(points_);
+    // Create bounding tetrahedron. Left in the mesh -- see class documentation.
+    boundingNodeIds_ = operations_.createBoundingTetrahedron(points_);
 
     // Insert each point using Bowyer-Watson
     pointIndexToNodeIdMap_.clear();
@@ -42,11 +37,11 @@ void Delaunay3D::triangulate()
         size_t nodeId;
         if (hasGeomIds)
         {
-            nodeId = operations.insertVertexBowyerWatson(points_[i], geometryIds_[i]);
+            nodeId = operations_.insertVertexBowyerWatson(points_[i], geometryIds_[i]);
         }
         else
         {
-            nodeId = operations.insertVertexBowyerWatson(points_[i]);
+            nodeId = operations_.insertVertexBowyerWatson(points_[i]);
         }
 
         pointIndexToNodeIdMap_[i] = nodeId;
@@ -57,11 +52,7 @@ void Delaunay3D::triangulate()
         }
     }
 
-    // Remove bounding tetrahedron
-    operations.removeBoundingTetrahedron(boundingIds);
-
-    spdlog::info("Delaunay3D::triangulate: Complete - {} nodes, {} tetrahedra",
-                 meshData_->getNodeCount(), meshData_->getElementCount());
+    spdlog::info("Delaunay3D::triangulate: Complete - {} points inserted", pointIndexToNodeIdMap_.size());
 }
 
 } // namespace Meshing

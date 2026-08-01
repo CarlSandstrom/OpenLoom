@@ -34,10 +34,14 @@ void ConstrainedDelaunay3D::tetrahedralize()
                  discretization_.points.size());
 
     // Step 1: Create initial Delaunay tetrahedralization (unconstrained)
-    Delaunay3D delaunay(discretization_.points,
-        meshData3D_,
+    Delaunay3D delaunay(*meshOperations_,
+        discretization_.points,
         discretization_.geometryIds);
     delaunay.triangulate();
+
+    // Legacy pipeline: remove the bounding tetrahedron immediately, unlike RCDT
+    // which defers this until after refinement (see Delaunay3D's documentation).
+    meshOperations_->removeBoundingTetrahedron(delaunay.getBoundingNodeIds());
 
     // Store the point-to-node mapping for later use
     pointIndexToNodeIdMap_ = delaunay.getPointIndexToNodeIdMap();

@@ -19,6 +19,27 @@
 namespace Meshing
 {
 
+namespace
+{
+
+constexpr double COPLANARITY_RELATIVE_TOLERANCE = 1e-10;
+
+// Whether v lies (numerically) in the plane through p0, p1, p2 -- i.e. whether
+// the tetrahedron (v, p0, p1, p2) would have zero volume. A degenerate
+// (zero-area) face is treated as coplanar with any point.
+bool isCoplanarWithFace(const Point3D& v, const Point3D& p0, const Point3D& p1, const Point3D& p2)
+{
+    const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
+    const double faceNormalLength = faceNormal.norm();
+    if (faceNormalLength < COPLANARITY_RELATIVE_TOLERANCE)
+        return true;
+
+    const double signedVolume = faceNormal.dot(v - p0);
+    return std::abs(signedVolume) < COPLANARITY_RELATIVE_TOLERANCE * faceNormalLength;
+}
+
+} // namespace
+
 MeshOperations3D::MeshOperations3D(MeshData3D& meshData) :
     meshData_(meshData),
     queries_(meshData),
@@ -179,6 +200,10 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
         return nodeId;
     }
 
+    // Extend the cavity through any boundary face coplanar with the new
+    // vertex, so retriangulate() never has to fan onto a degenerate face.
+    conflicting = growCavityThroughCoplanarFaces(point, std::move(conflicting));
+
     // Find the cavity boundary
     std::vector<std::array<size_t, 3>> boundary = queries_.findCavityBoundary(conflicting);
 
@@ -203,6 +228,55 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     retriangulate(nodeId, boundary);
 
     return nodeId;
+}
+
+std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
+    const Point3D& point, std::vector<size_t> conflicting) const
+{
+    std::unordered_set<size_t> conflictingSet(conflicting.begin(), conflicting.end());
+
+    bool grew = true;
+    while (grew)
+    {
+        grew = false;
+
+        for (const auto& face : queries_.findCavityBoundary(conflicting))
+        {
+            const Node3D* n0 = meshData_.getNode(face[0]);
+            const Node3D* n1 = meshData_.getNode(face[1]);
+            const Node3D* n2 = meshData_.getNode(face[2]);
+            if (!n0 || !n1 || !n2)
+                continue;
+
+            if (!isCoplanarWithFace(point, n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()))
+                continue;
+
+            const auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
+            if (touching.size() < 2)
+            {
+                OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                                 OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
+                                 "growCavityThroughCoplanarFaces: cavity boundary face is "
+                                 "coplanar with the inserted vertex and has no neighboring "
+                                 "tetrahedron to extend into");
+            }
+
+            const auto neighborIt = std::find_if(touching.begin(), touching.end(),
+                [&conflictingSet](size_t tetId) { return !conflictingSet.contains(tetId); });
+
+            // Both tetrahedra touching this face are already in the cavity (pulled in
+            // while processing another coplanar face earlier in this pass) -- already
+            // resolved, nothing more to do for this face.
+            if (neighborIt == touching.end())
+                continue;
+
+            conflictingSet.insert(*neighborIt);
+            conflicting.push_back(*neighborIt);
+            grew = true;
+        }
+    }
+
+    return conflicting;
 }
 
 void MeshOperations3D::retriangulate(size_t vertexNodeId,
@@ -230,16 +304,20 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
         const Point3D& p1 = n1->getCoordinates();
         const Point3D& p2 = n2->getCoordinates();
 
-        const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
-        const double faceNormalLength = faceNormal.norm();
-        if (faceNormalLength < 1e-10)
-            continue;
+        // growCavityThroughCoplanarFaces() is responsible for ensuring no boundary
+        // face reaches here coplanar with v; treat it as a programming error rather
+        // than silently dropping the face, which would leave a hole in the mesh.
+        if (isCoplanarWithFace(v, p0, p1, p2))
+        {
+            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                             OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
+                             "retriangulate: cavity boundary face is coplanar with the "
+                             "inserted vertex; growCavityThroughCoplanarFaces should have "
+                             "extended the cavity past it");
+        }
 
-        // signedVolume = faceNormal · (v - p0) — the scalar triple product.
-        // Skip if v is coplanar with this face: would produce a zero-volume tetrahedron.
+        const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
         const double signedVolume = faceNormal.dot(v - p0);
-        if (std::abs(signedVolume) < 1e-10 * faceNormalLength)
-            continue;
 
         std::array<size_t, 4> nodeIds;
         if (signedVolume >= 0.0)

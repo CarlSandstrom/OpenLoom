@@ -158,6 +158,24 @@ private:
      */
     void retriangulate(size_t vertexNodeId,
                        const std::vector<std::array<size_t, 3>>& boundary);
+
+    /**
+     * @brief Grow the conflicting-tetrahedra cavity through boundary faces
+     * that are coplanar with the point being inserted
+     *
+     * Fanning a new tetrahedron from the inserted vertex to a cavity boundary
+     * face that lies in the same plane as the vertex would produce a
+     * zero-volume tetrahedron. Instead of leaving that face uncovered (which
+     * corrupts the tetrahedralization), pull the tetrahedron on the other
+     * side of the face into the cavity too, so retriangulate() can fan onto
+     * its far faces instead. Repeats until no boundary face is coplanar.
+     *
+     * @param point The point being inserted
+     * @param conflicting The initial conflicting tetrahedra (by circumsphere test)
+     * @return The grown set of conflicting tetrahedra
+     */
+    std::vector<size_t> growCavityThroughCoplanarFaces(const Point3D& point,
+                                                        std::vector<size_t> conflicting) const;
 };
 
 } // namespace Meshing

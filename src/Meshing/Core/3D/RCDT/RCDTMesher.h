@@ -4,6 +4,7 @@
 #include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 
+#include <array>
 #include <memory>
 
 namespace Geometry3D
@@ -51,8 +52,14 @@ private:
     std::unique_ptr<MeshingContext3D> meshingContext_;
     std::unique_ptr<RestrictedTriangulation> restrictedTriangulation_;
 
+    // Node IDs of the super-tetrahedron used to seed the initial Delaunay
+    // triangulation. Kept alive through refine() -- see Delaunay3D's class
+    // documentation for why -- and removed once refinement completes.
+    std::array<size_t, 4> boundingNodeIds_{};
+
     void buildInitial();
     void refine();
+    void removeBoundingTetrahedron();
     SurfaceMesh3D buildSurfaceMesh() const;
 };
 
