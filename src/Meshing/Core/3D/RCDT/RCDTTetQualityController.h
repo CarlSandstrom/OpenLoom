@@ -19,11 +19,11 @@ namespace Meshing
  * @brief Tetrahedron quality controller for RCDTRefiner's volume-quality
  * refinement priority (priority 3, RCDTMesher::meshVolume() only).
  *
- * Same circumradius-to-shortest-edge ratio criterion as
- * Shewchuk3DQualityController (which this replaces — see OPE-161), reading
- * its bound from the unified SurfaceMesh3DQualitySettings instead of taking
- * it as bare constructor arguments, consistent with RCDTQualityController's
- * (the restricted-triangle counterpart) settings-driven construction.
+ * Same circumradius-to-shortest-edge ratio criterion as the legacy Shewchuk
+ * volume mesher's quality controller (removed in OPE-161), reading its bound
+ * from the unified SurfaceMesh3DQualitySettings instead of taking it as bare
+ * constructor arguments, consistent with RCDTQualityController's (the
+ * restricted-triangle counterpart) settings-driven construction.
  */
 class RCDTTetQualityController : public IQualityController3D
 {
@@ -37,8 +37,8 @@ public:
     std::size_t getElementLimit() const override;
     bool isTetrahedronTooSmall(const TetrahedralElement& element) const override;
 
-    // Minimum thresholds for refinable tetrahedra, matching
-    // Shewchuk3DQualityController's precedent values.
+    // Minimum thresholds for refinable tetrahedra, matching the legacy
+    // Shewchuk volume mesher's precedent values.
     static constexpr double MIN_REFINABLE_VOLUME = 1e-18;
     static constexpr double MIN_REFINABLE_EDGE = 1e-10;
 

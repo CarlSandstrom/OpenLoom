@@ -1,20 +1,22 @@
+/**
+ * @file CreateBox.cc
+ * @brief Basic 3D volume mesh example: a plain box, no holes.
+ *
+ * Exports:
+ *   - box_mesh.vtu : tetrahedral volume mesh (color by SurfaceID on boundary
+ *     triangles; tetrahedra carry SurfaceID = -1)
+ */
+
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
-#include "Meshing/Core/3D/General/ConstraintRegistrar3D.h"
-#include "Meshing/Core/3D/Volume/Delaunay3D.h"
-#include "Meshing/Core/3D/General/MeshingContext3D.h"
-#include "Meshing/Core/3D/Volume/Shewchuk3DQualityController.h"
-#include "Meshing/Core/3D/Volume/ShewchukRefiner3D.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Common/Logging.h"
-#include "spdlog/spdlog.h"
+#include "Meshing/Core/3D/Volume/VolumeMesher3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopoDS_Shape.hxx>
-
-using namespace Meshing;
+#include <iostream>
 
 int main()
 {
@@ -22,38 +24,23 @@ int main()
 
     TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
     Readers::TopoDS_ShapeConverter converter(cube);
-    MeshingContext3D context(
-        converter.getGeometryCollection(),
-        converter.getTopology());
 
-    // Discretize boundaries
-    Geometry3D::DiscretizationSettings3D settings(3, 2);
-    BoundaryDiscretizer3D discretizer(*context.getGeometry(), *context.getTopology(), settings);
-    discretizer.discretize();
-    const auto& discretization = discretizer.getDiscretizationResult();
+    Geometry3D::DiscretizationSettings3D discretizationSettings(3, 2);
 
-    // Create initial (unconstrained) Delaunay tetrahedralization
-    Delaunay3D delaunay(context.getOperations(),
-                        discretization.points,
-                        discretization.geometryIds);
-    delaunay.triangulate();
+    Meshing::VolumeMesher3D mesher(converter.getGeometryCollection(),
+                                   converter.getTopology(),
+                                   discretizationSettings,
+                                   Meshing::SurfaceMesh3DQualitySettings{});
 
-    // Register constraints (subsegments and subfacets)
-    ConstraintRegistrar3D registrar(context, discretization);
-    registrar.registerConstraints(delaunay.getPointIndexToNodeIdMap());
+    auto volumeMesh = mesher.mesh();
 
-    // Refine with Shewchuk quality control
-    Shewchuk3DQualityController qualityController(
-        context.getMeshData(),
-        2.5,  // Min radius-edge ratio
-        10000 // Max elements
-    );
-
-    ShewchukRefiner3D refiner(context, qualityController);
-    refiner.refine();
+    std::cout << "VolumeMesh3D: " << volumeMesh.nodes.size() << " nodes, "
+              << volumeMesh.tetrahedra.size() << " tetrahedra, "
+              << volumeMesh.boundaryTriangles.size() << " boundary triangles\n";
 
     Export::VtkExporter exporter;
-    exporter.writeVtu(context.getMeshData(), "box_mesh.vtu");
+    exporter.writeVolumeMesh(volumeMesh, "box_mesh.vtu");
+    std::cout << "Exported volume mesh to box_mesh.vtu\n";
 
     return 0;
 }

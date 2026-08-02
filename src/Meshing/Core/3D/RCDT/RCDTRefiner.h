@@ -37,11 +37,12 @@ class RCDTTetQualityController;
 /// Priority 3 does not detect or fix slivers (tetrahedra with an acceptable
 /// circumradius/edge ratio but poor dihedral angles, or genuinely thin/flat
 /// tets whose true circumcenter recedes far outside the mesh's extent) --
-/// same documented limitation as Shewchuk3DQualityController, the volume
-/// mesher this replaces. Such tets are left unrefined (see the circumradius
-/// sanity guard in refineBadTetrahedra()) rather than chased with an
-/// insertion point that would corrupt the mesh; confirmed empirically they
-/// arise in small numbers (a few percent of tets) rather than dominating.
+/// same documented limitation as the legacy Shewchuk volume mesher this
+/// replaced (removed in OPE-161). Such tets are left unrefined (see the
+/// circumradius sanity guard in refineBadTetrahedra()) rather than chased
+/// with an insertion point that would corrupt the mesh; confirmed
+/// empirically they arise in small numbers (a few percent of tets) rather
+/// than dominating.
 class RCDTRefiner
 {
 public:

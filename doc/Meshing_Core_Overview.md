@@ -1,6 +1,6 @@
 # Meshing Core Module Overview
 
-**Last Updated:** 2026-04-12
+**Last Updated:** 2026-08-02
 
 ## Purpose
 
@@ -41,7 +41,6 @@ src/Meshing/Core/
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
 │   │   ├── DiscretizationResult3D.h
 │   │   ├── ConstraintChecker3D.{h,cpp}
-│   │   ├── ConstraintRegistrar3D.{h,cpp}
 │   │   ├── EdgeTwinTable.h
 │   │   ├── FacetDiscretization2DBuilder.{h,cpp}
 │   │   ├── FacetTriangulation.{h,cpp}
@@ -52,19 +51,18 @@ src/Meshing/Core/
 │   │   ├── SurfaceMesher3D.{h,cpp}
 │   │   ├── SurfaceMeshingContext3D.{h,cpp}
 │   │   └── SurfaceMeshQuality.{h,cpp}
-│   ├── Volume/                          # Volume (tetrahedral) mesh generation
-│   │   ├── ConstrainedDelaunay3D.{h,cpp}
+│   ├── Volume/                          # Top-level volume mesher + initial tetrahedralization
 │   │   ├── Delaunay3D.{h,cpp}
-│   │   ├── ShewchukRefiner3D.{h,cpp}
-│   │   └── Shewchuk3DQualityController.{h,cpp}
-│   └── RCDT/                            # Ambient-space RCDT mesher
+│   │   └── VolumeMesher3D.{h,cpp}
+│   └── RCDT/                            # Ambient-space RCDT mesher — the only algorithm
+│       │                                # behind ISurfaceMesher3D/IVolumeMesher3D today
 │       ├── RCDTMesher.{h,cpp}
 │       ├── RCDTContext.{h,cpp}
 │       ├── RCDTRefiner.{h,cpp}
+│       ├── RCDTTetQualityController.{h,cpp}
 │       ├── RestrictedTriangulation.{h,cpp}
 │       ├── SurfaceProjector.{h,cpp}
-│       ├── CurveSegmentOperations.{h,cpp}
-│       └── RCDTQualitySettings.h
+│       └── CurveSegmentOperations.{h,cpp}
 └── ConstraintStructures.h
 ```
 
@@ -97,7 +95,6 @@ src/Meshing/Core/
 - **GeometryUtilities3D**: Pure geometric utilities (sphere tests, edge length, etc.)
 - **BoundaryDiscretizer3D**: Samples boundary geometry into discrete points
 - **ConstraintChecker3D**: Encroachment checking for constrained segments and facets
-- **ConstraintRegistrar3D**: Registers constraint segments and facets into the mesh context
 - **MeshVerifier3D**: Validates mesh integrity (degenerate elements, orphan nodes)
 - **FacetDiscretization2DBuilder**: Builds UV-space discretizations of CAD facets; used by the legacy UV-space surface mesher
 - **FacetTriangulation**: Triangulates a single CAD facet in UV space; used by the legacy UV-space surface mesher
@@ -110,24 +107,23 @@ src/Meshing/Core/
 - **SurfaceMeshQuality**: Quality controller for the legacy two-phase UV-space refinement
 
 ### 3D Volume
-- **ConstrainedDelaunay3D**: Full 3D constrained Delaunay tetrahedralization
-- **Delaunay3D**: Unconstrained 3D Delaunay tetrahedralization
-- **ShewchukRefiner3D**: Quality-driven tetrahedral refinement (Shewchuk's algorithm) — superseded by RCDT
-- **Shewchuk3DQualityController**: Quality controller for Shewchuk's 3D criteria — superseded by RCDT
+- **Delaunay3D**: Unconstrained 3D Delaunay tetrahedralization; used by `RCDTMesher` to build its initial ambient tetrahedralization
+- **VolumeMesher3D**: Top-level, pluggable volume-mesh entry point (mirrors `SurfaceMesher3D`, no strategy enum — only `RCDTMesher` implements `IVolumeMesher3D` today); returns a `VolumeMesh3D`
 
 ### RCDT (ambient-space mesher)
-- **RCDTMesher**: Top-level API; runs all three RCDT phases and returns a `SurfaceMesh3D`
-- **RCDTContext**: Orchestrates the three phases: `buildInitial` (Delaunay + restriction), `refine` (quality refinement), `buildSurfaceMesh` (assembly)
-- **RCDTRefiner**: Two-priority refinement loop in ambient 3D space: split encroached curve segments first, then split restricted triangles that fail quality criteria
+- **RCDTMesher**: Implements both `ISurfaceMesher3D` and `IVolumeMesher3D`. `meshSurface()` and `meshVolume()` share a build → refine → remove-supertet → smooth pipeline, differing only in their final extraction step and in whether tet-quality refinement (priority 3) runs
+- **RCDTContext**: Orchestrates the phases: `buildInitial` (Delaunay + restriction), `refine` (quality refinement), `buildSurfaceMesh`/`buildVolumeMesh` (assembly)
+- **RCDTRefiner**: Three-priority refinement loop in ambient 3D space: split encroached curve segments, then split bad restricted triangles, then (volume meshing only, via an injected `RCDTTetQualityController`) split bad tetrahedra
+- **RCDTTetQualityController**: Tetrahedron circumradius-to-shortest-edge quality controller (`IQualityController3D`) driving priority 3; only constructed when `meshVolume()` is called, so `meshSurface()` never pays for volume-quality refinement it doesn't need
 - **RestrictedTriangulation**: Identifies and incrementally maintains the set of Delaunay faces restricted to input surfaces; a face is restricted to surface S if all three nodes lie on S and the two adjacent tetrahedra are on opposite sides of S
 - **SurfaceProjector**: Computes signed distances and surface-crossing tests; used by `RestrictedTriangulation` to classify tetrahedral faces
 - **CurveSegmentOperations**: Populates `CurveSegmentManager` from topology edges and computes arc-length midpoints for segment splitting
-- **RCDTQualitySettings**: Quality criteria for RCDT refinement: maximum circumradius-to-shortest-edge ratio and maximum chord deviation
+- **SurfaceMesh3DQualitySettings** (`Meshing/Data/3D/`): Unified quality settings for both surface and volume RCDT refinement (circumradius-to-shortest-edge ratios, chord deviation, element limits)
 
 ## Design Patterns
 
 ### Strategy Pattern
-`IQualityController2D` interface with implementations (`Shewchuk2DQualityController`, `SurfaceMeshQualityController`) enables pluggable quality metrics for the 2D mesher and the legacy UV-space surface mesher. The RCDT mesher uses `RCDTQualitySettings` directly.
+`IQualityController2D` interface with implementations (`Shewchuk2DQualityController`, `SurfaceMeshQualityController`) enables pluggable quality metrics for the 2D mesher and the legacy UV-space surface mesher. RCDT's surface-triangle refinement reads bounds directly from `SurfaceMesh3DQualitySettings`; its tet-quality refinement goes through `IQualityController3D` (`RCDTTetQualityController`), the same interface `SurfaceMesher3D`/`VolumeMesher3D` are backed by via `ISurfaceMesher3D`/`IVolumeMesher3D` — the extensibility point for a future non-RCDT algorithm.
 
 ### Context Pattern
 Contexts (`MeshingContext2D`, `MeshingContext3D`, `RCDTContext`) centralize access to geometry, topology, and mutable mesh data with clear ownership semantics.
@@ -146,21 +142,17 @@ Contexts (`MeshingContext2D`, `MeshingContext3D`, `RCDTContext`) centralize acce
 6. Results stored in `MeshData2D`
 
 ### 3D Surface Mesh Generation (RCDT)
-1. Construct `RCDTMesher` with geometry, topology, discretization settings, and quality settings
-2. Call `mesher.mesh()`, which runs three phases internally:
-   - **Phase 1** (`buildInitial`): Discretize boundary geometry; insert all vertices into `Delaunay3D`; build `RestrictedTriangulation` and `CurveSegmentManager`
-   - **Phase 2** (`refine`): Two-priority loop via `RCDTRefiner`: split encroached curve segments first, then split restricted triangles that fail `RCDTQualitySettings`
-   - **Phase 3** (`buildSurfaceMesh`): Assemble `SurfaceMesh3D` from the restricted faces
-3. Result is a `SurfaceMesh3D` ready for export
+1. Construct `SurfaceMesher3D` (or `RCDTMesher` directly) with geometry, topology, discretization settings, and quality settings
+2. Call `mesher.mesh()` (`RCDTMesher::meshSurface()` under the hood), which runs:
+   - **buildInitial**: Discretize boundary geometry; insert all vertices into `Delaunay3D`; build `RestrictedTriangulation` and `CurveSegmentManager`
+   - **refine**: Two-priority loop via `RCDTRefiner`: split encroached curve segments first, then split restricted triangles that fail `SurfaceMesh3DQualitySettings`
+   - **buildSurfaceMesh**: Assemble `SurfaceMesh3D` from the restricted faces
+3. Result is a `SurfaceMesh3D` ready for export via `VtkExporter::writeSurfaceMesh`
 
 ### 3D Volume Mesh Generation (RCDT)
-1. Create `MeshingContext3D` with geometry and topology
-2. Discretize boundary geometry via `BoundaryDiscretizer3D`; insert all vertices into `Delaunay3D` via `MeshOperations3D`
-3. Build `RestrictedTriangulation` to identify surface constraints implicitly
-4. Build `CurveSegmentManager` via `CurveSegmentOperations`
-5. Refine with the RCDT three-priority loop: encroached curve segments → bad restricted surface triangles → skinny tetrahedra
-6. Remove exterior tetrahedra
-7. Final mesh accessible via `context.getMeshData()`
+1. Construct `VolumeMesher3D` (or `RCDTMesher` directly) with geometry, topology, discretization settings, and quality settings
+2. Call `mesher.mesh()` (`RCDTMesher::meshVolume()` under the hood), which runs the same `buildInitial` → `refine` pipeline as surface meshing, except `refine` now also runs **priority 3** (split skinny tetrahedra, via `RCDTTetQualityController`) before removing the bounding supertet and smoothing
+3. Result is a `VolumeMesh3D` (tetrahedra + labeled boundary triangles, sharing one node array) ready for export via `VtkExporter::writeVolumeMesh`
 
 ## Access Patterns
 

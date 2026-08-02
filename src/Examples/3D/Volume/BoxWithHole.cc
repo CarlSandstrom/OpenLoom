@@ -1,6 +1,19 @@
+/**
+ * @file BoxWithHole.cc
+ * @brief 3D volume mesh example: a box with a cylindrical hole drilled through it.
+ *
+ * Exports:
+ *   - BoxWithHole_mesh.vtu : tetrahedral volume mesh (color by SurfaceID on
+ *     boundary triangles; tetrahedra carry SurfaceID = -1)
+ */
+
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/3D/General/MeshingContext3D.h"
+#include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/Volume/VolumeMesher3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
@@ -8,9 +21,12 @@
 #include <gp_Ax2.hxx>
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
+#include <iostream>
 
 int main()
 {
+    Common::initLogging();
+
     TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
 
     // Drill a cylindrical hole through the box center using a boolean cut.
@@ -21,16 +37,23 @@ int main()
     TopoDS_Shape boxWithHole = BRepAlgoAPI_Cut(box, cylinder).Shape();
 
     Readers::TopoDS_ShapeConverter converter(boxWithHole);
-    Meshing::MeshingContext3D context(
-        converter.getGeometryCollection(),
-        converter.getTopology());
 
-    // TODO: Implement 3D meshing algorithm
-    // Meshing::ConstrainedDelaunay3D mesher(context);
-    // mesher.generateConstrained(1, 5);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(3, 2);
+
+    Meshing::VolumeMesher3D mesher(converter.getGeometryCollection(),
+                                   converter.getTopology(),
+                                   discretizationSettings,
+                                   Meshing::SurfaceMesh3DQualitySettings{});
+
+    auto volumeMesh = mesher.mesh();
+
+    std::cout << "VolumeMesh3D: " << volumeMesh.nodes.size() << " nodes, "
+              << volumeMesh.tetrahedra.size() << " tetrahedra, "
+              << volumeMesh.boundaryTriangles.size() << " boundary triangles\n";
 
     Export::VtkExporter exporter;
-    exporter.writeVtu(context.getMeshData(), "BoxWithHole_mesh.vtu");
+    exporter.writeVolumeMesh(volumeMesh, "BoxWithHole_mesh.vtu");
+    std::cout << "Exported volume mesh to BoxWithHole_mesh.vtu\n";
 
     return 0;
 }

@@ -38,10 +38,8 @@ ctest --test-dir build/tests --output-on-failure
 - `SurfaceMeshEdges`
 
 3D volume executables in `build/src/Examples/3D/Volume/`:
-- `BoxWithHole` - 3D mesh with hole
-- `CreateBox` - Basic 3D box mesh
-- `ShewchukBox`
-- `ShewchukBoxWithHole`
+- `BoxWithHole` - 3D volume mesh with a cylindrical hole
+- `CreateBox` - Basic 3D volume mesh
 
 View output with ParaView: `paraview output.vtu`
 
@@ -58,8 +56,8 @@ View output with ParaView: `paraview output.vtu`
 | `Meshing/Core/2D/` | 2D Delaunay: ConstrainedDelaunay2D, MeshOperations2D, ShewchukRefiner2D |
 | `Meshing/Core/3D/General/` | Shared 3D infrastructure: MeshingContext3D, MeshOperations3D, geometry/quality utils |
 | `Meshing/Core/3D/Surface/` | UV-space surface mesher (SurfaceMesher3D, SurfaceMeshingContext3D) — superseded by RCDT |
-| `Meshing/Core/3D/Volume/` | Volume mesh generation: ConstrainedDelaunay3D, Delaunay3D |
-| `Meshing/Core/3D/RCDT/` | Ambient-space RCDT mesher: RCDTMesher, RCDTContext, RCDTRefiner |
+| `Meshing/Core/3D/Volume/` | Initial (unconstrained) Delaunay tetrahedralization: Delaunay3D. Top-level entry point: VolumeMesher3D |
+| `Meshing/Core/3D/RCDT/` | Ambient-space RCDT mesher: RCDTMesher, RCDTContext, RCDTRefiner — the only volume/surface meshing algorithm implemented today, behind ISurfaceMesher3D/IVolumeMesher3D |
 | `Meshing/Data/` | MeshData2D/3D, Node2D/3D, TriangleElement, TetrahedralElement |
 | `Readers/` | OpenCASCADE CAD import |
 | `Export/` | VtkExporter (VTU format) |

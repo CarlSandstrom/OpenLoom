@@ -282,7 +282,7 @@ bool RCDTRefiner::refineBadTetrahedra()
         // individual tet's potentially-tiny diameter) rather than trying to
         // fix the circumcenter computation itself — a genuine, hard "sliver"
         // problem general Delaunay refinement is known not to fully solve
-        // (see Shewchuk3DQualityController's own docs on slivers).
+        // (see the class doc comment above on slivers).
         constexpr double MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO = 100.0;
         if (circumsphere->radius > MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO * minimumEdgeLength_)
         {
