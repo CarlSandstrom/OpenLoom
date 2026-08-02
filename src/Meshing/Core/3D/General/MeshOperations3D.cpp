@@ -5,6 +5,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/GeometryUtilities3D.h"
+#include "Meshing/Core/3D/General/RobustPredicates3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
@@ -22,20 +23,18 @@ namespace Meshing
 namespace
 {
 
-constexpr double COPLANARITY_RELATIVE_TOLERANCE = 1e-10;
-
-// Whether v lies (numerically) in the plane through p0, p1, p2 -- i.e. whether
-// the tetrahedron (v, p0, p1, p2) would have zero volume. A degenerate
-// (zero-area) face is treated as coplanar with any point.
+// Whether v lies exactly in the plane through p0, p1, p2 -- i.e. whether the
+// tetrahedron (v, p0, p1, p2) would have zero volume. Exact (via
+// RobustPredicates3D), not tolerance-based: growCavityThroughCoplanarFaces()
+// and retriangulate() below must agree on this with insertVertexBowyerWatson's
+// in-sphere test (also exact, same module) about which faces are degenerate —
+// a tolerance-based coplanarity check that disagrees with an exact in-sphere
+// test on borderline cases is exactly what produced inconsistent cavities
+// (a boundary face with only one neighboring tetrahedron) on nearly-planar
+// boundary curves (see OPE-159/OPE-138).
 bool isCoplanarWithFace(const Point3D& v, const Point3D& p0, const Point3D& p1, const Point3D& p2)
 {
-    const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
-    const double faceNormalLength = faceNormal.norm();
-    if (faceNormalLength < COPLANARITY_RELATIVE_TOLERANCE)
-        return true;
-
-    const double signedVolume = faceNormal.dot(v - p0);
-    return std::abs(signedVolume) < COPLANARITY_RELATIVE_TOLERANCE * faceNormalLength;
+    return RobustPredicates3D::orientationSign(p0, p1, p2, v) == 0;
 }
 
 } // namespace

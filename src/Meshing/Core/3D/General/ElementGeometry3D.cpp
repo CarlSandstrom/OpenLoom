@@ -78,18 +78,6 @@ std::optional<CircumscribedSphere> ElementGeometry3D::computeCircumscribingSpher
     return CircumscribedSphere{center, radius};
 }
 
-bool ElementGeometry3D::isPointInsideCircumscribingSphere(const TetrahedralElement& element,
-                                                          const Point3D& point,
-                                                          double tolerance) const
-{
-    if (const auto sphere = computeCircumscribingSphere(element))
-    {
-        return GeometryUtilities3D::isPointInsideCircumscribingSphere(*sphere, point, tolerance);
-    }
-
-    return false;
-}
-
 Point3D ElementGeometry3D::computeCentroid(const TetrahedralElement& element) const
 {
     auto [v0, v1, v2, v3] = getElementNodeCoordinates(element);

@@ -100,24 +100,6 @@ TEST_F(ElementGeometry3DTest, ComputeCircumscribingSphereForRegularTetrahedron)
     EXPECT_NEAR(sphere->radius, a * std::sqrt(6.0) / 4.0, TOLERANCE);
 }
 
-TEST_F(ElementGeometry3DTest, IsPointInsideCircumscribingSphereDetectsContainment)
-{
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0, 0.0);
-    size_t n3 = addNode(0.0, 0.0, 1.0);
-    addTetrahedron(n0, n1, n2, n3);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
-
-    Point3D inside(0.25, 0.25, 0.25);
-    Point3D outside(2.0, 2.0, 2.0);
-
-    EXPECT_TRUE(geometry.isPointInsideCircumscribingSphere(*element, inside));
-    EXPECT_FALSE(geometry.isPointInsideCircumscribingSphere(*element, outside));
-}
-
 TEST_F(ElementGeometry3DTest, ComputeCentroidForUnitTetrahedron)
 {
     // Unit tetrahedron with vertices at (0,0,0), (1,0,0), (0,1,0), (0,0,1)

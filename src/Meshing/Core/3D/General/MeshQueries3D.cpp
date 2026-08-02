@@ -1,14 +1,14 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/ConstraintChecker3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/ElementQuality3D.h"
+#include "Meshing/Core/3D/General/RobustPredicates3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Meshing/Data/3D/Node3D.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <map>
-#include <unordered_set>
 
 namespace Meshing
 {
@@ -21,7 +21,6 @@ MeshQueries3D::MeshQueries3D(const MeshData3D& meshData) :
 std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& point) const
 {
     std::vector<size_t> conflicting;
-    ElementGeometry3D geometry(meshData_);
 
     // Check all tetrahedra
     for (const auto& [tetId, element] : meshData_.getElements())
@@ -32,8 +31,24 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
             continue;
         }
 
-        // Check if point is inside the circumsphere
-        if (geometry.isPointInsideCircumscribingSphere(*tet, point))
+        // In-sphere test via a robust (double-double precision) determinant
+        // sign, not an explicit circumcenter/radius: for a near-degenerate
+        // (nearly flat) tetrahedron, solving for the circumcenter is a
+        // near-singular linear system whose solution can be wrong by orders
+        // of magnitude, which silently corrupts this conflict search (see
+        // RobustPredicates3D, OPE-159).
+        const auto& nodeIds = tet->getNodeIds();
+        const Node3D* n0 = meshData_.getNode(nodeIds[0]);
+        const Node3D* n1 = meshData_.getNode(nodeIds[1]);
+        const Node3D* n2 = meshData_.getNode(nodeIds[2]);
+        const Node3D* n3 = meshData_.getNode(nodeIds[3]);
+        if (!n0 || !n1 || !n2 || !n3)
+        {
+            continue;
+        }
+
+        if (RobustPredicates3D::insidePointCircumsphere(
+                n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates(), n3->getCoordinates(), point))
         {
             conflicting.push_back(tetId);
         }
