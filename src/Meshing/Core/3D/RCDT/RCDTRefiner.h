@@ -43,24 +43,19 @@ private:
     SurfaceProjector surfaceProjector_;
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
 
-    /// Per-vertex insertion radius: the distance to the nearest other node at
-    /// the moment this vertex was inserted. Recorded once and never updated —
-    /// it is a fixed property of the vertex, not a measure of its current
-    /// surroundings. Used by the proximity guard in refineStep() to bound how
-    /// close a new Steiner point may land to an existing one, relative to how
-    /// fine the mesh already was when that existing point was created. This
-    /// is what makes each generation of insertions provably smaller than the
-    /// last by a bounded factor, guaranteeing termination.
-    std::unordered_map<size_t, double> insertionRadius_;
+    /// Resolved once at the start of refine() from settings_.minimumEdgeLength
+    /// (or derived from the initial discretization if unset — see
+    /// resolveMinimumEdgeLength()). A restricted triangle at or below this
+    /// shortest-edge length is left unrefined even if still quality-bad.
+    double minimumEdgeLength_ = 0.0;
 
-    /// Seeds insertionRadius_ for every node present before refinement starts
-    /// (the initial boundary/corner discretization and the supertet corners).
-    void initializeInsertionRadii();
-
-    /// Distance from point to its nearest existing node. Used both to check
-    /// the insertion-radius guard and, after a successful insertion, to seed
-    /// the new node's own entry in insertionRadius_.
-    double computeNearestNeighborDistance(const Point3D& point) const;
+    /// Resolves minimumEdgeLength_: settings_.minimumEdgeLength if set,
+    /// otherwise the median nearest-neighbor distance among the nodes
+    /// present before refinement starts (excluding the supertet corners),
+    /// divided by 10. Median rather than minimum because a periodic curve's
+    /// discretization can leave a short "remainder" segment near its seam
+    /// vertex that isn't representative of the intended spacing.
+    double resolveMinimumEdgeLength() const;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();

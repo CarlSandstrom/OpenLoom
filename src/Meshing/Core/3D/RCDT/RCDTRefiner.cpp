@@ -17,6 +17,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <unordered_map>
@@ -28,11 +29,11 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t MAX_ITERATIONS = 200;
+constexpr size_t MAX_ITERATIONS = 500;
 
-// A candidate insertion must land at least this fraction of an existing
-// vertex's own insertion radius away from it to be accepted.
-constexpr double INSERTION_RADIUS_FACTOR = 0.5;
+// Divisor applied to the initial discretization's smallest pairwise distance
+// when settings_.minimumEdgeLength is unset. See resolveMinimumEdgeLength().
+constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
 
 } // namespace
 
@@ -52,7 +53,8 @@ void RCDTRefiner::refine()
                  meshData.getNodeCount(),
                  meshData.getCurveSegmentManager().size());
 
-    initializeInsertionRadii();
+    minimumEdgeLength_ = resolveMinimumEdgeLength();
+    spdlog::info("RCDTRefiner: minimum edge length floor = {}", minimumEdgeLength_);
 
     size_t iteration = 0;
     exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
@@ -112,6 +114,17 @@ bool RCDTRefiner::refineStep()
         if (unrefinableTriangles_.count(bad.face))
             continue;
 
+        // Size floor (CGAL/Boissonnat-Oudot style): a triangle already at or
+        // below the minimum useful element size is left as-is even if still
+        // quality-bad, rather than trying (and failing) to fix it forever.
+        // Checked before doing any surface work since it needs nothing but
+        // the triangle's own shortest edge.
+        if (bad.shortestEdge <= minimumEdgeLength_)
+        {
+            unrefinableTriangles_.insert(bad.face);
+            continue;
+        }
+
         const Geometry3D::ISurface3D* surface = geometry->getSurface(bad.surfaceId);
         if (!surface)
         {
@@ -129,30 +142,23 @@ bool RCDTRefiner::refineStep()
 
         const Point3D& projected = *projectedOpt;
 
-        // Proximity guard (insertion-radius check, Ruppert/Chew): reject if
-        // the candidate would land closer to an existing vertex than a fixed
-        // fraction of THAT vertex's own insertion radius — its distance to
-        // its nearest neighbor at the moment it was created (see
-        // insertionRadius_). A threshold scaled to the whole mesh, or to the
-        // current bad triangle's own shape, cannot guarantee termination:
-        // the former is too small to ever fire, the latter can never fire at
-        // all for a triangle that failed the ratio test (its circumradius —
-        // the candidate's distance to its own vertices — is by definition
-        // larger than its shortest edge). Scaling to the target vertex's own
-        // history is what bounds each generation of insertions to a fraction
-        // of the previous one's spacing.
+        // Proximity guard: reject if the candidate would land within the size
+        // floor of any existing vertex, regardless of that vertex's history.
+        // Needed in addition to the shortestEdge check above: that check only
+        // looks at the triangle's edges *before* insertion, so it cannot
+        // catch a circumcenter that projects onto (or nearly onto) an
+        // existing vertex — including one belonging to a different, unrelated
+        // triangle. Without this, such an insertion creates a near-degenerate
+        // duplicate point that corrupts the local mesh and never stops
+        // generating new "bad" triangles around it.
         bool tooClose = false;
-        double nearestDistance = std::numeric_limits<double>::max();
         for (const auto& [nodeId, node] : meshData.getNodes())
         {
-            const double distance = (projected - node->getCoordinates()).norm();
-            nearestDistance = std::min(nearestDistance, distance);
-
-            const auto radiusIt = insertionRadius_.find(nodeId);
-            const double radius =
-                radiusIt != insertionRadius_.end() ? radiusIt->second : std::numeric_limits<double>::max();
-            if (distance < INSERTION_RADIUS_FACTOR * radius)
+            if ((projected - node->getCoordinates()).norm() < minimumEdgeLength_)
+            {
                 tooClose = true;
+                break;
+            }
         }
         if (tooClose)
         {
@@ -166,15 +172,14 @@ bool RCDTRefiner::refineStep()
             return splitSegment(encroachingIds[0]);
 
         // Insert the projected circumcenter.
-        // Do NOT clear unrefinableTriangles_ here: faces blocked by proximity
-        // to an existing node stay blocked (the node is never removed, so the
-        // same projection will always be too close). Clearing was the cascade
-        // bug — it caused those faces to be retried forever after each
-        // subsequent insertion cleared the set.  Clearing on segment splits
-        // (in splitSegment()) is still correct because splitting a segment
-        // changes the constraint structure and may unblock previously stuck faces.
-        const size_t newNodeId = insertAndUpdate(projected, {bad.surfaceId});
-        insertionRadius_[newNodeId] = nearestDistance;
+        // Do NOT clear unrefinableTriangles_ here: faces blocked by the size
+        // floor stay blocked (they can't get any smaller than they already
+        // are). Clearing was the cascade bug — it caused those faces to be
+        // retried forever after each subsequent insertion cleared the set.
+        // Clearing on segment splits (in splitSegment()) is still correct
+        // because splitting a segment changes the constraint structure and
+        // may unblock previously stuck faces.
+        insertAndUpdate(projected, {bad.surfaceId});
         return true;
     }
 
@@ -213,14 +218,12 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
         return false;
 
     const Point3D splitPoint = computeSplitPoint(segment, *geometry);
-    const double nearestDistance = computeNearestNeighborDistance(splitPoint);
 
     auto& operations = context_->getOperations();
     const auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
     const auto interiorFaces = computeCavityInteriorFaces(conflictingTets);
 
     const size_t newNodeId = operations.insertVertexBowyerWatson(splitPoint, {segment.edgeId});
-    insertionRadius_[newNodeId] = nearestDistance;
 
     const double tMid =
         edge->getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
@@ -235,28 +238,52 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     return true;
 }
 
-void RCDTRefiner::initializeInsertionRadii()
+double RCDTRefiner::resolveMinimumEdgeLength() const
 {
-    const auto& nodes = context_->getMeshData().getNodes();
+    if (settings_.minimumEdgeLength)
+        return *settings_.minimumEdgeLength;
+
+    const auto& meshData = context_->getMeshData();
+    const auto& nodes = meshData.getNodes();
+    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
+
+    const auto isBoundingNode = [&boundingNodeIds](size_t nodeId)
+    {
+        if (!boundingNodeIds)
+            return false;
+        for (const size_t id : *boundingNodeIds)
+            if (id == nodeId)
+                return true;
+        return false;
+    };
+
+    std::vector<double> nearestPerNode;
     for (const auto& [nodeId, node] : nodes)
     {
+        if (isBoundingNode(nodeId))
+            continue;
         double nearest = std::numeric_limits<double>::max();
         for (const auto& [otherId, otherNode] : nodes)
         {
-            if (otherId == nodeId)
+            if (otherId == nodeId || isBoundingNode(otherId))
                 continue;
             nearest = std::min(nearest, (node->getCoordinates() - otherNode->getCoordinates()).norm());
         }
-        insertionRadius_[nodeId] = nearest;
+        nearestPerNode.push_back(nearest);
     }
-}
+    if (nearestPerNode.empty())
+        return 0.0;
 
-double RCDTRefiner::computeNearestNeighborDistance(const Point3D& point) const
-{
-    double nearest = std::numeric_limits<double>::max();
-    for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
-        nearest = std::min(nearest, (point - node->getCoordinates()).norm());
-    return nearest;
+    // Median, not minimum: a periodic curve's discretization (e.g. a
+    // cylinder's circular edges either side of the OCC seam) leaves one
+    // short "remainder" segment wherever the curve length doesn't divide
+    // evenly into whole angle steps starting from the seam vertex. A raw
+    // minimum reliably picks up that artifact instead of the intended
+    // spacing; the median is robust to the handful of short segments this
+    // produces (see project memory: Linear ticket on removing OCC seams).
+    std::sort(nearestPerNode.begin(), nearestPerNode.end());
+    const double median = nearestPerNode[nearestPerNode.size() / 2];
+    return median / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
 }
 
 std::unordered_map<size_t, Point3D> RCDTRefiner::buildNodePositionMap() const

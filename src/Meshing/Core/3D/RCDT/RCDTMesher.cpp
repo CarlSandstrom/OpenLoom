@@ -64,6 +64,9 @@ SurfaceMesh3D RCDTMesher::mesh()
         smoother.smooth(surfaceMesh, qualitySettings_.smoothingIterations);
     }
 
+    Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_smoothed", counter);
+    ++counter;
+
     return surfaceMesh;
 }
 
