@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace Meshing
@@ -36,6 +37,15 @@ struct BadRestrictedTriangle
     std::string surfaceId;
     Point3D circumcircleCenter;
     double shortestEdge;
+
+    /// Where to insert if this triangle is refined: the restricted Voronoi
+    /// vertex, i.e. where the face's dual Voronoi edge (the segment between
+    /// its two adjacent tetrahedra's circumcenters) crosses the surface.
+    /// nullopt if the face has fewer than two adjacent tetrahedra (a true
+    /// boundary face of the ambient triangulation — not expected for a
+    /// closed solid fully inside the bounding supertet, but possible in
+    /// principle) or the crossing could not be found.
+    std::optional<Point3D> insertionPoint;
 };
 
 class RestrictedTriangulation
@@ -65,6 +75,7 @@ public:
     /// Returns restricted faces that violate quality criteria.
     std::vector<BadRestrictedTriangle> getBadTriangles(const RCDTQualitySettings& settings,
                                                        const MeshData3D& meshData,
+                                                       const MeshConnectivity& connectivity,
                                                        const Geometry3D::GeometryCollection3D& geometry) const;
 
     const std::unordered_map<FaceKey, std::string, FaceKeyHash>& getRestrictedFaces() const;
@@ -81,6 +92,14 @@ private:
     /// surface IDs pass through; edge IDs expand to adjacent surface IDs;
     /// corner IDs expand to connected surface IDs.
     std::unordered_set<std::string> effectiveSurfaceIds(const std::vector<std::string>& geometryIds) const;
+
+    /// Circumcenters of the two tetrahedra adjacent to face — the endpoints
+    /// of its dual Voronoi edge. nullopt if face has fewer than two adjacent
+    /// tetrahedra, or either one's circumcenter cannot be computed.
+    std::optional<std::pair<Point3D, Point3D>> computeDualEdgeEndpoints(
+        const FaceKey& face,
+        const MeshData3D& meshData,
+        const MeshConnectivity& connectivity) const;
 
     std::unordered_map<FaceKey, std::string, FaceKeyHash> restrictedFaces_;
     SurfaceProjector surfaceProjector_;

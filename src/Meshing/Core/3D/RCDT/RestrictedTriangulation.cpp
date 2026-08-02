@@ -107,6 +107,7 @@ void RestrictedTriangulation::invalidateFacesWithEdge(size_t nodeId1, size_t nod
 std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
     const RCDTQualitySettings& settings,
     const MeshData3D& meshData,
+    const MeshConnectivity& connectivity,
     const Geometry3D::GeometryCollection3D& geometry) const
 {
     std::vector<BadRestrictedTriangle> badTriangles;
@@ -136,8 +137,22 @@ std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
                                          std::abs(surfaceProjector_.signedDistance(circumcircle->center, *surface)) >
                                              settings.maximumChordDeviation;
 
-        if (failsRatio || failsChordDeviation)
-            badTriangles.push_back({face, surfaceId, circumcircle->center, shortestEdge});
+        if (!failsRatio && !failsChordDeviation)
+            continue;
+
+        // The point to actually insert if this triangle gets refined: where
+        // the face's dual Voronoi edge crosses the surface, not the flat
+        // circumcircle center above (which is only used for the chord
+        // deviation check — a property of the flat triangle itself).
+        std::optional<Point3D> insertionPoint;
+        if (surface)
+        {
+            const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
+            if (endpoints)
+                insertionPoint = surfaceProjector_.findSurfaceCrossing(endpoints->first, endpoints->second, *surface);
+        }
+
+        badTriangles.push_back({face, surfaceId, circumcircle->center, shortestEdge, insertionPoint});
     }
 
     return badTriangles;
@@ -184,37 +199,32 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
             return std::nullopt;
     }
 
-    // Get the two adjacent tet circumcenters.
     const auto& [elementId1, elementId2] = connectivity.getFaceElements(face);
     if (elementId1 == INVALID_ID)
         return std::nullopt;
 
-    const auto* tet1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
-    if (!tet1)
-        return std::nullopt;
-
-    const ElementGeometry3D elementGeometry(meshData);
-    const auto sphere1 = elementGeometry.computeCircumscribingSphere(*tet1);
-    if (!sphere1)
-        return std::nullopt;
-
     // Convex-hull (boundary) face: the dual Voronoi edge is a half-infinite ray
-    // from sphere1->center outward. It always crosses the surface when the
-    // circumcenter is on the interior side, which is guaranteed for Delaunay
-    // triangulations of boundary points on a closed solid.
+    // from the one adjacent tet's circumcenter outward. It always crosses the
+    // surface when the circumcenter is on the interior side, which is
+    // guaranteed for Delaunay triangulations of boundary points on a closed
+    // solid.
     if (elementId2 == INVALID_ID)
     {
+        const auto* tet1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
+        if (!tet1)
+            return std::nullopt;
+
+        const ElementGeometry3D elementGeometry(meshData);
+        if (!elementGeometry.computeCircumscribingSphere(*tet1))
+            return std::nullopt;
+
         if (!candidates.empty())
             return *candidates.begin();
         return std::nullopt;
     }
 
-    const auto* tet2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
-    if (!tet2)
-        return std::nullopt;
-
-    const auto sphere2 = elementGeometry.computeCircumscribingSphere(*tet2);
-    if (!sphere2)
+    const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
+    if (!endpoints)
         return std::nullopt;
 
     for (const auto& surfaceId : candidates)
@@ -222,11 +232,34 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         if (!surface)
             continue;
-        if (surfaceProjector_.crossesSurface(sphere1->center, sphere2->center, *surface))
+        if (surfaceProjector_.crossesSurface(endpoints->first, endpoints->second, *surface))
             return surfaceId;
     }
 
     return std::nullopt;
+}
+
+std::optional<std::pair<Point3D, Point3D>> RestrictedTriangulation::computeDualEdgeEndpoints(
+    const FaceKey& face,
+    const MeshData3D& meshData,
+    const MeshConnectivity& connectivity) const
+{
+    const auto& [elementId1, elementId2] = connectivity.getFaceElements(face);
+    if (elementId1 == INVALID_ID || elementId2 == INVALID_ID)
+        return std::nullopt;
+
+    const auto* tet1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
+    const auto* tet2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
+    if (!tet1 || !tet2)
+        return std::nullopt;
+
+    const ElementGeometry3D elementGeometry(meshData);
+    const auto sphere1 = elementGeometry.computeCircumscribingSphere(*tet1);
+    const auto sphere2 = elementGeometry.computeCircumscribingSphere(*tet2);
+    if (!sphere1 || !sphere2)
+        return std::nullopt;
+
+    return std::make_pair(sphere1->center, sphere2->center);
 }
 
 std::unordered_set<std::string> RestrictedTriangulation::effectiveSurfaceIds(

@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -103,8 +104,9 @@ bool RCDTRefiner::refineStep()
     if (!geometry)
         return false;
 
+    const MeshConnectivity connectivity(meshData);
     const auto badTriangles =
-        restrictedTriangulation_->getBadTriangles(settings_, meshData, *geometry);
+        restrictedTriangulation_->getBadTriangles(settings_, meshData, connectivity, *geometry);
 
     if (badTriangles.empty())
         return false;
@@ -132,8 +134,25 @@ bool RCDTRefiner::refineStep()
             continue;
         }
 
-        const auto projectedOpt =
-            surfaceProjector_.projectToSurface(bad.circumcircleCenter, *surface);
+        // Prefer the true restricted Voronoi vertex (where the face's dual
+        // Voronoi edge crosses the surface, already computed by
+        // getBadTriangles); fall back to projecting the flat circumcenter if
+        // that couldn't be computed — most commonly because the face's
+        // classification into restrictedFaces_ has gone stale (an earlier,
+        // different pair of neighboring tetrahedra is what originally found
+        // a crossing) and its current dual edge no longer crosses the
+        // surface at all. The proximity guard below is what actually keeps
+        // this fallback safe: it rejects a fallback candidate that lands too
+        // close to an unrelated vertex, so a bad fallback point just leaves
+        // the triangle unrefined (same outcome as not attempting it), while
+        // a good one — which is the common case — still gets used. Removing
+        // the fallback entirely was tried and measured worse: many stale
+        // classifications still yield a perfectly usable fallback point, and
+        // giving up on all of them loses far more good insertions than the
+        // rare bad one the guard would have caught anyway.
+        std::optional<Point3D> projectedOpt = bad.insertionPoint;
+        if (!projectedOpt)
+            projectedOpt = surfaceProjector_.projectToSurface(bad.circumcircleCenter, *surface);
         if (!projectedOpt)
         {
             unrefinableTriangles_.insert(bad.face);

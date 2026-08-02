@@ -333,7 +333,7 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ElongatedTriangle_ReportedAsBa
     rt.buildFrom(meshData, connectivity, geometry, topology);
 
     const RCDTQualitySettings settings;
-    const auto badTriangles = rt.getBadTriangles(settings, meshData, geometry);
+    const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
 
     ASSERT_FALSE(badTriangles.empty());
     const FaceKey expectedFace(n0, n1, n2);
@@ -378,7 +378,7 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_GoodTriangle_NotReported)
     rt.buildFrom(meshData, connectivity, geometry, topology);
 
     const RCDTQualitySettings settings;
-    const auto badTriangles = rt.getBadTriangles(settings, meshData, geometry);
+    const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
 
     EXPECT_TRUE(badTriangles.empty());
 }
@@ -422,7 +422,7 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ChordDeviationFailure)
     settings.maximumCircumradiusToShortestEdgeRatio = 100.0;
     settings.maximumChordDeviation = 0.1;
 
-    const auto badTriangles = rt.getBadTriangles(settings, meshData, geometry);
+    const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
 
     ASSERT_FALSE(badTriangles.empty());
     const FaceKey expectedFace(n0, n1, n2);
