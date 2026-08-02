@@ -82,13 +82,20 @@ void RestrictedTriangulation::updateAfterInsertion(
 
         for (const auto& faceArray : tet->getFaces())
         {
+            // Always reclassify, even if already present: 3 of this tet's 4
+            // faces contain newNodeId and are genuinely new, but the 4th
+            // (opposite newNodeId) is an existing cavity-boundary face whose
+            // OTHER neighboring tetrahedron didn't change — only THIS one
+            // did. Skipping it here because it already has a stored
+            // classification is what let that classification go stale: its
+            // dual Voronoi edge is defined by both neighbors, and one of
+            // them just changed.
             const FaceKey face(faceArray);
-            if (restrictedFaces_.count(face))
-                continue;
-
             auto surfaceId = classifyFace(face, meshData, connectivity, geometry);
             if (surfaceId)
-                restrictedFaces_.emplace(face, std::move(*surfaceId));
+                restrictedFaces_.insert_or_assign(face, std::move(*surfaceId));
+            else
+                restrictedFaces_.erase(face);
         }
     }
 }
