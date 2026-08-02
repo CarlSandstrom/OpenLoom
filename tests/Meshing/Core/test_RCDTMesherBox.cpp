@@ -155,3 +155,104 @@ TEST_F(RCDTMesherBoxTest, NoDegenerateTriangles)
             << ", " << triangle[2] << "} area=" << area;
     }
 }
+
+// ============================================================================
+// RCDTMesherBoxVolumeTest
+//
+// End-to-end test: mesh a unit box's interior using RCDTMesher::meshVolume().
+// Uses its own RCDTMesher instance since meshSurface()/meshVolume() may only
+// be called once per instance.
+//
+// Checks:
+//   1. meshVolume() completes without throwing and produces non-empty output
+//   2. Every tetrahedron's 4 node IDs are distinct and valid (in-range)
+//   3. Every tetrahedron has positive (non-inverted, non-degenerate) volume
+//   4. Every boundary triangle's nodes appear in at least one tetrahedron
+// ============================================================================
+
+class RCDTMesherBoxVolumeTest : public ::testing::Test
+{
+protected:
+    static constexpr double SIZE = 1.0;
+    static constexpr int SEGMENTS_PER_EDGE = 2;
+
+    static void SetUpTestSuite()
+    {
+        shape_ = BRepPrimAPI_MakeBox(SIZE, SIZE, SIZE).Shape();
+
+        converter_ = std::make_unique<Readers::TopoDS_ShapeConverter>(shape_);
+
+        const Geometry3D::DiscretizationSettings3D discretizationSettings(
+            SEGMENTS_PER_EDGE, 0);
+
+        RCDTMesher mesher(converter_->getGeometryCollection(),
+                          converter_->getTopology(),
+                          discretizationSettings);
+
+        mesh_ = mesher.meshVolume();
+    }
+
+    static void TearDownTestSuite()
+    {
+        converter_.reset();
+    }
+
+    static TopoDS_Shape shape_;
+    static std::unique_ptr<Readers::TopoDS_ShapeConverter> converter_;
+    static VolumeMesh3D mesh_;
+};
+
+TopoDS_Shape RCDTMesherBoxVolumeTest::shape_;
+std::unique_ptr<Readers::TopoDS_ShapeConverter> RCDTMesherBoxVolumeTest::converter_;
+VolumeMesh3D RCDTMesherBoxVolumeTest::mesh_;
+
+TEST_F(RCDTMesherBoxVolumeTest, Completes)
+{
+    EXPECT_FALSE(mesh_.nodes.empty());
+    EXPECT_FALSE(mesh_.tetrahedra.empty());
+    EXPECT_FALSE(mesh_.boundaryTriangles.empty());
+    EXPECT_FALSE(mesh_.boundaryFaceTriangleIds.empty());
+}
+
+TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHaveDistinctValidNodeIds)
+{
+    for (const auto& tet : mesh_.tetrahedra)
+    {
+        std::set<size_t> distinctNodes(tet.begin(), tet.end());
+        EXPECT_EQ(distinctNodes.size(), 4u)
+            << "Tetrahedron {" << tet[0] << ", " << tet[1] << ", " << tet[2] << ", " << tet[3]
+            << "} does not have 4 distinct node IDs";
+
+        for (const size_t nodeId : tet)
+            EXPECT_LT(nodeId, mesh_.nodes.size())
+                << "Tetrahedron references out-of-range node " << nodeId;
+    }
+}
+
+TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHavePositiveVolume)
+{
+    for (const auto& tet : mesh_.tetrahedra)
+    {
+        const Point3D& p0 = mesh_.nodes[tet[0]];
+        const Point3D& p1 = mesh_.nodes[tet[1]];
+        const Point3D& p2 = mesh_.nodes[tet[2]];
+        const Point3D& p3 = mesh_.nodes[tet[3]];
+        const double signedVolume = (p1 - p0).dot((p2 - p0).cross(p3 - p0)) / 6.0;
+        EXPECT_GT(signedVolume, 1e-10)
+            << "Tetrahedron {" << tet[0] << ", " << tet[1] << ", " << tet[2] << ", " << tet[3]
+            << "} is degenerate or inverted (signed volume=" << signedVolume << ")";
+    }
+}
+
+TEST_F(RCDTMesherBoxVolumeTest, BoundaryTriangleNodesAppearInSomeTetrahedron)
+{
+    std::unordered_set<size_t> nodesInTetrahedra;
+    for (const auto& tet : mesh_.tetrahedra)
+        for (const size_t nodeId : tet)
+            nodesInTetrahedra.insert(nodeId);
+
+    for (const auto& triangle : mesh_.boundaryTriangles)
+        for (const size_t nodeId : triangle)
+            EXPECT_TRUE(nodesInTetrahedra.count(nodeId))
+                << "Boundary triangle node " << nodeId << " does not appear in any tetrahedron";
+}

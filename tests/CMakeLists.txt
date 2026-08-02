@@ -39,6 +39,7 @@ set(TEST_SOURCES
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
+    Meshing/Core/test_RCDTTetQualityController.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_SurfaceMesher3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
