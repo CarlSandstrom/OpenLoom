@@ -322,15 +322,22 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
         const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
         const double signedVolume = faceNormal.dot(v - p0);
 
+        // signedVolume is the signed volume of (p0, p1, p2, v) in that vertex
+        // order (by the scalar triple product's cyclic invariance, faceNormal
+        // . (v - p0) == (p1 - p0) . ((p2 - p0) x (v - p0))). Store the node
+        // IDs in that same (face..., vertex) order so a >= 0 signedVolume
+        // here really does mean a positive-orientation TetrahedralElement
+        // under MeshVerifier3D::computeSignedVolume's convention -- storing
+        // vertex first instead (an odd permutation) would silently negate it.
         std::array<size_t, 4> nodeIds;
         if (signedVolume >= 0.0)
         {
-            nodeIds = {vertexNodeId, face[0], face[1], face[2]};
+            nodeIds = {face[0], face[1], face[2], vertexNodeId};
         }
         else
         {
             // Flip face winding to get positive orientation
-            nodeIds = {vertexNodeId, face[0], face[2], face[1]};
+            nodeIds = {face[0], face[2], face[1], vertexNodeId};
         }
 
         auto tet = std::make_unique<TetrahedralElement>(nodeIds);
