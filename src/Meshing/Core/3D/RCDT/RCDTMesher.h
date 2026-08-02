@@ -69,7 +69,12 @@ private:
     std::array<size_t, 4> boundingNodeIds_{};
 
     void buildInitial();
-    void refine();
+
+    /// includeTetQualityRefinement enables RCDTRefiner's priority-3 (bad
+    /// tetrahedra) refinement pass -- meshVolume() passes true, meshSurface()
+    /// passes false so it never pays for volume-quality refinement it has no
+    /// use for.
+    void refine(bool includeTetQualityRefinement);
     void removeBoundingTetrahedron();
 
     /// Shared build -> refine -> remove-supertet -> smooth pipeline, common to
@@ -77,7 +82,7 @@ private:
     /// surface mesh; meshVolume() only needs it for the smoother's triangle
     /// adjacency and discards it once smoothing has synced back to the live
     /// mesh (see buildVolumeMesh()).
-    SurfaceMesh3D runPipeline();
+    SurfaceMesh3D runPipeline(bool includeTetQualityRefinement);
 
     SurfaceMesh3D buildSurfaceMesh() const;
     VolumeMesh3D buildVolumeMesh() const;

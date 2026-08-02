@@ -9,6 +9,7 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
+#include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
 #include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
@@ -67,14 +68,14 @@ RCDTMesher::~RCDTMesher() = default;
 RCDTMesher::RCDTMesher(RCDTMesher&&) noexcept = default;
 RCDTMesher& RCDTMesher::operator=(RCDTMesher&&) noexcept = default;
 
-SurfaceMesh3D RCDTMesher::runPipeline()
+SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
 {
     size_t counter = 0;
     buildInitial();
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_initial", counter);
     ++counter;
 
-    refine();
+    refine(includeTetQualityRefinement);
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_refined", counter);
     ++counter;
 
@@ -110,7 +111,7 @@ SurfaceMesh3D RCDTMesher::runPipeline()
 
 SurfaceMesh3D RCDTMesher::meshSurface()
 {
-    SurfaceMesh3D surfaceMesh = runPipeline();
+    SurfaceMesh3D surfaceMesh = runPipeline(false);
 
     // Triangle-only export of the actual output — unlike the exports in
     // runPipeline(), this contains none of the ambient tetrahedralization's
@@ -128,7 +129,7 @@ VolumeMesh3D RCDTMesher::meshVolume()
     // adjacency inside runPipeline() — smoothing already synced the resulting
     // positions back into the live mesh, so buildVolumeMesh() (reading that
     // live mesh directly) sees the same, consistent positions.
-    runPipeline();
+    runPipeline(true);
 
     return buildVolumeMesh();
 }
@@ -209,10 +210,19 @@ void RCDTMesher::buildInitial()
                  meshData.getCurveSegmentManager().size());
 }
 
-void RCDTMesher::refine()
+void RCDTMesher::refine(bool includeTetQualityRefinement)
 {
-    spdlog::info("RCDTMesher::refine: starting RCDT refinement");
-    RCDTRefiner refiner(*meshingContext_, *restrictedTriangulation_, qualitySettings_);
+    spdlog::info("RCDTMesher::refine: starting RCDT refinement (tet quality: {})",
+                 includeTetQualityRefinement);
+
+    std::unique_ptr<RCDTTetQualityController> tetQualityController;
+    if (includeTetQualityRefinement)
+    {
+        tetQualityController =
+            std::make_unique<RCDTTetQualityController>(meshingContext_->getMeshData(), qualitySettings_);
+    }
+
+    RCDTRefiner refiner(*meshingContext_, *restrictedTriangulation_, qualitySettings_, tetQualityController.get());
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
 }

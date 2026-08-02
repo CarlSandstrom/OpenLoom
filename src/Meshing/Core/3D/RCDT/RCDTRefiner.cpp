@@ -3,11 +3,13 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
+#include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
+#include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
@@ -40,10 +42,12 @@ constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
 
 RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          RestrictedTriangulation& restrictedTriangulation,
-                         const SurfaceMesh3DQualitySettings& settings) :
+                         const SurfaceMesh3DQualitySettings& settings,
+                         const RCDTTetQualityController* tetQualityController) :
     context_(&context),
     restrictedTriangulation_(&restrictedTriangulation),
-    settings_(settings)
+    settings_(settings),
+    tetQualityController_(tetQualityController)
 {
 }
 
@@ -109,7 +113,7 @@ bool RCDTRefiner::refineStep()
         restrictedTriangulation_->getBadTriangles(settings_, meshData, connectivity, *geometry);
 
     if (badTriangles.empty())
-        return false;
+        return refineBadTetrahedra();
 
     for (const auto& bad : badTriangles)
     {
@@ -202,6 +206,119 @@ bool RCDTRefiner::refineStep()
         return true;
     }
 
+    return refineBadTetrahedra();
+}
+
+bool RCDTRefiner::refineBadTetrahedra()
+{
+    if (!tetQualityController_)
+        return false;
+
+    const auto& meshData = context_->getMeshData();
+    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    const auto nodePositionMap = buildNodePositionMap();
+
+    // Priority 3 runs before removeBoundingTetrahedron() -- priorities 1/2
+    // need the supertet kept alive (see class docs) -- so at this point the
+    // mesh still contains tets touching the supertet's corners. Those are
+    // artifacts of the seed triangulation, not real output, and are
+    // naturally "skinny" (the supertet is deliberately huge relative to the
+    // real geometry); attempting to refine them wastes every early iteration
+    // and their circumcenters are meaningless. Exclude any tet touching a
+    // bounding node, same exclusion resolveMinimumEdgeLength() already uses.
+    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
+    const auto touchesBoundingNode = [&boundingNodeIds](const TetrahedralElement& tet)
+    {
+        if (!boundingNodeIds)
+            return false;
+        for (const size_t nodeId : tet.getNodeIds())
+            for (const size_t boundingId : *boundingNodeIds)
+                if (nodeId == boundingId)
+                    return true;
+        return false;
+    };
+
+    const auto skinnyTetIds =
+        context_->getOperations().getQueries().findSkinnyTetrahedra(settings_.tetCircumradiusToShortestEdgeRatio);
+
+    const ElementGeometry3D elementGeometry(meshData);
+
+    for (const size_t tetId : skinnyTetIds)
+    {
+        if (unrefinableTetrahedra_.count(tetId))
+            continue;
+
+        const auto* element = meshData.getElement(tetId);
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
+        if (!tet)
+            continue;
+
+        if (touchesBoundingNode(*tet))
+            continue;
+
+        // Size floor, same reasoning as the restricted-triangle version above.
+        if (tetQualityController_->isTetrahedronTooSmall(*tet))
+        {
+            unrefinableTetrahedra_.insert(tetId);
+            continue;
+        }
+
+        const auto circumsphere = elementGeometry.computeCircumscribingSphere(*tet);
+        if (!circumsphere)
+        {
+            unrefinableTetrahedra_.insert(tetId);
+            continue;
+        }
+
+        // Sanity guard: computeCircumscribingSphere solves a 3x3 linear
+        // system, and a thin/near-flat tetrahedron can have a genuinely huge
+        // true circumradius (this is real math, not just numerical error —
+        // as a tet flattens, its circumcenter recedes toward infinity) — but
+        // that doesn't make inserting it a sensible refinement move: the
+        // resulting point can land far outside the region the mesh actually
+        // occupies (confirmed empirically: radius 126 for a unit-scale box),
+        // corrupting the mesh's extent and never converging. Bound against
+        // minimumEdgeLength_ (the mesh's own characteristic scale, not the
+        // individual tet's potentially-tiny diameter) rather than trying to
+        // fix the circumcenter computation itself — a genuine, hard "sliver"
+        // problem general Delaunay refinement is known not to fully solve
+        // (see Shewchuk3DQualityController's own docs on slivers).
+        constexpr double MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO = 100.0;
+        if (circumsphere->radius > MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO * minimumEdgeLength_)
+        {
+            unrefinableTetrahedra_.insert(tetId);
+            continue;
+        }
+
+        const Point3D& circumcenter = circumsphere->center;
+
+        // Proximity guard, same reasoning as the restricted-triangle version above.
+        bool tooClose = false;
+        for (const auto& [nodeId, node] : meshData.getNodes())
+        {
+            if ((circumcenter - node->getCoordinates()).norm() < minimumEdgeLength_)
+            {
+                tooClose = true;
+                break;
+            }
+        }
+        if (tooClose)
+        {
+            unrefinableTetrahedra_.insert(tetId);
+            continue;
+        }
+
+        // Demotion: if the circumcenter would encroach a segment, split that segment instead.
+        const auto encroachingIds = curveSegmentManager.findEncroached(circumcenter, nodePositionMap);
+        if (!encroachingIds.empty())
+            return splitSegment(encroachingIds[0]);
+
+        // Interior point: no geometryIds, matching insertVertexBowyerWatson's
+        // convention for a non-boundary node.
+        insertAndUpdate(circumcenter, {});
+        return true;
+    }
+
     return false;
 }
 
@@ -254,6 +371,7 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     restrictedTriangulation_->updateAfterInsertion(interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
 
     unrefinableTriangles_.clear();
+    unrefinableTetrahedra_.clear();
     return true;
 }
 

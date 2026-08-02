@@ -45,6 +45,19 @@ struct SurfaceMesh3DQualitySettings
     /// discretization: the median nearest-neighbor distance among the
     /// initial nodes, divided by 10.
     std::optional<double> minimumEdgeLength;
+
+    /// Maximum allowed tetrahedron circumradius / shortest-edge ratio
+    /// (Shewchuk's "B" bound; only guarantees refinement termination for
+    /// B > 2.0). Only consumed by RCDTMesher::meshVolume() — the surface-only
+    /// path (meshSurface()) never looks at this.
+    double tetCircumradiusToShortestEdgeRatio = 2.5;
+
+    /// Safety cap: stop volume refinement once the mesh reaches this many
+    /// tetrahedra. Separate from elementLimit (which bounds restricted
+    /// surface triangles) since the two element counts aren't comparable —
+    /// a solid's interior typically needs far more tets than it has boundary
+    /// triangles.
+    std::size_t tetElementLimit = 100000;
 };
 
 } // namespace Meshing
