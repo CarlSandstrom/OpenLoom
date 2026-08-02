@@ -92,8 +92,8 @@ int main()
     // Step 3: Create initial (unconstrained) Delaunay tetrahedralization
     spdlog::info("Creating Delaunay tetrahedralization...");
 
-    Delaunay3D delaunay(discretization.points,
-                        &context.getMeshData(),
+    Delaunay3D delaunay(context.getOperations(),
+                        discretization.points,
                         discretization.geometryIds);
     delaunay.triangulate();
 
