@@ -6,6 +6,7 @@ set(EXAMPLE_SOURCES_3D_SURFACE
     BoxWithHoleSurface.cc
     TorusSurfaceMesh.cc
     ThinFinSurfaceMesh.cc
+    SharpCreaseBracket.cc
 )
 
 # Link external libraries
