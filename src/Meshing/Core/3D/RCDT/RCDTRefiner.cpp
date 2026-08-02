@@ -99,8 +99,28 @@ bool RCDTRefiner::refineStep()
         }
     }
 
-    if (!encroached.empty())
-        return splitSegment(*encroached.begin());
+    for (const size_t segmentId : encroached)
+    {
+        if (unrefinableSegments_.count(segmentId))
+            continue;
+
+        // Size floor (same reasoning as the restricted-triangle/tetrahedron
+        // versions below): a segment already at or below the minimum useful
+        // element size is left encroached rather than bisected forever.
+        const CurveSegment segment = curveSegmentManager.getSegment(segmentId);
+        const auto it1 = nodePositionMap.find(segment.nodeId1);
+        const auto it2 = nodePositionMap.find(segment.nodeId2);
+        const double length = (it1 != nodePositionMap.end() && it2 != nodePositionMap.end())
+                                   ? (it1->second - it2->second).norm()
+                                   : 0.0;
+        if (length <= minimumEdgeLength_)
+        {
+            unrefinableSegments_.insert(segmentId);
+            continue;
+        }
+
+        return splitSegment(segmentId);
+    }
 
     // ---- Priority 2: bad restricted triangles ----
 
@@ -372,6 +392,7 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
 
     unrefinableTriangles_.clear();
     unrefinableTetrahedra_.clear();
+    unrefinableSegments_.clear();
     return true;
 }
 

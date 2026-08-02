@@ -23,7 +23,8 @@ class RCDTTetQualityController;
 /// operate on RCDT's own restricted-triangulation and tet-quality concepts
 /// rather than his subfacet/subsegment encroachment machinery:
 ///
-///   Priority 1 — split encroached curve segments
+///   Priority 1 — split encroached curve segments, unless already at the
+///                minimumEdgeLength_ size floor (see class member docs)
 ///   Priority 2 — split bad restricted triangles (circumradius/edge or chord deviation)
 ///   Priority 3 — split bad tetrahedra (circumradius/edge), only when a
 ///                RCDTTetQualityController was supplied at construction
@@ -61,6 +62,16 @@ private:
     SurfaceProjector surfaceProjector_;
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
     std::unordered_set<size_t> unrefinableTetrahedra_;
+
+    /// Curve segments (keyed by CurveSegmentManager segment ID) already at or
+    /// below minimumEdgeLength_ that are still encroached. Without this,
+    /// a segment pinned close to a genuinely sharp/small-angle feature (e.g.
+    /// a nearby vertex whose position never changes) can be bisected
+    /// forever: each split's midpoint still falls inside that vertex's
+    /// encroachment sphere, so the newly created segment is "encroached"
+    /// again on the very next iteration. Cleared in splitSegment(), same
+    /// reasoning as the other two unrefinable sets.
+    std::unordered_set<size_t> unrefinableSegments_;
 
     /// Resolved once at the start of refine() from settings_.minimumEdgeLength
     /// (or derived from the initial discretization if unset — see
