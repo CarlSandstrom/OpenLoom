@@ -85,14 +85,10 @@ const MeshingContext3D& RCDTMesher::getMeshingContext() const
 
 void RCDTMesher::buildInitial()
 {
-    spdlog::info("RCDTMesher::buildInitial: discretizing boundary (edges + corners only)");
+    spdlog::info("RCDTMesher::buildInitial: discretizing boundary ({} surface samples/direction)",
+                 discretizationSettings_.getNumSamplesPerSurfaceDirection());
 
-    const Geometry3D::DiscretizationSettings3D edgeOnlySettings(
-        discretizationSettings_.getNumSegmentsPerEdge(),
-        discretizationSettings_.getMaxAngleBetweenSegments(),
-        0);
-
-    BoundaryDiscretizer3D discretizer(*geometry_, *topology_, edgeOnlySettings);
+    BoundaryDiscretizer3D discretizer(*geometry_, *topology_, discretizationSettings_);
     discretizer.discretize();
     auto discretizationResult = discretizer.releaseDiscretizationResult();
 

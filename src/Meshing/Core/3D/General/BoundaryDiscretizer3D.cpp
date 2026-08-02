@@ -79,7 +79,16 @@ void BoundaryDiscretizer3D::discretize()
         std::vector<size_t> edgePointIndices;
         edgePointIndices.push_back(startIdx);
 
-        if (maxAngle.has_value())
+        // A degenerate edge (e.g. a sphere's polar edge) has no real 3D curve —
+        // getPoint()/getTangent() are not meaningful along it, and walking it
+        // as if it were a normal curve inserts hundreds of spurious coincident
+        // points at the singularity. It contributes no interior points; the
+        // pole is already represented by its corner.
+        if (edge->isDegenerate())
+        {
+            // no interior points
+        }
+        else if (maxAngle.has_value())
         {
             // Angle-based: walk 1000 uniform steps; insert a point whenever the
             // accumulated tangent-angle change since the last inserted point

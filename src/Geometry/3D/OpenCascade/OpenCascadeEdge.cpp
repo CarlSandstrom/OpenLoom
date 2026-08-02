@@ -121,6 +121,11 @@ double OpenCascadeEdge::getCurvature(double t) const
     return 0.0;
 }
 
+bool OpenCascadeEdge::isDegenerate() const
+{
+    return BRep_Tool::Degenerated(edge_);
+}
+
 std::string OpenCascadeEdge::getId() const
 {
     std::ostringstream oss;

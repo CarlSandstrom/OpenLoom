@@ -29,6 +29,13 @@ void buildCurveSegments(CurveSegmentManager& manager,
         if (!geometryEdge)
             continue;
 
+        // A degenerate edge (e.g. a sphere's polar edge) is a zero-length
+        // topological placeholder, not a real curve — its start and end are
+        // the same point. Building a "segment" for it would fabricate a
+        // constraint with a nonzero parameter range but no actual length.
+        if (geometryEdge->isDegenerate())
+            continue;
+
         const auto sequenceIt = edgeIdToPointIndicesMap.find(edgeId);
         if (sequenceIt == edgeIdToPointIndicesMap.end())
             continue;
