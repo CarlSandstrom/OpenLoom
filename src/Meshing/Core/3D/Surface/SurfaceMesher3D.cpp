@@ -51,7 +51,7 @@ SurfaceMesher3D& SurfaceMesher3D::operator=(SurfaceMesher3D&&) noexcept = defaul
 SurfaceMesh3D SurfaceMesher3D::mesh()
 {
     if (rcdtMesher_)
-        return rcdtMesher_->mesh();
+        return rcdtMesher_->meshSurface();
 
     uvContext_->refineSurfaces();
     return uvContext_->buildSurfaceMesh();

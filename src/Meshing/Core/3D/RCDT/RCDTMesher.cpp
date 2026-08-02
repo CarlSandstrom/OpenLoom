@@ -14,6 +14,7 @@
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Topology/Topology3D.h"
@@ -24,6 +25,31 @@
 
 namespace Meshing
 {
+
+namespace
+{
+
+// Zero-fill rather than plain resize(): node IDs below the highest surviving
+// one may be gaps left by the removed supertet corners, and Eigen's default
+// constructor does not zero-initialize — an unfilled slot would otherwise
+// hold whatever was previously in that memory.
+std::vector<Point3D> buildZeroFilledNodeList(const MeshData3D& meshData)
+{
+    std::vector<Point3D> nodes;
+    if (meshData.getNodeCount() == 0)
+        return nodes;
+
+    size_t maxNodeId = 0;
+    for (const auto& [nodeId, node] : meshData.getNodes())
+        maxNodeId = std::max(maxNodeId, nodeId);
+
+    nodes.resize(maxNodeId + 1, Point3D::Zero());
+    for (const auto& [nodeId, node] : meshData.getNodes())
+        nodes[nodeId] = node->getCoordinates();
+    return nodes;
+}
+
+} // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        const Topology3D::Topology3D& topology,
@@ -41,7 +67,7 @@ RCDTMesher::~RCDTMesher() = default;
 RCDTMesher::RCDTMesher(RCDTMesher&&) noexcept = default;
 RCDTMesher& RCDTMesher::operator=(RCDTMesher&&) noexcept = default;
 
-SurfaceMesh3D RCDTMesher::mesh()
+SurfaceMesh3D RCDTMesher::runPipeline()
 {
     size_t counter = 0;
     buildInitial();
@@ -65,9 +91,9 @@ SurfaceMesh3D RCDTMesher::mesh()
 
         // Smoothing only moves the SurfaceMesh3D copy above. The same node IDs
         // are still referenced by the ambient tetrahedra in meshingContext_'s
-        // live MeshData3D (a future volume-mesh extraction reads those
-        // directly) — sync the smoothed positions back so both stay
-        // geometrically consistent, rather than only the returned copy.
+        // live MeshData3D (buildVolumeMesh() reads those directly) — sync the
+        // smoothed positions back so both stay geometrically consistent,
+        // rather than only the returned copy.
         auto& mutator = meshingContext_->getMutator();
         for (size_t nodeId = 0; nodeId < surfaceMesh.nodes.size(); ++nodeId)
         {
@@ -79,14 +105,32 @@ SurfaceMesh3D RCDTMesher::mesh()
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_smoothed", counter);
     ++counter;
 
-    // Triangle-only export of the actual output — unlike the exports above,
-    // this contains none of the ambient tetrahedralization's interior faces
-    // (see RestrictedTriangulation: a triangle whose corners all lie on a
-    // CAD surface is not necessarily one of the faces RCDT selected as the
-    // boundary there).
+    return surfaceMesh;
+}
+
+SurfaceMesh3D RCDTMesher::meshSurface()
+{
+    SurfaceMesh3D surfaceMesh = runPipeline();
+
+    // Triangle-only export of the actual output — unlike the exports in
+    // runPipeline(), this contains none of the ambient tetrahedralization's
+    // interior faces (see RestrictedTriangulation: a triangle whose corners
+    // all lie on a CAD surface is not necessarily one of the faces RCDT
+    // selected as the boundary there).
     Meshing::exportSurfaceMesh3D(surfaceMesh, "rcdt_surface_mesh.vtu");
 
     return surfaceMesh;
+}
+
+VolumeMesh3D RCDTMesher::meshVolume()
+{
+    // The returned SurfaceMesh3D is only needed for the smoother's triangle
+    // adjacency inside runPipeline() — smoothing already synced the resulting
+    // positions back into the live mesh, so buildVolumeMesh() (reading that
+    // live mesh directly) sees the same, consistent positions.
+    runPipeline();
+
+    return buildVolumeMesh();
 }
 
 const MeshingContext3D& RCDTMesher::getMeshingContext() const
@@ -184,21 +228,7 @@ SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
     SurfaceMesh3D surfaceMesh;
     const auto& meshData = meshingContext_->getMeshData();
 
-    if (meshData.getNodeCount() > 0)
-    {
-        size_t maxNodeId = 0;
-        for (const auto& [nodeId, node] : meshData.getNodes())
-            maxNodeId = std::max(maxNodeId, nodeId);
-
-        // Zero-fill rather than plain resize(): node IDs below the lowest
-        // surviving one are gaps left by the removed supertet corners, and
-        // Eigen's default constructor does not zero-initialize — an
-        // unfilled slot would otherwise hold whatever was previously in
-        // that memory.
-        surfaceMesh.nodes.resize(maxNodeId + 1, Point3D::Zero());
-        for (const auto& [nodeId, node] : meshData.getNodes())
-            surfaceMesh.nodes[nodeId] = node->getCoordinates();
-    }
+    surfaceMesh.nodes = buildZeroFilledNodeList(meshData);
 
     for (const auto& [faceKey, surfaceId] : restrictedTriangulation_->getRestrictedFaces())
     {
@@ -227,6 +257,57 @@ SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
                   surfaceMesh.faceTriangleIds.size(), surfaceMesh.edgeNodeIds.size());
 
     return surfaceMesh;
+}
+
+VolumeMesh3D RCDTMesher::buildVolumeMesh() const
+{
+    VolumeMesh3D volumeMesh;
+    const auto& meshData = meshingContext_->getMeshData();
+
+    volumeMesh.nodes = buildZeroFilledNodeList(meshData);
+
+    // removeBoundingTetrahedron() already ran (part of runPipeline(), called
+    // before this) — every tetrahedron still in meshData is a genuine
+    // interior tet, none touch the supertet's corners, so no extra filtering
+    // is needed here.
+    for (const auto& [elementId, element] : meshData.getElements())
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet)
+            continue;
+
+        const auto& nodeIds = tet->getNodeIds();
+        volumeMesh.tetrahedra.push_back({nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]});
+    }
+
+    for (const auto& [faceKey, surfaceId] : restrictedTriangulation_->getRestrictedFaces())
+    {
+        const size_t triangleIndex = volumeMesh.boundaryTriangles.size();
+        volumeMesh.boundaryTriangles.push_back({faceKey.nodeIds[0], faceKey.nodeIds[1], faceKey.nodeIds[2]});
+        volumeMesh.boundaryFaceTriangleIds[surfaceId].push_back(triangleIndex);
+    }
+
+    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    for (const auto& edgeId : topology_->getAllEdgeIds())
+    {
+        const auto segments = curveSegmentManager.getSegmentsForEdge(edgeId);
+        if (segments.empty())
+            continue;
+
+        std::vector<size_t> nodeIds;
+        nodeIds.push_back(segments[0].nodeId1);
+        for (const auto& segment : segments)
+            nodeIds.push_back(segment.nodeId2);
+
+        volumeMesh.boundaryEdgeNodeIds[edgeId] = std::move(nodeIds);
+    }
+
+    spdlog::debug("RCDTMesher::buildVolumeMesh: {} nodes, {} tetrahedra, {} boundary triangles, "
+                  "{} boundary faces, {} boundary edges",
+                  volumeMesh.nodes.size(), volumeMesh.tetrahedra.size(), volumeMesh.boundaryTriangles.size(),
+                  volumeMesh.boundaryFaceTriangleIds.size(), volumeMesh.boundaryEdgeNodeIds.size());
+
+    return volumeMesh;
 }
 
 } // namespace Meshing

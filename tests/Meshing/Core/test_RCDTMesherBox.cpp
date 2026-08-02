@@ -49,7 +49,7 @@ protected:
                           converter_->getTopology(),
                           discretizationSettings);
 
-        mesh_ = mesher.mesh();
+        mesh_ = mesher.meshSurface();
     }
 
     static void TearDownTestSuite()

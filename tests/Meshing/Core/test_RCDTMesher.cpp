@@ -73,7 +73,7 @@ protected:
                           discSettings,
                           qualitySettings);
 
-        mesh_ = mesher.mesh();
+        mesh_ = mesher.meshSurface();
     }
 
     static void TearDownTestSuite()
@@ -240,7 +240,7 @@ protected:
                           discSettings,
                           qualitySettings);
 
-        mesh_ = mesher.mesh();
+        mesh_ = mesher.meshSurface();
     }
 
     static void TearDownTestSuite()
@@ -379,7 +379,7 @@ protected:
                           converter_->getTopology(),
                           discSettings);
 
-        mesh_ = mesher.mesh();
+        mesh_ = mesher.meshSurface();
     }
 
     static void TearDownTestSuite()

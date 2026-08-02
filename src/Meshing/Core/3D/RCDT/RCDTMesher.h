@@ -3,6 +3,9 @@
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Meshing/Data/3D/VolumeMesh3D.h"
+#include "Meshing/Interfaces/ISurfaceMesher3D.h"
+#include "Meshing/Interfaces/IVolumeMesher3D.h"
 
 #include <array>
 #include <memory>
@@ -23,7 +26,14 @@ namespace Meshing
 class MeshingContext3D;
 class RestrictedTriangulation;
 
-class RCDTMesher
+/**
+ * @brief Ambient-space RCDT mesher: implements both ISurfaceMesher3D and
+ * IVolumeMesher3D, since both share the same underlying ambient
+ * tetrahedralization + restriction + refinement pipeline — meshSurface()
+ * and meshVolume() differ only in their final extraction step (and, once
+ * tet-quality refinement lands, whether that third refinement priority runs).
+ */
+class RCDTMesher : public ISurfaceMesher3D, public IVolumeMesher3D
 {
 public:
     RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -39,7 +49,8 @@ public:
     RCDTMesher(RCDTMesher&&) noexcept;
     RCDTMesher& operator=(RCDTMesher&&) noexcept;
 
-    SurfaceMesh3D mesh();
+    SurfaceMesh3D meshSurface() override;
+    VolumeMesh3D meshVolume() override;
 
     const MeshingContext3D& getMeshingContext() const;
 
@@ -60,7 +71,16 @@ private:
     void buildInitial();
     void refine();
     void removeBoundingTetrahedron();
+
+    /// Shared build -> refine -> remove-supertet -> smooth pipeline, common to
+    /// both meshSurface() and meshVolume(). Returns the (possibly smoothed)
+    /// surface mesh; meshVolume() only needs it for the smoother's triangle
+    /// adjacency and discards it once smoothing has synced back to the live
+    /// mesh (see buildVolumeMesh()).
+    SurfaceMesh3D runPipeline();
+
     SurfaceMesh3D buildSurfaceMesh() const;
+    VolumeMesh3D buildVolumeMesh() const;
 };
 
 } // namespace Meshing
