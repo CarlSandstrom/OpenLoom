@@ -17,6 +17,7 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -116,15 +117,15 @@ int main()
     // ==================================================
     printSeparator("Test 1: Constrained Subsegments");
 
-    std::vector<ConstrainedSubsegment3D> subsegments;
+    std::vector<CurveSegment> subsegments;
 
     // Define some edges of the outer cube
     auto addSubsegment = [&](size_t n1, size_t n2, const std::string& id)
     {
-        ConstrainedSubsegment3D seg;
+        CurveSegment seg;
         seg.nodeId1 = outerNodeIds[n1];
         seg.nodeId2 = outerNodeIds[n2];
-        seg.geometryId = id;
+        seg.edgeId = id;
         subsegments.push_back(seg);
         std::cout << "  Edge " << id << ": (" << seg.nodeId1 << " -> " << seg.nodeId2 << ")\n";
     };
@@ -147,7 +148,7 @@ int main()
     std::cout << "Before split: mesh has " << meshData.getNodeCount() << " nodes\n";
 
     // Split the first subsegment
-    ConstrainedSubsegment3D& segmentToSplit = subsegments[0];
+    CurveSegment& segmentToSplit = subsegments[0];
     const auto* node1 = meshData.getNode(segmentToSplit.nodeId1);
     const auto* node2 = meshData.getNode(segmentToSplit.nodeId2);
 
@@ -167,14 +168,14 @@ int main()
     std::cout << "  Created midpoint node " << midNodeId << ": " << midpoint.transpose() << "\n";
 
     // Create two new subsegments
-    ConstrainedSubsegment3D seg1, seg2;
+    CurveSegment seg1, seg2;
     seg1.nodeId1 = segmentToSplit.nodeId1;
     seg1.nodeId2 = midNodeId;
-    seg1.geometryId = segmentToSplit.geometryId;
+    seg1.edgeId = segmentToSplit.edgeId;
 
     seg2.nodeId1 = midNodeId;
     seg2.nodeId2 = segmentToSplit.nodeId2;
-    seg2.geometryId = segmentToSplit.geometryId;
+    seg2.edgeId = segmentToSplit.edgeId;
 
     std::cout << "  New subsegment 1: (" << seg1.nodeId1 << " -> " << seg1.nodeId2 << ")\n";
     std::cout << "  New subsegment 2: (" << seg2.nodeId1 << " -> " << seg2.nodeId2 << ")\n";

@@ -5,6 +5,7 @@
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 
 using namespace Meshing;
 
@@ -36,10 +37,10 @@ TEST_F(ConstraintChecker3DTest, IsSubsegmentEncroachedDetectsPointInDiametralSph
     size_t n1 = addNode(4.0, 0.0, 0.0);
 
     ConstraintChecker3D checker(meshData_);
-    ConstrainedSubsegment3D subsegment;
+    CurveSegment subsegment;
     subsegment.nodeId1 = n0;
     subsegment.nodeId2 = n1;
-    subsegment.geometryId = "test_edge";
+    subsegment.edgeId = "test_edge";
 
     // Point at center of segment - definitely inside diametral sphere
     Point3D inside(2.0, 0.5, 0.0);
@@ -56,7 +57,7 @@ TEST_F(ConstraintChecker3DTest, IsSubsegmentEncroachedReturnsFalseForEndpoints)
     size_t n1 = addNode(4.0, 0.0, 0.0);
 
     ConstraintChecker3D checker(meshData_);
-    ConstrainedSubsegment3D subsegment{n0, n1, "test_edge"};
+    CurveSegment subsegment{n0, n1, "test_edge"};
 
     // Endpoints are on the boundary of diametral sphere, not strictly inside
     Point3D endpoint1(0.0, 0.0, 0.0);
@@ -73,7 +74,7 @@ TEST_F(ConstraintChecker3DTest, IsSubsegmentEncroachedFor3DDiagonalSegment)
     size_t n1 = addNode(2.0, 2.0, 2.0);
 
     ConstraintChecker3D checker(meshData_);
-    ConstrainedSubsegment3D subsegment{n0, n1, "test_edge"};
+    CurveSegment subsegment{n0, n1, "test_edge"};
 
     // Midpoint - definitely inside
     Point3D inside(1.0, 1.0, 1.0);
@@ -91,7 +92,7 @@ TEST_F(ConstraintChecker3DTest, IsSubsegmentEncroachedPointOnSphereEdge)
     size_t n1 = addNode(2.0, 0.0, 0.0);
 
     ConstraintChecker3D checker(meshData_);
-    ConstrainedSubsegment3D subsegment{n0, n1, "test_edge"};
+    CurveSegment subsegment{n0, n1, "test_edge"};
 
     // Point exactly on sphere surface (distance = radius = 1)
     Point3D onSurface(1.0, 1.0, 0.0);
@@ -243,7 +244,7 @@ TEST_F(ConstraintChecker3DTest, IsSubsegmentEncroachedWithInvalidNodeIds)
     // n1 doesn't exist (ID 999)
 
     ConstraintChecker3D checker(meshData_);
-    ConstrainedSubsegment3D subsegment{n0, 999, "test_edge"};
+    CurveSegment subsegment{n0, 999, "test_edge"};
 
     Point3D anyPoint(1.0, 1.0, 1.0);
 

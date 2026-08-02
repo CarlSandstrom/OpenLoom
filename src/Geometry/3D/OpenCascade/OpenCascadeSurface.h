@@ -19,6 +19,11 @@ public:
     Common::BoundingBox2D getParameterBounds() const override;
     double getGap(const Meshing::Point3D& point) const override;
     Meshing::Point2D projectPoint(const Meshing::Point3D& point) const override;
+    std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
+        const Meshing::Point3D& point) const override;
+    std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
+        const Meshing::Point3D& point,
+        const Meshing::Point2D& seedUV) const override;
     std::string getId() const override;
 
 private:

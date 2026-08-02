@@ -178,27 +178,16 @@ bool ShewchukRefiner2D::refineStep()
     return false;
 }
 
-void ShewchukRefiner2D::handleEncroachedSegment(const ConstrainedSegment2D& segment)
+void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
 {
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
                   segment.nodeId1, segment.nodeId2);
 
-    // Find the common geometry ID (edge ID) between the two segment nodes
-    auto commonGeometryId = context_->getOperations().getQueries().findCommonGeometryId(
-        segment.nodeId1, segment.nodeId2);
-
-    if (!commonGeometryId.has_value())
-    {
-        spdlog::error("ShewchukRefiner2D: Cannot split segment - no common geometry ID found between nodes {} and {}",
-                      segment.nodeId1, segment.nodeId2);
-        return;
-    }
-
-    // Get the parent edge geometry
-    const auto* edge = context_->getGeometry().getEdge(commonGeometryId.value());
+    // Get the parent edge geometry directly from the segment's edgeId
+    const auto* edge = context_->getGeometry().getEdge(segment.edgeId);
     if (edge == nullptr)
     {
-        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", commonGeometryId.value());
+        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", segment.edgeId);
         return;
     }
 

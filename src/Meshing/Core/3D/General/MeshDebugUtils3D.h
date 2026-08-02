@@ -8,6 +8,7 @@ namespace Meshing
 
 class MeshData3D;
 class DiscretizationResult3D;
+struct SurfaceMesh3D;
 
 /**
  * @brief Phases of the 3D meshing algorithm, each with cumulative validation invariants.
@@ -31,26 +32,35 @@ enum class MeshingPhase3D
 };
 
 /**
- * @brief Conditionally export and verify a 3D mesh based on debug flags and meshing phase.
+ * @brief Conditionally export a 3D mesh to VTU when EXPORT_MESH_EACH_ITERATION is enabled.
  *
- * When EXPORT_MESH_EACH_ITERATION is enabled, exports the mesh to a VTU file
- * named "{filenamePrefix}_{counter}.vtu" and increments the counter.
- * When CHECK_MESH_EACH_ITERATION is enabled, runs phase-appropriate verification
- * checks and throws on failure.
+ * Writes "{filenamePrefix}_{counter}.vtu" and increments the counter.
  *
+ * @param meshData The mesh data to export
+ * @param filenamePrefix Prefix for the exported VTU filename
+ * @param exportCounter Counter used as the filename index (not modified).
+ */
+void exportMesh3D(MeshData3D& meshData,
+                  const std::string& filenamePrefix,
+                  size_t exportCounter);
+
+/**
+ * @brief Conditionally verify a 3D mesh when CHECK_MESH_EACH_ITERATION is enabled.
+ *
+ * Runs phase-appropriate invariant checks and throws on failure.
  * Verification checks are cumulative — later phases include all earlier checks.
  *
- * @param meshData The mesh data to export/verify
+ * @param meshData The mesh data to verify
  * @param phase Current meshing phase (determines which invariants to check)
- * @param filenamePrefix Prefix for the exported VTU filename
- * @param exportCounter Counter tracking export iterations (incremented on export)
+ * @param filenamePrefix Used in log messages to identify the caller
+ * @param stepNumber Current iteration number for log output
  * @param qualityBound Quality ratio bound B for Refined/PostProcessed phases (ignored for earlier phases)
  */
-void exportAndVerifyMesh3D(MeshData3D& meshData,
-                           MeshingPhase3D phase,
-                           const std::string& filenamePrefix,
-                           size_t& exportCounter,
-                           double qualityBound = 0.0);
+void verifyMesh3D(MeshData3D& meshData,
+                  MeshingPhase3D phase,
+                  const std::string& filenamePrefix,
+                  size_t stepNumber,
+                  double qualityBound = 0.0);
 
 /**
  * @brief Conditionally export discretized boundary edges based on EXPORT_MESH_EACH_ITERATION.
@@ -61,5 +71,18 @@ void exportAndVerifyMesh3D(MeshData3D& meshData,
  * @param filename  Output VTU filename
  */
 void exportEdgeMesh3D(const DiscretizationResult3D& result, const std::string& filename);
+
+/**
+ * @brief Conditionally export a triangle-only surface mesh based on EXPORT_MESH_EACH_ITERATION.
+ *
+ * Unlike exportMesh3D, which dumps the full ambient tetrahedralization (including
+ * interior tets whose faces were never selected as part of the boundary), this
+ * writes only the triangles actually chosen as output — the same faces
+ * RCDTMesher::mesh() returns. Triangles are colored by their CAD surface ID.
+ *
+ * @param surfaceMesh The assembled surface mesh to export
+ * @param filename    Output VTU filename
+ */
+void exportSurfaceMesh3D(const SurfaceMesh3D& surfaceMesh, const std::string& filename);
 
 } // namespace Meshing

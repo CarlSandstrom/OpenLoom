@@ -71,4 +71,4 @@ DerivePointerAlignment: false
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
 ReflowComments: true
-Standard: c++17
+Standard: c++20

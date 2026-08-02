@@ -37,11 +37,6 @@ public:
     /// Returns nullopt if the tetrahedron is degenerate.
     std::optional<CircumscribedSphere> computeCircumscribingSphere(const TetrahedralElement& element) const;
 
-    /// Tests if a point is inside the circumscribing sphere of a tetrahedral element.
-    bool isPointInsideCircumscribingSphere(const TetrahedralElement& element,
-                                           const Point3D& point,
-                                           double tolerance = 1e-12) const;
-
     /// Computes the centroid (center of mass) of a tetrahedral element.
     Point3D computeCentroid(const TetrahedralElement& element) const;
 

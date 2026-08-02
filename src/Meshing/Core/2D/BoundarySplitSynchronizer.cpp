@@ -1,11 +1,9 @@
 #include "BoundarySplitSynchronizer.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
-#include "Meshing/Core/2D/MeshQueries2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include <algorithm>
 
 namespace Meshing
 {
@@ -25,29 +23,18 @@ void BoundarySplitSynchronizer::operator()(size_t n1, size_t n2, size_t mid)
 
     auto [twinSurface, t1, t2] = *twin;
 
-    // The stored ConstrainedSegment2D may use either endpoint order, so search
-    // for both {t1,t2} and {t2,t1}.
-    const auto& segs = context_->getMeshData().getConstrainedSegments();
-    auto it = std::find_if(segs.begin(), segs.end(),
-                           [&](const ConstrainedSegment2D& s) {
-                               return (s.nodeId1 == t1 && s.nodeId2 == t2) ||
-                                      (s.nodeId1 == t2 && s.nodeId2 == t1);
-                           });
-    if (it == segs.end())
+    const auto& manager = context_->getMeshData().getCurveSegmentManager();
+    auto segmentIdOpt = manager.findSegmentId(t1, t2);
+    if (!segmentIdOpt)
         return;
 
-    const ConstrainedSegment2D twinSeg = *it;
+    const CurveSegment twinSegment = manager.getSegment(*segmentIdOpt);
 
-    auto twinEdgeId = context_->getOperations().getQueries().findCommonGeometryId(
-        twinSeg.nodeId1, twinSeg.nodeId2);
-    if (!twinEdgeId)
-        return;
-
-    const auto* twinEdge = context_->getGeometry().getEdge(*twinEdgeId);
+    const auto* twinEdge = context_->getGeometry().getEdge(twinSegment.edgeId);
     if (!twinEdge)
         return;
 
-    auto twinMid = context_->getOperations().splitConstrainedSegment(twinSeg, *twinEdge);
+    auto twinMid = context_->getOperations().splitConstrainedSegment(twinSegment, *twinEdge);
     if (!twinMid)
         return;
 

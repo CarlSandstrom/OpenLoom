@@ -33,9 +33,8 @@ int main()
     const auto& discretization = discretizer.getDiscretizationResult();
 
     // Create initial (unconstrained) Delaunay tetrahedralization
-    Delaunay3D delaunay(discretization.points,
-                        &context.getMeshData(),
-                        discretization.edgeParameters,
+    Delaunay3D delaunay(context.getOperations(),
+                        discretization.points,
                         discretization.geometryIds);
     delaunay.triangulate();
 

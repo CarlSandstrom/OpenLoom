@@ -64,11 +64,14 @@ public:
 private:
     void writeHeader(std::ostream& os) const;
     void writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
-                     std::vector<std::size_t>& outNodeIds) const;
+                     std::vector<std::size_t>& outNodeIds, std::size_t totalCellCount) const;
     void writePointData(std::ostream& os, const std::vector<std::size_t>& nodeIds) const;
     void writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
-                    std::vector<std::size_t>& outElementIds) const;
-    void writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds) const;
+                    std::vector<std::size_t>& outElementIds,
+                    std::vector<std::size_t>& outSegmentIds) const;
+    void writeCellData(std::ostream& os, const Meshing::MeshData3D& mesh,
+                       const std::vector<std::size_t>& elementIds,
+                       const std::vector<std::size_t>& segmentIds) const;
     void writeFooter(std::ostream& os) const;
 
     // Dedicated 2D write helpers (includes constraint edges)

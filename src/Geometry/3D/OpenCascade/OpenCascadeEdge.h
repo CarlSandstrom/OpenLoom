@@ -20,8 +20,10 @@ public:
     Meshing::Point3D getEndPoint() const override;
     std::pair<double, double> getParameterBounds() const override;
     double getLength() const override;
+    double getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const override;
     double getCurvature(double t) const override;
     std::string getId() const override;
+    bool isDegenerate() const override;
 
 private:
     TopoDS_Edge edge_;

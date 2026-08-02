@@ -86,9 +86,11 @@ A standalone 2D constrained Delaunay mesher with Shewchuk refinement.
 
 ---
 
-# Part II — 3D Surface Mesher
+# Part II — Legacy UV-Space Surface Mesher (superseded by RCDT)
 
-Produces a quality triangle mesh of all CAD surfaces. Each face is meshed independently in its UV (parametric) space using the 2D Shewchuk refiner, with inter-face conformity enforced on shared edges via `TwinManager`.
+> **Status:** This approach is complete but superseded. The current 3D surface mesher uses the RCDT algorithm (Part IV). The UV-space mesher is retained for reference.
+
+Produces a quality triangle mesh of all CAD surfaces by meshing each face independently in its UV (parametric) space using the 2D Shewchuk refiner, with inter-face conformity enforced on shared edges via `TwinManager`.
 
 **Pipeline:** `TwinTableGenerator` (topology) → `BoundaryDiscretizer3D` (populates `TwinManager`) → `FacetTriangulationManager` (per-face `MeshData2D`, no `MeshData3D`) → `ShewchukRefiner2D` per face → assembly → `SurfaceMesh3D`
 
@@ -218,9 +220,11 @@ Adjacent CAD faces share topology edges. Conformity is enforced via `TwinManager
 
 ---
 
-# Part III — 3D Volume Mesher
+# Part III — Legacy Shewchuk Volume Mesher (superseded by RCDT)
 
-Takes a `SurfaceMesh3D` from Part II as input. Fills the interior with quality tetrahedra. The surface is **fixed** — no new nodes are inserted on the boundary during volume refinement.
+> **Status:** This approach is partially implemented but superseded. The current 3D volume mesher uses the RCDT algorithm (Part IV), which avoids explicit constraint recovery entirely. The steps below are retained for historical context.
+
+Takes a `SurfaceMesh3D` from Part II as input. Fills the interior with quality tetrahedra using Shewchuk's three-priority refinement. The surface is **fixed** — no new nodes are inserted on the boundary during volume refinement.
 
 **Design note:** The volume mesher must recover the given surface triangulation as constrained faces in the tetrahedralization (Steps V3–V4). This is the classical conforming Delaunay embedding problem. Whether Steiner points are permitted on the surface during recovery is an open design decision to be resolved during V3–V4 implementation.
 
@@ -375,6 +379,59 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ---
 
+# Part IV — RCDT Mesher (current 3D approach)
+
+Replaces Parts II and III. A single ambient-space pipeline produces both the surface mesh and the volume mesh using the Restricted Constrained Delaunay Triangulation algorithm (Khoury & Shewchuk, SoCG 2021).
+
+**Reference:** `doc/Flowcharts/3D surface meshing algorithm.md` and `doc/Flowcharts/3D algorithm.md`
+
+**Pipeline (surface):** `BoundaryDiscretizer3D` → `Delaunay3D` → `RestrictedTriangulation` → `CurveSegmentOperations` → `RCDTRefiner` (two-priority loop) → assemble `SurfaceMesh3D`
+
+**Pipeline (volume):** same, extended with a third priority (skinny tetrahedra) and exterior removal.
+
+---
+
+## RCDT Phase 1 — Build Initial (`RCDTContext::buildInitial`)
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| R1.1 | `BoundaryDiscretizer3D`: discretize all corners, edges, and surface interiors into `DiscretizationResult3D` | `3D/General/BoundaryDiscretizer3D` | Done |
+| R1.2 | Insert all boundary vertices into an unconstrained `Delaunay3D` via Bowyer-Watson | `3D/Volume/Delaunay3D` | Done |
+| R1.3 | `RestrictedTriangulation::buildFrom`: classify every tetrahedral face; a face is restricted to surface S if all three nodes touch S and adjacent tetrahedra lie on opposite sides (`SurfaceProjector::crossesSurface`) | `3D/RCDT/RestrictedTriangulation` | Done |
+| R1.4 | `CurveSegmentOperations::buildCurveSegments`: register one `CurveSegment` per consecutive node pair on each topology edge | `3D/RCDT/CurveSegmentOperations`, `Meshing/Data/CurveSegmentManager` | Done |
+
+---
+
+## RCDT Phase 2 — Refine (`RCDTRefiner::refine`)
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| R2.1 | Priority 1: split encroached `CurveSegment`s at arc-length midpoint; update `RestrictedTriangulation` incrementally | `3D/RCDT/RCDTRefiner` | In Progress |
+| R2.2 | Priority 2: split bad restricted triangles (circumradius/edge ratio or chord deviation); apply circumcenter demotion rule | `3D/RCDT/RCDTRefiner`, `3D/RCDT/RestrictedTriangulation` | In Progress |
+| R2.3 | (Volume only) Priority 3: split skinny tetrahedra with cascade demotion to Priorities 1/2 | `3D/RCDT/RCDTRefiner` | TODO |
+
+---
+
+## RCDT Phase 3 — Build Surface Mesh (`RCDTContext::buildSurfaceMesh`)
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| R3.1 | Collect all restricted faces from `RestrictedTriangulation::getRestrictedFaces()` | `3D/RCDT/RCDTContext` | Done |
+| R3.2 | Assemble `SurfaceMesh3D`: one `Node3D` per unique node, one `TriangleElement` per restricted face | `3D/RCDT/RCDTContext` | Done |
+
+---
+
+## RCDT Phase 4 — Exterior Removal (Volume only)
+
+| Sub-step | Description | File(s) | Status |
+|----------|-------------|---------|--------|
+| R4.1 | Flood-fill to classify interior vs exterior tetrahedra using the restricted surface as the boundary | `3D/General/MeshOperations3D` | TODO |
+| R4.2 | Remove exterior tetrahedra | `3D/General/MeshOperations3D` | TODO |
+
+---
+
+---
+
 # Recommended Implementation Order
 
 ### Done
@@ -389,37 +446,14 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 ### In Progress / Next Steps
 
-#### Phase I-B: Per-face quality meshing (Step S2)
-7. ~~Run `ShewchukRefiner2D` per face in UV space (S2.1)~~ **Done**
-8. ~~Quality criterion with 3D arc-length metric / pull-back metric (S2.2)~~ **Done**
-9. Geometric deviation check per triangle against actual CAD surface (S2.4)
+#### RCDT Phase 2: Refinement loop (R2.1–R2.2)
+7. Complete Priority 1: split encroached curve segments and update `RestrictedTriangulation` (`RCDTRefiner`)
+8. Complete Priority 2: split bad restricted triangles with circumcenter demotion (`RCDTRefiner`)
+9. Wire Phase 2 tests in `test_RCDTRefiner.cpp`
 
-#### Phase I-C: Inter-face conformity via TwinManager (Step S3)
-10. ~~Wire twin split propagation into boundary splits via `BoundarySplitSynchronizer` (S3.2)~~ **Done**
-11. ~~`MeshVerifier3D::verifyTwinConsistency()` (S3.3)~~ **Done**
-12. Validate: no cracks between faces in ParaView output
-
-#### Phase I-D: Surface mesher API (Step S4)
-12. `SurfaceMesher3D` top-level class (S4.1)
-13. Assemble `SurfaceMesh3D` with global node numbering (S4.2)
-
-#### Phase II-A: Volume input refactoring (Step V1)
-14. Refactor `MeshingContext3D` to accept `SurfaceMesh3D` as input (V1.1)
-
-#### Phase II-B: Segment and facet recovery (Steps V3–V4)
-15. Implement flip-based edge recovery for fixed surface (V3.3–V3.4)
-16. Implement flip-based face recovery (V4.2–V4.4)
-
-#### Phase II-C: Exterior removal integration (Step V5)
-17. Call `classifyTetrahedraInteriorExterior()` after facet recovery (V5.4)
-
-#### Phase II-D: Complete refinement loop (Step V6)
-18. Add Priority 1 and Priority 2 to `refineStep()`
-19. Add encroachment checks to `handleSkinnyTetrahedron()`
-
-#### Phase II-E: Post-processing (Step V7)
-20. Sliver detection and removal
-21. (Optional) Smoothing and topological flips
+#### RCDT Volume (R2.3, R4)
+10. Priority 3: split skinny tetrahedra with cascade demotion
+11. Exterior removal via flood-fill after refinement (R4.1–R4.2)
 
 ---
 
@@ -481,13 +515,24 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 | `SurfaceMesh3D.h` | Result type (nodes, triangles, per-face groups, edge node pairing) |
 | `SurfaceMeshQuality.h/.cpp` | UV-space quality with optional 3D pull-back metric (**TODO**) |
 
-### 3D/Volume (volume mesher)
+### 3D/Volume (legacy volume mesher)
 | File | Role |
 |------|------|
-| `Delaunay3D.h/.cpp` | Unconstrained Bowyer-Watson tetrahedralization |
-| `ConstrainedDelaunay3D.h/.cpp` | Top-level constrained Delaunay volume mesher |
-| `ShewchukRefiner3D.h/.cpp` | Shewchuk refinement loop (Priority 1/2/3) |
-| `Shewchuk3DQualityController.h/.cpp` | Circumradius-to-edge quality bound configuration |
+| `Delaunay3D.h/.cpp` | Unconstrained Bowyer-Watson tetrahedralization (shared with RCDT) |
+| `ConstrainedDelaunay3D.h/.cpp` | Legacy constrained Delaunay volume mesher |
+| `ShewchukRefiner3D.h/.cpp` | Legacy Shewchuk refinement loop (superseded by RCDT) |
+| `Shewchuk3DQualityController.h/.cpp` | Legacy quality bound configuration (superseded by RCDT) |
+
+### 3D/RCDT (current 3D mesher)
+| File | Role |
+|------|------|
+| `RCDTMesher.h/.cpp` | Top-level API; runs all three phases and returns `SurfaceMesh3D` |
+| `RCDTContext.h/.cpp` | Orchestrates `buildInitial` / `refine` / `buildSurfaceMesh` |
+| `RCDTRefiner.h/.cpp` | Two-priority refinement loop in ambient 3D space |
+| `RestrictedTriangulation.h/.cpp` | Identifies and maintains restricted Delaunay faces |
+| `SurfaceProjector.h/.cpp` | Signed-distance and surface-crossing tests |
+| `CurveSegmentOperations.h/.cpp` | Populates `CurveSegmentManager`; computes arc-length midpoints |
+| `RCDTQualitySettings.h` | Quality criteria: circumradius/edge ratio and chord deviation |
 
 ### Topology
 | File | Role |

@@ -17,6 +17,7 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <iostream>
 #include <memory>
 
@@ -66,11 +67,11 @@ int main()
 
     ConstraintChecker3D checker(meshData);
 
-    // Create a constrained subsegment between nodes 0 and 1
-    ConstrainedSubsegment3D subsegment;
+    // Create a constrained segment between nodes 0 and 1
+    CurveSegment subsegment;
     subsegment.nodeId1 = n0;
     subsegment.nodeId2 = n1;
-    subsegment.geometryId = "edge_01";
+    subsegment.edgeId = "edge_01";
 
     std::cout << "Testing subsegment encroachment for edge (" << n0 << " -> " << n1 << ")\n";
 

@@ -1,0 +1,147 @@
+#include "CurveSegmentManager.h"
+
+#include "Common/Exceptions/MeshException.h"
+
+namespace Meshing
+{
+
+size_t CurveSegmentManager::addSegment(const CurveSegment& segment)
+{
+    return addSegmentInternal(segment);
+}
+
+std::pair<size_t, size_t> CurveSegmentManager::splitAt(size_t segmentId, size_t newNodeId, double tMid)
+{
+    auto it = segments_.find(segmentId);
+    if (it == segments_.end())
+    {
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "CurveSegment with ID " + std::to_string(segmentId) + " not found");
+    }
+
+    CurveSegment original = it->second;
+    removeSegmentInternal(segmentId);
+
+    CurveSegment segment1{original.nodeId1, newNodeId, original.edgeId, original.tStart, tMid, original.role};
+    CurveSegment segment2{newNodeId, original.nodeId2, original.edgeId, tMid, original.tEnd, original.role};
+
+    size_t id1 = addSegmentInternal(segment1);
+    size_t id2 = addSegmentInternal(segment2);
+
+    return {id1, id2};
+}
+
+const CurveSegment& CurveSegmentManager::getSegment(size_t segmentId) const
+{
+    auto it = segments_.find(segmentId);
+    if (it == segments_.end())
+    {
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "CurveSegment with ID " + std::to_string(segmentId) + " not found");
+    }
+    return it->second;
+}
+
+std::optional<size_t> CurveSegmentManager::findSegmentId(size_t nodeId1, size_t nodeId2) const
+{
+    auto key = (nodeId1 < nodeId2) ? std::make_pair(nodeId1, nodeId2) : std::make_pair(nodeId2, nodeId1);
+    auto it = endpointToSegmentId_.find(key);
+    if (it == endpointToSegmentId_.end())
+        return std::nullopt;
+    return it->second;
+}
+
+const std::unordered_map<size_t, CurveSegment>& CurveSegmentManager::getAllSegments() const
+{
+    return segments_;
+}
+
+std::vector<size_t> CurveSegmentManager::findEncroached(const Point3D& point,
+                                                        const std::unordered_map<size_t, Point3D>& nodePositions,
+                                                        std::optional<size_t> excludeNodeId) const
+{
+    std::vector<size_t> encroached;
+
+    for (const auto& [segmentId, segment] : segments_)
+    {
+        if (excludeNodeId && (*excludeNodeId == segment.nodeId1 || *excludeNodeId == segment.nodeId2))
+            continue;
+
+        const auto it1 = nodePositions.find(segment.nodeId1);
+        const auto it2 = nodePositions.find(segment.nodeId2);
+
+        if (it1 == nodePositions.end() || it2 == nodePositions.end())
+            continue;
+
+        const Point3D& p1 = it1->second;
+        const Point3D& p2 = it2->second;
+
+        const Point3D center = (p1 + p2) * 0.5;
+        const double radiusSquared = (p2 - p1).squaredNorm() * 0.25;
+        const double distanceSquared = (point - center).squaredNorm();
+
+        if (distanceSquared < radiusSquared)
+            encroached.push_back(segmentId);
+    }
+
+    return encroached;
+}
+
+std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::string& edgeId) const
+{
+    std::vector<CurveSegment> result;
+    for (const auto& [segmentId, segment] : segments_)
+    {
+        if (segment.edgeId == edgeId)
+            result.push_back(segment);
+    }
+    std::sort(result.begin(), result.end(),
+              [](const CurveSegment& a, const CurveSegment& b) { return a.tStart < b.tStart; });
+    return result;
+}
+
+size_t CurveSegmentManager::size() const
+{
+    return segments_.size();
+}
+
+bool CurveSegmentManager::empty() const
+{
+    return segments_.empty();
+}
+
+void CurveSegmentManager::clear()
+{
+    segments_.clear();
+    endpointToSegmentId_.clear();
+    nextId_ = 0;
+}
+
+size_t CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
+{
+    size_t id = nextId_++;
+    segments_[id] = segment;
+    auto key = (segment.nodeId1 < segment.nodeId2) ?
+                   std::make_pair(segment.nodeId1, segment.nodeId2) :
+                   std::make_pair(segment.nodeId2, segment.nodeId1);
+    endpointToSegmentId_[key] = id;
+    return id;
+}
+
+void CurveSegmentManager::removeSegmentInternal(size_t segmentId)
+{
+    auto it = segments_.find(segmentId);
+    if (it == segments_.end())
+        return;
+
+    const auto& segment = it->second;
+    auto key = (segment.nodeId1 < segment.nodeId2) ?
+                   std::make_pair(segment.nodeId1, segment.nodeId2) :
+                   std::make_pair(segment.nodeId2, segment.nodeId1);
+    endpointToSegmentId_.erase(key);
+    segments_.erase(it);
+}
+
+} // namespace Meshing

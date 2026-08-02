@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Data/ConstraintRole.h"
 #include <string>
 
 namespace Meshing
@@ -13,20 +14,6 @@ struct CircumscribedSphere
 };
 
 /**
- * @brief Represents a constrained edge segment in 3D mesh
- *
- * A subsegment is part of a constrained edge (segment) that must be
- * preserved in the final mesh. During refinement, segments may be
- * subdivided into multiple subsegments.
- */
-struct ConstrainedSubsegment3D
-{
-    size_t nodeId1;         // First endpoint node ID
-    size_t nodeId2;         // Second endpoint node ID
-    std::string geometryId; // Parent edge geometry ID
-};
-
-/**
  * @brief Represents a constrained triangular face in 3D mesh
  *
  * A subfacet is part of a constrained facet (surface) that must be
@@ -35,10 +22,11 @@ struct ConstrainedSubsegment3D
  */
 struct ConstrainedSubfacet3D
 {
-    size_t nodeId1;         // First vertex node ID
-    size_t nodeId2;         // Second vertex node ID
-    size_t nodeId3;         // Third vertex node ID
-    std::string geometryId; // Parent surface geometry ID
+    size_t nodeId1;                                  // First vertex node ID
+    size_t nodeId2;                                  // Second vertex node ID
+    size_t nodeId3;                                  // Third vertex node ID
+    std::string geometryId;                          // Parent surface geometry ID
+    ConstraintRole role = ConstraintRole::Boundary;  // Boundary or interior constraint
 };
 
 /**

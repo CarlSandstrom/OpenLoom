@@ -1,18 +1,16 @@
 #pragma once
 
 #include "../Base/IElement.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Node2D.h"
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace Meshing
 {
 
-/**
- * @brief Storage for 2D mesh data (nodes and elements in parametric space)
- */
 class MeshData2D
 {
 public:
@@ -28,8 +26,11 @@ public:
     size_t getNodeCount() const { return nodes_.size(); }
     size_t getElementCount() const { return elements_.size(); }
 
-    const std::vector<ConstrainedSegment2D>& getConstrainedSegments() const { return constrainedSegments_; }
-    size_t getConstrainedSegmentCount() const { return constrainedSegments_.size(); }
+    const CurveSegmentManager& getCurveSegmentManager() const { return curveSegmentManager_; }
+
+    // Geometry ID association (boundary node metadata)
+    const std::vector<std::string>& getGeometryIds(size_t nodeId) const;
+    bool isBoundaryNode(size_t nodeId) const;
 
     // Internal access for operations classes (friends)
     friend class MeshMutator2D;
@@ -37,7 +38,8 @@ public:
 private:
     std::unordered_map<size_t, std::unique_ptr<Node2D>> nodes_;
     std::unordered_map<size_t, std::unique_ptr<IElement>> elements_;
-    std::vector<ConstrainedSegment2D> constrainedSegments_;
+    std::unordered_map<size_t, std::vector<std::string>> nodeGeometryIds_;
+    CurveSegmentManager curveSegmentManager_;
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
 
@@ -48,12 +50,13 @@ private:
     void removeElementInternal(size_t id);
     Node2D* getNodeMutable(size_t id);
 
-    void addConstrainedSegmentInternal(const ConstrainedSegment2D& segment);
-    void removeConstrainedSegmentInternal(size_t nodeId1, size_t nodeId2);
-    void replaceConstrainedSegmentInternal(const ConstrainedSegment2D& oldSegment,
-                                           const ConstrainedSegment2D& newSeg1,
-                                           const ConstrainedSegment2D& newSeg2);
-    void clearConstrainedSegmentsInternal();
+    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
+
+    size_t addCurveSegmentInternal(const CurveSegment& segment);
+    void setCurveSegmentManagerInternal(CurveSegmentManager manager);
+    std::pair<size_t, size_t> splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
+                                                         size_t newNodeId, double tMid);
+    void clearCurveSegmentsInternal();
 };
 
 } // namespace Meshing

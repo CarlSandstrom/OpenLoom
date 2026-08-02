@@ -67,6 +67,7 @@ public:
     Point3D getEndPoint() const override { return end_; }
     std::pair<double, double> getParameterBounds() const override { return {0.0, 1.0}; }
     double getLength() const override { return (end_ - start_).norm(); }
+    double getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const override { return tStart + fraction * (tEnd - tStart); }
     double getCurvature(double /*t*/) const override { return 0.0; }
     std::string getId() const override { return id_; }
 
@@ -106,6 +107,17 @@ public:
     }
 
     Point2D projectPoint(const Point3D& point) const override
+    {
+        return Point2D(point.x(), point.y());
+    }
+
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
+    {
+        return Point2D(point.x(), point.y());
+    }
+
+    std::optional<Point2D> projectPointToUnderlyingSurface(
+        const Point3D& point, const Point2D& /*seedUV*/) const override
     {
         return Point2D(point.x(), point.y());
     }
@@ -303,10 +315,9 @@ TEST_F(ConstrainedDelaunay3DTest, TetrahedralizeExtractsSubsegments)
     cd3d.tetrahedralize();
 
     const auto& meshData = context.getMeshData();
-    const auto& subsegments = meshData.getConstrainedSubsegments();
 
     // Should have 4 subsegments for the 4 edges of the bottom face
-    EXPECT_EQ(subsegments.size(), 4);
+    EXPECT_EQ(meshData.getCurveSegmentManager().size(), 4);
 }
 
 TEST_F(ConstrainedDelaunay3DTest, TetrahedralizeCreatesSubfacets)
@@ -333,14 +344,14 @@ TEST_F(ConstrainedDelaunay3DTest, SubsegmentsHaveCorrectGeometryIds)
     cd3d.tetrahedralize();
 
     const auto& meshData = context.getMeshData();
-    const auto& subsegments = meshData.getConstrainedSubsegments();
+    const auto& segmentMap = meshData.getCurveSegmentManager().getAllSegments();
 
     std::set<std::string> expectedEdgeIds = {"e0", "e1", "e2", "e3"};
     std::set<std::string> foundEdgeIds;
 
-    for (const auto& subsegment : subsegments)
+    for (const auto& [id, subsegment] : segmentMap)
     {
-        foundEdgeIds.insert(subsegment.geometryId);
+        foundEdgeIds.insert(subsegment.edgeId);
     }
 
     EXPECT_EQ(foundEdgeIds, expectedEdgeIds);
@@ -412,9 +423,9 @@ TEST_F(ConstrainedDelaunay3DTest, SubsegmentNodeIdsAreValidMeshNodes)
     cd3d.tetrahedralize();
 
     const auto& meshData = context.getMeshData();
-    const auto& subsegments = meshData.getConstrainedSubsegments();
+    const auto& segmentMap = meshData.getCurveSegmentManager().getAllSegments();
 
-    for (const auto& subsegment : subsegments)
+    for (const auto& [id, subsegment] : segmentMap)
     {
         EXPECT_NE(meshData.getNode(subsegment.nodeId1), nullptr)
             << "Subsegment node ID " << subsegment.nodeId1 << " should exist";

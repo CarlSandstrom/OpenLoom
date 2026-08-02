@@ -7,13 +7,11 @@ namespace Meshing
 
 Delaunay2D::Delaunay2D(const std::vector<Point2D>& points,
                        MeshData2D* meshData,
-                       const std::vector<std::vector<double>>& tParameters,
                        const std::vector<std::vector<std::string>>& geometryIds) :
     points_(points),
     meshData_(meshData),
     meshMutator_(*meshData_),
     meshOperations_(*meshData_),
-    tParameters_(tParameters),
     geometryIds_(geometryIds)
 {
 }
@@ -37,15 +35,11 @@ void Delaunay2D::triangulate()
     {
         size_t nodeId;
 
-        // Check if this is a boundary point (has edge parameters and geometry IDs)
-        bool hasTParameters = index < tParameters_.size() && !tParameters_[index].empty();
         bool hasGeometryIds = index < geometryIds_.size() && !geometryIds_[index].empty();
 
-        if (hasTParameters && hasGeometryIds)
+        if (hasGeometryIds)
         {
-            nodeId = meshOperations_.insertVertexBowyerWatson(point,
-                                                              tParameters_[index],
-                                                              geometryIds_[index]);
+            nodeId = meshOperations_.insertVertexBowyerWatson(point, geometryIds_[index]);
         }
         else
         {

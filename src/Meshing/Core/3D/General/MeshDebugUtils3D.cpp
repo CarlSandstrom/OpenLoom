@@ -7,6 +7,7 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshVerifier3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "spdlog/spdlog.h"
 #include <sstream>
 
@@ -59,18 +60,18 @@ void verifyBasicIntegrity(const MeshData3D& meshData, std::vector<std::string>& 
 void verifySubsegmentsPresent(const MeshData3D& meshData, std::vector<std::string>& errors)
 {
     MeshQueries3D queries(meshData);
-    const auto& subsegments = meshData.getConstrainedSubsegments();
+    const auto& segments = meshData.getCurveSegmentManager().getAllSegments();
     size_t missingCount = 0;
 
-    for (const auto& subsegment : subsegments)
+    for (const auto& [id, segment] : segments)
     {
-        if (!queries.edgeExistsInMesh(subsegment.nodeId1, subsegment.nodeId2))
+        if (!queries.edgeExistsInMesh(segment.nodeId1, segment.nodeId2))
         {
             missingCount++;
             if (missingCount <= 5)
             {
-                spdlog::debug("MeshDebugUtils3D: Subsegment ({}, {}) missing from mesh",
-                              subsegment.nodeId1, subsegment.nodeId2);
+                spdlog::debug("MeshDebugUtils3D: Segment ({}, {}) missing from mesh",
+                              segment.nodeId1, segment.nodeId2);
             }
         }
     }
@@ -78,8 +79,8 @@ void verifySubsegmentsPresent(const MeshData3D& meshData, std::vector<std::strin
     if (missingCount > 0)
     {
         std::ostringstream oss;
-        oss << missingCount << " of " << subsegments.size()
-            << " subsegment(s) missing from mesh edges";
+        oss << missingCount << " of " << segments.size()
+            << " segment(s) missing from mesh edges";
         errors.push_back(oss.str());
     }
 }
@@ -113,7 +114,7 @@ void verifySubfacetsPresent(const MeshData3D& meshData, std::vector<std::string>
 }
 
 void verifyQualityBound(const MeshData3D& meshData, double qualityBound,
-                         std::vector<std::string>& errors)
+                        std::vector<std::string>& errors)
 {
     if (qualityBound <= 0.0)
     {
@@ -137,57 +138,44 @@ void verifyQualityBound(const MeshData3D& meshData, double qualityBound,
 
 } // namespace
 
-void exportAndVerifyMesh3D(MeshData3D& meshData,
-                           MeshingPhase3D phase,
-                           const std::string& filenamePrefix,
-                           size_t& exportCounter,
-                           double qualityBound)
+void exportMesh3D(MeshData3D& meshData, const std::string& filenamePrefix, size_t exportCounter)
 {
     if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
     {
         Export::VtkExporter exporter;
-        exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter++) + ".vtu");
+        exporter.exportMesh(meshData, filenamePrefix + "_" + std::to_string(exportCounter) + ".vtu");
     }
+}
 
-    if (OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+void verifyMesh3D(MeshData3D& meshData, MeshingPhase3D phase,
+                  const std::string& filenamePrefix, size_t stepNumber, double qualityBound)
+{
+    if (!OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
+        return;
+
+    spdlog::info("{} [{}]: Verifying mesh at step {} ({} nodes, {} elements)",
+                 filenamePrefix, phaseToString(phase), stepNumber,
+                 meshData.getNodeCount(), meshData.getElementCount());
+
+    std::vector<std::string> errors;
+
+    verifyBasicIntegrity(meshData, errors);
+
+    if (phase >= MeshingPhase3D::SegmentRecovery)
+        verifySubsegmentsPresent(meshData, errors);
+
+    if (phase >= MeshingPhase3D::FacetRecovery)
+        verifySubfacetsPresent(meshData, errors);
+
+    if (phase >= MeshingPhase3D::Refined)
+        verifyQualityBound(meshData, qualityBound, errors);
+
+    if (!errors.empty())
     {
-        spdlog::info("{} [{}]: Verifying mesh at step {} ({} nodes, {} elements)",
-                     filenamePrefix, phaseToString(phase), exportCounter,
-                     meshData.getNodeCount(), meshData.getElementCount());
-
-        std::vector<std::string> errors;
-
-        // All phases: basic mesh integrity
-        verifyBasicIntegrity(meshData, errors);
-
-        // SegmentRecovery and later: all subsegments must be mesh edges
-        if (phase >= MeshingPhase3D::SegmentRecovery)
-        {
-            verifySubsegmentsPresent(meshData, errors);
-        }
-
-        // FacetRecovery and later: all subfacets must be mesh faces
-        if (phase >= MeshingPhase3D::FacetRecovery)
-        {
-            verifySubfacetsPresent(meshData, errors);
-        }
-
-        // Refined and later: quality bound satisfied
-        if (phase >= MeshingPhase3D::Refined)
-        {
-            verifyQualityBound(meshData, qualityBound, errors);
-        }
-
-        if (!errors.empty())
-        {
-            for (const auto& error : errors)
-            {
-                spdlog::error(" - {}", error);
-            }
-            OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase "
-                                                 + std::string(phaseToString(phase)),
-                                             errors);
-        }
+        for (const auto& error : errors)
+            spdlog::error(" - {}", error);
+        OPENLOOM_THROW_VERIFICATION_FAILED("3D mesh verification failed at phase " + std::string(phaseToString(phase)),
+                                           errors);
     }
 }
 
@@ -198,6 +186,16 @@ void exportEdgeMesh3D(const DiscretizationResult3D& result, const std::string& f
         Export::VtkExporter exporter;
         exporter.writeEdgeMesh(result, filename);
         spdlog::info("MeshDebugUtils3D: exported edge mesh to {}", filename);
+    }
+}
+
+void exportSurfaceMesh3D(const SurfaceMesh3D& surfaceMesh, const std::string& filename)
+{
+    if (OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION))
+    {
+        Export::VtkExporter exporter;
+        exporter.writeSurfaceMesh(surfaceMesh, filename);
+        spdlog::info("MeshDebugUtils3D: exported surface mesh to {}", filename);
     }
 }
 

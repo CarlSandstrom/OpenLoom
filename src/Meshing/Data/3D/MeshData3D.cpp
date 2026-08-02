@@ -21,12 +21,11 @@ MeshData3D::MeshData3D(const MeshData2D& mesh2D)
         const Point2D& coords2D = node2D->getCoordinates();
         Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
 
-        // Copy edge parameters and geometry IDs from 2D node
-        const auto& edgeParams = node2D->getEdgeParameters();
-        const auto& geometryIds = node2D->getGeometryIds();
+        addNodeInternal(id, std::make_unique<Node3D>(coords3D));
 
-        auto node3D = std::make_unique<Node3D>(coords3D, edgeParams, geometryIds);
-        addNodeInternal(id, std::move(node3D));
+        const auto& geometryIds = mesh2D.getGeometryIds(id);
+        if (!geometryIds.empty())
+            setNodeGeometryIdsInternal(id, geometryIds);
     }
 
     for (const auto& [id, element2D] : elements2D)
@@ -82,6 +81,7 @@ void MeshData3D::addElementInternal(size_t id, std::unique_ptr<IElement> element
 void MeshData3D::removeNodeInternal(size_t id)
 {
     nodes_.erase(id);
+    nodeGeometryIds_.erase(id);
 }
 
 void MeshData3D::removeElementInternal(size_t id)
@@ -95,9 +95,42 @@ Node3D* MeshData3D::getNodeMutable(size_t id)
     return (it != nodes_.end()) ? it->second.get() : nullptr;
 }
 
-const std::vector<ConstrainedSubsegment3D>& MeshData3D::getConstrainedSubsegments() const
+const std::vector<std::string>& MeshData3D::getGeometryIds(size_t nodeId) const
 {
-    return constrainedSubsegments_;
+    static const std::vector<std::string> empty;
+    auto it = nodeGeometryIds_.find(nodeId);
+    return it != nodeGeometryIds_.end() ? it->second : empty;
+}
+
+bool MeshData3D::isBoundaryNode(size_t nodeId) const
+{
+    auto it = nodeGeometryIds_.find(nodeId);
+    return it != nodeGeometryIds_.end() && !it->second.empty();
+}
+
+void MeshData3D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids)
+{
+    nodeGeometryIds_[nodeId] = std::move(ids);
+}
+
+const std::optional<std::array<size_t, 4>>& MeshData3D::getBoundingNodeIds() const
+{
+    return boundingNodeIds_;
+}
+
+void MeshData3D::setBoundingNodeIdsInternal(const std::array<size_t, 4>& boundingNodeIds)
+{
+    boundingNodeIds_ = boundingNodeIds;
+}
+
+void MeshData3D::clearBoundingNodeIdsInternal()
+{
+    boundingNodeIds_.reset();
+}
+
+const CurveSegmentManager& MeshData3D::getCurveSegmentManager() const
+{
+    return curveSegmentManager_;
 }
 
 const std::vector<ConstrainedSubfacet3D>& MeshData3D::getConstrainedSubfacets() const
@@ -107,49 +140,12 @@ const std::vector<ConstrainedSubfacet3D>& MeshData3D::getConstrainedSubfacets() 
 
 size_t MeshData3D::getConstrainedSubsegmentCount() const
 {
-    return constrainedSubsegments_.size();
+    return curveSegmentManager_.size();
 }
 
 size_t MeshData3D::getConstrainedSubfacetCount() const
 {
     return constrainedSubfacets_.size();
-}
-
-void MeshData3D::addConstrainedSubsegmentInternal(const ConstrainedSubsegment3D& subsegment)
-{
-    constrainedSubsegments_.push_back(subsegment);
-}
-
-void MeshData3D::removeConstrainedSubsegmentInternal(size_t nodeId1, size_t nodeId2)
-{
-    std::erase_if(constrainedSubsegments_,
-        [nodeId1, nodeId2](const ConstrainedSubsegment3D& seg)
-        {
-            return (seg.nodeId1 == nodeId1 && seg.nodeId2 == nodeId2) ||
-                   (seg.nodeId1 == nodeId2 && seg.nodeId2 == nodeId1);
-        });
-}
-
-void MeshData3D::replaceConstrainedSubsegmentInternal(const ConstrainedSubsegment3D& oldSeg,
-                                                        const ConstrainedSubsegment3D& newSeg1,
-                                                        const ConstrainedSubsegment3D& newSeg2)
-{
-    for (auto it = constrainedSubsegments_.begin(); it != constrainedSubsegments_.end(); ++it)
-    {
-        // Match bidirectionally, consistent with removeConstrainedSubsegmentInternal
-        if ((it->nodeId1 == oldSeg.nodeId1 && it->nodeId2 == oldSeg.nodeId2) ||
-            (it->nodeId1 == oldSeg.nodeId2 && it->nodeId2 == oldSeg.nodeId1))
-        {
-            *it = newSeg1;
-            constrainedSubsegments_.push_back(newSeg2);
-            return;
-        }
-    }
-}
-
-void MeshData3D::clearConstrainedSubsegmentsInternal()
-{
-    constrainedSubsegments_.clear();
 }
 
 void MeshData3D::addConstrainedSubfacetInternal(const ConstrainedSubfacet3D& subfacet)

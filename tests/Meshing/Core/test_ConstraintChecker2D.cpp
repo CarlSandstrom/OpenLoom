@@ -2,7 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/2D/ConstraintChecker2D.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 
@@ -36,7 +36,7 @@ TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedDetectsPointInDiametralCircle
     size_t n1 = addNode(4.0, 0.0);
 
     ConstraintChecker2D checker(meshData_);
-    ConstrainedSegment2D segment{n0, n1};
+    CurveSegment segment{n0, n1};
 
     Point2D inside(2.0, 0.5);
     Point2D outside(2.0, 3.0);
@@ -51,7 +51,7 @@ TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedReturnsFalseForEndpoints)
     size_t n1 = addNode(4.0, 0.0);
 
     ConstraintChecker2D checker(meshData_);
-    ConstrainedSegment2D segment{n0, n1};
+    CurveSegment segment{n0, n1};
 
     Point2D endpoint1(0.0, 0.0);
     Point2D endpoint2(4.0, 0.0);
@@ -67,7 +67,7 @@ TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedForDiagonalSegment)
     size_t n1 = addNode(2.0, 2.0);
 
     ConstraintChecker2D checker(meshData_);
-    ConstrainedSegment2D segment{n0, n1};
+    CurveSegment segment{n0, n1};
 
     Point2D inside(1.0, 1.0);  // Center of segment, definitely inside
     Point2D outside(3.0, 0.0); // Far from segment

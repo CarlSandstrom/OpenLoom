@@ -5,6 +5,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/GeometryUtilities3D.h"
+#include "Meshing/Core/3D/General/RobustPredicates3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
@@ -18,6 +19,25 @@
 
 namespace Meshing
 {
+
+namespace
+{
+
+// Whether v lies exactly in the plane through p0, p1, p2 -- i.e. whether the
+// tetrahedron (v, p0, p1, p2) would have zero volume. Exact (via
+// RobustPredicates3D), not tolerance-based: growCavityThroughCoplanarFaces()
+// and retriangulate() below must agree on this with insertVertexBowyerWatson's
+// in-sphere test (also exact, same module) about which faces are degenerate —
+// a tolerance-based coplanarity check that disagrees with an exact in-sphere
+// test on borderline cases is exactly what produced inconsistent cavities
+// (a boundary face with only one neighboring tetrahedron) on nearly-planar
+// boundary curves (see OPE-159/OPE-138).
+bool isCoplanarWithFace(const Point3D& v, const Point3D& p0, const Point3D& p1, const Point3D& p2)
+{
+    return RobustPredicates3D::orientationSign(p0, p1, p2, v) == 0;
+}
+
+} // namespace
 
 MeshOperations3D::MeshOperations3D(MeshData3D& meshData) :
     meshData_(meshData),
@@ -78,6 +98,8 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     auto boundingTet = std::make_unique<TetrahedralElement>(
         std::array<size_t, 4>{id0, id1, id2, id3});
     mutator_->addElement(std::move(boundingTet));
+
+    mutator_->setBoundingNodeIds({id0, id1, id2, id3});
 
     spdlog::debug("MeshOperations3D::createBoundingTetrahedron: Created with nodes ({}, {}, {}, {})",
                   id0, id1, id2, id3);
@@ -161,13 +183,14 @@ void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& bo
         mutator_->removeNode(nodeId);
     }
 
+    mutator_->clearBoundingNodeIds();
+
     spdlog::info("MeshOperations3D::removeBoundingTetrahedron: Removed {} tetrahedra and 4 bounding nodes",
                  tetsToRemove.size());
 }
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
-                                                  const std::vector<double>& edgeParameters,
-                                                  const std::vector<std::string>& edgeIds)
+                                                  const std::vector<std::string>& geometryIds)
 {
     // Find conflicting tetrahedra (those whose circumsphere contains the point)
     std::vector<size_t> conflicting = queries_.findConflictingTetrahedra(point);
@@ -180,6 +203,10 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
         return nodeId;
     }
 
+    // Extend the cavity through any boundary face coplanar with the new
+    // vertex, so retriangulate() never has to fan onto a degenerate face.
+    conflicting = growCavityThroughCoplanarFaces(point, std::move(conflicting));
+
     // Find the cavity boundary
     std::vector<std::array<size_t, 3>> boundary = queries_.findCavityBoundary(conflicting);
 
@@ -191,9 +218,9 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 
     // Insert the new vertex (use boundary node if geometry IDs provided)
     size_t nodeId;
-    if (!edgeParameters.empty() || !edgeIds.empty())
+    if (!geometryIds.empty())
     {
-        nodeId = mutator_->addBoundaryNode(point, edgeParameters, edgeIds);
+        nodeId = mutator_->addBoundaryNode(point, geometryIds);
     }
     else
     {
@@ -204,6 +231,55 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     retriangulate(nodeId, boundary);
 
     return nodeId;
+}
+
+std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
+    const Point3D& point, std::vector<size_t> conflicting) const
+{
+    std::unordered_set<size_t> conflictingSet(conflicting.begin(), conflicting.end());
+
+    bool grew = true;
+    while (grew)
+    {
+        grew = false;
+
+        for (const auto& face : queries_.findCavityBoundary(conflicting))
+        {
+            const Node3D* n0 = meshData_.getNode(face[0]);
+            const Node3D* n1 = meshData_.getNode(face[1]);
+            const Node3D* n2 = meshData_.getNode(face[2]);
+            if (!n0 || !n1 || !n2)
+                continue;
+
+            if (!isCoplanarWithFace(point, n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()))
+                continue;
+
+            const auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
+            if (touching.size() < 2)
+            {
+                OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                                 OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
+                                 "growCavityThroughCoplanarFaces: cavity boundary face is "
+                                 "coplanar with the inserted vertex and has no neighboring "
+                                 "tetrahedron to extend into");
+            }
+
+            const auto neighborIt = std::find_if(touching.begin(), touching.end(),
+                [&conflictingSet](size_t tetId) { return !conflictingSet.contains(tetId); });
+
+            // Both tetrahedra touching this face are already in the cavity (pulled in
+            // while processing another coplanar face earlier in this pass) -- already
+            // resolved, nothing more to do for this face.
+            if (neighborIt == touching.end())
+                continue;
+
+            conflictingSet.insert(*neighborIt);
+            conflicting.push_back(*neighborIt);
+            grew = true;
+        }
+    }
+
+    return conflicting;
 }
 
 void MeshOperations3D::retriangulate(size_t vertexNodeId,
@@ -231,9 +307,20 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
         const Point3D& p1 = n1->getCoordinates();
         const Point3D& p2 = n2->getCoordinates();
 
-        // Compute signed volume: positive means vertex is on the correct side
-        // signedVolume = (1/6) * (p1-p0) . ((p2-p0) x (v-p0))
-        double signedVolume = (p1 - p0).dot((p2 - p0).cross(v - p0));
+        // growCavityThroughCoplanarFaces() is responsible for ensuring no boundary
+        // face reaches here coplanar with v; treat it as a programming error rather
+        // than silently dropping the face, which would leave a hole in the mesh.
+        if (isCoplanarWithFace(v, p0, p1, p2))
+        {
+            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                             OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
+                             "retriangulate: cavity boundary face is coplanar with the "
+                             "inserted vertex; growCavityThroughCoplanarFaces should have "
+                             "extended the cavity past it");
+        }
+
+        const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
+        const double signedVolume = faceNormal.dot(v - p0);
 
         std::array<size_t, 4> nodeIds;
         if (signedVolume >= 0.0)
@@ -251,13 +338,14 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
     }
 }
 
-std::optional<std::pair<ConstrainedSubsegment3D, ConstrainedSubsegment3D>>
-MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment,
+std::optional<std::pair<size_t, size_t>>
+MeshOperations3D::splitConstrainedSubsegment(size_t segmentId,
                                              const Geometry3D::IEdge3D& parentEdge)
 {
-    // Get the two endpoint nodes
-    const auto* node1 = meshData_.getNode(subsegment.nodeId1);
-    const auto* node2 = meshData_.getNode(subsegment.nodeId2);
+    const CurveSegment& segment = meshData_.getCurveSegmentManager().getSegment(segmentId);
+
+    const auto* node1 = meshData_.getNode(segment.nodeId1);
+    const auto* node2 = meshData_.getNode(segment.nodeId2);
 
     if (!node1 || !node2)
     {
@@ -265,57 +353,20 @@ MeshOperations3D::splitConstrainedSubsegment(const ConstrainedSubsegment3D& subs
         return std::nullopt;
     }
 
-    // Compute the midpoint on the geometry (handles curved edges)
-    // Default to Euclidean midpoint
     Point3D midpoint = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
 
-    // Use subsegment endpoint parameters to compute the parametric midpoint
-    const auto& params1 = node1->getEdgeParameters();
-    const auto& params2 = node2->getEdgeParameters();
-    const auto& geoIds1 = node1->getGeometryIds();
-    const auto& geoIds2 = node2->getGeometryIds();
-
-    // Find the edge parameter for each endpoint on the parent edge
-    std::optional<double> t1, t2;
-    for (size_t i = 0; i < geoIds1.size() && i < params1.size(); ++i)
+    if (segment.tStart != segment.tEnd)
     {
-        if (geoIds1[i] == subsegment.geometryId)
-        {
-            t1 = params1[i];
-            break;
-        }
-    }
-    for (size_t i = 0; i < geoIds2.size() && i < params2.size(); ++i)
-    {
-        if (geoIds2[i] == subsegment.geometryId)
-        {
-            t2 = params2[i];
-            break;
-        }
-    }
-
-    if (t1.has_value() && t2.has_value())
-    {
-        double tMid = (*t1 + *t2) * 0.5;
+        double tMid = (segment.tStart + segment.tEnd) * 0.5;
         midpoint = parentEdge.getPoint(tMid);
     }
 
-    // Insert the midpoint vertex
-    std::vector<std::string> geometryIds = {subsegment.geometryId};
-    size_t midNodeId = insertVertexBowyerWatson(midpoint, {}, geometryIds);
+    size_t midNodeId = insertVertexBowyerWatson(midpoint, {segment.edgeId});
 
-    // Create two new subsegments
-    ConstrainedSubsegment3D sub1;
-    sub1.nodeId1 = subsegment.nodeId1;
-    sub1.nodeId2 = midNodeId;
-    sub1.geometryId = subsegment.geometryId;
+    double tMid = (segment.tStart + segment.tEnd) * 0.5;
+    auto [segmentId1, segmentId2] = mutator_->splitCurveSegment(segmentId, midNodeId, tMid);
 
-    ConstrainedSubsegment3D sub2;
-    sub2.nodeId1 = midNodeId;
-    sub2.nodeId2 = subsegment.nodeId2;
-    sub2.geometryId = subsegment.geometryId;
-
-    return std::make_pair(sub1, sub2);
+    return std::make_pair(segmentId1, segmentId2);
 }
 
 std::optional<size_t>
@@ -346,8 +397,7 @@ MeshOperations3D::splitConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet
     // TODO: Project onto parent surface to handle curved surfaces
 
     // Insert the circumcenter vertex
-    std::vector<std::string> geometryIds = {subfacet.geometryId};
-    size_t centerNodeId = insertVertexBowyerWatson(circumcenter, {}, geometryIds);
+    size_t centerNodeId = insertVertexBowyerWatson(circumcenter, {subfacet.geometryId});
 
     return centerNodeId;
 }

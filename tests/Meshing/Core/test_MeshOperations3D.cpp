@@ -1,6 +1,8 @@
+#include <algorithm>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <memory>
+#include <numbers>
 
 #include "Common/Exceptions/MeshException.h"
 #include "Common/Types.h"
@@ -11,6 +13,7 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 
 using namespace Meshing;
 
@@ -228,6 +231,64 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMesh)
     // Node should be added
     const auto* newNode = meshData_.getNode(newNodeId);
     ASSERT_NE(newNode, nullptr);
+}
+
+TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplanarFace)
+{
+    // Reproduces OPE-149: a coarse cylinder-like point cloud (radius 3, height 8,
+    // 3 points per circle -- matching RCDTMesherCylinderTest) where the midpoint of
+    // a top-circle arc lands exactly in the plane of an existing cap face. Before
+    // the fix, MeshOperations3D::retriangulate() silently skipped fanning a
+    // (degenerate) tetrahedron onto that coplanar face, leaving it uncovered --
+    // a real gap in the tetrahedralization (confirmed during investigation via a
+    // point-in-tetrahedron volume check, not just a floating-point near-miss).
+    // growCavityThroughCoplanarFaces() should extend the cavity through the
+    // neighboring tetrahedron instead, so the new vertex is never left orphaned.
+    //
+    // The bounding tetrahedron is intentionally kept in the mesh (mirroring how
+    // RCDTMesher now defers its removal until after refinement): it guarantees a
+    // neighbor is always reachable when extending through a coplanar face.
+    constexpr double RADIUS = 3.0;
+    constexpr double HEIGHT = 8.0;
+
+    std::vector<Point3D> points;
+    for (int i = 0; i < 3; ++i)
+    {
+        const double angle = i * 2.0 * std::numbers::pi / 3.0;
+        points.emplace_back(RADIUS * std::cos(angle), RADIUS * std::sin(angle), HEIGHT);
+        points.emplace_back(RADIUS * std::cos(angle), RADIUS * std::sin(angle), 0.0);
+    }
+
+    MeshOperations3D operations(meshData_);
+    operations.createBoundingTetrahedron(points);
+    for (const auto& p : points)
+    {
+        operations.insertVertexBowyerWatson(p);
+    }
+
+    // Midpoint of the arc between the first two top-circle points -- lies in the
+    // same plane (z = HEIGHT) as the existing top-cap faces.
+    const double midAngle = std::numbers::pi / 3.0;
+    const Point3D midpoint(RADIUS * std::cos(midAngle), RADIUS * std::sin(midAngle), HEIGHT);
+
+    size_t midNodeId = 0;
+    EXPECT_NO_THROW(midNodeId = operations.insertVertexBowyerWatson(midpoint));
+
+    bool participatesInATet = false;
+    for (const auto& [tetId, element] : meshData_.getElements())
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet)
+            continue;
+        const auto& ids = tet->getNodeIds();
+        if (std::find(ids.begin(), ids.end(), midNodeId) != ids.end())
+        {
+            participatesInATet = true;
+            break;
+        }
+    }
+    EXPECT_TRUE(participatesInATet) << "Inserted vertex is not part of any tetrahedron -- "
+                                        "the coplanar cavity boundary face was left uncovered";
 }
 
 // ============================================================================
@@ -987,12 +1048,12 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubsegmentsDetectsEncroachment)
     MeshOperations3D operations(meshData_);
 
     // Create a subsegment
-    ConstrainedSubsegment3D subseg;
+    CurveSegment subseg;
     subseg.nodeId1 = n0;
     subseg.nodeId2 = n1;
-    subseg.geometryId = "edge1";
+    subseg.edgeId = "edge1";
 
-    std::vector<ConstrainedSubsegment3D> subsegments = {subseg};
+    std::vector<CurveSegment> subsegments = {subseg};
 
     // Point at midpoint of subsegment's diametral sphere
     Point3D midpoint(1.0, 0.0, 0.0);
@@ -1014,12 +1075,12 @@ TEST_F(MeshOperations3DTest, FindEncroachingSubsegmentsNoEncroachment)
 
     MeshOperations3D operations(meshData_);
 
-    ConstrainedSubsegment3D subseg;
+    CurveSegment subseg;
     subseg.nodeId1 = n0;
     subseg.nodeId2 = n1;
-    subseg.geometryId = "edge1";
+    subseg.edgeId = "edge1";
 
-    std::vector<ConstrainedSubsegment3D> subsegments = {subseg};
+    std::vector<CurveSegment> subsegments = {subseg};
 
     // Point far from subsegment
     Point3D farPoint(10.0, 10.0, 10.0);

@@ -1,5 +1,6 @@
 build/
 .vscode/
 src/Delauney
-
+.cache/
 *.vtu
+build_release/

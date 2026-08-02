@@ -87,6 +87,20 @@ double OpenCascadeEdge::getLength() const
     return tMax - tMin;
 }
 
+double OpenCascadeEdge::getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const
+{
+    BRepAdaptor_Curve curve(edge_);
+    double totalLength = GCPnts_AbscissaPoint::Length(curve, tStart, tEnd);
+
+    if (totalLength <= Precision::Confusion())
+    {
+        return tStart + fraction * (tEnd - tStart);
+    }
+
+    GCPnts_AbscissaPoint solver(curve, fraction * totalLength, tStart);
+    return solver.Parameter();
+}
+
 double OpenCascadeEdge::getCurvature(double t) const
 {
     BRepAdaptor_Curve curve(edge_);
@@ -105,6 +119,11 @@ double OpenCascadeEdge::getCurvature(double t) const
 
     // Fallback: return 0 if curvature cannot be computed
     return 0.0;
+}
+
+bool OpenCascadeEdge::isDegenerate() const
+{
+    return BRep_Tool::Degenerated(edge_);
 }
 
 std::string OpenCascadeEdge::getId() const

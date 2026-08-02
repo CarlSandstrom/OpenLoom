@@ -32,29 +32,26 @@ void ConstrainedDelaunay2D::triangulate()
 {
     // Add additional points to the discretized points
     std::vector<Point2D> allPoints = discretization_.points;
-    std::vector<std::vector<double>> allTParameters = discretization_.tParameters;
     std::vector<std::vector<std::string>> allGeometryIds = discretization_.geometryIds;
 
     allPoints.insert(allPoints.end(), additionalPoints_.begin(), additionalPoints_.end());
-    // Additional points don't have edge parameters or geometry IDs (empty vectors)
-    allTParameters.insert(allTParameters.end(), additionalPoints_.size(), std::vector<double>{});
     allGeometryIds.insert(allGeometryIds.end(), additionalPoints_.size(), std::vector<std::string>{});
 
     // Create Delaunay triangulation
-    Delaunay2D delaunay(allPoints, meshData2D_, allTParameters, allGeometryIds);
+    Delaunay2D delaunay(allPoints, meshData2D_, allGeometryIds);
     delaunay.triangulate();
     pointIndexToNodeIdMap_ = delaunay.getPointIndexToNodeIdMap();
 
     // Extract constrained edges and store in MeshData2D
-    auto constrainedEdges = meshOperations_->getQueries().extractConstrainedEdges(context_->getTopology(),
-                                                                                  discretization_.cornerIdToPointIndexMap,
-                                                                                  delaunay.getPointIndexToNodeIdMap(),
-                                                                                  discretization_.edgeIdToPointIndicesMap);
+    auto curveSegmentManager = meshOperations_->getQueries().extractConstrainedEdges(
+        context_->getTopology(),
+        discretization_.cornerIdToPointIndexMap,
+        delaunay.getPointIndexToNodeIdMap(),
+        discretization_.edgeIdToPointIndicesMap,
+        discretization_.tParameters,
+        discretization_.geometryIds);
 
-    for (const auto& segment : constrainedEdges)
-    {
-        meshOperations_->getMutator().addConstrainedSegment(segment);
-    }
+    meshOperations_->getMutator().setCurveSegmentManager(std::move(curveSegmentManager));
 
     exportAndVerifyMesh(*meshData2D_, debugExportFilenamePrefix_, exportCounter_);
 
@@ -63,7 +60,7 @@ void ConstrainedDelaunay2D::triangulate()
     while (!allConstrainedEdgesPresent)
     {
         allConstrainedEdgesPresent = true;
-        for (const auto& segment : meshData2D_->getConstrainedSegments())
+        for (const auto& [segId, segment] : meshData2D_->getCurveSegmentManager().getAllSegments())
         {
             allConstrainedEdgesPresent = allConstrainedEdgesPresent &&
                                          meshOperations_->enforceEdge(segment.nodeId1, segment.nodeId2);

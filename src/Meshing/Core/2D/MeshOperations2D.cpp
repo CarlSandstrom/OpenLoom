@@ -35,7 +35,6 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* per
 }
 
 size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
-                                                  const std::vector<double>& edgeParameters,
                                                   const std::vector<std::string>& edgeIds)
 {
     std::vector<size_t> conflicting = queries_.findConflictingTriangles(point);
@@ -94,9 +93,9 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     }
 
     size_t newVertex;
-    if (!edgeParameters.empty() && !edgeIds.empty())
+    if (!edgeIds.empty())
     {
-        newVertex = mutator_->addBoundaryNode(point, edgeParameters, edgeIds);
+        newVertex = mutator_->addBoundaryNode(point, edgeIds);
     }
     else
     {
@@ -430,7 +429,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
     using EdgeKeyHash = MeshQueries2D::EdgeKeyHash;
 
     std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
-    for (const auto& seg : meshData_.getConstrainedSegments())
+    for (const auto& [id, seg] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(seg.nodeId1, seg.nodeId2));
     }
@@ -568,7 +567,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
 }
 
 std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
-    const ConstrainedSegment2D& segment,
+    const CurveSegment& segment,
     const Geometry2D::IEdge2D& parentEdge)
 {
     const Node2D* node1 = meshData_.getNode(segment.nodeId1);
@@ -580,54 +579,7 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
         return std::nullopt;
     }
 
-    const auto& t1Params = node1->getEdgeParameters();
-    const auto& t2Params = node2->getEdgeParameters();
-    const auto& geometryIds1 = node1->getGeometryIds();
-    const auto& geometryIds2 = node2->getGeometryIds();
-
-    if (t1Params.empty() || t2Params.empty())
-    {
-        spdlog::error("splitConstrainedSegment: Nodes {} and {} must have edge parameters", segment.nodeId1, segment.nodeId2);
-        return std::nullopt;
-    }
-
-    // Find the t-parameter pair for the parent edge that minimises |t2 - t1|.
-    // A closed-circle corner node stores both tMin (t=0) and tMax (t=1) under
-    // the same edge ID — always picking the first entry gives the wrong arc
-    // midpoint for the last sub-segment of the circle (which should end at t=1,
-    // not wrap back to t=0).  Choosing the pair with the smallest |t2 - t1|
-    // selects the "short arc" sub-segment, which is always correct because
-    // refinement only ever creates sub-segments shorter than a half-circle.
-    std::string edgeId = parentEdge.getId();
-    double t1 = 0.0, t2 = 0.0;
-    {
-        double bestDiff = std::numeric_limits<double>::max();
-        bool found = false;
-        for (size_t k = 0; k < geometryIds1.size(); ++k)
-        {
-            if (geometryIds1[k] != edgeId)
-                continue;
-            for (size_t m = 0; m < geometryIds2.size(); ++m)
-            {
-                if (geometryIds2[m] != edgeId)
-                    continue;
-                double diff = std::abs(t2Params[m] - t1Params[k]);
-                if (diff < bestDiff)
-                {
-                    bestDiff = diff;
-                    t1       = t1Params[k];
-                    t2       = t2Params[m];
-                    found    = true;
-                }
-            }
-        }
-        if (!found)
-        {
-            spdlog::error("splitConstrainedSegment: Parent edge {} not found in node geometry IDs", edgeId);
-            return std::nullopt;
-        }
-    }
-    double tMid = (t1 + t2) * 0.5;
+    double tMid = (segment.tStart + segment.tEnd) * 0.5;
     Point2D midPoint = parentEdge.getPoint(tMid);
 
     // Check if a node already exists at midPoint (e.g. seam twin whose UV midpoint
@@ -674,13 +626,11 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
         // mesh hole.  Direct splitting forms two non-degenerate triangles
         // (n1, mid, opposite) and (mid, n2, opposite) which are always valid.
         if (!nodeFound)
-            newNodeId = mutator_->addBoundaryNode(midPoint, {tMid}, {edgeId});
+            newNodeId = mutator_->addBoundaryNode(midPoint, {segment.edgeId});
 
         // Update constrained segments BEFORE the Lawson flip so the new sub-segments
         // are recognised as constrained and are not flipped away.
-        ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
-        ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
-        mutator_->replaceConstrainedSegment(segment, seg1, seg2);
+        mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, tMid);
 
         if (midOnChord)
         {
@@ -704,13 +654,11 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
         // Curved edge: the arc midpoint is off the chord.  Use Bowyer-Watson,
         // which rebuilds the local triangulation from a star-shaped cavity and
         // correctly handles midpoints that do not lie on the chord.
-        newNodeId = insertVertexBowyerWatson(midPoint, {tMid}, {edgeId});
+        newNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
         enforceEdge(segment.nodeId1, newNodeId);
         enforceEdge(newNodeId, segment.nodeId2);
 
-        ConstrainedSegment2D seg1{segment.nodeId1, newNodeId, segment.role};
-        ConstrainedSegment2D seg2{newNodeId, segment.nodeId2, segment.role};
-        mutator_->replaceConstrainedSegment(segment, seg1, seg2);
+        mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, tMid);
     }
 
     return newNodeId;

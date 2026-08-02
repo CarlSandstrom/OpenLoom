@@ -31,6 +31,7 @@ public:
     Point3D getEndPoint() const override { return Point3D::Zero(); }
     std::pair<double, double> getParameterBounds() const override { return {tMin_, tMax_}; }
     double getLength() const override { return 1.0; }
+    double getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const override { return tStart + fraction * (tEnd - tStart); }
     double getCurvature(double) const override { return 0.0; }
     std::string getId() const override { return {}; }
 
@@ -52,6 +53,8 @@ public:
     Common::BoundingBox2D getParameterBounds() const override { return bounds_; }
     double getGap(const Point3D& point) const override { return std::abs(point.z()); }
     Point2D projectPoint(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point, const Point2D& /*seedUV*/) const override { return Point2D(point.x(), point.y()); }
     std::string getId() const override { return {}; }
 
 private:

@@ -11,12 +11,11 @@ ConstraintChecker3D::ConstraintChecker3D(const MeshData3D& mesh) :
 {
 }
 
-bool ConstraintChecker3D::isSubsegmentEncroached(const ConstrainedSubsegment3D& subsegment,
+bool ConstraintChecker3D::isSubsegmentEncroached(const CurveSegment& segment,
                                                  const Point3D& point) const
 {
-    // Get the endpoints of the subsegment
-    const auto* node1 = mesh_.getNode(subsegment.nodeId1);
-    const auto* node2 = mesh_.getNode(subsegment.nodeId2);
+    const auto* node1 = mesh_.getNode(segment.nodeId1);
+    const auto* node2 = mesh_.getNode(segment.nodeId2);
 
     if (!node1 || !node2)
     {

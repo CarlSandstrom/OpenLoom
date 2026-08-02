@@ -3,6 +3,7 @@
 #include "Common/Types.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <vector>
 
@@ -22,16 +23,16 @@ public:
     explicit ConstraintChecker3D(const MeshData3D& mesh);
 
     /**
-     * @brief Tests if a subsegment is encroached by a point
+     * @brief Tests if a curve segment is encroached by a point
      *
-     * A subsegment is encroached if a point (other than its endpoints)
+     * A segment is encroached if a point (other than its endpoints)
      * lies inside its diametral sphere.
      *
-     * @param subsegment The constrained subsegment to test
+     * @param segment The curve segment to test
      * @param point The point to test for encroachment
-     * @return true if the point encroaches the subsegment
+     * @return true if the point encroaches the segment
      */
-    bool isSubsegmentEncroached(const ConstrainedSubsegment3D& subsegment,
+    bool isSubsegmentEncroached(const CurveSegment& segment,
                                 const Point3D& point) const;
 
     /**

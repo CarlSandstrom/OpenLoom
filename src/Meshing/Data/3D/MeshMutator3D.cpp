@@ -48,13 +48,12 @@ size_t MeshMutator3D::addNode(const Point3D& coordinates)
 }
 
 size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
-                                      const std::vector<double>& edgeParameters,
                                       const std::vector<std::string>& geometryIds)
 {
     size_t id = nextNodeId_++;
 
-    auto node = std::make_unique<Node3D>(coordinates, edgeParameters, geometryIds);
-    geometry_.addNodeInternal(id, std::move(node));
+    geometry_.addNodeInternal(id, std::make_unique<Node3D>(coordinates));
+    geometry_.setNodeGeometryIdsInternal(id, geometryIds);
 
     // Notify transaction listener
     if (transactionListener_)
@@ -188,28 +187,31 @@ void MeshMutator3D::restoreNode(size_t id, const Point3D& coordinates)
     }
 }
 
-// ========== Constrained Subsegment Operations ==========
-
-void MeshMutator3D::addConstrainedSubsegment(const ConstrainedSubsegment3D& subsegment)
+void MeshMutator3D::setBoundingNodeIds(const std::array<size_t, 4>& boundingNodeIds)
 {
-    geometry_.addConstrainedSubsegmentInternal(subsegment);
+    geometry_.setBoundingNodeIdsInternal(boundingNodeIds);
 }
 
-void MeshMutator3D::removeConstrainedSubsegment(size_t nodeId1, size_t nodeId2)
+void MeshMutator3D::clearBoundingNodeIds()
 {
-    geometry_.removeConstrainedSubsegmentInternal(nodeId1, nodeId2);
+    geometry_.clearBoundingNodeIdsInternal();
 }
 
-void MeshMutator3D::replaceConstrainedSubsegment(const ConstrainedSubsegment3D& oldSeg,
-                                                   const ConstrainedSubsegment3D& newSeg1,
-                                                   const ConstrainedSubsegment3D& newSeg2)
+// ========== Curve Segment Operations ==========
+
+void MeshMutator3D::addCurveSegment(const CurveSegment& segment)
 {
-    geometry_.replaceConstrainedSubsegmentInternal(oldSeg, newSeg1, newSeg2);
+    geometry_.curveSegmentManager_.addSegment(segment);
 }
 
-void MeshMutator3D::clearConstrainedSubsegments()
+std::pair<size_t, size_t> MeshMutator3D::splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid)
 {
-    geometry_.clearConstrainedSubsegmentsInternal();
+    return geometry_.curveSegmentManager_.splitAt(segmentId, newNodeId, tMid);
+}
+
+void MeshMutator3D::clearCurveSegments()
+{
+    geometry_.curveSegmentManager_.clear();
 }
 
 // ========== Constrained Subfacet Operations ==========

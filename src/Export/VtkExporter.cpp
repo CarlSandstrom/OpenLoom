@@ -1,9 +1,9 @@
 #include "VtkExporter.h"
 
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
-#include "Meshing/Core/3D/Surface/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -40,13 +40,17 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     os.exceptions(std::ios::failbit | std::ios::badbit);
     os.open(filePath);
 
+    const std::size_t totalCellCount =
+        mesh.getElements().size() + mesh.getCurveSegmentManager().size();
+
     std::vector<std::size_t> nodeIds;
     std::vector<std::size_t> elementIds;
+    std::vector<std::size_t> segmentIds;
     writeHeader(os);
-    writePoints(os, mesh, nodeIds);
+    writePoints(os, mesh, nodeIds, totalCellCount);
     writePointData(os, nodeIds);
-    writeCells(os, mesh, elementIds);
-    writeCellData(os, elementIds);
+    writeCells(os, mesh, elementIds, segmentIds);
+    writeCellData(os, mesh, elementIds, segmentIds);
     writeFooter(os);
     return true;
 }
@@ -86,7 +90,7 @@ void VtkExporter::writeFooter(std::ostream& os) const
 }
 
 void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
-                              std::vector<std::size_t>& outNodeIds) const
+                              std::vector<std::size_t>& outNodeIds, std::size_t totalCellCount) const
 {
     // For a deterministic index mapping, sort node IDs
     outNodeIds.clear();
@@ -97,7 +101,7 @@ void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
     }
     std::sort(outNodeIds.begin(), outNodeIds.end());
 
-    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size() << "\" NumberOfCells=\"" << mesh.getElements().size() << "\">\n";
+    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size() << "\" NumberOfCells=\"" << totalCellCount << "\">\n";
 
     os << "      <Points>\n";
     os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
@@ -138,7 +142,8 @@ static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData3D& mesh
 }
 
 void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
-                             std::vector<std::size_t>& outElementIds) const
+                             std::vector<std::size_t>& outElementIds,
+                             std::vector<std::size_t>& outSegmentIds) const
 {
     // Build node ID -> contiguous index mapping (sorted by ID to match points order)
     std::vector<std::size_t> nodeIds;
@@ -188,6 +193,17 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
         outElementIds.push_back(eid);
     }
 
+    outSegmentIds.clear();
+    for (const auto& [segId, seg] : mesh.getCurveSegmentManager().getAllSegments())
+    {
+        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId1)));
+        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId2)));
+        runningOffset += 2;
+        offsets.push_back(runningOffset);
+        types.push_back(static_cast<unsigned char>(VTK_LINE));
+        outSegmentIds.push_back(segId);
+    }
+
     os << "      <Cells>\n";
 
     os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
@@ -214,15 +230,46 @@ void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
     os << "      </Cells>\n";
 }
 
-void VtkExporter::writeCellData(std::ostream& os, const std::vector<std::size_t>& elementIds) const
+void VtkExporter::writeCellData(std::ostream& os, const Meshing::MeshData3D& mesh,
+                                const std::vector<std::size_t>& elementIds,
+                                const std::vector<std::size_t>& segmentIds) const
 {
+    const std::size_t totalCells = elementIds.size() + segmentIds.size();
+    const auto& boundingNodeIds = mesh.getBoundingNodeIds();
+
     os << "      <CellData>\n";
+
     os << "        <DataArray type=\"Int64\" Name=\"ElementID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < elementIds.size(); ++i)
+    for (std::size_t i = 0; i < totalCells; ++i)
     {
-        os << elementIds[i] << (i + 1 == elementIds.size() ? "\n" : " ");
+        os << (i < elementIds.size() ? elementIds[i] : segmentIds[i - elementIds.size()]);
+        os << (i + 1 == totalCells ? "\n" : " ");
     }
     os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"EdgeRole\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < totalCells; ++i)
+    {
+        os << (i < elementIds.size() ? 0 : 1);
+        os << (i + 1 == totalCells ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"IsSupertet\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < totalCells; ++i)
+    {
+        int isSupertet = 0;
+        if (boundingNodeIds && i < elementIds.size())
+        {
+            const auto* element = mesh.getElement(elementIds[i]);
+            isSupertet = std::any_of(boundingNodeIds->begin(), boundingNodeIds->end(),
+                                     [element](size_t nodeId) { return element->hasNode(nodeId); });
+        }
+        os << isSupertet;
+        os << (i + 1 == totalCells ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
     os << "      </CellData>\n";
 
     // Close Piece tag started in writePoints
@@ -240,7 +287,7 @@ void VtkExporter::writePoints2D(std::ostream& os, const Meshing::MeshData2D& mes
     }
     std::sort(outNodeIds.begin(), outNodeIds.end());
 
-    const std::size_t totalCells = mesh.getElements().size() + mesh.getConstrainedSegmentCount();
+    const std::size_t totalCells = mesh.getElements().size() + mesh.getCurveSegmentManager().size();
     os << "    <Piece NumberOfPoints=\"" << outNodeIds.size()
        << "\" NumberOfCells=\"" << totalCells << "\">\n";
 
@@ -280,9 +327,9 @@ void VtkExporter::writeCells2D(std::ostream& os, const Meshing::MeshData2D& mesh
     std::vector<unsigned int> offsets;
     std::vector<unsigned char> types;
 
-    const auto& constraints = mesh.getConstrainedSegments();
-    const std::size_t totalCells = elemIds.size() + constraints.size();
-    connectivity.reserve(elemIds.size() * 3 + constraints.size() * 2);
+    const auto& curveSegmentManager = mesh.getCurveSegmentManager();
+    const std::size_t totalCells = elemIds.size() + curveSegmentManager.size();
+    connectivity.reserve(elemIds.size() * 3 + curveSegmentManager.size() * 2);
     offsets.reserve(totalCells);
     types.reserve(totalCells);
     outElementIds.clear();
@@ -309,8 +356,8 @@ void VtkExporter::writeCells2D(std::ostream& os, const Meshing::MeshData2D& mesh
     }
 
     // Write constraint segments as VTK_LINE cells
-    outConstraintCount = constraints.size();
-    for (const auto& seg : constraints)
+    outConstraintCount = curveSegmentManager.size();
+    for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
     {
         connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId1)));
         connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId2)));
@@ -402,8 +449,8 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
 {
     std::unordered_map<std::size_t, int> domainIds;
 
-    const auto& constraints = mesh.getConstrainedSegments();
-    if (constraints.empty())
+    const auto& curveSegmentManager = mesh.getCurveSegmentManager();
+    if (curveSegmentManager.empty())
         return domainIds;
 
     // Edge key helper (canonical ordering)
@@ -424,11 +471,11 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     std::unordered_set<EdgeKey, EdgeKeyHash> boundaryEdges;
     std::unordered_set<EdgeKey, EdgeKeyHash> allConstraintEdges;
 
-    for (const auto& seg : constraints)
+    for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
     {
         auto key = makeEdgeKey(seg.nodeId1, seg.nodeId2);
         allConstraintEdges.insert(key);
-        if (seg.role == Meshing::EdgeRole::BOUNDARY)
+        if (seg.role == Meshing::ConstraintRole::Boundary)
             boundaryEdges.insert(key);
     }
 
@@ -449,9 +496,9 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     auto isInsideDomain = [&](const Meshing::Point2D& point) -> bool
     {
         int crossings = 0;
-        for (const auto& seg : constraints)
+        for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
         {
-            if (seg.role != Meshing::EdgeRole::BOUNDARY)
+            if (seg.role != Meshing::ConstraintRole::Boundary)
                 continue;
 
             const auto& p1 = mesh.getNode(seg.nodeId1)->getCoordinates();
@@ -868,12 +915,19 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& disc3D
 
     os << "      </Cells>\n";
 
-    // CellData: SurfaceID for color-by-surface inspection in ParaView
+    // CellData: SurfaceID and ConstraintRole per subfacet
     os << "      <CellData>\n";
     os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
     for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
     {
         os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"ConstraintRole\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numCells; ++i)
+    {
+        int value = subfacets[i].role == Meshing::ConstraintRole::Boundary ? 0 : 1;
+        os << value << (i + 1 == numCells ? "\n" : " ");
     }
     os << "        </DataArray>\n";
     os << "      </CellData>\n";
@@ -975,6 +1029,13 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::MeshData3D& mesh,
     os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
     for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
         os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "        <DataArray type=\"Int32\" Name=\"ConstraintRole\" format=\"ascii\">\n          ";
+    for (std::size_t i = 0; i < numCells; ++i)
+    {
+        int value = subfacets[i].role == Meshing::ConstraintRole::Boundary ? 0 : 1;
+        os << value << (i + 1 == numCells ? "\n" : " ");
+    }
     os << "        </DataArray>\n";
     os << "      </CellData>\n";
     os << "    </Piece>\n";
