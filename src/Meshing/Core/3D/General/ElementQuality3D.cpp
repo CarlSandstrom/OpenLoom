@@ -1,5 +1,7 @@
 #include "Meshing/Core/3D/General/ElementQuality3D.h"
 
+#include "Meshing/Data/2D/TriangleElement.h"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -102,6 +104,53 @@ std::vector<std::pair<size_t, double>> ElementQuality3D::getSkinnyTetrahedraSort
               { return a.second > b.second; });
 
     return result;
+}
+
+double ElementQuality3D::getShortestEdgeLength(const TriangleElement& element) const
+{
+    const auto& nodeIds = element.getNodeIdArray();
+
+    double minLen = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < 3; ++i)
+    {
+        const auto* n1 = mesh_.getNode(nodeIds[i]);
+        const auto* n2 = mesh_.getNode(nodeIds[(i + 1) % 3]);
+        if (!n1 || !n2)
+            return 0.0;
+
+        minLen = std::min(minLen, (n1->getCoordinates() - n2->getCoordinates()).norm());
+    }
+
+    return minLen;
+}
+
+double ElementQuality3D::getMinAngle(const TriangleElement& element) const
+{
+    const auto& nodeIds = element.getNodeIdArray();
+    const auto* n0 = mesh_.getNode(nodeIds[0]);
+    const auto* n1 = mesh_.getNode(nodeIds[1]);
+    const auto* n2 = mesh_.getNode(nodeIds[2]);
+    if (!n0 || !n1 || !n2)
+        return 0.0;
+
+    const Point3D& p0 = n0->getCoordinates();
+    const Point3D& p1 = n1->getCoordinates();
+    const Point3D& p2 = n2->getCoordinates();
+
+    auto clampedAngle = [](const Point3D& u, const Point3D& v) -> double
+    {
+        const double denominator = u.norm() * v.norm();
+        if (denominator < 1e-15)
+            return 0.0;
+        const double cosAngle = std::clamp(u.dot(v) / denominator, -1.0, 1.0);
+        return std::acos(cosAngle);
+    };
+
+    const double angleAt0 = clampedAngle(p1 - p0, p2 - p0);
+    const double angleAt1 = clampedAngle(p0 - p1, p2 - p1);
+    const double angleAt2 = clampedAngle(p0 - p2, p1 - p2);
+
+    return std::min({angleAt0, angleAt1, angleAt2});
 }
 
 } // namespace Meshing

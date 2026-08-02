@@ -39,6 +39,7 @@ set(TEST_SOURCES
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
+    Meshing/Core/test_SurfaceMesher3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_RestrictedTriangulation.cpp

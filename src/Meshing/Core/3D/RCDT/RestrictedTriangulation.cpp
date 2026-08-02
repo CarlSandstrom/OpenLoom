@@ -3,15 +3,15 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
+#include "Meshing/Core/3D/General/ElementQuality3D.h"
+#include "Meshing/Core/3D/RCDT/RCDTQualityController.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
+#include <iterator>
 
 namespace Meshing
 {
@@ -112,45 +112,38 @@ void RestrictedTriangulation::invalidateFacesWithEdge(size_t nodeId1, size_t nod
 }
 
 std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
-    const RCDTQualitySettings& settings,
+    const SurfaceMesh3DQualitySettings& settings,
     const MeshData3D& meshData,
     const MeshConnectivity& connectivity,
     const Geometry3D::GeometryCollection3D& geometry) const
 {
     std::vector<BadRestrictedTriangle> badTriangles;
+
+    const RCDTQualityController qualityController(meshData, geometry, settings);
+    if (qualityController.isMeshAcceptable(restrictedFaces_.size()))
+        return badTriangles;
+
     const ElementGeometry3D elementGeometry(meshData);
+    const ElementQuality3D elementQuality(meshData);
 
     for (const auto& [face, surfaceId] : restrictedFaces_)
     {
         const TriangleElement triangle(face.nodeIds);
 
+        if (qualityController.isTriangleAcceptable(triangle, surfaceId))
+            continue;
+
         const auto circumcircle = elementGeometry.computeCircumcircle(triangle);
         if (!circumcircle)
             continue;
 
-        double shortestEdge = std::numeric_limits<double>::max();
-        for (size_t i = 0; i < 3; ++i)
-        {
-            const Point3D& p1 = meshData.getNode(face.nodeIds[i])->getCoordinates();
-            const Point3D& p2 = meshData.getNode(face.nodeIds[(i + 1) % 3])->getCoordinates();
-            shortestEdge = std::min(shortestEdge, (p2 - p1).norm());
-        }
-
-        const bool failsRatio = shortestEdge > 0.0 &&
-                                circumcircle->radius / shortestEdge > settings.maximumCircumradiusToShortestEdgeRatio;
-
-        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
-        const bool failsChordDeviation = surface &&
-                                         std::abs(surfaceProjector_.signedDistance(circumcircle->center, *surface)) >
-                                             settings.maximumChordDeviation;
-
-        if (!failsRatio && !failsChordDeviation)
-            continue;
+        const double shortestEdge = elementQuality.getShortestEdgeLength(triangle);
 
         // The point to actually insert if this triangle gets refined: where
         // the face's dual Voronoi edge crosses the surface, not the flat
         // circumcircle center above (which is only used for the chord
         // deviation check — a property of the flat triangle itself).
+        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         std::optional<Point3D> insertionPoint;
         if (surface)
         {

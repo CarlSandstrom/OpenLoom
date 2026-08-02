@@ -40,7 +40,7 @@ constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
 
 RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          RestrictedTriangulation& restrictedTriangulation,
-                         const RCDTQualitySettings& settings) :
+                         const SurfaceMesh3DQualitySettings& settings) :
     context_(&context),
     restrictedTriangulation_(&restrictedTriangulation),
     settings_(settings)

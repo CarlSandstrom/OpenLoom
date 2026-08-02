@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <array>
 #include <memory>
@@ -29,7 +29,7 @@ public:
     RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                const Topology3D::Topology3D& topology,
                Geometry3D::DiscretizationSettings3D discretizationSettings = {},
-               RCDTQualitySettings qualitySettings = {});
+               SurfaceMesh3DQualitySettings qualitySettings = {});
 
     ~RCDTMesher();
 
@@ -47,7 +47,7 @@ private:
     const Geometry3D::GeometryCollection3D* geometry_;
     const Topology3D::Topology3D* topology_;
     Geometry3D::DiscretizationSettings3D discretizationSettings_;
-    RCDTQualitySettings qualitySettings_;
+    SurfaceMesh3DQualitySettings qualitySettings_;
 
     std::unique_ptr<MeshingContext3D> meshingContext_;
     std::unique_ptr<RestrictedTriangulation> restrictedTriangulation_;

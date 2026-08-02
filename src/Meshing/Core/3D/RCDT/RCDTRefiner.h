@@ -2,8 +2,8 @@
 
 #include "Common/Types.h"
 #include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <string>
 #include <unordered_map>
@@ -32,14 +32,14 @@ class RCDTRefiner
 public:
     RCDTRefiner(MeshingContext3D& context,
                 RestrictedTriangulation& restrictedTriangulation,
-                const RCDTQualitySettings& settings);
+                const SurfaceMesh3DQualitySettings& settings);
 
     void refine();
 
 private:
     MeshingContext3D* context_;
     RestrictedTriangulation* restrictedTriangulation_;
-    RCDTQualitySettings settings_;
+    SurfaceMesh3DQualitySettings settings_;
     SurfaceProjector surfaceProjector_;
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
 

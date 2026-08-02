@@ -115,7 +115,7 @@ SurfaceMesh3D SurfaceMeshingContext3D::buildSurfaceMesh() const
 
 void SurfaceMeshingContext3D::refineSurfaces()
 {
-    const double circumradiusToEdgeRatio = qualitySettings_.circumradiusToEdgeRatio;
+    const double circumradiusToEdgeRatio = qualitySettings_.circumradiusToShortestEdgeRatio;
     const double minAngleDegrees = qualitySettings_.minAngleDegrees;
     const size_t elementLimit = qualitySettings_.elementLimit;
     const double chordDeviationTolerance = qualitySettings_.chordDeviationTolerance;

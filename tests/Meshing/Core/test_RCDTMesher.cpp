@@ -1,8 +1,8 @@
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
-#include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
 #include <BRepPrimAPI_MakeCylinder.hxx>
@@ -59,11 +59,12 @@ protected:
         const Geometry3D::DiscretizationSettings3D discSettings(
             std::nullopt, std::numbers::pi * 2.0 / 20.0 + 0.01, 0);
 
-        // Default quality settings: circumradius/shortest-edge ratio ≤ 1.0 and
-        // chord deviation ≤ 0.5.  The chord deviation for a ~18.6° arc on a
-        // radius-3 cylinder is ~0.04 m, well under the 0.5 bound, so only the
-        // ratio criterion drives refinement here.
-        const RCDTQualitySettings qualitySettings{1.0, 0.5};
+        // Quality settings: circumradius/shortest-edge ratio ≤ 1.0 (the
+        // default) and chord deviation ≤ 0.5.  The chord deviation for a
+        // ~18.6° arc on a radius-3 cylinder is ~0.04 m, well under the 0.5
+        // bound, so only the ratio criterion drives refinement here.
+        SurfaceMesh3DQualitySettings qualitySettings;
+        qualitySettings.chordDeviationTolerance = 0.5;
 
         RCDTMesher mesher(converter_->getGeometryCollection(),
                           converter_->getTopology(),

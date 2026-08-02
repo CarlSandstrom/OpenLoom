@@ -10,6 +10,8 @@
 namespace Meshing
 {
 
+class TriangleElement;
+
 /// Helper that provides quality metrics for 3D mesh elements.
 class ElementQuality3D
 {
@@ -31,6 +33,13 @@ public:
     /// @param threshold The circumradius-to-shortest-edge ratio bound
     /// @return Vector of (tetId, ratio) pairs sorted by ratio descending
     std::vector<std::pair<size_t, double>> getSkinnyTetrahedraSortedByQuality(double threshold) const;
+
+    /// Computes the shortest edge length of a triangular element in ambient 3D space.
+    double getShortestEdgeLength(const TriangleElement& element) const;
+
+    /// Computes the minimum interior angle of a triangular element in ambient 3D
+    /// space, in radians. Returns 0.0 if the triangle is degenerate.
+    double getMinAngle(const TriangleElement& element) const;
 
 private:
     const MeshData3D& mesh_;

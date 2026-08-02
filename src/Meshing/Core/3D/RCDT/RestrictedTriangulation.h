@@ -2,8 +2,8 @@
 
 #include "Common/Types.h"
 #include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <optional>
 #include <string>
@@ -73,7 +73,7 @@ public:
     void invalidateFacesWithEdge(size_t nodeId1, size_t nodeId2);
 
     /// Returns restricted faces that violate quality criteria.
-    std::vector<BadRestrictedTriangle> getBadTriangles(const RCDTQualitySettings& settings,
+    std::vector<BadRestrictedTriangle> getBadTriangles(const SurfaceMesh3DQualitySettings& settings,
                                                        const MeshData3D& meshData,
                                                        const MeshConnectivity& connectivity,
                                                        const Geometry3D::GeometryCollection3D& geometry) const;

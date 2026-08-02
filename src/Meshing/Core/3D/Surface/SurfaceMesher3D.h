@@ -5,6 +5,9 @@
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
+#include <memory>
+#include <optional>
+
 namespace Geometry3D
 {
 class GeometryCollection3D;
@@ -18,13 +21,33 @@ class Topology3D;
 namespace Meshing
 {
 
+class RCDTMesher;
+
+/// Which surface meshing pipeline SurfaceMesher3D runs.
+enum class SurfaceMeshingStrategy
+{
+    /// Per-face UV-space triangulation (SurfaceMeshingContext3D). Legacy
+    /// pipeline; cannot represent periodic/seam surfaces correctly.
+    PerFaceUV,
+
+    /// Ambient-space Restricted Constrained Delaunay Triangulation (RCDTMesher).
+    AmbientRCDT,
+
+    /// PerFaceUV unless the topology has periodic/seam surfaces, in which
+    /// case AmbientRCDT.
+    Auto
+};
+
 /**
  * @brief Top-level surface mesher for 3D CAD geometry.
  *
- * Runs the full S1–S3 pipeline and returns a conforming SurfaceMesh3D:
+ * Dispatches to one of two pipelines (see SurfaceMeshingStrategy) and
+ * returns a conforming SurfaceMesh3D. Under PerFaceUV:
  *   S1 — Boundary discretization and per-face UV triangulation (run at construction)
  *   S2 — Shewchuk angle-quality refinement in UV space with twin edge synchronisation
  *   S3 — Optional chord-deviation pass for geometric fidelity
+ * Under AmbientRCDT, RCDTMesher runs its own build/refine/smooth pipeline
+ * entirely within mesh().
  *
  * Usage:
  * @code
@@ -38,7 +61,8 @@ public:
     SurfaceMesher3D(const Geometry3D::GeometryCollection3D& geometry,
                     const Topology3D::Topology3D& topology,
                     Geometry3D::DiscretizationSettings3D discretizationSettings = {},
-                    SurfaceMesh3DQualitySettings qualitySettings = {});
+                    SurfaceMesh3DQualitySettings qualitySettings = {},
+                    SurfaceMeshingStrategy strategy = SurfaceMeshingStrategy::Auto);
 
     ~SurfaceMesher3D();
 
@@ -50,16 +74,22 @@ public:
     SurfaceMesher3D(SurfaceMesher3D&&) noexcept;
     SurfaceMesher3D& operator=(SurfaceMesher3D&&) noexcept;
 
+    /// The strategy actually resolved to (Auto is resolved at construction).
+    SurfaceMeshingStrategy getStrategy() const { return strategy_; }
+
     /**
      * @brief Run refinement and assemble the surface mesh.
      *
-     * Executes the S2–S3 refinement passes on all faces, then assembles and
-     * returns the full SurfaceMesh3D.  May only be called once per instance.
+     * Under PerFaceUV, executes the S2–S3 refinement passes on all faces.
+     * Under AmbientRCDT, runs RCDTMesher's full build/refine/smooth pipeline.
+     * Either way, may only be called once per instance.
      */
     SurfaceMesh3D mesh();
 
 private:
-    SurfaceMeshingContext3D context_;
+    SurfaceMeshingStrategy strategy_;
+    std::optional<SurfaceMeshingContext3D> uvContext_;
+    std::unique_ptr<RCDTMesher> rcdtMesher_;
 };
 
 } // namespace Meshing

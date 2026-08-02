@@ -28,7 +28,7 @@ namespace Meshing
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        const Topology3D::Topology3D& topology,
                        Geometry3D::DiscretizationSettings3D discretizationSettings,
-                       RCDTQualitySettings qualitySettings) :
+                       SurfaceMesh3DQualitySettings qualitySettings) :
     geometry_(&geometry),
     topology_(&topology),
     discretizationSettings_(discretizationSettings),

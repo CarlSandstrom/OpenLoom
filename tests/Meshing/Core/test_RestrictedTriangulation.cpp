@@ -5,9 +5,9 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/RCDTQualitySettings.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Corner3D.h"
@@ -332,7 +332,7 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ElongatedTriangle_ReportedAsBa
     RestrictedTriangulation rt;
     rt.buildFrom(meshData, connectivity, geometry, topology);
 
-    const RCDTQualitySettings settings;
+    const SurfaceMesh3DQualitySettings settings;
     const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
 
     ASSERT_FALSE(badTriangles.empty());
@@ -377,7 +377,7 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_GoodTriangle_NotReported)
     RestrictedTriangulation rt;
     rt.buildFrom(meshData, connectivity, geometry, topology);
 
-    const RCDTQualitySettings settings;
+    const SurfaceMesh3DQualitySettings settings;
     const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
 
     EXPECT_TRUE(badTriangles.empty());
@@ -418,9 +418,9 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ChordDeviationFailure)
     rt.buildFrom(meshData, connectivity, geometry, topology);
 
     // Use strict ratio so only chord deviation triggers the failure
-    RCDTQualitySettings settings;
-    settings.maximumCircumradiusToShortestEdgeRatio = 100.0;
-    settings.maximumChordDeviation = 0.1;
+    SurfaceMesh3DQualitySettings settings;
+    settings.circumradiusToShortestEdgeRatio = 100.0;
+    settings.chordDeviationTolerance = 0.1;
 
     const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
 
