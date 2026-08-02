@@ -67,6 +67,13 @@ SurfaceMesh3D RCDTMesher::mesh()
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_smoothed", counter);
     ++counter;
 
+    // Triangle-only export of the actual output — unlike the exports above,
+    // this contains none of the ambient tetrahedralization's interior faces
+    // (see RestrictedTriangulation: a triangle whose corners all lie on a
+    // CAD surface is not necessarily one of the faces RCDT selected as the
+    // boundary there).
+    Meshing::exportSurfaceMesh3D(surfaceMesh, "rcdt_surface_mesh.vtu");
+
     return surfaceMesh;
 }
 
@@ -175,7 +182,12 @@ SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
         for (const auto& [nodeId, node] : meshData.getNodes())
             maxNodeId = std::max(maxNodeId, nodeId);
 
-        surfaceMesh.nodes.resize(maxNodeId + 1);
+        // Zero-fill rather than plain resize(): node IDs below the lowest
+        // surviving one are gaps left by the removed supertet corners, and
+        // Eigen's default constructor does not zero-initialize — an
+        // unfilled slot would otherwise hold whatever was previously in
+        // that memory.
+        surfaceMesh.nodes.resize(maxNodeId + 1, Point3D::Zero());
         for (const auto& [nodeId, node] : meshData.getNodes())
             surfaceMesh.nodes[nodeId] = node->getCoordinates();
     }
