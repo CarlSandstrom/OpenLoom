@@ -62,6 +62,18 @@ SurfaceMesh3D RCDTMesher::mesh()
                      qualitySettings_.smoothingIterations);
         const SurfaceMeshSmoother smoother(*geometry_);
         smoother.smooth(surfaceMesh, qualitySettings_.smoothingIterations);
+
+        // Smoothing only moves the SurfaceMesh3D copy above. The same node IDs
+        // are still referenced by the ambient tetrahedra in meshingContext_'s
+        // live MeshData3D (a future volume-mesh extraction reads those
+        // directly) — sync the smoothed positions back so both stay
+        // geometrically consistent, rather than only the returned copy.
+        auto& mutator = meshingContext_->getMutator();
+        for (size_t nodeId = 0; nodeId < surfaceMesh.nodes.size(); ++nodeId)
+        {
+            if (meshingContext_->getMeshData().getNode(nodeId))
+                mutator.moveNode(nodeId, surfaceMesh.nodes[nodeId]);
+        }
     }
 
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_smoothed", counter);
