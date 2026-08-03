@@ -32,6 +32,21 @@ public:
         const Meshing::Point2D& seedUV) const = 0;
 
     virtual std::string getId() const = 0;
+
+    /**
+     * @brief Whether a 3D point lies within this surface's trimmed boundary
+     *
+     * The underlying math surface (used by getPoint/getNormal/
+     * projectPointToUnderlyingSurface) is generally unbounded or periodic;
+     * the trimmed boundary is the actual finite patch the surface occupies
+     * on the model. A point can lie exactly on the untrimmed surface (zero
+     * gap) while sitting well outside its trimmed patch -- e.g. past the
+     * edge where it meets a neighboring surface.
+     *
+     * Default is true: surfaces with no independent trim concept (e.g.
+     * simple analytic surfaces used in tests) are trimmed nowhere.
+     */
+    virtual bool isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const;
 };
 
 } // namespace Geometry3D

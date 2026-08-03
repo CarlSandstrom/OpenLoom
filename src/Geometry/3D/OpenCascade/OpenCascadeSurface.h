@@ -25,6 +25,7 @@ public:
         const Meshing::Point3D& point,
         const Meshing::Point2D& seedUV) const override;
     std::string getId() const override;
+    bool isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const override;
 
 private:
     TopoDS_Face face_;

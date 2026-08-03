@@ -153,3 +153,90 @@ TEST(RobustPredicates3DTest, InsidePointCircumsphere_NearDegenerateTet_OwnCentro
     const Point3D centroid = (p0 + p1 + p2 + p3) / 4.0;
     EXPECT_TRUE(RobustPredicates3D::insidePointCircumsphere(p0, p1, p2, p3, centroid));
 }
+
+// ============================================================================
+// segmentCrossesTriangle (OPE-169)
+// ============================================================================
+
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_ThroughInterior_ReturnsTrue)
+{
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+
+    const Point3D p(0.2, 0.2, -1.0);
+    const Point3D q(0.2, 0.2, 1.0);
+
+    EXPECT_TRUE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
+}
+
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_PlaneCrossingOutsideTriangle_ReturnsFalse)
+{
+    // Crosses the triangle's plane (z=0) at (1.2, 1.2, 0), which is outside
+    // the triangle (x+y > 1) even though the segment straddles the plane.
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+
+    const Point3D p(0.2, 0.2, -1.0);
+    const Point3D q(2.0, 2.0, 1.0);
+
+    EXPECT_FALSE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
+}
+
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_BothEndpointsSameSide_ReturnsFalse)
+{
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+
+    const Point3D p(0.2, 0.2, 1.0);
+    const Point3D q(0.2, 0.2, 2.0);
+
+    EXPECT_FALSE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
+}
+
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_CoplanarSegment_ReturnsFalse)
+{
+    // Segment lies exactly in the triangle's own plane -- not a transversal
+    // crossing, so this must not be reported as one.
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+
+    const Point3D p(0.1, 0.1, 0.0);
+    const Point3D q(0.3, 0.3, 0.0);
+
+    EXPECT_FALSE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
+}
+
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_TouchesVertex_ReturnsFalse)
+{
+    // The plane crossing point coincides exactly with vertex a -- an edge
+    // orientation test lands on exactly 0, which must be rejected rather
+    // than treated as a match.
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+
+    const Point3D p(0.0, 0.0, -1.0);
+    const Point3D q(0.0, 0.0, 1.0);
+
+    EXPECT_FALSE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
+}
+
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_ExtremelyLongSegment_StillExact)
+{
+    // The dual-edge substitution in RestrictedTriangulation can produce a
+    // segment endpoint hundreds of units away from the triangle (OPE-169) --
+    // the predicate must still resolve the crossing exactly rather than
+    // drift with the endpoint's magnitude.
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+
+    const Point3D p(0.2, 0.2, -1.0);
+    const Point3D q(0.2, 0.2, 1000.0);
+
+    EXPECT_TRUE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
+}

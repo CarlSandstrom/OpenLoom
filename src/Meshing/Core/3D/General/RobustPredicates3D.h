@@ -6,7 +6,14 @@ namespace Meshing
 {
 
 /**
- * @brief Robust (exact) geometric predicates for 3D Delaunay operations.
+ * @brief Robust (exact) geometric predicates.
+ *
+ * Originally added for 3D Delaunay operations (insidePointCircumsphere(),
+ * orientationSign() — see OPE-159 below); segmentCrossesTriangle() extends
+ * the same technique to surface-crossing classification (OPE-169). All three
+ * share the same building block: computing the exact sign of a quantity that
+ * plain IEEE double arithmetic cannot reliably distinguish from zero near a
+ * degenerate configuration, rather than comparing against an epsilon.
  *
  * ElementGeometry3D::computeCircumscribingSphere() solves a 3x3 linear system for the
  * circumcenter, then callers compare distances against the resulting radius. For a
@@ -56,6 +63,26 @@ public:
                                const Point3D& p1,
                                const Point3D& p2,
                                const Point3D& p3);
+
+    /// True if segment (p,q) crosses the interior of triangle (a,b,c) — exact,
+    /// built entirely from orientationSign() (see .cpp): p and q must be on
+    /// opposite sides of the triangle's plane, and orientationSign(p,q,·,·)
+    /// around each of the triangle's 3 edges in turn must agree in sign. A
+    /// segment that only touches the triangle's plane, an edge, or a vertex
+    /// (any of those orientation tests landing exactly on 0) is not a
+    /// crossing — returns false, not true or "unknown".
+    ///
+    /// Used as the classification oracle for SurfaceTessellation (OPE-169):
+    /// reducing "does this segment cross surface S" to "does it cross any
+    /// triangle in a fixed tessellation of S" turns an inherently
+    /// floating-point-fragile question (near-tangent distance-to-surface
+    /// comparisons) into this purely point-based predicate, exact regardless
+    /// of how close to degenerate the input is.
+    static bool segmentCrossesTriangle(const Point3D& p,
+                                       const Point3D& q,
+                                       const Point3D& a,
+                                       const Point3D& b,
+                                       const Point3D& c);
 };
 
 } // namespace Meshing

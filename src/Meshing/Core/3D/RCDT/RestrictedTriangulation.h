@@ -3,6 +3,7 @@
 #include "Common/Types.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
+#include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <optional>
@@ -21,6 +22,7 @@ class MeshData3D;
 namespace Geometry3D
 {
 class GeometryCollection3D;
+class ISurface3D;
 } // namespace Geometry3D
 
 namespace Topology3D
@@ -93,6 +95,27 @@ private:
     /// corner IDs expand to connected surface IDs.
     std::unordered_set<std::string> effectiveSurfaceIds(const std::vector<std::string>& geometryIds) const;
 
+    /// Whether every vertex of face lies within surface's trimmed boundary.
+    /// A face whose vertices sit on the crease between two surfaces can have
+    /// effectiveSurfaceIds() list both as candidates, and a dual-edge
+    /// crossing test alone can't tell them apart -- the untrimmed math
+    /// surfaces extend past the crease into each other's territory. Vertices
+    /// are actual sample points on the real geometry, so checking them
+    /// directly is robust regardless of how far a candidate's circumcenters
+    /// (and thus its dual edge) happen to land from the face itself.
+    bool verticesWithinTrimmedBoundary(const FaceKey& face,
+                                       const MeshData3D& meshData,
+                                       const Geometry3D::ISurface3D& surface) const;
+
+    /// Which of meshData's bounding supertet nodes tetId touches, if any.
+    static std::optional<size_t> findTouchedBoundingNode(size_t tetId, const MeshData3D& meshData);
+
+    /// One endpoint of a face's dual Voronoi edge: tetId's circumcenter,
+    /// unless tetId touches a bounding supertet node, in which case that
+    /// node's own coordinates are used instead -- see the .cpp for why.
+    /// nullopt if tetId doesn't exist or its circumcenter can't be computed.
+    std::optional<Point3D> computeDualEdgeEndpoint(size_t tetId, const MeshData3D& meshData) const;
+
     /// Circumcenters of the two tetrahedra adjacent to face — the endpoints
     /// of its dual Voronoi edge. nullopt if face has fewer than two adjacent
     /// tetrahedra, or either one's circumcenter cannot be computed.
@@ -108,6 +131,11 @@ private:
     std::unordered_set<std::string> surfaceIds_;
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces_;
     std::unordered_map<std::string, std::vector<std::string>> cornerToAdjacentSurfaces_;
+
+    // One fixed tessellation per surface, built once in buildFrom() and used
+    // by classifyFace() as an exact crossing oracle for the lifetime of this
+    // RestrictedTriangulation -- see SurfaceTessellation's class docs.
+    std::unordered_map<std::string, SurfaceTessellation> surfaceTessellations_;
 };
 
 } // namespace Meshing

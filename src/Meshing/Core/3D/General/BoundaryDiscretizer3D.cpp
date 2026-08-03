@@ -182,6 +182,13 @@ void BoundaryDiscretizer3D::discretize()
                 double v = vMin + (vMax - vMin) * static_cast<double>(j) / static_cast<double>(surfaceSamples);
                 Point3D point = surface->getPoint(u, v);
 
+                // A uniform grid over the surface's untrimmed parameter
+                // rectangle can land inside a hole or other cutout in the
+                // face -- skip any sample that isn't actually on the
+                // trimmed patch (see OPE-169).
+                if (!surface->isPointWithinTrimmedBoundary(point))
+                    continue;
+
                 size_t pointIndex = result_->points.size();
                 result_->points.push_back(point);
                 result_->edgeParameters.push_back({});

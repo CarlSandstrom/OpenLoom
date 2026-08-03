@@ -48,7 +48,15 @@ public:
 
     Common::BoundingBox2D getParameterBounds() const override
     {
-        return Common::BoundingBox2D(0.0, 1.0, 0.0, 1.0);
+        // Large relative to every test fixture's geometry (nodes and
+        // circumcenters alike, including circumcenters of deliberately skinny
+        // triangles, which can land far outside the triangle itself) --
+        // getPoint(u,v) = (u,v,planeZ_) is valid for any u,v, so this mock is
+        // meant to behave like an effectively unbounded plane. A tight bound
+        // here would clip RestrictedTriangulation's SurfaceTessellation
+        // classification oracle (built from these bounds) well short of
+        // where these tests actually probe it.
+        return Common::BoundingBox2D(-1000.0, 1000.0, -1000.0, 1000.0);
     }
 
     double getGap(const Point3D& point) const override { return std::abs(point.z() - planeZ_); }

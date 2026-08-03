@@ -24,28 +24,6 @@ double SurfaceProjector::signedDistance(const Point3D& point,
     return (point - surfacePoint).dot(normal);
 }
 
-bool SurfaceProjector::crossesSurface(const Point3D& c1,
-                                      const Point3D& c2,
-                                      const Geometry3D::ISurface3D& surface) const
-{
-    const double d1 = signedDistance(c1, surface);
-    const double d2 = signedDistance(c2, surface);
-
-    const double diameter = computeSurfaceDiameter(surface);
-    const double tangentGuard = NEAR_TANGENT_RELATIVE_TOLERANCE * diameter;
-
-    // Near-tangent: both endpoints are too close to the surface to determine
-    // crossing by sign alone — conservatively fall back to the midpoint.
-    if (std::abs(d1) < tangentGuard && std::abs(d2) < tangentGuard)
-    {
-        const Point3D midpoint = 0.5 * (c1 + c2);
-        const double midpointDistance = signedDistance(midpoint, surface);
-        return std::abs(midpointDistance) >= tangentGuard;
-    }
-
-    return d1 * d2 < -(tangentGuard * tangentGuard);
-}
-
 std::optional<Point3D> SurfaceProjector::projectToSurface(
     const Point3D& point,
     const Geometry3D::ISurface3D& surface) const

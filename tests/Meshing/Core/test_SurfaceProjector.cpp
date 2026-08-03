@@ -136,54 +136,6 @@ TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
 }
 
 // ============================================================================
-// crossesSurface
-// ============================================================================
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_Straddling)
-{
-    const Point3D inside(0.5, 0.0, 1.0);
-    const Point3D outside(1.5, 0.0, 1.0);
-    EXPECT_TRUE(projector.crossesSurface(inside, outside, cylinder));
-}
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_BothOutside)
-{
-    const Point3D outside1(1.5, 0.0, 1.0);
-    const Point3D outside2(0.0, 1.5, 1.0);
-    EXPECT_FALSE(projector.crossesSurface(outside1, outside2, cylinder));
-}
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_BothInside)
-{
-    const Point3D inside1(0.5, 0.0, 1.0);
-    const Point3D inside2(0.0, 0.5, 1.0);
-    EXPECT_FALSE(projector.crossesSurface(inside1, inside2, cylinder));
-}
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_NearTangent)
-{
-    // Both endpoints sit at tiny signed distances with opposite signs — a segment
-    // nearly parallel to the surface. The near-tangent guard falls back to the
-    // midpoint, which is on the surface (signedDistance ≈ 0), so this should
-    // NOT be classified as crossing (midpoint distance < tangentGuard as well).
-    //
-    // Construct using the actual NEAR_TANGENT_RELATIVE_TOLERANCE threshold:
-    // tangentGuard = 1e-10 * diameter.  diameter ≈ 2*R = 2.0 for the unit cylinder.
-    // We put both endpoints just inside ±tangentGuard/2 of the surface.
-    const double diameter = 2.0 * RADIUS;
-    constexpr double NEAR_TANGENT_RELATIVE_TOLERANCE = 1e-10;
-    const double tangentGuard = NEAR_TANGENT_RELATIVE_TOLERANCE * diameter;
-
-    const double epsilon = tangentGuard * 0.4;
-    const Point3D almostOnSurface1(RADIUS + epsilon, 0.0, 1.0);
-    const Point3D almostOnSurface2(RADIUS - epsilon, 0.0, 1.0);
-
-    // Both endpoints are within tangentGuard of the surface; midpoint is on the
-    // surface (signed distance = 0), so the result is false (no crossing).
-    EXPECT_FALSE(projector.crossesSurface(almostOnSurface1, almostOnSurface2, cylinder));
-}
-
-// ============================================================================
 // projectToSurface
 // ============================================================================
 

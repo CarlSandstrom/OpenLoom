@@ -21,6 +21,16 @@ namespace
 
 constexpr size_t INVALID_ID = SIZE_MAX;
 
+// Resolution of each surface's SurfaceTessellation classification oracle.
+// Independent of (and typically finer than) DiscretizationSettings3D's
+// user-facing boundary sample density -- this tessellation is never part of
+// the output mesh, only an internal robustness check, so it's sized for
+// reliably catching a crossing rather than for visual fidelity. Fixed for
+// now; a future pass could adapt it to surface curvature or cache it across
+// meshes of the same geometry (see OPE-168 on this refiner's other
+// full-recompute-per-call costs).
+constexpr size_t SURFACE_TESSELLATION_SAMPLES_PER_DIRECTION = 24;
+
 } // namespace
 
 void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
@@ -31,6 +41,7 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
     restrictedFaces_.clear();
     surfaceIds_.clear();
     edgeToAdjacentSurfaces_.clear();
+    surfaceTessellations_.clear();
 
     for (const auto& surfaceId : topology.getAllSurfaceIds())
         surfaceIds_.insert(surfaceId);
@@ -43,6 +54,14 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
         const auto& connectedSurfaces = topology.getCorner(cornerId).getConnectedSurfaceIds();
         cornerToAdjacentSurfaces_[cornerId] =
             std::vector<std::string>(connectedSurfaces.begin(), connectedSurfaces.end());
+    }
+
+    for (const auto& surfaceId : surfaceIds_)
+    {
+        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
+        if (!surface)
+            continue;
+        surfaceTessellations_[surfaceId].build(*surface, SURFACE_TESSELLATION_SAMPLES_PER_DIRECTION);
     }
 
     for (const auto& [elementId, element] : meshData.getElements())
@@ -218,8 +237,12 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         if (!elementGeometry.computeCircumscribingSphere(*tet1))
             return std::nullopt;
 
-        if (!candidates.empty())
-            return *candidates.begin();
+        for (const auto& surfaceId : candidates)
+        {
+            const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
+            if (surface && verticesWithinTrimmedBoundary(face, meshData, *surface))
+                return surfaceId;
+        }
         return std::nullopt;
     }
 
@@ -232,8 +255,60 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         if (!surface)
             continue;
-        if (surfaceProjector_.crossesSurface(endpoints->first, endpoints->second, *surface))
+        if (!verticesWithinTrimmedBoundary(face, meshData, *surface))
+            continue;
+        const auto tessellationIt = surfaceTessellations_.find(surfaceId);
+        if (tessellationIt == surfaceTessellations_.end())
+            continue;
+        if (tessellationIt->second.crossesSurface(endpoints->first, endpoints->second))
             return surfaceId;
+    }
+
+    return std::nullopt;
+}
+
+std::optional<size_t> RestrictedTriangulation::findTouchedBoundingNode(size_t tetId, const MeshData3D& meshData)
+{
+    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
+    if (!boundingNodeIds)
+        return std::nullopt;
+
+    const auto* tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(tetId));
+    if (!tet)
+        return std::nullopt;
+
+    for (const size_t nodeId : tet->getNodeIds())
+        for (const size_t boundingId : *boundingNodeIds)
+            if (nodeId == boundingId)
+                return boundingId;
+    return std::nullopt;
+}
+
+std::optional<Point3D> RestrictedTriangulation::computeDualEdgeEndpoint(size_t tetId, const MeshData3D& meshData) const
+{
+    const auto* tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(tetId));
+    if (!tet)
+        return std::nullopt;
+
+    // The real circumcenter is preferred even for a tet touching a bounding
+    // supertet node (a deliberately huge seed-triangulation artifact -- see
+    // Delaunay3D's class docs): SurfaceTessellation's crossing test is exact
+    // regardless of how large or skewed the coordinates are, so an
+    // extreme-but-computable circumcenter is fine, and staying close to the
+    // tet's actual location keeps the crossing point local to the face being
+    // classified. Substituting the bounding node's own (very far, laterally
+    // arbitrary) coordinates instead can shift a segment's true crossing
+    // point on a bounded tessellation well away from the face it's supposed
+    // to be testing (see OPE-169) -- so that substitution is now only a
+    // fallback for when the circumsphere solve genuinely fails to converge.
+    const ElementGeometry3D elementGeometry(meshData);
+    if (const auto sphere = elementGeometry.computeCircumscribingSphere(*tet))
+        return sphere->center;
+
+    if (const auto boundingId = findTouchedBoundingNode(tetId, meshData))
+    {
+        if (const Node3D* boundingNode = meshData.getNode(*boundingId))
+            return boundingNode->getCoordinates();
     }
 
     return std::nullopt;
@@ -248,18 +323,25 @@ std::optional<std::pair<Point3D, Point3D>> RestrictedTriangulation::computeDualE
     if (elementId1 == INVALID_ID || elementId2 == INVALID_ID)
         return std::nullopt;
 
-    const auto* tet1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
-    const auto* tet2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
-    if (!tet1 || !tet2)
+    const auto endpoint1 = computeDualEdgeEndpoint(elementId1, meshData);
+    const auto endpoint2 = computeDualEdgeEndpoint(elementId2, meshData);
+    if (!endpoint1 || !endpoint2)
         return std::nullopt;
 
-    const ElementGeometry3D elementGeometry(meshData);
-    const auto sphere1 = elementGeometry.computeCircumscribingSphere(*tet1);
-    const auto sphere2 = elementGeometry.computeCircumscribingSphere(*tet2);
-    if (!sphere1 || !sphere2)
-        return std::nullopt;
+    return std::make_pair(*endpoint1, *endpoint2);
+}
 
-    return std::make_pair(sphere1->center, sphere2->center);
+bool RestrictedTriangulation::verticesWithinTrimmedBoundary(const FaceKey& face,
+                                                             const MeshData3D& meshData,
+                                                             const Geometry3D::ISurface3D& surface) const
+{
+    for (const size_t nodeId : face.nodeIds)
+    {
+        const Node3D* node = meshData.getNode(nodeId);
+        if (!node || !surface.isPointWithinTrimmedBoundary(node->getCoordinates()))
+            return false;
+    }
+    return true;
 }
 
 std::unordered_set<std::string> RestrictedTriangulation::effectiveSurfaceIds(

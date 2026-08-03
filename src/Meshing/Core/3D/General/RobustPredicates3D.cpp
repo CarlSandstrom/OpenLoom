@@ -371,4 +371,32 @@ int RobustPredicates3D::orientationSign(const Point3D& p0,
     return exactOrientationSign(p0, p1, p2, p3);
 }
 
+bool RobustPredicates3D::segmentCrossesTriangle(const Point3D& p,
+                                                const Point3D& q,
+                                                const Point3D& a,
+                                                const Point3D& b,
+                                                const Point3D& c)
+{
+    // p and q must be strictly on opposite sides of the triangle's plane.
+    // Equal signs also correctly rejects the coplanar case (both 0).
+    const int sideP = orientationSign(a, b, c, p);
+    const int sideQ = orientationSign(a, b, c, q);
+    if (sideP == sideQ)
+        return false;
+
+    // The plane crossing point (never computed explicitly) is inside the
+    // triangle iff segment pq passes the same side of all 3 edges, taken in
+    // a consistent winding order around the triangle -- i.e. these three
+    // orientation tests all agree in sign. Any of them landing on exactly 0
+    // means the crossing touches an edge or vertex rather than the
+    // triangle's interior, so it's rejected rather than treated as a match.
+    const int edgeAB = orientationSign(p, q, a, b);
+    const int edgeBC = orientationSign(p, q, b, c);
+    const int edgeCA = orientationSign(p, q, c, a);
+    if (edgeAB == 0 || edgeBC == 0 || edgeCA == 0)
+        return false;
+
+    return edgeAB == edgeBC && edgeBC == edgeCA;
+}
+
 } // namespace Meshing
