@@ -8,6 +8,7 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
+#include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
@@ -240,23 +241,19 @@ bool RCDTRefiner::refineBadTetrahedra()
 
     // Priority 3 runs before removeBoundingTetrahedron() -- priorities 1/2
     // need the supertet kept alive (see class docs) -- so at this point the
-    // mesh still contains tets touching the supertet's corners. Those are
-    // artifacts of the seed triangulation, not real output, and are
-    // naturally "skinny" (the supertet is deliberately huge relative to the
-    // real geometry); attempting to refine them wastes every early iteration
-    // and their circumcenters are meaningless. Exclude any tet touching a
-    // bounding node, same exclusion resolveMinimumEdgeLength() already uses.
-    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
-    const auto touchesBoundingNode = [&boundingNodeIds](const TetrahedralElement& tet)
-    {
-        if (!boundingNodeIds)
-            return false;
-        for (const size_t nodeId : tet.getNodeIds())
-            for (const size_t boundingId : *boundingNodeIds)
-                if (nodeId == boundingId)
-                    return true;
-        return false;
-    };
+    // mesh still contains ambient tetrahedra: the seed triangulation's
+    // artifacts touching the supertet's corners, and (for domains with
+    // holes) tets filling interior voids that RCDT also keeps triangulated
+    // throughout refinement. Neither is real output -- both are naturally
+    // "skinny" relative to the real geometry (the supertet is deliberately
+    // huge; a hole's tets span an unconstrained gap) -- so attempting to
+    // refine them wastes every iteration on circumcenters that are
+    // meaningless (or, for a hole, land in space the final mesh won't even
+    // contain). AmbientTetrahedronClassifier excludes both in one pass: see
+    // its class docs for why a hole's interior and the true exterior are
+    // indistinguishable to the ambient tetrahedralization.
+    AmbientTetrahedronClassifier ambientClassifier;
+    ambientClassifier.classify(meshData, *restrictedTriangulation_);
 
     const auto skinnyTetIds =
         context_->getOperations().getQueries().findSkinnyTetrahedra(settings_.tetCircumradiusToShortestEdgeRatio);
@@ -273,7 +270,7 @@ bool RCDTRefiner::refineBadTetrahedra()
         if (!tet)
             continue;
 
-        if (touchesBoundingNode(*tet))
+        if (ambientClassifier.isAmbient(tetId))
             continue;
 
         // Size floor, same reasoning as the restricted-triangle version above.

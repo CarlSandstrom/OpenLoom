@@ -1,20 +1,15 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Common/Exceptions/MeshException.h"
-#include "Meshing/Core/3D/General/ConstraintChecker3D.h"
-#include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/GeometryUtilities3D.h"
 #include "Meshing/Core/3D/General/RobustPredicates3D.h"
-#include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <queue>
-#include <unordered_map>
 #include <unordered_set>
 
 namespace Meshing
@@ -438,183 +433,6 @@ bool MeshOperations3D::removeTetrahedraContainingNode(size_t nodeId)
     }
 
     return anyRemoved;
-}
-
-void MeshOperations3D::classifyTetrahedraInteriorExterior()
-{
-    const auto& constrainedSubfacets = meshData_.getConstrainedSubfacets();
-    if (meshData_.getElements().empty())
-    {
-        spdlog::warn("classifyTetrahedraInteriorExterior: No tetrahedra in mesh");
-        return;
-    }
-
-    if (constrainedSubfacets.empty())
-    {
-        spdlog::warn("classifyTetrahedraInteriorExterior: No constraint faces, skipping classification");
-        return;
-    }
-
-    ElementGeometry3D geometry(meshData_);
-
-    // Step 1: Find seed tetrahedron (farthest from all constraint faces)
-    const TetrahedralElement* seedTet = nullptr;
-    size_t seedTetId = SIZE_MAX;
-    double maxMinDistance = -1.0;
-
-    for (const auto& [elemId, element] : meshData_.getElements())
-    {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-            continue;
-
-        Point3D centroid = geometry.computeCentroid(*tet);
-        double minDistToConstraint = std::numeric_limits<double>::max();
-
-        for (const auto& subfacet : constrainedSubfacets)
-        {
-            const Node3D* node1 = meshData_.getNode(subfacet.nodeId1);
-            const Node3D* node2 = meshData_.getNode(subfacet.nodeId2);
-            const Node3D* node3 = meshData_.getNode(subfacet.nodeId3);
-
-            if (!node1 || !node2 || !node3)
-                continue;
-
-            Point3D p1 = node1->getCoordinates();
-            Point3D p2 = node2->getCoordinates();
-            Point3D p3 = node3->getCoordinates();
-            double dist = GeometryUtilities3D::computePointToTriangleCentroidDistance(centroid, p1, p2, p3);
-            minDistToConstraint = std::min(minDistToConstraint, dist);
-        }
-
-        if (minDistToConstraint > maxMinDistance)
-        {
-            maxMinDistance = minDistToConstraint;
-            seedTet = tet;
-            seedTetId = elemId;
-        }
-    }
-
-    if (!seedTet || seedTetId == SIZE_MAX)
-    {
-        spdlog::error("classifyTetrahedraInteriorExterior: Could not find seed tetrahedron");
-        return;
-    }
-
-    spdlog::info("classifyTetrahedraInteriorExterior: Found seed tet {} with min distance {} to constraints",
-                 seedTetId, maxMinDistance);
-
-    // Step 2: Build face-to-tetrahedra adjacency map
-    std::unordered_map<FaceKey, std::vector<size_t>, FaceKeyHash> faceToTets;
-
-    for (const auto& [elemId, element] : meshData_.getElements())
-    {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-            continue;
-
-        const auto& nodes = tet->getNodeIds();
-        // Four faces of the tetrahedron
-        std::array<std::array<size_t, 3>, 4> faces = {{{nodes[0], nodes[1], nodes[2]},
-                                                       {nodes[0], nodes[1], nodes[3]},
-                                                       {nodes[0], nodes[2], nodes[3]},
-                                                       {nodes[1], nodes[2], nodes[3]}}};
-
-        for (const auto& face : faces)
-        {
-            faceToTets[FaceKey(face[0], face[1], face[2])].push_back(elemId);
-        }
-    }
-
-    // Step 3: Perform BFS flood fill starting from seed tetrahedron
-    std::unordered_set<size_t> insideTetrahedra;
-    std::queue<size_t> queue;
-
-    queue.push(seedTetId);
-    insideTetrahedra.insert(seedTetId);
-
-    size_t visitedCount = 0;
-    while (!queue.empty())
-    {
-        size_t currentTetId = queue.front();
-        queue.pop();
-        visitedCount++;
-
-        const IElement* elem = meshData_.getElement(currentTetId);
-        if (!elem)
-            continue;
-
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(elem);
-        if (!tet)
-            continue;
-
-        // Check all four faces of the current tetrahedron
-        const auto& nodes = tet->getNodeIds();
-        std::array<std::array<size_t, 3>, 4> faces = {{{nodes[0], nodes[1], nodes[2]},
-                                                       {nodes[0], nodes[1], nodes[3]},
-                                                       {nodes[0], nodes[2], nodes[3]},
-                                                       {nodes[1], nodes[2], nodes[3]}}};
-
-        for (const auto& face : faces)
-        {
-            size_t node1 = face[0];
-            size_t node2 = face[1];
-            size_t node3 = face[2];
-
-            // Don't cross constraint faces
-            if (ConstraintChecker3D::isConstraintFace(node1, node2, node3, constrainedSubfacets))
-            {
-                continue;
-            }
-
-            // Find adjacent tetrahedron through this face
-            auto it = faceToTets.find(FaceKey(node1, node2, node3));
-            if (it == faceToTets.end())
-            {
-                continue;
-            }
-
-            const auto& adjacentTets = it->second;
-
-            // Find the neighbor (the tetrahedron that is not currentTetId)
-            for (size_t neighborId : adjacentTets)
-            {
-                if (neighborId == currentTetId)
-                    continue;
-
-                // If we haven't visited this neighbor yet, add it to the flood fill
-                if (!insideTetrahedra.contains(neighborId))
-                {
-                    insideTetrahedra.insert(neighborId);
-                    queue.push(neighborId);
-                }
-            }
-        }
-    }
-
-    spdlog::info("classifyTetrahedraInteriorExterior: Flood fill visited {} tetrahedra", visitedCount);
-    spdlog::info("classifyTetrahedraInteriorExterior: Marked {} tetrahedra as inside", insideTetrahedra.size());
-
-    // Step 4: Remove tetrahedra that were not reached (outside or in holes)
-    std::vector<size_t> tetsToRemove;
-    for (const auto& [elemId, element] : meshData_.getElements())
-    {
-        if (!insideTetrahedra.contains(elemId))
-        {
-            tetsToRemove.push_back(elemId);
-        }
-    }
-
-    spdlog::info("classifyTetrahedraInteriorExterior: Removing {} tetrahedra (outside or in holes)",
-                 tetsToRemove.size());
-
-    for (size_t elemId : tetsToRemove)
-    {
-        mutator_->removeElement(elemId);
-    }
-
-    spdlog::info("classifyTetrahedraInteriorExterior: Complete - {} tetrahedra remaining",
-                 meshData_.getElements().size());
 }
 
 } // namespace Meshing

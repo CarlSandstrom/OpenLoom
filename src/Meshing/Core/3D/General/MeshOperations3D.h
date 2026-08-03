@@ -124,14 +124,6 @@ public:
     bool removeTetrahedraContainingNode(size_t nodeId);
 
     /**
-     * @brief Classify tetrahedra as interior/exterior using flood fill
-     *
-     * Uses constraint faces from MeshData3D to determine which tetrahedra
-     * are inside the domain vs outside or in holes. Removes exterior tets.
-     */
-    void classifyTetrahedraInteriorExterior();
-
-    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator3D& getMutator() { return *mutator_; }
