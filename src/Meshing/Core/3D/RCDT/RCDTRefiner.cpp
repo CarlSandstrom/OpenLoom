@@ -91,7 +91,7 @@ bool RCDTRefiner::refineStep()
     const auto nodePositionMap = buildNodePositionMap();
 
     std::unordered_set<size_t> encroached;
-    for (const auto& [nodeId, node] : meshData.getNodes()) // TODO: Why do we find all encroached segments instead of stopping at the first one?
+    for (const auto& [nodeId, node] : meshData.getNodes())
     {
         for (const size_t segmentId :
              curveSegmentManager.findEncroached(node->getCoordinates(), nodePositionMap, nodeId))
