@@ -134,7 +134,7 @@ bool RCDTRefiner::refineStep()
         restrictedTriangulation_->getBadTriangles(settings_, meshData, connectivity, *geometry);
 
     if (badTriangles.empty())
-        return refineBadTetrahedra();
+        return refineRemainingPriorities();
 
     for (const auto& bad : badTriangles)
     {
@@ -227,7 +227,14 @@ bool RCDTRefiner::refineStep()
         return true;
     }
 
-    return refineBadTetrahedra();
+    return refineRemainingPriorities();
+}
+
+bool RCDTRefiner::refineRemainingPriorities()
+{
+    if (refineBadTetrahedra())
+        return true;
+    return refineNonManifoldEdges();
 }
 
 bool RCDTRefiner::refineBadTetrahedra()
@@ -339,6 +346,99 @@ bool RCDTRefiner::refineBadTetrahedra()
     return false;
 }
 
+bool RCDTRefiner::refineNonManifoldEdges()
+{
+    const auto& meshData = context_->getMeshData();
+    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    const auto* geometry = context_->getGeometry();
+    if (!geometry)
+        return false;
+
+    const auto nodePositionMap = buildNodePositionMap();
+    const auto defects = restrictedTriangulation_->findNonManifoldEdges();
+
+    for (const auto& defect : defects)
+    {
+        if (unrefinableNonManifoldEdges_.count(defect.edge))
+            continue;
+
+        const auto it1 = nodePositionMap.find(defect.edge.nodeIds[0]);
+        const auto it2 = nodePositionMap.find(defect.edge.nodeIds[1]);
+        if (it1 == nodePositionMap.end() || it2 == nodePositionMap.end())
+        {
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
+
+        // Size floor, same reasoning as the other priorities.
+        const double length = (it1->second - it2->second).norm();
+        if (length <= minimumEdgeLength_)
+        {
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
+
+        // If the defect's two endpoints are directly connected by a curve
+        // segment, split that segment rather than projecting a point onto
+        // one of the surfaces it touches. Every leak traced back during
+        // OPE-170/171's investigation sat essentially exactly on a real CAD
+        // edge (a crease between two surfaces) -- classifyFace's
+        // candidate-surface disambiguation is hardest exactly there. A
+        // generic surface projection lands *near* that crease but not
+        // exactly on it, which doesn't resolve the defect so much as nudge
+        // it elsewhere -- confirmed empirically: it was tried first and the
+        // non-manifold-edge count grew instead of shrinking. Splitting the
+        // segment keeps the new point exactly on the true curve, the same
+        // arc-length-midpoint machinery priority 1 already uses.
+        if (const auto segmentId = curveSegmentManager.findSegmentId(defect.edge.nodeIds[0], defect.edge.nodeIds[1]))
+        {
+            return splitSegment(*segmentId);
+        }
+
+        const Geometry3D::ISurface3D* surface = geometry->getSurface(defect.surfaceId);
+        if (!surface)
+        {
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
+
+        const Point3D midpoint = 0.5 * (it1->second + it2->second);
+        const auto projectedOpt = surfaceProjector_.projectToSurface(midpoint, *surface);
+        if (!projectedOpt)
+        {
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
+        const Point3D& projected = *projectedOpt;
+
+        // Proximity guard, same reasoning as the other priorities.
+        bool tooClose = false;
+        for (const auto& [nodeId, node] : meshData.getNodes())
+        {
+            if ((projected - node->getCoordinates()).norm() < minimumEdgeLength_)
+            {
+                tooClose = true;
+                break;
+            }
+        }
+        if (tooClose)
+        {
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
+
+        // Demotion: if the insertion point would encroach a segment, split that segment instead.
+        const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
+        if (!encroachingIds.empty())
+            return splitSegment(encroachingIds[0]);
+
+        insertAndUpdate(projected, {defect.surfaceId});
+        return true;
+    }
+
+    return false;
+}
+
 size_t RCDTRefiner::insertAndUpdate(const Point3D& point,
                                     const std::vector<std::string>& geometryIds)
 {
@@ -390,6 +490,7 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     unrefinableTriangles_.clear();
     unrefinableTetrahedra_.clear();
     unrefinableSegments_.clear();
+    unrefinableNonManifoldEdges_.clear();
     return true;
 }
 

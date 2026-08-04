@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
@@ -50,6 +51,17 @@ struct BadRestrictedTriangle
     std::optional<Point3D> insertionPoint;
 };
 
+/// An edge of the restricted-face set not shared by exactly 2 triangles --
+/// a hole (count < 2) or a self-intersection (count > 2) in what should be a
+/// closed 2-manifold. surfaceId is the surface of one restricted face
+/// touching the edge (arbitrary when more than one candidate exists), used
+/// as where to project a repair point onto.
+struct NonManifoldRestrictedEdge
+{
+    EdgeKey edge;
+    std::string surfaceId;
+};
+
 class RestrictedTriangulation
 {
 public:
@@ -81,6 +93,13 @@ public:
                                                        const Geometry3D::GeometryCollection3D& geometry) const;
 
     const std::unordered_map<FaceKey, std::string, FaceKeyHash>& getRestrictedFaces() const;
+
+    /// Every edge of the restricted-face set whose triangle count isn't
+    /// exactly 2 -- i.e. every place the set fails to be a closed 2-manifold.
+    /// A watertight restricted set (what AmbientTetrahedronClassifier's flood
+    /// fill requires, and what a correct RCDT run should eventually produce)
+    /// returns an empty vector.
+    std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges() const;
 
 private:
     /// Core restricted test for a single face.
@@ -132,10 +151,12 @@ private:
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces_;
     std::unordered_map<std::string, std::vector<std::string>> cornerToAdjacentSurfaces_;
 
-    // One fixed tessellation per surface, built once in buildFrom() and used
-    // by classifyFace() as an exact crossing oracle for the lifetime of this
+    // One tessellation per surface, built in buildFrom() and used by
+    // classifyFace() as an exact crossing oracle for the lifetime of this
     // RestrictedTriangulation -- see SurfaceTessellation's class docs.
-    std::unordered_map<std::string, SurfaceTessellation> surfaceTessellations_;
+    // Mutable: classifyFace() is logically const but calls ensureResolution()
+    // on this cache, which may rebuild an entry at a finer resolution.
+    mutable std::unordered_map<std::string, SurfaceTessellation> surfaceTessellations_;
 };
 
 } // namespace Meshing

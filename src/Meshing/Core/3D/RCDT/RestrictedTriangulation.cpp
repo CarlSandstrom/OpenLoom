@@ -21,14 +21,16 @@ namespace
 
 constexpr size_t INVALID_ID = SIZE_MAX;
 
-// Resolution of each surface's SurfaceTessellation classification oracle.
-// Independent of (and typically finer than) DiscretizationSettings3D's
+// Initial resolution of each surface's SurfaceTessellation classification
+// oracle. Independent of (and typically finer than) DiscretizationSettings3D's
 // user-facing boundary sample density -- this tessellation is never part of
 // the output mesh, only an internal robustness check, so it's sized for
-// reliably catching a crossing rather than for visual fidelity. Fixed for
-// now; a future pass could adapt it to surface curvature or cache it across
-// meshes of the same geometry (see OPE-168 on this refiner's other
-// full-recompute-per-call costs).
+// reliably catching a crossing rather than for visual fidelity. Only a
+// starting point: classifyFace() calls SurfaceTessellation::ensureResolution()
+// on every use, which rebuilds a surface's tessellation finer on demand once
+// refinement shrinks mesh elements below this initial resolution's cell size
+// (see that method's docs -- this matters for curved surfaces only, a flat
+// surface's tessellation is exact at any resolution).
 constexpr size_t SURFACE_TESSELLATION_SAMPLES_PER_DIRECTION = 24;
 
 } // namespace
@@ -182,6 +184,31 @@ const std::unordered_map<FaceKey, std::string, FaceKeyHash>& RestrictedTriangula
     return restrictedFaces_;
 }
 
+std::vector<NonManifoldRestrictedEdge> RestrictedTriangulation::findNonManifoldEdges() const
+{
+    std::unordered_map<EdgeKey, int, EdgeKeyHash> edgeCounts;
+    std::unordered_map<EdgeKey, std::string, EdgeKeyHash> edgeSurfaceIds;
+
+    for (const auto& [face, surfaceId] : restrictedFaces_)
+    {
+        const auto& n = face.nodeIds;
+        const std::array<EdgeKey, 3> edges = {EdgeKey(n[0], n[1]), EdgeKey(n[0], n[2]), EdgeKey(n[1], n[2])};
+        for (const auto& edge : edges)
+        {
+            ++edgeCounts[edge];
+            edgeSurfaceIds.try_emplace(edge, surfaceId);
+        }
+    }
+
+    std::vector<NonManifoldRestrictedEdge> nonManifoldEdges;
+    for (const auto& [edge, count] : edgeCounts)
+    {
+        if (count != 2)
+            nonManifoldEdges.push_back({edge, edgeSurfaceIds.at(edge)});
+    }
+    return nonManifoldEdges;
+}
+
 std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& face,
                                                                  const MeshData3D& meshData,
                                                                  const MeshConnectivity& connectivity,
@@ -250,6 +277,9 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
     if (!endpoints)
         return std::nullopt;
 
+    const ElementQuality3D elementQuality(meshData);
+    const double shortestEdge = elementQuality.getShortestEdgeLength(TriangleElement(face.nodeIds));
+
     for (const auto& surfaceId : candidates)
     {
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
@@ -260,6 +290,7 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         const auto tessellationIt = surfaceTessellations_.find(surfaceId);
         if (tessellationIt == surfaceTessellations_.end())
             continue;
+        tessellationIt->second.ensureResolution(endpoints->first, endpoints->second, shortestEdge);
         if (tessellationIt->second.crossesSurface(endpoints->first, endpoints->second))
             return surfaceId;
     }

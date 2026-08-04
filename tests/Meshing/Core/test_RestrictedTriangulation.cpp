@@ -4,6 +4,7 @@
 #include "Common/Types.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
+#include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
@@ -252,6 +253,65 @@ TEST(RestrictedTriangulationTest, BuildFrom_OffSurfaceFacesNotRestricted)
     EXPECT_EQ(restricted.count(FaceKey(setup.n0, setup.n1, setup.n3)), 0u);
     EXPECT_EQ(restricted.count(FaceKey(setup.n1, setup.n2, setup.n3)), 0u);
     EXPECT_EQ(restricted.count(FaceKey(setup.n0, setup.n2, setup.n3)), 0u);
+}
+
+// ============================================================================
+// findNonManifoldEdges
+// ============================================================================
+
+TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SingleFace_AllThreeEdgesAreDefects)
+{
+    FlatPlaneSetup setup;
+    MeshConnectivity connectivity(setup.meshData);
+
+    RestrictedTriangulation rt;
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology);
+
+    // A single triangle isn't closed -- all 3 of its edges are boundary
+    // edges (count 1, not the 2 a closed 2-manifold requires).
+    const auto defects = rt.findNonManifoldEdges();
+    ASSERT_EQ(defects.size(), 3u);
+    for (const auto& defect : defects)
+        EXPECT_EQ(defect.surfaceId, FlatPlaneSetup::SURFACE_ID);
+}
+
+// A square base (n0,n1,n2,n3) split along the diagonal (n0,n2) into two
+// restricted triangles, each with its own pair of tets straddling z=0 via a
+// shared apex above (n4) and below (n5) -- a square pyramid glued to its
+// mirror image, split into 4 tets. The shared diagonal is covered by both
+// triangles (count 2 -- not a defect); the 4 outer edges are each covered by
+// only one (count 1 -- defects).
+TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SharedEdgeNotReported_OpenBoundaryIs)
+{
+    constexpr const char* SURFACE_ID = "surface";
+
+    MeshData3D meshData;
+    MeshMutator3D mutator(meshData);
+
+    const size_t n0 = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {SURFACE_ID});
+    const size_t n1 = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {SURFACE_ID});
+    const size_t n2 = mutator.addBoundaryNode(Point3D(1.0, 1.0, 0.0), {SURFACE_ID});
+    const size_t n3 = mutator.addBoundaryNode(Point3D(0.0, 1.0, 0.0), {SURFACE_ID});
+    const size_t n4 = mutator.addNode(Point3D(0.5, 0.5, 10.0));
+    const size_t n5 = mutator.addNode(Point3D(0.5, 0.5, -10.0));
+
+    mutator.addElement(std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n1, n2, n4}));
+    mutator.addElement(std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n1, n2, n5}));
+    mutator.addElement(std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n2, n3, n4}));
+    mutator.addElement(std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n2, n3, n5}));
+
+    MeshConnectivity connectivity(meshData);
+    const auto topology = makeSingleSurfaceTopology(SURFACE_ID);
+    const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID);
+
+    RestrictedTriangulation rt;
+    rt.buildFrom(meshData, connectivity, geometry, topology);
+    ASSERT_EQ(rt.getRestrictedFaces().size(), 2u);
+
+    const auto defects = rt.findNonManifoldEdges();
+    ASSERT_EQ(defects.size(), 4u);
+    for (const auto& defect : defects)
+        EXPECT_FALSE(defect.edge == EdgeKey(n0, n2));
 }
 
 // ============================================================================

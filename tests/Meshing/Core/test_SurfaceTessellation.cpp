@@ -80,6 +80,75 @@ private:
     double holeRadius_;
 };
 
+// A height field with a narrow spike at u=0, much narrower than a coarse
+// tessellation's grid spacing -- mirrors the cylinder's curved lateral
+// surface, where a fixed low-resolution tessellation misses fine mesh-scale
+// features once refinement shrinks elements below the tessellation's own
+// cell size (see RCDTMesherCylinderTest.AllEdgeNodesCovered's iteration-cap
+// regression this fixes).
+class MockSpikeSurface : public Geometry3D::ISurface3D
+{
+public:
+    // spikeCenter deliberately off both the domain's corners and its exact
+    // midpoint -- the spike's own peak has zero slope by symmetry, so a
+    // flatness probe that happened to land exactly there would see the same
+    // normal as the flat far-field and misjudge the surface as planar.
+    MockSpikeSurface(double halfRange, double amplitude, double spikeWidth, double spikeCenter) :
+        halfRange_(halfRange),
+        amplitude_(amplitude),
+        spikeWidth_(spikeWidth),
+        spikeCenter_(spikeCenter)
+    {
+    }
+
+    Point3D getPoint(double u, double v) const override
+    {
+        const double normalizedU = (u - spikeCenter_) / spikeWidth_;
+        return Point3D(u, v, amplitude_ * std::exp(-normalizedU * normalizedU));
+    }
+
+    // Analytic normal of the height field z = f(u): tangents are
+    // dS/du = (1, 0, f'(u)) and dS/dv = (0, 1, 0), so their cross product is
+    // (-f'(u), 0, 1), normalized.
+    std::array<double, 3> getNormal(double u, double /*v*/) const override
+    {
+        const double offset = u - spikeCenter_;
+        const double normalizedU = offset / spikeWidth_;
+        const double height = amplitude_ * std::exp(-normalizedU * normalizedU);
+        const double derivative = height * (-2.0 * offset / (spikeWidth_ * spikeWidth_));
+        const Point3D normal = Point3D(-derivative, 0.0, 1.0).normalized();
+        return {normal.x(), normal.y(), normal.z()};
+    }
+
+    Common::BoundingBox2D getParameterBounds() const override
+    {
+        return Common::BoundingBox2D(-halfRange_, halfRange_, 0.0, 1.0);
+    }
+
+    double getGap(const Point3D& /*point*/) const override { return 0.0; }
+
+    Point2D projectPoint(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
+    {
+        return Point2D(point.x(), point.y());
+    }
+
+    std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point,
+                                                            const Point2D& /*seedUV*/) const override
+    {
+        return projectPointToUnderlyingSurface(point);
+    }
+
+    std::string getId() const override { return "spike"; }
+
+private:
+    double halfRange_;
+    double amplitude_;
+    double spikeWidth_;
+    double spikeCenter_;
+};
+
 } // namespace
 
 // ============================================================================
@@ -159,4 +228,61 @@ TEST(SurfaceTessellationTest, CrossesSurface_AwayFromHole_ReturnsTrue)
     tessellation.build(surface, 20);
 
     EXPECT_TRUE(tessellation.crossesSurface(Point3D(1.3, 0.7, -1.0), Point3D(1.3, 0.7, 1.0)));
+}
+
+// ============================================================================
+// ensureResolution() -- adaptive resolution for curved surfaces
+// ============================================================================
+
+namespace
+{
+// Off both the domain's corners (+-5) and its exact midpoint (0) -- see
+// MockSpikeSurface's constructor doc.
+constexpr double SPIKE_CENTER = 1.7;
+} // namespace
+
+TEST(SurfaceTessellationTest, CrossesSurface_CoarseResolutionMissesNarrowSpike)
+{
+    // spikeWidth (0.1) is much smaller than the coarse grid's ~5-unit
+    // spacing -- none of the 3 sample columns lands near the spike, so the
+    // tessellation is essentially flat (z ~ 0) everywhere.
+    const MockSpikeSurface surface(/*halfRange=*/5.0, /*amplitude=*/10.0, /*spikeWidth=*/0.1, SPIKE_CENTER);
+    SurfaceTessellation tessellation;
+    tessellation.build(surface, 2);
+
+    // The true surface reaches z=10 at the spike center; a segment spanning
+    // z=[8,12] there crosses the true surface but not this coarse,
+    // effectively-flat oracle.
+    EXPECT_FALSE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
+}
+
+TEST(SurfaceTessellationTest, EnsureResolution_RebuildsFinerAndResolvesSpike)
+{
+    const MockSpikeSurface surface(/*halfRange=*/5.0, /*amplitude=*/10.0, /*spikeWidth=*/0.1, SPIKE_CENTER);
+    SurfaceTessellation tessellation;
+    tessellation.build(surface, 2);
+    ASSERT_FALSE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
+
+    // Demand a resolution far finer than the spike's own width -- forces a
+    // full rebuild fine enough for a sample column to land close to the
+    // spike (a global rebuild, unlike a purely local one, doesn't depend on
+    // the query segment's own bounding box already overlapping the right
+    // triangle -- it re-tessellates the whole surface, so it finds features
+    // the coarse build missed entirely, not just ones it under-resolved).
+    tessellation.ensureResolution(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0), 0.02);
+
+    EXPECT_TRUE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
+}
+
+TEST(SurfaceTessellationTest, EnsureResolution_AlreadyFineEnough_NoOp)
+{
+    const MockPlanarSurface surface(10.0);
+    SurfaceTessellation tessellation;
+    tessellation.build(surface, 50);
+
+    // A coarse requirement shouldn't trigger any rebuild -- crossesSurface
+    // must keep working exactly as before.
+    tessellation.ensureResolution(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0), 100.0);
+
+    EXPECT_TRUE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
