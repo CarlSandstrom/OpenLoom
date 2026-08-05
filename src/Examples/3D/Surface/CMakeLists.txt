@@ -8,6 +8,7 @@ set(EXAMPLE_SOURCES_3D_SURFACE
     ThinFinSurfaceMesh.cc
     SharpCreaseBracket.cc
     SaddleSurfaceMesh.cc
+    HexNutSurfaceMesh.cc
 )
 
 # Link external libraries
