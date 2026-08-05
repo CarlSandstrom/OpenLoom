@@ -36,16 +36,17 @@ namespace Meshing
 class SurfaceTessellation
 {
 public:
-    /// Builds a UV-grid tessellation of surface's trimmed patch: samples a
-    /// (samplesPerDirection + 1) x (samplesPerDirection + 1) grid of points
-    /// across the surface's parameter bounds, and adds the two triangles of
-    /// any grid cell with at least one corner within the trimmed boundary. A
-    /// cell isn't clipped to the exact trim curve, so the tessellation can
+    /// Builds a UV-grid tessellation of surface's trimmed patch at a
+    /// resolution whose triangle edge lengths are at most targetCellSize.
+    /// For flat surfaces any resolution is exact, so a small fixed sample
+    /// count is used regardless of targetCellSize. The computed sample count
+    /// is capped at MAXIMUM_SAMPLES_PER_DIRECTION to bound memory and cost.
+    /// A cell isn't clipped to the exact trim curve, so the tessellation can
     /// extend up to one grid cell past the true trimmed patch near its edge
     /// — harmless here, since callers (RestrictedTriangulation) separately
     /// check that the points they care about are within the true trim
     /// boundary; this tessellation only needs to not have gaps.
-    void build(const Geometry3D::ISurface3D& surface, size_t samplesPerDirection);
+    void build(const Geometry3D::ISurface3D& surface, double targetCellSize);
 
     /// Whether segment (a, b) crosses this tessellation — exact, checking
     /// RobustPredicates3D::segmentCrossesTriangle against every triangle
@@ -54,31 +55,6 @@ public:
     /// exact -- much more expensive -- predicate only runs on candidates
     /// that survive this cheap prefilter).
     bool crossesSurface(const Point3D& a, const Point3D& b) const;
-
-    /// Rebuilds this tessellation at a finer resolution if its current cell
-    /// size isn't small relative to requiredEdgeLength. No-op if build()
-    /// hasn't been called yet, if the current resolution is already fine
-    /// enough, or if segment (a, b) is implausibly long relative to the
-    /// surface's own size (see the .cpp for why -- RestrictedTriangulation's
-    /// bounding-supertet-node fallback, not a real local dual edge).
-    ///
-    /// For a planar surface any tessellation resolution represents the exact
-    /// surface, so cell size never matters. For a curved surface, the
-    /// tessellation is only a chordal approximation: once real mesh elements
-    /// being tested against it (via crossesSurface) shrink below the
-    /// tessellation's own fixed cell size, crossesSurface's answers can
-    /// become inconsistent with the true continuous surface. This keeps the
-    /// oracle's resolution tracking the finest element it's actually being
-    /// asked about, rebuilding (full recompute, not local subdivision) only
-    /// when needed. A full rebuild -- not local cell subdivision, tried and
-    /// reverted -- because Priority 4's repair loop implicitly relies on any
-    /// one resolution upgrade fixing the *whole* surface's classifications
-    /// at once (self-healing via later reclassification only revisits faces
-    /// near a freshly inserted node, so a purely local fix leaves other,
-    /// unrelated stale-classified faces elsewhere on the surface to never
-    /// get revisited -- confirmed empirically: local refinement's defect
-    /// count grew without bound instead of converging).
-    void ensureResolution(const Point3D& a, const Point3D& b, double requiredEdgeLength);
 
 private:
     struct BoundedTriangle
@@ -118,31 +94,6 @@ private:
 
     std::vector<BoundedTriangle> triangles_;
     AccelGrid accelGrid_;
-
-    // Remembered so ensureResolution() can rebuild at a different sample
-    // count without the caller needing to keep the surface reference around.
-    const Geometry3D::ISurface3D* surface_ = nullptr;
-    size_t samplesPerDirection_ = 0;
-
-    // Maximum edge length among all triangles produced by the most recent
-    // build() -- the worst-case (largest, i.e. coarsest) cell, so
-    // ensureResolution() triggers conservatively whenever any cell could be
-    // too coarse for what's being tested. Zero if triangles_ is empty.
-    double characteristicCellSize_ = 0.0;
-
-    // Whether surface's normal is numerically constant across its parameter
-    // bounds -- a true plane, for which any tessellation resolution is
-    // exact. Computed in build(); makes ensureResolution() a no-op.
-    bool isFlat_ = false;
-
-    // Rough physical size of the surface, computed in build(). A query
-    // segment much longer than this isn't a real local dual edge -- it's
-    // RestrictedTriangulation's bounding-supertet-node fallback (see
-    // computeDualEdgeEndpoint()), whose far endpoint can be hundreds of
-    // units away. ensureResolution() uses this to recognize and skip that
-    // case, rather than let it drive a rebuild sized for a segment that
-    // doesn't reflect real local mesh density.
-    double surfaceDiameter_ = 0.0;
 };
 
 } // namespace Meshing

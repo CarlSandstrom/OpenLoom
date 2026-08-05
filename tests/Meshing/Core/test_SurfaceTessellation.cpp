@@ -159,7 +159,7 @@ TEST(SurfaceTessellationTest, CrossesSurface_StraddlingSegment_ReturnsTrue)
 {
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 10);
+    tessellation.build(surface, 1.0);
 
     EXPECT_TRUE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
@@ -168,7 +168,7 @@ TEST(SurfaceTessellationTest, CrossesSurface_BothEndpointsSameSide_ReturnsFalse)
 {
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 10);
+    tessellation.build(surface, 1.0);
 
     EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, 1.0), Point3D(5.3, 4.7, 2.0)));
 }
@@ -179,7 +179,7 @@ TEST(SurfaceTessellationTest, CrossesSurface_OutsideParameterBounds_ReturnsFalse
     // [0,10]x[0,10] footprint, so no tessellation triangle should cover it.
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 10);
+    tessellation.build(surface, 1.0);
 
     EXPECT_FALSE(tessellation.crossesSurface(Point3D(20.0, 20.0, -1.0), Point3D(20.0, 20.0, 1.0)));
 }
@@ -191,16 +191,16 @@ TEST(SurfaceTessellationTest, CrossesSurface_ExtremelyLongSegment_StillDetectsCr
     // (OPE-169) -- the crossing must still be found.
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 10);
+    tessellation.build(surface, 1.0);
 
     EXPECT_TRUE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1000.0)));
 }
 
-TEST(SurfaceTessellationTest, Build_TooFewSamples_ProducesNoTriangles)
+TEST(SurfaceTessellationTest, Build_ZeroTargetCellSize_ProducesNoTriangles)
 {
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 1);
+    tessellation.build(surface, 0.0);
 
     EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
@@ -216,7 +216,7 @@ TEST(SurfaceTessellationTest, CrossesSurface_ThroughHole_ReturnsFalse)
     // there's no real material for it to be crossing.
     const MockPlanarSurfaceWithHole surface(10.0, /*holeRadius=*/2.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 20);
+    tessellation.build(surface, 0.5);
 
     EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
@@ -225,13 +225,13 @@ TEST(SurfaceTessellationTest, CrossesSurface_AwayFromHole_ReturnsTrue)
 {
     const MockPlanarSurfaceWithHole surface(10.0, /*holeRadius=*/2.0);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 20);
+    tessellation.build(surface, 0.5);
 
     EXPECT_TRUE(tessellation.crossesSurface(Point3D(1.3, 0.7, -1.0), Point3D(1.3, 0.7, 1.0)));
 }
 
 // ============================================================================
-// ensureResolution() -- adaptive resolution for curved surfaces
+// Resolution scaling for curved surfaces
 // ============================================================================
 
 namespace
@@ -241,48 +241,28 @@ namespace
 constexpr double SPIKE_CENTER = 1.7;
 } // namespace
 
-TEST(SurfaceTessellationTest, CrossesSurface_CoarseResolutionMissesNarrowSpike)
+TEST(SurfaceTessellationTest, CrossesSurface_CoarseTargetCellSizeMissesNarrowSpike)
 {
-    // spikeWidth (0.1) is much smaller than the coarse grid's ~5-unit
-    // spacing -- none of the 3 sample columns lands near the spike, so the
-    // tessellation is essentially flat (z ~ 0) everywhere.
+    // targetCellSize = 5.0 on a 10-unit wide surface gives ~3 samples per
+    // direction. The spike (width 0.1) is far narrower than the grid spacing,
+    // so no sample column lands near it and the tessellation looks flat.
     const MockSpikeSurface surface(/*halfRange=*/5.0, /*amplitude=*/10.0, /*spikeWidth=*/0.1, SPIKE_CENTER);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 2);
+    tessellation.build(surface, 5.0);
 
     // The true surface reaches z=10 at the spike center; a segment spanning
-    // z=[8,12] there crosses the true surface but not this coarse,
-    // effectively-flat oracle.
+    // z=[8,12] there crosses the true surface but not this coarse oracle.
     EXPECT_FALSE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
 }
 
-TEST(SurfaceTessellationTest, EnsureResolution_RebuildsFinerAndResolvesSpike)
+TEST(SurfaceTessellationTest, CrossesSurface_FineTargetCellSizeFindsNarrowSpike)
 {
+    // targetCellSize = 0.02 on a 10-unit wide surface gives ~400 samples per
+    // direction (the cap). Spacing of 0.025 per column guarantees a column
+    // lands within the spike's 0.1-unit width at position SPIKE_CENTER.
     const MockSpikeSurface surface(/*halfRange=*/5.0, /*amplitude=*/10.0, /*spikeWidth=*/0.1, SPIKE_CENTER);
     SurfaceTessellation tessellation;
-    tessellation.build(surface, 2);
-    ASSERT_FALSE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
-
-    // Demand a resolution far finer than the spike's own width -- forces a
-    // full rebuild fine enough for a sample column to land close to the
-    // spike (a global rebuild, unlike a purely local one, doesn't depend on
-    // the query segment's own bounding box already overlapping the right
-    // triangle -- it re-tessellates the whole surface, so it finds features
-    // the coarse build missed entirely, not just ones it under-resolved).
-    tessellation.ensureResolution(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0), 0.02);
+    tessellation.build(surface, 0.02);
 
     EXPECT_TRUE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
-}
-
-TEST(SurfaceTessellationTest, EnsureResolution_AlreadyFineEnough_NoOp)
-{
-    const MockPlanarSurface surface(10.0);
-    SurfaceTessellation tessellation;
-    tessellation.build(surface, 50);
-
-    // A coarse requirement shouldn't trigger any rebuild -- crossesSurface
-    // must keep working exactly as before.
-    tessellation.ensureResolution(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0), 100.0);
-
-    EXPECT_TRUE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }

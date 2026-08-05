@@ -1,6 +1,5 @@
 #include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 
-#include "Common/BoundingBox2D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/RobustPredicates3D.h"
 
@@ -14,28 +13,29 @@ namespace Meshing
 namespace
 {
 
-// How much smaller than requiredEdgeLength characteristicCellSize_ must be
-// before ensureResolution() considers the tessellation fine enough.
-constexpr double CELL_SIZE_SAFETY_MARGIN = 0.5;
-
-// Upper bound on samplesPerDirection a rebuild can request, bounding worst-
-// case tessellation memory/cost the same way minimumEdgeLength_ bounds
-// refinement elsewhere -- not perfect, but bounded.
+// Upper bound on samplesPerDirection, bounding worst-case tessellation
+// memory and cost for very large or very fine-resolution meshes.
 constexpr size_t MAXIMUM_SAMPLES_PER_DIRECTION = 400;
 
-// A query segment much longer than the surface's own physical size isn't a
-// real local dual edge -- it's RestrictedTriangulation's bounding-supertet-
-// node fallback (see computeDualEdgeEndpoint()), whose far endpoint can be
-// hundreds of units away. Letting a segment like that drive a resolution
-// upgrade doesn't reflect real local mesh density and wastes a rebuild on
-// a case ensureResolution can't actually help. A generous multiple of the
-// surface's diameter (not 1x) so a segment that's merely long because it
-// legitimately spans a large curved surface isn't mistaken for this.
-constexpr double MAXIMUM_SEGMENT_LENGTH_RELATIVE_TO_DIAMETER = 5.0;
+// Sample count used for flat surfaces. Any resolution is exact for a plane,
+// so accuracy isn't the constraint -- but the jittered grid must still cover
+// the trimmed patch without gaps near its edges. With V-jitter of 0.61 and N
+// samples over range L, the edge coverage gap is ~0.61*L/N; at N=24 this is
+// ~2.5% of the surface's extent in each direction, which keeps the gap well
+// below typical mesh element sizes in practice.
+constexpr size_t FLAT_SURFACE_SAMPLES_PER_DIRECTION = 24;
 
-// Rough characteristic size of the surface's parameter-bounds footprint, used
-// only to turn the periodicity probe below into a relative tolerance. Reuses
-// the same 4-corner-diameter idea as SurfaceProjector::computeSurfaceDiameter.
+// Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
+// 3 axes. A necessary (not sufficient) condition for the shapes they bound to
+// actually intersect -- see crossesSurface().
+bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
+{
+    return aMin.x() <= bMax.x() && bMin.x() <= aMax.x() && aMin.y() <= bMax.y() && bMin.y() <= aMax.y() &&
+           aMin.z() <= bMax.z() && bMin.z() <= aMax.z();
+}
+
+// Rough characteristic size of the surface's parameter-bounds footprint.
+// Reuses the same 4-corner-diameter idea as SurfaceProjector::computeSurfaceDiameter.
 double estimateDiameter(const Geometry3D::ISurface3D& surface, double uMin, double uMax, double vMin, double vMax)
 {
     const std::array<Point3D, 4> corners = {surface.getPoint(uMin, vMin), surface.getPoint(uMax, vMin),
@@ -49,31 +49,16 @@ double estimateDiameter(const Geometry3D::ISurface3D& surface, double uMin, doub
     return maximumDistance > 0.0 ? maximumDistance : 1.0;
 }
 
-// Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
-// 3 axes. A necessary (not sufficient) condition for the shapes they bound to
-// actually intersect -- see crossesSurface().
-bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
-{
-    return aMin.x() <= bMax.x() && bMin.x() <= aMax.x() && aMin.y() <= bMax.y() && bMin.y() <= aMax.y() &&
-           aMin.z() <= bMax.z() && bMin.z() <= aMax.z();
-}
-
 // Whether surface's normal is (numerically) identical across a jittered
 // grid of probe points spanning its parameter bounds. For a genuinely flat
 // surface a tessellation represents the surface exactly no matter how
-// coarse it is -- ensureResolution() has no work to do there, ever. This
-// matters in practice, not just in principle: a surface's untrimmed
-// parameter-bounds footprint can be far larger than its actual trimmed
-// patch (common for CAD -- e.g. a fillet's underlying cylinder), which
-// would otherwise make characteristicCellSize_ look coarse relative to a
-// small mesh element and trigger a large, entirely unnecessary rebuild on
-// a surface where resolution was never the issue. Any real curvature
-// produces normal variation many orders of magnitude above the tolerance
-// here, even over a tiny patch -- as long as a probe lands where the slope
-// is actually nonzero. A localized, symmetric feature (e.g. a bump) has
-// zero slope exactly at its own center by construction, so corners/center
-// alone can be fooled into reading it as flat; jittering the grid (same
-// idea as the tessellation grid itself, see build()) makes landing exactly
+// coarse it is -- a small fixed sample count suffices and we never need to
+// size it against targetCellSize. Any real curvature produces normal
+// variation many orders of magnitude above the tolerance here, even over a
+// tiny patch -- as long as a probe lands where the slope is actually
+// nonzero. A localized, symmetric feature (e.g. a bump) has zero slope
+// exactly at its own center by construction, so corners/center alone can be
+// fooled into reading it as flat; jittering the grid makes landing exactly
 // on such a point very unlikely without relying on it being impossible.
 bool isEffectivelyFlat(const Geometry3D::ISurface3D& surface, double uMin, double uMax, double vMin, double vMax)
 {
@@ -113,14 +98,11 @@ bool isEffectivelyFlat(const Geometry3D::ISurface3D& surface, double uMin, doubl
 
 } // namespace
 
-void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t samplesPerDirection)
+void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double targetCellSize)
 {
     triangles_.clear();
     accelGrid_ = {};
-    surface_ = &surface;
-    samplesPerDirection_ = samplesPerDirection;
-    characteristicCellSize_ = 0.0;
-    if (samplesPerDirection < 2)
+    if (targetCellSize <= 0.0)
         return;
 
     const auto bounds = surface.getParameterBounds();
@@ -129,7 +111,22 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t sa
     const double vMin = bounds.getVMin();
     const double vMax = bounds.getVMax();
 
-    isFlat_ = isEffectivelyFlat(surface, uMin, uMax, vMin, vMax);
+    const double diameter = estimateDiameter(surface, uMin, uMax, vMin, vMax);
+
+    // Flat surfaces are exact at any resolution -- use a small fixed count
+    // rather than scaling against targetCellSize (which could be very small,
+    // producing a needlessly large tessellation of a surface where it makes
+    // no difference).
+    size_t samplesPerDirection;
+    if (isEffectivelyFlat(surface, uMin, uMax, vMin, vMax))
+    {
+        samplesPerDirection = FLAT_SURFACE_SAMPLES_PER_DIRECTION;
+    }
+    else
+    {
+        const size_t computed = static_cast<size_t>(std::ceil(diameter / targetCellSize));
+        samplesPerDirection = std::clamp(computed, size_t{2}, MAXIMUM_SAMPLES_PER_DIRECTION);
+    }
 
     // ISurface3D has no explicit periodicity query, so detect it numerically:
     // a periodic direction's two parameter extremes map to the same physical
@@ -140,8 +137,6 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t sa
     // OPE-171): nothing samples exactly the boundary column *and* its twin at
     // the other end of the period, so no triangle ever covers the strip
     // between the last sampled column and the first.
-    const double diameter = estimateDiameter(surface, uMin, uMax, vMin, vMax);
-    surfaceDiameter_ = diameter;
     constexpr double PERIODICITY_RELATIVE_TOLERANCE = 1e-6;
     const double periodicityTolerance = PERIODICITY_RELATIVE_TOLERANCE * diameter;
 
@@ -249,41 +244,7 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t sa
         }
     }
 
-    for (const auto& triangle : triangles_)
-    {
-        const auto& v = triangle.vertices;
-        characteristicCellSize_ = std::max({characteristicCellSize_, (v[1] - v[0]).norm(), (v[2] - v[1]).norm(),
-                                            (v[0] - v[2]).norm()});
-    }
-
     buildAccelGrid();
-}
-
-void SurfaceTessellation::ensureResolution(const Point3D& a, const Point3D& b, double requiredEdgeLength)
-{
-    if (!surface_ || isFlat_ || characteristicCellSize_ <= 0.0 || requiredEdgeLength <= 0.0)
-        return;
-    if (surfaceDiameter_ > 0.0 && (b - a).norm() > MAXIMUM_SEGMENT_LENGTH_RELATIVE_TO_DIAMETER * surfaceDiameter_)
-        return;
-
-    const double targetCellSize = requiredEdgeLength * CELL_SIZE_SAFETY_MARGIN;
-    if (characteristicCellSize_ <= targetCellSize)
-        return;
-
-    const double scaleFactor = characteristicCellSize_ / targetCellSize;
-    const size_t newSamples = static_cast<size_t>(
-        std::ceil(static_cast<double>(samplesPerDirection_) * scaleFactor));
-    const size_t clampedSamples = std::min(newSamples, MAXIMUM_SAMPLES_PER_DIRECTION);
-
-    // If clamping brought us back to the current resolution (or below), we're
-    // already at the cap and a rebuild won't improve characteristicCellSize_.
-    // Return without rebuilding to avoid an infinite cycle of same-resolution
-    // rebuilds for elements smaller than what MAXIMUM_SAMPLES_PER_DIRECTION
-    // can resolve.
-    if (clampedSamples <= samplesPerDirection_)
-        return;
-
-    build(*surface_, clampedSamples);
 }
 
 void SurfaceTessellation::addTriangle(const Point3D& p0, const Point3D& p1, const Point3D& p2)

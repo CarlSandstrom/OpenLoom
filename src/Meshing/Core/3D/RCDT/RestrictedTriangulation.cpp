@@ -21,24 +21,18 @@ namespace
 
 constexpr size_t INVALID_ID = SIZE_MAX;
 
-// Initial resolution of each surface's SurfaceTessellation classification
-// oracle. Independent of (and typically finer than) DiscretizationSettings3D's
-// user-facing boundary sample density -- this tessellation is never part of
-// the output mesh, only an internal robustness check, so it's sized for
-// reliably catching a crossing rather than for visual fidelity. Only a
-// starting point: classifyFace() calls SurfaceTessellation::ensureResolution()
-// on every use, which rebuilds a surface's tessellation finer on demand once
-// refinement shrinks mesh elements below this initial resolution's cell size
-// (see that method's docs -- this matters for curved surfaces only, a flat
-// surface's tessellation is exact at any resolution).
-constexpr size_t SURFACE_TESSELLATION_SAMPLES_PER_DIRECTION = 24;
+// The tessellation oracle's target cell size is this fraction of minimumEdgeLength.
+// Cells smaller than minimumEdgeLength / 2 are guaranteed fine enough to
+// correctly classify any face whose shortest edge is at or above that floor.
+constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;
 
 } // namespace
 
 void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
                                         const MeshConnectivity& connectivity,
                                         const Geometry3D::GeometryCollection3D& geometry,
-                                        const Topology3D::Topology3D& topology)
+                                        const Topology3D::Topology3D& topology,
+                                        double minimumEdgeLength)
 {
     restrictedFaces_.clear();
     surfaceIds_.clear();
@@ -58,12 +52,13 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
             std::vector<std::string>(connectedSurfaces.begin(), connectedSurfaces.end());
     }
 
+    const double targetCellSize = minimumEdgeLength * TESSELLATION_CELL_SIZE_FACTOR;
     for (const auto& surfaceId : surfaceIds_)
     {
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         if (!surface)
             continue;
-        surfaceTessellations_[surfaceId].build(*surface, SURFACE_TESSELLATION_SAMPLES_PER_DIRECTION);
+        surfaceTessellations_[surfaceId].build(*surface, targetCellSize);
     }
 
     for (const auto& [elementId, element] : meshData.getElements())
@@ -276,9 +271,6 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
     if (!endpoints)
         return std::nullopt;
 
-    const ElementQuality3D elementQuality(meshData);
-    const double shortestEdge = elementQuality.getShortestEdgeLength(TriangleElement(face.nodeIds));
-
     for (const auto& surfaceId : candidates)
     {
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
@@ -289,7 +281,6 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         const auto tessellationIt = surfaceTessellations_.find(surfaceId);
         if (tessellationIt == surfaceTessellations_.end())
             continue;
-        tessellationIt->second.ensureResolution(endpoints->first, endpoints->second, shortestEdge);
         if (tessellationIt->second.crossesSurface(endpoints->first, endpoints->second))
             return surfaceId;
     }

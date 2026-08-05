@@ -23,6 +23,7 @@
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
+#include <limits>
 #include <unordered_map>
 
 namespace Meshing
@@ -30,6 +31,50 @@ namespace Meshing
 
 namespace
 {
+
+// Computes a minimum edge length from the initial mesh's node distribution —
+// the median nearest-neighbor distance among non-bounding nodes, divided by
+// 10. Median rather than minimum because a periodic curve's discretization
+// can leave a short "remainder" segment near its seam vertex that isn't
+// representative of the intended spacing (see project memory: Linear ticket
+// on removing OCC seams).
+double computeMinimumEdgeLength(const MeshData3D& meshData)
+{
+    const auto& nodes = meshData.getNodes();
+    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
+
+    const auto isBoundingNode = [&boundingNodeIds](size_t nodeId)
+    {
+        if (!boundingNodeIds)
+            return false;
+        for (const size_t id : *boundingNodeIds)
+            if (id == nodeId)
+                return true;
+        return false;
+    };
+
+    std::vector<double> nearestPerNode;
+    for (const auto& [nodeId, node] : nodes)
+    {
+        if (isBoundingNode(nodeId))
+            continue;
+        double nearest = std::numeric_limits<double>::max();
+        for (const auto& [otherId, otherNode] : nodes)
+        {
+            if (otherId == nodeId || isBoundingNode(otherId))
+                continue;
+            nearest = std::min(nearest, (node->getCoordinates() - otherNode->getCoordinates()).norm());
+        }
+        nearestPerNode.push_back(nearest);
+    }
+    if (nearestPerNode.empty())
+        return 0.0;
+
+    std::sort(nearestPerNode.begin(), nearestPerNode.end());
+    const double median = nearestPerNode[nearestPerNode.size() / 2];
+    constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
+    return median / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
+}
 
 // Zero-fill rather than plain resize(): node IDs below the highest surviving
 // one may be gaps left by the removed supertet corners, and Eigen's default
@@ -188,11 +233,22 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
 
+    // Resolve minimumEdgeLength here — the initial mesh is present, so the
+    // auto-computation (median nearest-neighbor / 10) has the data it needs.
+    // Storing it back into qualitySettings_ means RCDTRefiner reads the same
+    // value without recomputing, and the surface tessellation oracle can be
+    // sized correctly from the start rather than rebuilt during refinement.
+    if (!qualitySettings_.minimumEdgeLength)
+        qualitySettings_.minimumEdgeLength = computeMinimumEdgeLength(meshData);
+    spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}",
+                 *qualitySettings_.minimumEdgeLength);
+
     meshingContext_->rebuildConnectivity();
 
     restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
     const MeshConnectivity connectivity(meshData);
-    restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_);
+    restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_,
+                                        *qualitySettings_.minimumEdgeLength);
 
     spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
                  restrictedTriangulation_->getRestrictedFaces().size());

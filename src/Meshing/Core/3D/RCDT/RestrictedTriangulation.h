@@ -57,11 +57,15 @@ class RestrictedTriangulation
 {
 public:
     /// Full initial scan. Builds internal topology lookup tables, then classifies
-    /// every tetrahedral face as restricted or not.
+    /// every tetrahedral face as restricted or not. minimumEdgeLength is used
+    /// to size each surface's tessellation oracle so its cells are fine enough
+    /// to correctly classify faces down to that scale — built once upfront,
+    /// never rebuilt during refinement.
     void buildFrom(const MeshData3D& meshData,
                    const MeshConnectivity& connectivity,
                    const Geometry3D::GeometryCollection3D& geometry,
-                   const Topology3D::Topology3D& topology);
+                   const Topology3D::Topology3D& topology,
+                   double minimumEdgeLength);
 
     /// Incremental update after a Bowyer-Watson insertion.
     /// Removes cavity-interior faces that no longer exist, then re-classifies
@@ -154,12 +158,11 @@ private:
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces_;
     std::unordered_map<std::string, std::vector<std::string>> cornerToAdjacentSurfaces_;
 
-    // One tessellation per surface, built in buildFrom() and used by
-    // classifyFace() as an exact crossing oracle for the lifetime of this
-    // RestrictedTriangulation -- see SurfaceTessellation's class docs.
-    // Mutable: classifyFace() is logically const but calls ensureResolution()
-    // on this cache, which may rebuild an entry at a finer resolution.
-    mutable std::unordered_map<std::string, SurfaceTessellation> surfaceTessellations_;
+    // One tessellation per surface, built in buildFrom() at a resolution
+    // derived from minimumEdgeLength and used by classifyFace() as an exact
+    // crossing oracle for the lifetime of this RestrictedTriangulation --
+    // never rebuilt during refinement.
+    std::unordered_map<std::string, SurfaceTessellation> surfaceTessellations_;
 };
 
 } // namespace Meshing
