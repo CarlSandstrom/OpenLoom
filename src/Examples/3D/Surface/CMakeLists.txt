@@ -9,6 +9,7 @@ set(EXAMPLE_SOURCES_3D_SURFACE
     SharpCreaseBracket.cc
     SaddleSurfaceMesh.cc
     HexNutSurfaceMesh.cc
+    HexNutChamferedSurfaceMesh.cc
 )
 
 # Link external libraries
@@ -49,6 +50,7 @@ foreach(example_source ${EXAMPLE_SOURCES_3D_SURFACE})
         TKBRep
         TKGeomAlgo
         TKTopAlgo
+        TKFillet
         TKDESTEP
         # TKDESTEPBase
         # TKDESTEPAttr
