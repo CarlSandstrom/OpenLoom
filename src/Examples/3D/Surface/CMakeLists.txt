@@ -7,6 +7,7 @@ set(EXAMPLE_SOURCES_3D_SURFACE
     TorusSurfaceMesh.cc
     ThinFinSurfaceMesh.cc
     SharpCreaseBracket.cc
+    SaddleSurfaceMesh.cc
 )
 
 # Link external libraries

@@ -160,20 +160,7 @@ std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
 
         const double shortestEdge = elementQuality.getShortestEdgeLength(triangle);
 
-        // The point to actually insert if this triangle gets refined: where
-        // the face's dual Voronoi edge crosses the surface, not the flat
-        // circumcircle center above (which is only used for the chord
-        // deviation check — a property of the flat triangle itself).
-        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
-        std::optional<Point3D> insertionPoint;
-        if (surface)
-        {
-            const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
-            if (endpoints)
-                insertionPoint = surfaceProjector_.findSurfaceCrossing(endpoints->first, endpoints->second, *surface);
-        }
-
-        badTriangles.push_back({face, surfaceId, circumcircle->center, shortestEdge, insertionPoint});
+        badTriangles.push_back({face, surfaceId, circumcircle->center, shortestEdge});
     }
 
     return badTriangles;
@@ -182,6 +169,18 @@ std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
 const std::unordered_map<FaceKey, std::string, FaceKeyHash>& RestrictedTriangulation::getRestrictedFaces() const
 {
     return restrictedFaces_;
+}
+
+std::optional<Point3D> RestrictedTriangulation::computeInsertionPoint(
+    const FaceKey& face,
+    const MeshData3D& meshData,
+    const MeshConnectivity& connectivity,
+    const Geometry3D::ISurface3D& surface) const
+{
+    const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
+    if (!endpoints)
+        return std::nullopt;
+    return surfaceProjector_.findSurfaceCrossing(endpoints->first, endpoints->second, surface);
 }
 
 std::vector<NonManifoldRestrictedEdge> RestrictedTriangulation::findNonManifoldEdges() const
@@ -369,7 +368,18 @@ bool RestrictedTriangulation::verticesWithinTrimmedBoundary(const FaceKey& face,
     for (const size_t nodeId : face.nodeIds)
     {
         const Node3D* node = meshData.getNode(nodeId);
-        if (!node || !surface.isPointWithinTrimmedBoundary(node->getCoordinates()))
+        if (!node)
+            return false;
+        // Project the node's 3D coordinates to UV, then classify in UV space.
+        // Avoids the 3D-point overload of BRepClass_FaceClassifier, which
+        // internally triggers Extrema_GenExtPS (a grid-based surface projection
+        // that rebuilds its grid on every call for Bezier/NURBS surfaces).
+        // projectPointToUnderlyingSurface uses the cached ShapeAnalysis_Surface
+        // analyzer (O(grid_scan + Newton) ≈ a few microseconds per call after
+        // the first), while isUVWithinTrimmedBoundary uses OCC's 2D face
+        // classifier (O(numEdges), always fast).
+        const auto uv = surface.projectPointToUnderlyingSurface(node->getCoordinates());
+        if (!uv || !surface.isUVWithinTrimmedBoundary(uv->x(), uv->y()))
             return false;
     }
     return true;

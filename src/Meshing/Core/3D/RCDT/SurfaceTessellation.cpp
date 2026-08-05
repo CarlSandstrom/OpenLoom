@@ -116,6 +116,7 @@ bool isEffectivelyFlat(const Geometry3D::ISurface3D& surface, double uMin, doubl
 void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t samplesPerDirection)
 {
     triangles_.clear();
+    accelGrid_ = {};
     surface_ = &surface;
     samplesPerDirection_ = samplesPerDirection;
     characteristicCellSize_ = 0.0;
@@ -208,7 +209,7 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t sa
                                                       (static_cast<double>(vColumns - 1) + GRID_JITTER_V);
             const Point3D point = surface.getPoint(u, v);
             gridPoints[index(i, j)] = point;
-            withinTrim[index(i, j)] = surface.isPointWithinTrimmedBoundary(point);
+            withinTrim[index(i, j)] = surface.isUVWithinTrimmedBoundary(u, v);
         }
     }
 
@@ -254,6 +255,8 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, size_t sa
         characteristicCellSize_ = std::max({characteristicCellSize_, (v[1] - v[0]).norm(), (v[2] - v[1]).norm(),
                                             (v[0] - v[2]).norm()});
     }
+
+    buildAccelGrid();
 }
 
 void SurfaceTessellation::ensureResolution(const Point3D& a, const Point3D& b, double requiredEdgeLength)
@@ -270,8 +273,17 @@ void SurfaceTessellation::ensureResolution(const Point3D& a, const Point3D& b, d
     const double scaleFactor = characteristicCellSize_ / targetCellSize;
     const size_t newSamples = static_cast<size_t>(
         std::ceil(static_cast<double>(samplesPerDirection_) * scaleFactor));
+    const size_t clampedSamples = std::min(newSamples, MAXIMUM_SAMPLES_PER_DIRECTION);
 
-    build(*surface_, std::min(newSamples, MAXIMUM_SAMPLES_PER_DIRECTION));
+    // If clamping brought us back to the current resolution (or below), we're
+    // already at the cap and a rebuild won't improve characteristicCellSize_.
+    // Return without rebuilding to avoid an infinite cycle of same-resolution
+    // rebuilds for elements smaller than what MAXIMUM_SAMPLES_PER_DIRECTION
+    // can resolve.
+    if (clampedSamples <= samplesPerDirection_)
+        return;
+
+    build(*surface_, clampedSamples);
 }
 
 void SurfaceTessellation::addTriangle(const Point3D& p0, const Point3D& p1, const Point3D& p2)
@@ -281,18 +293,138 @@ void SurfaceTessellation::addTriangle(const Point3D& p0, const Point3D& p1, cons
     triangles_.push_back({{p0, p1, p2}, boundsMin, boundsMax});
 }
 
+void SurfaceTessellation::buildAccelGrid()
+{
+    accelGrid_ = {};
+    if (triangles_.empty())
+        return;
+
+    // Compute the 3D bounding box of all tessellation triangles.
+    Point3D gridMin = triangles_[0].boundsMin;
+    Point3D gridMax = triangles_[0].boundsMax;
+    for (const auto& triangle : triangles_)
+    {
+        gridMin = gridMin.cwiseMin(triangle.boundsMin);
+        gridMax = gridMax.cwiseMax(triangle.boundsMax);
+    }
+
+    // Expand slightly so that triangles exactly on the boundary fall inside a
+    // cell rather than rounding to an out-of-range index.
+    constexpr double GRID_EPSILON = 1e-10;
+    gridMin -= Point3D::Constant(GRID_EPSILON);
+    gridMax += Point3D::Constant(GRID_EPSILON);
+
+    // Choose the grid resolution so each cell holds roughly 1–4 triangles on
+    // average. The tessellation lies on a 2D surface, not a 3D volume, so
+    // many cells are empty -- that's fine; crossesSurface only visits cells
+    // overlapping the query segment's bounding box, not all cells.
+    constexpr size_t MINIMUM_GRID_RESOLUTION = 4;
+    constexpr size_t MAXIMUM_GRID_RESOLUTION = 50;
+    const size_t resolution = std::clamp(
+        static_cast<size_t>(std::cbrt(static_cast<double>(triangles_.size()))),
+        MINIMUM_GRID_RESOLUTION, MAXIMUM_GRID_RESOLUTION);
+
+    accelGrid_.gridMin = gridMin;
+    accelGrid_.gridMax = gridMax;
+    accelGrid_.resolutionX = resolution;
+    accelGrid_.resolutionY = resolution;
+    accelGrid_.resolutionZ = resolution;
+
+    const Point3D range = gridMax - gridMin;
+    // Floor each component at a small positive value to avoid division by zero
+    // for degenerate surfaces that are flat in one coordinate direction.
+    constexpr double MINIMUM_RANGE = 1e-12;
+    accelGrid_.cellSize = Point3D(
+        std::max(range.x() / static_cast<double>(resolution), MINIMUM_RANGE),
+        std::max(range.y() / static_cast<double>(resolution), MINIMUM_RANGE),
+        std::max(range.z() / static_cast<double>(resolution), MINIMUM_RANGE));
+
+    accelGrid_.cells.resize(resolution * resolution * resolution);
+
+    // Helper: clamp a continuous coordinate to a valid grid index.
+    const auto toIndex = [&](double coordinate, double gridMinCoord, double cellSizeCoord) -> size_t
+    {
+        const double normalized = (coordinate - gridMinCoord) / cellSizeCoord;
+        const long long index = static_cast<long long>(std::floor(normalized));
+        return static_cast<size_t>(std::clamp(index, 0LL, static_cast<long long>(resolution) - 1LL));
+    };
+
+    for (size_t triangleIndex = 0; triangleIndex < triangles_.size(); ++triangleIndex)
+    {
+        const auto& triangle = triangles_[triangleIndex];
+
+        const size_t xMin = toIndex(triangle.boundsMin.x(), gridMin.x(), accelGrid_.cellSize.x());
+        const size_t yMin = toIndex(triangle.boundsMin.y(), gridMin.y(), accelGrid_.cellSize.y());
+        const size_t zMin = toIndex(triangle.boundsMin.z(), gridMin.z(), accelGrid_.cellSize.z());
+        const size_t xMax = toIndex(triangle.boundsMax.x(), gridMin.x(), accelGrid_.cellSize.x());
+        const size_t yMax = toIndex(triangle.boundsMax.y(), gridMin.y(), accelGrid_.cellSize.y());
+        const size_t zMax = toIndex(triangle.boundsMax.z(), gridMin.z(), accelGrid_.cellSize.z());
+
+        for (size_t x = xMin; x <= xMax; ++x)
+            for (size_t y = yMin; y <= yMax; ++y)
+                for (size_t z = zMin; z <= zMax; ++z)
+                    accelGrid_.cells[accelGrid_.cellIndex(x, y, z)].push_back(triangleIndex);
+    }
+}
+
 bool SurfaceTessellation::crossesSurface(const Point3D& a, const Point3D& b) const
 {
     const Point3D segmentMin = a.cwiseMin(b);
     const Point3D segmentMax = a.cwiseMax(b);
 
-    for (const auto& triangle : triangles_)
+    if (!accelGrid_.isBuilt())
     {
-        if (!boundsOverlap(segmentMin, segmentMax, triangle.boundsMin, triangle.boundsMax))
-            continue;
-        if (RobustPredicates3D::segmentCrossesTriangle(a, b, triangle.vertices[0], triangle.vertices[1],
-                                                        triangle.vertices[2]))
-            return true;
+        for (const auto& triangle : triangles_)
+        {
+            if (!boundsOverlap(segmentMin, segmentMax, triangle.boundsMin, triangle.boundsMax))
+                continue;
+            if (RobustPredicates3D::segmentCrossesTriangle(a, b, triangle.vertices[0], triangle.vertices[1],
+                                                            triangle.vertices[2]))
+                return true;
+        }
+        return false;
+    }
+
+    // Spatial grid acceleration: only visit grid cells whose 3D bounds overlap
+    // the segment's bounding box, then test only the triangles in those cells.
+    // A triangle may appear in more than one cell if its bounding box spans a
+    // cell boundary; the duplicate test is harmless (at worst a redundant true
+    // return that terminates the loop early, or a redundant false that just
+    // wastes a little work).
+    const auto& grid = accelGrid_;
+    const auto toIndex = [&](double coordinate, double gridMinCoord, double cellSizeCoord,
+                             size_t maxIndex) -> size_t
+    {
+        const double normalized = (coordinate - gridMinCoord) / cellSizeCoord;
+        const long long index = static_cast<long long>(std::floor(normalized));
+        return static_cast<size_t>(
+            std::clamp(index, 0LL, static_cast<long long>(maxIndex) - 1LL));
+    };
+
+    const size_t xMin = toIndex(segmentMin.x(), grid.gridMin.x(), grid.cellSize.x(), grid.resolutionX);
+    const size_t yMin = toIndex(segmentMin.y(), grid.gridMin.y(), grid.cellSize.y(), grid.resolutionY);
+    const size_t zMin = toIndex(segmentMin.z(), grid.gridMin.z(), grid.cellSize.z(), grid.resolutionZ);
+    const size_t xMax = toIndex(segmentMax.x(), grid.gridMin.x(), grid.cellSize.x(), grid.resolutionX);
+    const size_t yMax = toIndex(segmentMax.y(), grid.gridMin.y(), grid.cellSize.y(), grid.resolutionY);
+    const size_t zMax = toIndex(segmentMax.z(), grid.gridMin.z(), grid.cellSize.z(), grid.resolutionZ);
+
+    for (size_t x = xMin; x <= xMax; ++x)
+    {
+        for (size_t y = yMin; y <= yMax; ++y)
+        {
+            for (size_t z = zMin; z <= zMax; ++z)
+            {
+                for (const size_t triangleIndex : grid.cells[grid.cellIndex(x, y, z)])
+                {
+                    const auto& triangle = triangles_[triangleIndex];
+                    if (!boundsOverlap(segmentMin, segmentMax, triangle.boundsMin, triangle.boundsMax))
+                        continue;
+                    if (RobustPredicates3D::segmentCrossesTriangle(a, b, triangle.vertices[0], triangle.vertices[1],
+                                                                    triangle.vertices[2]))
+                        return true;
+                }
+            }
+        }
     }
     return false;
 }

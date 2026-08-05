@@ -87,6 +87,22 @@ public:
                                     const std::vector<std::string>& geometryIds = {});
 
     /**
+     * @brief Insert a vertex using 3D Bowyer-Watson algorithm with pre-computed conflicting tetrahedra
+     *
+     * Overload for callers that have already computed the conflicting-tetrahedra set
+     * (e.g. to derive cavity interior faces for RestrictedTriangulation::updateAfterInsertion
+     * before calling this). Avoids a redundant findConflictingTetrahedra() scan.
+     *
+     * @param point The 3D point to insert
+     * @param conflictingTetrahedra Pre-computed result of findConflictingTetrahedra(point)
+     * @param geometryIds Optional geometry entity IDs this vertex belongs to
+     * @return Node ID of the inserted vertex
+     */
+    size_t insertVertexBowyerWatson(const Point3D& point,
+                                    std::vector<size_t> conflictingTetrahedra,
+                                    const std::vector<std::string>& geometryIds = {});
+
+    /**
      * @brief Split a constrained segment at its parametric midpoint
      *
      * Uses the parent edge geometry to find the correct midpoint on curved edges.

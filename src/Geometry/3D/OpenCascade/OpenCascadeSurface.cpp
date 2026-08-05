@@ -16,6 +16,7 @@
 #include <cmath>
 #include <functional>
 #include <gp_Pnt.hxx>
+#include <gp_Pnt2d.hxx>
 #include <gp_Vec.hxx>
 #include <limits>
 #include <sstream>
@@ -28,9 +29,12 @@ OpenCascadeSurface::OpenCascadeSurface(const TopoDS_Face& face) :
 {
 }
 
+// Defined here so that the compiler sees the complete type of
+// ShapeAnalysis_Surface when instantiating std::unique_ptr's destructor.
+OpenCascadeSurface::~OpenCascadeSurface() = default;
+
 std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
 {
-    BRepAdaptor_Surface surface(face_);
     Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
     GeomLProp_SLProps props(geomSurface, u, v, 1, Precision::Confusion());
 
@@ -53,16 +57,18 @@ std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
 
 Meshing::Point3D OpenCascadeSurface::getPoint(double u, double v) const
 {
-    BRepAdaptor_Surface surface(face_);
-    gp_Pnt point = surface.Value(u, v);
+    if (!surfaceAdaptor_)
+        surfaceAdaptor_ = std::make_unique<BRepAdaptor_Surface>(face_);
+    gp_Pnt point = surfaceAdaptor_->Value(u, v);
     return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
 Common::BoundingBox2D OpenCascadeSurface::getParameterBounds() const
 {
-    BRepAdaptor_Surface surface(face_);
-    return Common::BoundingBox2D(surface.FirstUParameter(), surface.LastUParameter(),
-                                 surface.FirstVParameter(), surface.LastVParameter());
+    if (!surfaceAdaptor_)
+        surfaceAdaptor_ = std::make_unique<BRepAdaptor_Surface>(face_);
+    return Common::BoundingBox2D(surfaceAdaptor_->FirstUParameter(), surfaceAdaptor_->LastUParameter(),
+                                 surfaceAdaptor_->FirstVParameter(), surfaceAdaptor_->LastVParameter());
 }
 
 double OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
@@ -106,13 +112,13 @@ std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurf
 {
     Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
     if (geomSurface.IsNull())
-    {
         return std::nullopt;
-    }
 
-    ShapeAnalysis_Surface analyzer(geomSurface);
-    gp_Pnt2d uv = analyzer.ValueOfUV(gp_Pnt(point.x(), point.y(), point.z()),
-                                      Precision::Confusion());
+    if (!surfaceAnalyzer_)
+        surfaceAnalyzer_ = std::make_unique<ShapeAnalysis_Surface>(geomSurface);
+
+    gp_Pnt2d uv = surfaceAnalyzer_->ValueOfUV(gp_Pnt(point.x(), point.y(), point.z()),
+                                               Precision::Confusion());
     return Meshing::Point2D(uv.X(), uv.Y());
 }
 
@@ -122,15 +128,15 @@ std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurf
 {
     Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
     if (geomSurface.IsNull())
-    {
         return std::nullopt;
-    }
 
-    ShapeAnalysis_Surface analyzer(geomSurface);
+    if (!surfaceAnalyzer_)
+        surfaceAnalyzer_ = std::make_unique<ShapeAnalysis_Surface>(geomSurface);
+
     gp_Pnt2d seed(seedUV.x(), seedUV.y());
-    gp_Pnt2d uv = analyzer.NextValueOfUV(seed,
-                                          gp_Pnt(point.x(), point.y(), point.z()),
-                                          Precision::Confusion());
+    gp_Pnt2d uv = surfaceAnalyzer_->NextValueOfUV(seed,
+                                                   gp_Pnt(point.x(), point.y(), point.z()),
+                                                   Precision::Confusion());
     return Meshing::Point2D(uv.X(), uv.Y());
 }
 
@@ -162,6 +168,19 @@ bool OpenCascadeSurface::isPointWithinTrimmedBoundary(const Meshing::Point3D& po
     const double tolerance = std::max(Precision::Confusion(), RELATIVE_TOLERANCE * diameter);
 
     BRepClass_FaceClassifier classifier(face_, gp_Pnt(point.x(), point.y(), point.z()), tolerance);
+    const TopAbs_State state = classifier.State();
+    return state == TopAbs_IN || state == TopAbs_ON;
+}
+
+bool OpenCascadeSurface::isUVWithinTrimmedBoundary(double u, double v) const
+{
+    // Classify the UV point directly in parameter space using OCC's 2D face
+    // classifier. This avoids the Extrema_GenExtPS surface-projection step
+    // that the 3D BRepClass_FaceClassifier overload triggers for non-analytic
+    // surfaces (Bezier, B-spline), which is O(extrema_grid²) per point.
+    // The 2D overload operates purely against the face's PCurves (O(numEdges))
+    // and requires no surface projection at all.
+    BRepClass_FaceClassifier classifier(face_, gp_Pnt2d(u, v), Precision::PConfusion());
     const TopAbs_State state = classifier.State();
     return state == TopAbs_IN || state == TopAbs_ON;
 }

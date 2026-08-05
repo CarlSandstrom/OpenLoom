@@ -33,8 +33,6 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t MAX_ITERATIONS = 500;
-
 // Divisor applied to the initial discretization's smallest pairwise distance
 // when settings_.minimumEdgeLength is unset. See resolveMinimumEdgeLength().
 constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
@@ -66,15 +64,16 @@ void RCDTRefiner::refine()
     exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
     ++iteration;
 
-    while (iteration < MAX_ITERATIONS)
+    const size_t maxIterations = settings_.maxRefinementIterations;
+    while (iteration < maxIterations)
     {
         if (!refineStep()) break;
         exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
         ++iteration;
     }
 
-    if (iteration >= MAX_ITERATIONS)
-        spdlog::warn("RCDTRefiner: reached iteration cap ({})", MAX_ITERATIONS);
+    if (iteration >= maxIterations)
+        spdlog::warn("RCDTRefiner: reached iteration cap ({})", maxIterations);
 
     spdlog::info("RCDTRefiner: done after {} iterations — {} nodes",
                  iteration,
@@ -160,12 +159,11 @@ bool RCDTRefiner::refineStep()
         }
 
         // Prefer the true restricted Voronoi vertex (where the face's dual
-        // Voronoi edge crosses the surface, already computed by
-        // getBadTriangles); fall back to projecting the flat circumcenter if
-        // that couldn't be computed — most commonly because the face's
-        // classification into restrictedFaces_ has gone stale (an earlier,
-        // different pair of neighboring tetrahedra is what originally found
-        // a crossing) and its current dual edge no longer crosses the
+        // Voronoi edge crosses the surface); fall back to projecting the flat
+        // circumcenter if that couldn't be computed — most commonly because
+        // the face's classification into restrictedFaces_ has gone stale (an
+        // earlier, different pair of neighboring tetrahedra is what originally
+        // found a crossing) and its current dual edge no longer crosses the
         // surface at all. The proximity guard below is what actually keeps
         // this fallback safe: it rejects a fallback candidate that lands too
         // close to an unrelated vertex, so a bad fallback point just leaves
@@ -175,7 +173,13 @@ bool RCDTRefiner::refineStep()
         // classifications still yield a perfectly usable fallback point, and
         // giving up on all of them loses far more good insertions than the
         // rare bad one the guard would have caught anyway.
-        std::optional<Point3D> projectedOpt = bad.insertionPoint;
+        //
+        // Insertion point is computed here (on demand for this one triangle)
+        // rather than precomputed for all bad triangles in getBadTriangles:
+        // the latter would pay 30 bisection iterations × 3 OCC calls for
+        // every bad face even though only this one gets inserted this step.
+        std::optional<Point3D> projectedOpt =
+            restrictedTriangulation_->computeInsertionPoint(bad.face, meshData, connectivity, *surface);
         if (!projectedOpt)
             projectedOpt = surfaceProjector_.projectToSurface(bad.circumcircleCenter, *surface);
         if (!projectedOpt)
@@ -446,10 +450,10 @@ size_t RCDTRefiner::insertAndUpdate(const Point3D& point,
     const auto& meshData = context_->getMeshData();
     const auto* geometry = context_->getGeometry();
 
-    const auto conflictingTets = operations.getQueries().findConflictingTetrahedra(point);
+    auto conflictingTets = operations.getQueries().findConflictingTetrahedra(point);
     const auto interiorFaces = computeCavityInteriorFaces(conflictingTets);
 
-    const size_t newNodeId = operations.insertVertexBowyerWatson(point, geometryIds);
+    const size_t newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTets), geometryIds);
 
     const MeshConnectivity postConnectivity(meshData);
     restrictedTriangulation_->updateAfterInsertion(
@@ -473,10 +477,10 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     const Point3D splitPoint = computeSplitPoint(segment, *geometry);
 
     auto& operations = context_->getOperations();
-    const auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
+    auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
     const auto interiorFaces = computeCavityInteriorFaces(conflictingTets);
 
-    const size_t newNodeId = operations.insertVertexBowyerWatson(splitPoint, {segment.edgeId});
+    const size_t newNodeId = operations.insertVertexBowyerWatson(splitPoint, std::move(conflictingTets), {segment.edgeId});
 
     const double tMid =
         edge->getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);

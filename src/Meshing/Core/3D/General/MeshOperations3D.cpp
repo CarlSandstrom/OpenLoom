@@ -187,9 +187,13 @@ void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& bo
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
                                                   const std::vector<std::string>& geometryIds)
 {
-    // Find conflicting tetrahedra (those whose circumsphere contains the point)
-    std::vector<size_t> conflicting = queries_.findConflictingTetrahedra(point);
+    return insertVertexBowyerWatson(point, queries_.findConflictingTetrahedra(point), geometryIds);
+}
 
+size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
+                                                  std::vector<size_t> conflicting,
+                                                  const std::vector<std::string>& geometryIds)
+{
     if (conflicting.empty())
     {
         spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found");

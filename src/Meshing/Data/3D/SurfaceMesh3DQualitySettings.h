@@ -58,6 +58,15 @@ struct SurfaceMesh3DQualitySettings
     /// a solid's interior typically needs far more tets than it has boundary
     /// triangles.
     std::size_t tetElementLimit = 100000;
+
+    /// Maximum number of refinement iterations before the RCDT refiner gives
+    /// up. The default (500) is a safety cap for ordinary meshes. Geometries
+    /// with acute dihedral angles at feature corners (< 60°) drive a
+    /// segment-splitting cascade that terminates correctly via the minimum
+    /// edge length floor but requires more iterations. Increase this for
+    /// stress tests or geometries with known acute input angles. Only consumed
+    /// by RCDTMesher — the UV-space pipeline ignores it.
+    std::size_t maxRefinementIterations = 50000;
 };
 
 } // namespace Meshing

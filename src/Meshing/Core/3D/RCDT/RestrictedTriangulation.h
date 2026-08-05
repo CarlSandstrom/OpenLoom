@@ -40,15 +40,6 @@ struct BadRestrictedTriangle
     std::string surfaceId;
     Point3D circumcircleCenter;
     double shortestEdge;
-
-    /// Where to insert if this triangle is refined: the restricted Voronoi
-    /// vertex, i.e. where the face's dual Voronoi edge (the segment between
-    /// its two adjacent tetrahedra's circumcenters) crosses the surface.
-    /// nullopt if the face has fewer than two adjacent tetrahedra (a true
-    /// boundary face of the ambient triangulation — not expected for a
-    /// closed solid fully inside the bounding supertet, but possible in
-    /// principle) or the crossing could not be found.
-    std::optional<Point3D> insertionPoint;
 };
 
 /// An edge of the restricted-face set not shared by exactly 2 triangles --
@@ -93,6 +84,18 @@ public:
                                                        const Geometry3D::GeometryCollection3D& geometry) const;
 
     const std::unordered_map<FaceKey, std::string, FaceKeyHash>& getRestrictedFaces() const;
+
+    /// The insertion point for the given bad triangle: where its dual Voronoi
+    /// edge (the segment between its two adjacent tets' circumcenters) crosses
+    /// the surface. Computed on demand rather than in getBadTriangles() to
+    /// avoid paying 30 bisection iterations × 3 OCC calls for every bad face
+    /// when only one will actually be inserted this step.
+    /// Returns nullopt if the endpoints cannot be computed or the edge does not
+    /// cross the surface.
+    std::optional<Point3D> computeInsertionPoint(const FaceKey& face,
+                                                  const MeshData3D& meshData,
+                                                  const MeshConnectivity& connectivity,
+                                                  const Geometry3D::ISurface3D& surface) const;
 
     /// Every edge of the restricted-face set whose triangle count isn't
     /// exactly 2 -- i.e. every place the set fails to be a closed 2-manifold.

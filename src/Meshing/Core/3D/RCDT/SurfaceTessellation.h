@@ -88,9 +88,36 @@ private:
         Point3D boundsMax;
     };
 
+    // Uniform spatial grid accelerating crossesSurface(): instead of scanning
+    // every triangle for each query, the grid narrows the search to only those
+    // triangles whose grid cell(s) overlap the query segment's bounding box.
+    // Each BoundedTriangle is inserted into every grid cell whose 3D bounds
+    // overlap the triangle's own bounds; crossesSurface iterates only the
+    // cells touched by the query segment. For short dual edges (typical during
+    // RCDT refinement) only a small fraction of cells are visited, giving an
+    // O(n / cells_touched) speedup over the flat linear scan.
+    struct AccelGrid
+    {
+        Point3D gridMin;
+        Point3D gridMax;
+        Point3D cellSize;
+        size_t resolutionX = 0;
+        size_t resolutionY = 0;
+        size_t resolutionZ = 0;
+        std::vector<std::vector<size_t>> cells; // indexed by cellIndex()
+
+        bool isBuilt() const { return resolutionX > 0; }
+        size_t cellIndex(size_t x, size_t y, size_t z) const
+        {
+            return x * resolutionY * resolutionZ + y * resolutionZ + z;
+        }
+    };
+
     void addTriangle(const Point3D& p0, const Point3D& p1, const Point3D& p2);
+    void buildAccelGrid();
 
     std::vector<BoundedTriangle> triangles_;
+    AccelGrid accelGrid_;
 
     // Remembered so ensureResolution() can rebuild at a different sample
     // count without the caller needing to keep the surface reference around.

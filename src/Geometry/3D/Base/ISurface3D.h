@@ -47,6 +47,19 @@ public:
      * simple analytic surfaces used in tests) are trimmed nowhere.
      */
     virtual bool isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const;
+
+    /**
+     * @brief Whether UV parameter point (u, v) lies within this surface's
+     * trimmed boundary.
+     *
+     * Equivalent to isPointWithinTrimmedBoundary(getPoint(u, v)) but avoids
+     * re-projecting the 3D point back to UV when the caller already has
+     * the UV coordinates. Implementations that can classify in UV space
+     * directly (e.g. OCC's 2D face classifier) should override this.
+     *
+     * Default falls back to isPointWithinTrimmedBoundary(getPoint(u, v)).
+     */
+    virtual bool isUVWithinTrimmedBoundary(double u, double v) const;
 };
 
 } // namespace Geometry3D
