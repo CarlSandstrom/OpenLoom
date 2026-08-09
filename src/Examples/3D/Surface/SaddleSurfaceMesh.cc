@@ -187,16 +187,29 @@ int main()
     // from the CAD surface are split, producing locally finer meshes where |K|
     // is large (near origin) and coarser where |K| is small (near corners).
     //
-    // Known limitation: the saddle solid's four top corners have a ~20°
-    // interior angle between the two parabolic boundary arcs that meet there.
-    // Ruppert's termination proof requires input angles ≥ 60°; at 20° the
-    // algorithm still terminates correctly (the minimum edge length floor cuts
-    // off the corner cascade), but needs more than the default 500-iteration
-    // safety cap to fully converge. The 500-iteration output is still a valid,
-    // curvature-adaptive mesh — denser near the high-curvature saddle centre
-    // and coarser near the corners. Full convergence without increasing the cap
-    // would require incremental bad-triangle tracking (O(1)/iteration) instead
-    // of the current O(n) full scan in getBadTriangles().
+    // The saddle solid's four top corners have a ~20° interior angle between
+    // the two parabolic boundary arcs that meet there. Ruppert's termination
+    // proof requires input angles ≥ 60°; at 20° the algorithm still
+    // terminates correctly (the minimum edge length floor cuts off the
+    // corner cascade) and now fully converges well within the iteration cap
+    // (encroachment/bad-triangle tracking is incremental, not an O(n)
+    // rescan).
+    //
+    // Known limitation: the finished mesh still has a few hundred
+    // non-manifold "hole" edges, concentrated on the creases between the
+    // saddle top and its four side/bottom neighbors. RestrictedTriangulation
+    // ::classifyFace() has to pick which of two candidate surfaces a
+    // crease-straddling face belongs to, using a discrete tessellation of
+    // each surface as an exact crossing oracle; right at a shared boundary
+    // that's an inherently ambiguous, all-or-nothing call, no matter how
+    // fine the oracle's grid is. Priority 4's repair loop narrows the
+    // failure window by densifying nearby, but can't close it -- it hits the
+    // same minimum-edge-length floor and gives up, leaving a genuine gap
+    // rather than an infinite retry. Fixing this properly means keeping
+    // creases as explicit, protected features in the triangulation (e.g.
+    // weighted Delaunay refinement with protecting balls around every curve
+    // segment) rather than repairing straddling faces after the fact -- not
+    // yet implemented.
     Meshing::SurfaceMesh3DQualitySettings quality;
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),

@@ -514,10 +514,21 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     checkSegmentAgainstAllNodes(segmentId1);
     checkSegmentAgainstAllNodes(segmentId2);
 
-    unrefinableTriangles_.clear();
-    unrefinableTetrahedra_.clear();
-    unrefinableSegments_.clear();
-    unrefinableNonManifoldEdges_.clear();
+    // Do NOT clear unrefinableTriangles_/unrefinableTetrahedra_/
+    // unrefinableSegments_/unrefinableNonManifoldEdges_ here: this used to
+    // clear all four unconditionally on the theory that splitting a segment
+    // changes the constraint structure and might unblock previously stuck
+    // entries elsewhere. Measured directly on the SaddleSurfaceMesh stress
+    // test: every entry's give-up reason (shortest-edge at minimumEdgeLength_,
+    // or a projected repair point too close to an existing node -- nodes are
+    // never removed, so that only gets more true over time) is a permanent
+    // fact about the entry's own geometry, unrelated to a split elsewhere in
+    // the mesh -- so the clear produced no benefit, only ~100x redundant
+    // rediscovery of the same unfixable defects every step (167k reinsertions
+    // for ~1.5k distinct ones). A genuinely resolved entry (the split's own
+    // cavity restructured it) gets a new FaceKey/EdgeKey/tet id and is picked
+    // up as a fresh entry regardless -- same reasoning already applied to
+    // unrefinableTriangles_ in the priority-2 insertion path above.
     return true;
 }
 

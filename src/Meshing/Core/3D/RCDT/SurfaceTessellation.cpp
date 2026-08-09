@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <optional>
 
 namespace Meshing
 {
@@ -16,14 +15,6 @@ namespace
 // Upper bound on samplesPerDirection, bounding worst-case tessellation
 // memory and cost for very large or very fine-resolution meshes.
 constexpr size_t MAXIMUM_SAMPLES_PER_DIRECTION = 400;
-
-// Sample count used for flat surfaces. Any resolution is exact for a plane,
-// so accuracy isn't the constraint -- but the jittered grid must still cover
-// the trimmed patch without gaps near its edges. With V-jitter of 0.61 and N
-// samples over range L, the edge coverage gap is ~0.61*L/N; at N=24 this is
-// ~2.5% of the surface's extent in each direction, which keeps the gap well
-// below typical mesh element sizes in practice.
-constexpr size_t FLAT_SURFACE_SAMPLES_PER_DIRECTION = 24;
 
 // Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
 // 3 axes. A necessary (not sufficient) condition for the shapes they bound to
@@ -49,53 +40,6 @@ double estimateDiameter(const Geometry3D::ISurface3D& surface, double uMin, doub
     return maximumDistance > 0.0 ? maximumDistance : 1.0;
 }
 
-// Whether surface's normal is (numerically) identical across a jittered
-// grid of probe points spanning its parameter bounds. For a genuinely flat
-// surface a tessellation represents the surface exactly no matter how
-// coarse it is -- a small fixed sample count suffices and we never need to
-// size it against targetCellSize. Any real curvature produces normal
-// variation many orders of magnitude above the tolerance here, even over a
-// tiny patch -- as long as a probe lands where the slope is actually
-// nonzero. A localized, symmetric feature (e.g. a bump) has zero slope
-// exactly at its own center by construction, so corners/center alone can be
-// fooled into reading it as flat; jittering the grid makes landing exactly
-// on such a point very unlikely without relying on it being impossible.
-bool isEffectivelyFlat(const Geometry3D::ISurface3D& surface, double uMin, double uMax, double vMin, double vMax)
-{
-    constexpr double FLATNESS_DOT_THRESHOLD = 1.0 - 1e-9;
-    constexpr size_t FLATNESS_PROBE_DIVISIONS = 8;
-    constexpr double FLATNESS_PROBE_JITTER_U = 0.29;
-    constexpr double FLATNESS_PROBE_JITTER_V = 0.71;
-
-    std::optional<Point3D> referenceNormal;
-    for (size_t i = 0; i < FLATNESS_PROBE_DIVISIONS; ++i)
-    {
-        const double u = uMin + (uMax - uMin) * (static_cast<double>(i) + FLATNESS_PROBE_JITTER_U) /
-                                    static_cast<double>(FLATNESS_PROBE_DIVISIONS);
-        for (size_t j = 0; j < FLATNESS_PROBE_DIVISIONS; ++j)
-        {
-            const double v = vMin + (vMax - vMin) * (static_cast<double>(j) + FLATNESS_PROBE_JITTER_V) /
-                                        static_cast<double>(FLATNESS_PROBE_DIVISIONS);
-
-            const auto raw = surface.getNormal(u, v);
-            const Point3D normal(raw[0], raw[1], raw[2]);
-            const double length = normal.norm();
-            if (length <= 0.0)
-                return false;
-            const Point3D unitNormal = normal / length;
-
-            if (!referenceNormal)
-            {
-                referenceNormal = unitNormal;
-                continue;
-            }
-            if (referenceNormal->dot(unitNormal) < FLATNESS_DOT_THRESHOLD)
-                return false;
-        }
-    }
-    return true;
-}
-
 } // namespace
 
 void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double targetCellSize)
@@ -113,20 +57,20 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double ta
 
     const double diameter = estimateDiameter(surface, uMin, uMax, vMin, vMax);
 
-    // Flat surfaces are exact at any resolution -- use a small fixed count
-    // rather than scaling against targetCellSize (which could be very small,
-    // producing a needlessly large tessellation of a surface where it makes
-    // no difference).
-    size_t samplesPerDirection;
-    if (isEffectivelyFlat(surface, uMin, uMax, vMin, vMax))
-    {
-        samplesPerDirection = FLAT_SURFACE_SAMPLES_PER_DIRECTION;
-    }
-    else
-    {
-        const size_t computed = static_cast<size_t>(std::ceil(diameter / targetCellSize));
-        samplesPerDirection = std::clamp(computed, size_t{2}, MAXIMUM_SAMPLES_PER_DIRECTION);
-    }
+    // Scaled against targetCellSize regardless of whether the surface is
+    // flat: a flat surface's *triangles* are exact at any resolution, but
+    // the jittered grid's own edge-coverage gap (~0.6*extent/samples, see the
+    // jitter comment below) is not -- it can leave a band near the surface's
+    // trim boundary, exactly where a crease with a neighboring surface sits,
+    // that no triangle covers. A fixed low sample count for flat surfaces
+    // used to leave that gap far wider than minimumEdgeLength_ once
+    // refinement pushed elements down to the floor (confirmed on the
+    // SaddleSurfaceMesh stress test: ~0.10-0.14 unit gaps against a 0.052
+    // floor, producing hundreds of spurious non-manifold "hole" edges right
+    // along creases). Coverage, not accuracy, is what this resolution buys,
+    // so it must scale the same way for every surface shape.
+    const size_t computed = static_cast<size_t>(std::ceil(diameter / targetCellSize));
+    const size_t samplesPerDirection = std::clamp(computed, size_t{2}, MAXIMUM_SAMPLES_PER_DIRECTION);
 
     // ISurface3D has no explicit periodicity query, so detect it numerically:
     // a periodic direction's two parameter extremes map to the same physical

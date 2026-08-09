@@ -37,10 +37,13 @@ class SurfaceTessellation
 {
 public:
     /// Builds a UV-grid tessellation of surface's trimmed patch at a
-    /// resolution whose triangle edge lengths are at most targetCellSize.
-    /// For flat surfaces any resolution is exact, so a small fixed sample
-    /// count is used regardless of targetCellSize. The computed sample count
-    /// is capped at MAXIMUM_SAMPLES_PER_DIRECTION to bound memory and cost.
+    /// resolution whose triangle edge lengths are at most targetCellSize —
+    /// scaled the same way regardless of whether the surface is flat: a flat
+    /// surface's triangles are exact at any resolution, but the jittered
+    /// grid's own edge-coverage gap near the trim boundary is not, so
+    /// resolution still needs to track targetCellSize there too (see the
+    /// .cpp for the gap this fixed). The computed sample count is capped at
+    /// MAXIMUM_SAMPLES_PER_DIRECTION to bound memory and cost.
     /// A cell isn't clipped to the exact trim curve, so the tessellation can
     /// extend up to one grid cell past the true trimmed patch near its edge
     /// — harmless here, since callers (RestrictedTriangulation) separately
