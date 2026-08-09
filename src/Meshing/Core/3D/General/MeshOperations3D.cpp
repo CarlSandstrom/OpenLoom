@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <set>
 #include <unordered_set>
 
 namespace Meshing
@@ -19,18 +20,56 @@ namespace
 {
 
 // Whether v lies exactly in the plane through p0, p1, p2 -- i.e. whether the
-// tetrahedron (v, p0, p1, p2) would have zero volume. Exact (via
-// RobustPredicates3D), not tolerance-based: growCavityThroughCoplanarFaces()
-// and retriangulate() below must agree on this with insertVertexBowyerWatson's
-// in-sphere test (also exact, same module) about which faces are degenerate —
-// a tolerance-based coplanarity check that disagrees with an exact in-sphere
-// test on borderline cases is exactly what produced inconsistent cavities
-// (a boundary face with only one neighboring tetrahedron) on nearly-planar
-// boundary curves (see OPE-159/OPE-138).
+// tetrahedron (v, p0, p1, p2) would have zero volume. Exact, not
+// tolerance-based (see RobustPredicates3D).
 bool isCoplanarWithFace(const Point3D& v, const Point3D& p0, const Point3D& p1, const Point3D& p2)
 {
     return RobustPredicates3D::orientationSign(p0, p1, p2, v) == 0;
 }
+
+// Euler characteristic of the closed surface formed by a set of boundary
+// triangles -- V - E + F. A topological sphere (the shape retriangulate()'s
+// single-point vertex fan requires -- every boundary face must be "visible"
+// via a straight line from the new vertex that stays inside the cavity) is
+// always 2. growCavityThroughCoplanarFaces() uses this to detect when
+// growing the cavity through one more coplanar face would produce something
+// else -- e.g. a solid-torus-shaped cavity (Euler characteristic 0) from
+// wrapping all the way around an axis, or a non-manifold boundary (an odd
+// characteristic; see OPE-173) -- and declines that growth instead of
+// producing a cavity the vertex fan can't validly cover.
+int eulerCharacteristic(const std::vector<std::array<size_t, 3>>& boundary)
+{
+    std::set<size_t> vertices;
+    std::set<std::pair<size_t, size_t>> edges;
+    for (const auto& face : boundary)
+    {
+        for (size_t v : face)
+            vertices.insert(v);
+        for (int i = 0; i < 3; ++i)
+        {
+            size_t a = face[static_cast<size_t>(i)];
+            size_t b = face[static_cast<size_t>((i + 1) % 3)];
+            if (a > b)
+                std::swap(a, b);
+            edges.insert({a, b});
+        }
+    }
+    return static_cast<int>(vertices.size()) - static_cast<int>(edges.size()) + static_cast<int>(boundary.size());
+}
+
+// A coplanar cavity boundary face that growCavityThroughCoplanarFaces()
+// declined to grow through (see its comment): the two tetrahedra that used
+// to share it -- one on the conflicting (removed) side, one on the kept
+// (neighbor) side -- need a local 3-way split around the new vertex instead
+// of a plain fan. Captured before either tetrahedron is removed, since
+// findOppositeVertex() needs both to still exist.
+struct CoplanarFaceSplit
+{
+    std::array<size_t, 3> face;
+    size_t apexA;
+    size_t neighborTetId;
+    size_t apexB;
+};
 
 } // namespace
 
@@ -202,17 +241,67 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
         return nodeId;
     }
 
-    // Extend the cavity through any boundary face coplanar with the new
-    // vertex, so retriangulate() never has to fan onto a degenerate face.
     conflicting = growCavityThroughCoplanarFaces(point, std::move(conflicting));
+    const std::unordered_set<size_t> conflictingSet(conflicting.begin(), conflicting.end());
 
-    // Find the cavity boundary
-    std::vector<std::array<size_t, 3>> boundary = queries_.findCavityBoundary(conflicting);
+    const std::vector<std::array<size_t, 3>> boundary = queries_.findCavityBoundary(conflicting);
 
-    // Remove conflicting tetrahedra
+    // Partition the boundary: growCavityThroughCoplanarFaces() only grows
+    // through a coplanar face when doing so keeps the cavity a topological
+    // sphere (OPE-173); any coplanar face it declined to grow through is
+    // still on the boundary here and needs a local 3-way split around the
+    // new vertex instead of retriangulate()'s single-point fan, which would
+    // otherwise create a zero-volume tetrahedron.
+    std::vector<std::array<size_t, 3>> normalFaces;
+    std::vector<CoplanarFaceSplit> splits;
+    for (const auto& face : boundary)
+    {
+        const Node3D* n0 = meshData_.getNode(face[0]);
+        const Node3D* n1 = meshData_.getNode(face[1]);
+        const Node3D* n2 = meshData_.getNode(face[2]);
+        if (!n0 || !n1 || !n2 ||
+            !isCoplanarWithFace(point, n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates()))
+        {
+            normalFaces.push_back(face);
+            continue;
+        }
+
+        const auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
+        const auto conflictingSideIt = std::find_if(
+            touching.begin(), touching.end(), [&](size_t tetId) { return conflictingSet.contains(tetId); });
+        const auto neighborIt = std::find_if(
+            touching.begin(), touching.end(), [&](size_t tetId) { return !conflictingSet.contains(tetId); });
+
+        if (conflictingSideIt == touching.end() || neighborIt == touching.end())
+        {
+            // No usable neighbor to split against -- a genuine domain
+            // boundary (nothing on the other side) or some other unusual
+            // configuration. Fall back to a plain fan rather than fail the
+            // insertion.
+            normalFaces.push_back(face);
+            continue;
+        }
+
+        const size_t apexA = queries_.findOppositeVertex(*conflictingSideIt, face[0], face[1], face[2]);
+        const size_t apexB = queries_.findOppositeVertex(*neighborIt, face[0], face[1], face[2]);
+        if (apexA == SIZE_MAX || apexB == SIZE_MAX)
+        {
+            normalFaces.push_back(face);
+            continue;
+        }
+
+        splits.push_back({face, apexA, *neighborIt, apexB});
+    }
+
+    // Remove conflicting tetrahedra, plus each split's neighbor tetrahedron
+    // (captured above, before removal, since it isn't in `conflicting`).
     for (size_t tetId : conflicting)
     {
         mutator_->removeElement(tetId);
+    }
+    for (const auto& split : splits)
+    {
+        mutator_->removeElement(split.neighborTetId);
     }
 
     // Insert the new vertex (use boundary node if geometry IDs provided)
@@ -226,8 +315,11 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
         nodeId = mutator_->addNode(point);
     }
 
-    // Retriangulate the cavity with the new vertex
-    retriangulate(nodeId, boundary);
+    retriangulate(nodeId, normalFaces);
+    for (const auto& split : splits)
+    {
+        splitCoplanarBoundaryFace(nodeId, split.face, split.apexA, split.apexB);
+    }
 
     return nodeId;
 }
@@ -254,22 +346,28 @@ std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
                 continue;
 
             const auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
-            if (touching.size() < 2)
-            {
-                OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                                 OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
-                                 "growCavityThroughCoplanarFaces: cavity boundary face is "
-                                 "coplanar with the inserted vertex and has no neighboring "
-                                 "tetrahedron to extend into");
-            }
-
             const auto neighborIt = std::find_if(touching.begin(), touching.end(),
                 [&conflictingSet](size_t tetId) { return !conflictingSet.contains(tetId); });
 
-            // Both tetrahedra touching this face are already in the cavity (pulled in
-            // while processing another coplanar face earlier in this pass) -- already
-            // resolved, nothing more to do for this face.
+            // Either there's no neighbor to extend into (a genuine domain
+            // boundary) or both sides are already conflicting -- either way,
+            // nothing more to do for this face here; insertVertexBowyerWatson()
+            // handles whatever's left on the boundary afterward.
             if (neighborIt == touching.end())
+                continue;
+
+            // Tentatively grow through this face and check whether the
+            // result is still a topological sphere before committing
+            // (OPE-173): growing indiscriminately can wrap the cavity into a
+            // non-simply-connected shape (e.g. a solid-torus-shaped cavity
+            // from wrapping all the way around an axis), which
+            // retriangulate()'s single-point vertex fan cannot validly
+            // cover. If committing would break that, leave this face
+            // unresolved -- insertVertexBowyerWatson() falls back to a local
+            // coplanar-face split for it instead.
+            std::vector<size_t> tentative = conflicting;
+            tentative.push_back(*neighborIt);
+            if (eulerCharacteristic(queries_.findCavityBoundary(tentative)) != 2)
                 continue;
 
             conflictingSet.insert(*neighborIt);
@@ -281,66 +379,76 @@ std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
     return conflicting;
 }
 
-void MeshOperations3D::retriangulate(size_t vertexNodeId,
-                                     const std::vector<std::array<size_t, 3>>& boundary)
+void MeshOperations3D::addOrientedTetrahedron(const std::array<size_t, 3>& face, size_t apexNodeId)
 {
-    const Node3D* vertexNode = meshData_.getNode(vertexNodeId);
-    if (!vertexNode)
+    const Node3D* n0 = meshData_.getNode(face[0]);
+    const Node3D* n1 = meshData_.getNode(face[1]);
+    const Node3D* n2 = meshData_.getNode(face[2]);
+    const Node3D* apexNode = meshData_.getNode(apexNodeId);
+    if (!n0 || !n1 || !n2 || !apexNode)
     {
         return;
     }
-    const Point3D& v = vertexNode->getCoordinates();
 
-    // Create a new tetrahedron for each boundary face, ensuring positive orientation
+    const Point3D& p0 = n0->getCoordinates();
+    const Point3D& p1 = n1->getCoordinates();
+    const Point3D& p2 = n2->getCoordinates();
+    const Point3D& apex = apexNode->getCoordinates();
+
+    const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
+    const double signedVolume = faceNormal.dot(apex - p0);
+
+    // signedVolume is the signed volume of (p0, p1, p2, apex) in that vertex
+    // order (by the scalar triple product's cyclic invariance, faceNormal
+    // . (apex - p0) == (p1 - p0) . ((p2 - p0) x (apex - p0))). Store the node
+    // IDs in that same (face..., apex) order so a >= 0 signedVolume here
+    // really does mean a positive-orientation TetrahedralElement under
+    // MeshVerifier3D::computeSignedVolume's convention -- storing the apex
+    // first instead (an odd permutation) would silently negate it.
+    std::array<size_t, 4> nodeIds;
+    if (signedVolume >= 0.0)
+    {
+        nodeIds = {face[0], face[1], face[2], apexNodeId};
+    }
+    else
+    {
+        // Flip face winding to get positive orientation
+        nodeIds = {face[0], face[2], face[1], apexNodeId};
+    }
+
+    mutator_->addElement(std::make_unique<TetrahedralElement>(nodeIds));
+}
+
+void MeshOperations3D::retriangulate(size_t vertexNodeId,
+                                     const std::vector<std::array<size_t, 3>>& boundary)
+{
     for (const auto& face : boundary)
     {
-        const Node3D* n0 = meshData_.getNode(face[0]);
-        const Node3D* n1 = meshData_.getNode(face[1]);
-        const Node3D* n2 = meshData_.getNode(face[2]);
-        if (!n0 || !n1 || !n2)
-        {
-            continue;
-        }
+        addOrientedTetrahedron(face, vertexNodeId);
+    }
+}
 
-        const Point3D& p0 = n0->getCoordinates();
-        const Point3D& p1 = n1->getCoordinates();
-        const Point3D& p2 = n2->getCoordinates();
-
-        // growCavityThroughCoplanarFaces() is responsible for ensuring no boundary
-        // face reaches here coplanar with v; treat it as a programming error rather
-        // than silently dropping the face, which would leave a hole in the mesh.
-        if (isCoplanarWithFace(v, p0, p1, p2))
-        {
-            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                             OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
-                             "retriangulate: cavity boundary face is coplanar with the "
-                             "inserted vertex; growCavityThroughCoplanarFaces should have "
-                             "extended the cavity past it");
-        }
-
-        const Point3D faceNormal = (p1 - p0).cross(p2 - p0);
-        const double signedVolume = faceNormal.dot(v - p0);
-
-        // signedVolume is the signed volume of (p0, p1, p2, v) in that vertex
-        // order (by the scalar triple product's cyclic invariance, faceNormal
-        // . (v - p0) == (p1 - p0) . ((p2 - p0) x (v - p0))). Store the node
-        // IDs in that same (face..., vertex) order so a >= 0 signedVolume
-        // here really does mean a positive-orientation TetrahedralElement
-        // under MeshVerifier3D::computeSignedVolume's convention -- storing
-        // vertex first instead (an odd permutation) would silently negate it.
-        std::array<size_t, 4> nodeIds;
-        if (signedVolume >= 0.0)
-        {
-            nodeIds = {face[0], face[1], face[2], vertexNodeId};
-        }
-        else
-        {
-            // Flip face winding to get positive orientation
-            nodeIds = {face[0], face[2], face[1], vertexNodeId};
-        }
-
-        auto tet = std::make_unique<TetrahedralElement>(nodeIds);
-        mutator_->addElement(std::move(tet));
+void MeshOperations3D::splitCoplanarBoundaryFace(size_t vertexNodeId,
+                                                 const std::array<size_t, 3>& face,
+                                                 size_t apexA,
+                                                 size_t apexB)
+{
+    // face and vertexNodeId are coplanar (that's why this face reached here
+    // instead of retriangulate()): fanning a single tetrahedron onto face
+    // from either apex would be zero-volume. Instead split face into 3
+    // sub-triangles around vertexNodeId and fan each to BOTH apexes -- the
+    // standard "pyramid subdivision" of the two tetrahedra (face, apexA) and
+    // (face, apexB) that used to share this face, now sharing vertexNodeId
+    // as an interior point of their common base instead.
+    const std::array<std::array<size_t, 3>, 3> subFaces = {{
+        {face[0], face[1], vertexNodeId},
+        {face[1], face[2], vertexNodeId},
+        {face[2], face[0], vertexNodeId},
+    }};
+    for (const auto& subFace : subFaces)
+    {
+        addOrientedTetrahedron(subFace, apexA);
+        addOrientedTetrahedron(subFace, apexB);
     }
 }
 

@@ -241,12 +241,13 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
     // (degenerate) tetrahedron onto that coplanar face, leaving it uncovered --
     // a real gap in the tetrahedralization (confirmed during investigation via a
     // point-in-tetrahedron volume check, not just a floating-point near-miss).
-    // growCavityThroughCoplanarFaces() should extend the cavity through the
-    // neighboring tetrahedron instead, so the new vertex is never left orphaned.
+    // A later fix (OPE-173) replaced the original cavity-flood-fill workaround
+    // with Simulation of Simplicity in RobustPredicates3D, which resolves this
+    // coplanarity (and the in-sphere conflict test around it) directly, so the
+    // new vertex is never left orphaned.
     //
     // The bounding tetrahedron is intentionally kept in the mesh (mirroring how
-    // RCDTMesher now defers its removal until after refinement): it guarantees a
-    // neighbor is always reachable when extending through a coplanar face.
+    // RCDTMesher now defers its removal until after refinement).
     constexpr double RADIUS = 3.0;
     constexpr double HEIGHT = 8.0;
 

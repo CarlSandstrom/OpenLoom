@@ -173,10 +173,16 @@ private:
      *
      * Fanning a new tetrahedron from the inserted vertex to a cavity boundary
      * face that lies in the same plane as the vertex would produce a
-     * zero-volume tetrahedron. Instead of leaving that face uncovered (which
-     * corrupts the tetrahedralization), pull the tetrahedron on the other
-     * side of the face into the cavity too, so retriangulate() can fan onto
-     * its far faces instead. Repeats until no boundary face is coplanar.
+     * zero-volume tetrahedron. Instead of leaving that face uncovered, pull
+     * the tetrahedron on the other side of the face into the cavity too, so
+     * retriangulate() can fan onto its far faces instead -- but only when
+     * doing so keeps the cavity boundary a topological sphere (see
+     * eulerCharacteristic() in the .cpp): growing indiscriminately can wrap
+     * the cavity into a non-simply-connected shape that a single-point
+     * vertex fan cannot validly cover (OPE-173). Any coplanar face this
+     * declines to grow through is left on the returned set's boundary for
+     * insertVertexBowyerWatson() to resolve via splitCoplanarBoundaryFace()
+     * instead.
      *
      * @param point The point being inserted
      * @param conflicting The initial conflicting tetrahedra (by circumsphere test)
@@ -184,6 +190,41 @@ private:
      */
     std::vector<size_t> growCavityThroughCoplanarFaces(const Point3D& point,
                                                         std::vector<size_t> conflicting) const;
+
+    /**
+     * @brief Build a single positively-oriented tetrahedron from a face and an apex
+     *
+     * Shared by retriangulate() and splitCoplanarBoundaryFace(): picks the
+     * face winding (as stored) that gives the resulting TetrahedralElement a
+     * positive signed volume under MeshVerifier3D::computeSignedVolume's
+     * convention, regardless of the face's own orientation.
+     *
+     * @param face The three face node IDs
+     * @param apexNodeId The fourth (apex) node ID
+     */
+    void addOrientedTetrahedron(const std::array<size_t, 3>& face, size_t apexNodeId);
+
+    /**
+     * @brief Resolve a coplanar cavity boundary face growCavityThroughCoplanarFaces()
+     * declined to grow through
+     *
+     * Splits the face into 3 sub-triangles around the newly inserted vertex
+     * and fans each to both of the face's original apexes (one from the
+     * removed side, one from the kept side) -- the standard pyramid
+     * subdivision of the two tetrahedra that used to share this face, now
+     * sharing the new vertex as an interior point of their common base
+     * instead of the new vertex being fanned directly onto the (coplanar,
+     * zero-volume) face.
+     *
+     * @param vertexNodeId The newly inserted vertex
+     * @param face The coplanar boundary face being split
+     * @param apexA Apex of the tetrahedron on the removed (conflicting) side
+     * @param apexB Apex of the tetrahedron on the kept (neighbor) side
+     */
+    void splitCoplanarBoundaryFace(size_t vertexNodeId,
+                                   const std::array<size_t, 3>& face,
+                                   size_t apexA,
+                                   size_t apexB);
 };
 
 } // namespace Meshing
