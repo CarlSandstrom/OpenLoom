@@ -11,8 +11,6 @@
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
 
-#include <iterator>
-
 namespace Meshing
 {
 
@@ -32,9 +30,12 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
                                         const MeshConnectivity& connectivity,
                                         const Geometry3D::GeometryCollection3D& geometry,
                                         const Topology3D::Topology3D& topology,
-                                        double minimumEdgeLength)
+                                        double minimumEdgeLength,
+                                        const SurfaceMesh3DQualitySettings& settings)
 {
+    settings_ = settings;
     restrictedFaces_.clear();
+    badFaces_.clear();
     surfaceIds_.clear();
     edgeToAdjacentSurfaces_.clear();
     surfaceTessellations_.clear();
@@ -75,7 +76,10 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
 
             auto surfaceId = classifyFace(face, meshData, connectivity, geometry);
             if (surfaceId)
+            {
+                updateBadFaceEntry(face, *surfaceId, meshData, geometry);
                 restrictedFaces_.emplace(face, std::move(*surfaceId));
+            }
         }
     }
 }
@@ -88,7 +92,10 @@ void RestrictedTriangulation::updateAfterInsertion(
     const Geometry3D::GeometryCollection3D& geometry)
 {
     for (const auto& face : cavityInteriorFaceKeys)
+    {
         restrictedFaces_.erase(face);
+        badFaces_.erase(face);
+    }
 
     for (const size_t elementId : connectivity.getNodeElements(newNodeId))
     {
@@ -109,9 +116,15 @@ void RestrictedTriangulation::updateAfterInsertion(
             const FaceKey face(faceArray);
             auto surfaceId = classifyFace(face, meshData, connectivity, geometry);
             if (surfaceId)
+            {
+                updateBadFaceEntry(face, *surfaceId, meshData, geometry);
                 restrictedFaces_.insert_or_assign(face, std::move(*surfaceId));
+            }
             else
+            {
                 restrictedFaces_.erase(face);
+                badFaces_.erase(face);
+            }
         }
     }
 }
@@ -123,41 +136,54 @@ void RestrictedTriangulation::invalidateFacesWithEdge(size_t nodeId1, size_t nod
         const auto& ids = it->first.nodeIds;
         const bool hasNode1 = ids[0] == nodeId1 || ids[1] == nodeId1 || ids[2] == nodeId1;
         const bool hasNode2 = ids[0] == nodeId2 || ids[1] == nodeId2 || ids[2] == nodeId2;
-        it = (hasNode1 && hasNode2) ? restrictedFaces_.erase(it) : std::next(it);
+        if (hasNode1 && hasNode2)
+        {
+            badFaces_.erase(it->first);
+            it = restrictedFaces_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
 }
 
-std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles(
-    const SurfaceMesh3DQualitySettings& settings,
-    const MeshData3D& meshData,
-    const MeshConnectivity& connectivity,
-    const Geometry3D::GeometryCollection3D& geometry) const
+void RestrictedTriangulation::updateBadFaceEntry(const FaceKey& face,
+                                                  const std::string& surfaceId,
+                                                  const MeshData3D& meshData,
+                                                  const Geometry3D::GeometryCollection3D& geometry)
 {
-    std::vector<BadRestrictedTriangle> badTriangles;
+    const RCDTQualityController qualityController(meshData, geometry, settings_);
+    const TriangleElement triangle(face.nodeIds);
 
-    const RCDTQualityController qualityController(meshData, geometry, settings);
-    if (qualityController.isMeshAcceptable(restrictedFaces_.size()))
-        return badTriangles;
-
-    const ElementGeometry3D elementGeometry(meshData);
-    const ElementQuality3D elementQuality(meshData);
-
-    for (const auto& [face, surfaceId] : restrictedFaces_)
+    if (qualityController.isTriangleAcceptable(triangle, surfaceId))
     {
-        const TriangleElement triangle(face.nodeIds);
-
-        if (qualityController.isTriangleAcceptable(triangle, surfaceId))
-            continue;
-
-        const auto circumcircle = elementGeometry.computeCircumcircle(triangle);
-        if (!circumcircle)
-            continue;
-
-        const double shortestEdge = elementQuality.getShortestEdgeLength(triangle);
-
-        badTriangles.push_back({face, surfaceId, circumcircle->center, shortestEdge});
+        badFaces_.erase(face);
+        return;
     }
 
+    const ElementGeometry3D elementGeometry(meshData);
+    const auto circumcircle = elementGeometry.computeCircumcircle(triangle);
+    if (!circumcircle)
+    {
+        badFaces_.erase(face);
+        return;
+    }
+
+    const ElementQuality3D elementQuality(meshData);
+    const double shortestEdge = elementQuality.getShortestEdgeLength(triangle);
+    badFaces_.insert_or_assign(face, BadRestrictedTriangle{face, surfaceId, circumcircle->center, shortestEdge});
+}
+
+std::vector<BadRestrictedTriangle> RestrictedTriangulation::getBadTriangles() const
+{
+    if (restrictedFaces_.size() >= settings_.elementLimit)
+        return {};
+
+    std::vector<BadRestrictedTriangle> badTriangles;
+    badTriangles.reserve(badFaces_.size());
+    for (const auto& [face, badTriangle] : badFaces_)
+        badTriangles.push_back(badTriangle);
     return badTriangles;
 }
 

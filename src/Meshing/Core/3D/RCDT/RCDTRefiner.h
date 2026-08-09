@@ -6,6 +6,7 @@
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -105,6 +106,24 @@ private:
     /// reasoning as the other two unrefinable sets.
     std::unordered_set<size_t> unrefinableSegments_;
 
+    /// Curve segments currently encroached by some node, maintained
+    /// incrementally (see updateEncroachedSegmentsForNewNode()/splitSegment())
+    /// instead of rescanned from scratch every refineStep() call: checking
+    /// every existing node against every existing segment on every iteration,
+    /// even though only one node (or two, for a split's new segments) ever
+    /// changes per iteration, was O(nodes x segments) per step and dominated
+    /// refinement time on meshes needing many iterations. Populated once
+    /// up front in refine() from the initial curve segments.
+    std::unordered_set<size_t> encroachedSegments_;
+
+    /// Lazily built and reused across a single refineStep() call (see
+    /// getNodePositionMap()): several steps within one call -- a demotion
+    /// check, then the resulting insertion's own encroachment update -- each
+    /// used to rebuild this independently, paying for it multiple times per
+    /// iteration. Reset at the top of refineStep() so each iteration still
+    /// sees a fresh map on first use.
+    std::optional<std::unordered_map<size_t, Point3D>> cachedNodePositionMap_;
+
     /// Resolved once at the start of refine() from settings_.minimumEdgeLength
     /// (or derived from the initial discretization if unset — see
     /// resolveMinimumEdgeLength()). A restricted triangle at or below this
@@ -158,6 +177,24 @@ private:
 
     /// Builds a node-ID → position lookup from the current mesh.
     std::unordered_map<size_t, Point3D> buildNodePositionMap() const;
+
+    /// Returns cachedNodePositionMap_, building it on first access since the
+    /// last reset (see its member doc) rather than every call.
+    const std::unordered_map<size_t, Point3D>& getNodePositionMap();
+
+    /// Checks newNodeId against every current curve segment and adds any
+    /// that it encroaches to encroachedSegments_ -- the incremental
+    /// replacement for rescanning every node against every segment (see
+    /// encroachedSegments_'s member doc). Called after every new node
+    /// insertion, from whichever priority caused it.
+    void updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position);
+
+    /// Checks segmentId against every current node and adds it to
+    /// encroachedSegments_ if any (other than its own endpoints) encroaches
+    /// it. Called for each of the two new segments a split produces, since
+    /// an existing, unrelated node can already sit inside a freshly-split
+    /// segment's (smaller) diametral sphere.
+    void checkSegmentAgainstAllNodes(size_t segmentId);
 
     /// Returns the FaceKeys of faces shared by exactly two conflicting tetrahedra
     /// (cavity interior faces that will be removed by Bowyer-Watson insertion).

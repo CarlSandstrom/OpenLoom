@@ -248,7 +248,7 @@ void RCDTMesher::buildInitial()
     restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
     const MeshConnectivity connectivity(meshData);
     restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_,
-                                        *qualitySettings_.minimumEdgeLength);
+                                        *qualitySettings_.minimumEdgeLength, qualitySettings_);
 
     spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
                  restrictedTriangulation_->getRestrictedFaces().size());

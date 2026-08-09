@@ -60,12 +60,17 @@ public:
     /// every tetrahedral face as restricted or not. minimumEdgeLength is used
     /// to size each surface's tessellation oracle so its cells are fine enough
     /// to correctly classify faces down to that scale — built once upfront,
-    /// never rebuilt during refinement.
+    /// never rebuilt during refinement. settings is stored for the lifetime of
+    /// this object (assumed constant across a refinement run) and used to
+    /// evaluate each face's quality as it's (re)classified, keeping the
+    /// bad-triangle set (see getBadTriangles()) incrementally maintained
+    /// instead of rescanned from scratch on every query.
     void buildFrom(const MeshData3D& meshData,
                    const MeshConnectivity& connectivity,
                    const Geometry3D::GeometryCollection3D& geometry,
                    const Topology3D::Topology3D& topology,
-                   double minimumEdgeLength);
+                   double minimumEdgeLength,
+                   const SurfaceMesh3DQualitySettings& settings);
 
     /// Incremental update after a Bowyer-Watson insertion.
     /// Removes cavity-interior faces that no longer exist, then re-classifies
@@ -81,11 +86,11 @@ public:
     /// faces spanning the now-subdivided edge are not left as stale entries.
     void invalidateFacesWithEdge(size_t nodeId1, size_t nodeId2);
 
-    /// Returns restricted faces that violate quality criteria.
-    std::vector<BadRestrictedTriangle> getBadTriangles(const SurfaceMesh3DQualitySettings& settings,
-                                                       const MeshData3D& meshData,
-                                                       const MeshConnectivity& connectivity,
-                                                       const Geometry3D::GeometryCollection3D& geometry) const;
+    /// Restricted faces that violate quality criteria, maintained incrementally
+    /// (see buildFrom()/updateAfterInsertion()/invalidateFacesWithEdge()) rather
+    /// than rescanned here: each face's quality is evaluated once, when it's
+    /// (re)classified, not on every call to this method.
+    std::vector<BadRestrictedTriangle> getBadTriangles() const;
 
     const std::unordered_map<FaceKey, std::string, FaceKeyHash>& getRestrictedFaces() const;
 
@@ -150,7 +155,19 @@ private:
         const MeshData3D& meshData,
         const MeshConnectivity& connectivity) const;
 
+    /// (Re)evaluates face's quality against settings_ and updates badFaces_
+    /// accordingly -- inserted/refreshed if it fails, erased if it now
+    /// passes. Called once per (re)classified face, immediately after
+    /// classifyFace() confirms it's restricted to surfaceId, so badFaces_
+    /// stays current without ever needing a full rescan (see getBadTriangles()).
+    void updateBadFaceEntry(const FaceKey& face,
+                            const std::string& surfaceId,
+                            const MeshData3D& meshData,
+                            const Geometry3D::GeometryCollection3D& geometry);
+
     std::unordered_map<FaceKey, std::string, FaceKeyHash> restrictedFaces_;
+    std::unordered_map<FaceKey, BadRestrictedTriangle, FaceKeyHash> badFaces_;
+    SurfaceMesh3DQualitySettings settings_;
     SurfaceProjector surfaceProjector_;
 
     // Built from topology in buildFrom(); reused by classifyFace() thereafter.

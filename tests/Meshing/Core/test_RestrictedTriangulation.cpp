@@ -205,7 +205,7 @@ TEST(RestrictedTriangulationTest, BuildFrom_EdgeOnlyGeometryIds_FindsRestrictedF
     const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1);
+    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1, SurfaceMesh3DQualitySettings{});
 
     const auto& restricted = rt.getRestrictedFaces();
     ASSERT_EQ(restricted.size(), 1u);
@@ -225,7 +225,7 @@ TEST(RestrictedTriangulationTest, BuildFrom_RestrictsSurfaceFace)
     MeshConnectivity connectivity(setup.meshData);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1);
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1, SurfaceMesh3DQualitySettings{});
 
     const auto& restricted = rt.getRestrictedFaces();
     ASSERT_EQ(restricted.size(), 1u);
@@ -245,7 +245,7 @@ TEST(RestrictedTriangulationTest, BuildFrom_OffSurfaceFacesNotRestricted)
     MeshConnectivity connectivity(setup.meshData);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1);
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1, SurfaceMesh3DQualitySettings{});
 
     const auto& restricted = rt.getRestrictedFaces();
 
@@ -265,7 +265,7 @@ TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SingleFace_AllThreeEdgesA
     MeshConnectivity connectivity(setup.meshData);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1);
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1, SurfaceMesh3DQualitySettings{});
 
     // A single triangle isn't closed -- all 3 of its edges are boundary
     // edges (count 1, not the 2 a closed 2-manifold requires).
@@ -305,7 +305,7 @@ TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SharedEdgeNotReported_Ope
     const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1);
+    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1, SurfaceMesh3DQualitySettings{});
     ASSERT_EQ(rt.getRestrictedFaces().size(), 2u);
 
     const auto defects = rt.findNonManifoldEdges();
@@ -324,7 +324,7 @@ TEST(RestrictedTriangulationTest, UpdateAfterInsertion_MatchesFullRebuild)
     MeshConnectivity connectivity(setup.meshData);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1);
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1, SurfaceMesh3DQualitySettings{});
 
     // Insert a new surface node n5 inside the original triangle
     MeshMutator3D mutator(setup.meshData);
@@ -357,7 +357,7 @@ TEST(RestrictedTriangulationTest, UpdateAfterInsertion_MatchesFullRebuild)
 
     // Full rebuild on the same data for reference
     RestrictedTriangulation rtReference;
-    rtReference.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1);
+    rtReference.buildFrom(setup.meshData, connectivity, setup.geometry, setup.topology, 0.1, SurfaceMesh3DQualitySettings{});
 
     // Both must agree on the restricted face set
     const auto& incremental = rt.getRestrictedFaces();
@@ -398,10 +398,10 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ElongatedTriangle_ReportedAsBa
     const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1);
-
     const SurfaceMesh3DQualitySettings settings;
-    const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
+    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1, settings);
+
+    const auto badTriangles = rt.getBadTriangles();
 
     ASSERT_FALSE(badTriangles.empty());
     const FaceKey expectedFace(n0, n1, n2);
@@ -443,10 +443,10 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_GoodTriangle_NotReported)
     const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID);
 
     RestrictedTriangulation rt;
-    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1);
-
     const SurfaceMesh3DQualitySettings settings;
-    const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
+    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1, settings);
+
+    const auto badTriangles = rt.getBadTriangles();
 
     EXPECT_TRUE(badTriangles.empty());
 }
@@ -482,15 +482,15 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ChordDeviationFailure)
     // Surface stays at z=0 — nodes are offset, producing chord deviation
     const auto geometry = makeSingleSurfaceGeometry(SURFACE_ID, 0.0);
 
-    RestrictedTriangulation rt;
-    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1);
-
     // Use strict ratio so only chord deviation triggers the failure
     SurfaceMesh3DQualitySettings settings;
     settings.circumradiusToShortestEdgeRatio = 100.0;
     settings.chordDeviationTolerance = 0.1;
 
-    const auto badTriangles = rt.getBadTriangles(settings, meshData, connectivity, geometry);
+    RestrictedTriangulation rt;
+    rt.buildFrom(meshData, connectivity, geometry, topology, 0.1, settings);
+
+    const auto badTriangles = rt.getBadTriangles();
 
     ASSERT_FALSE(badTriangles.empty());
     const FaceKey expectedFace(n0, n1, n2);
