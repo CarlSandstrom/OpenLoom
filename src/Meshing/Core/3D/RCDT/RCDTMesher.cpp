@@ -229,23 +229,26 @@ void RCDTMesher::buildInitial()
     // protecting-ball weights for the curve/corner network here, and
     // Delaunay3D/insertVertexBowyerWatson/RCDTRefiner (see
     // RCDTRefiner::encroachesProtectingBall()) correctly persist and act on
-    // them end to end (a weight-drop bug on this path was found and fixed
-    // during review). With that fix, RCDTMesherSphereTest genuinely
-    // converges -- faster than the unweighted baseline (26 iterations, ~4s
-    // vs. 30 iterations, ~6s). But RCDTMesherTorusTest exposes a deeper,
-    // separate problem: CurveProtectionScheme's own disjointness clamp
-    // (property 2) provably cannot always be satisfied together with its
-    // overlap guarantee (property 1) for real geometry -- confirmed on the
-    // torus's periodic seam, where the scheme's own consistency check logs
-    // exactly that violation. The clamped-too-small balls that result don't
-    // just leave a documented gap; they broke watertightness
-    // (AllEdgeNodesCovered, EulerCharacteristicIsZero both failed) and blew
-    // up refinement 34x (11.6s/449 iterations -> 6m24s/3208 iterations) --
-    // the same failure shape as OPE-172. Fixing this needs a redesign of
-    // the clamp itself (e.g. inserting extra points to relieve the
-    // conflict, rather than silently shrinking below the connectivity
-    // floor) before this is safe to enable. Re-enable this block once
-    // that's resolved.
+    // them end to end. A corners-before-interior sequencing bug in the
+    // disjointness clamp (property 2) was found and fixed -- it sized a
+    // corner-adjacent interior point's compensation against the corner's
+    // PRE-clamp radius, which a later clamp pass could (and did) shrink out
+    // from under it. That fix is real and worth keeping, but re-testing on
+    // RCDTMesherTorusTest confirmed it doesn't resolve that test's failure:
+    // the interior point on the torus's periodic seam has its OWN
+    // independently-binding disjointness clamp (an unrelated feature sits
+    // close to it directly, not just close to its corner), so no
+    // corner-side fix can help -- the clamp numbers logged are bit-for-bit
+    // identical before and after the sequencing fix. This is a genuine
+    // local-feature-size conflict: the torus's sampling density is too
+    // coarse, relative to how close two unrelated parts of its geometry
+    // pass to each other, for ANY single-point resizing to satisfy both
+    // properties. The real fix is inserting additional points near the
+    // tight region so radii can shrink in several smaller geometric steps
+    // (the standard Boissonnat-Oudot approach) rather than one large jump --
+    // a bigger change (CurveProtectionScheme would need to add points, not
+    // just size existing ones) out of scope here. Re-enable this block once
+    // that's implemented.
     Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();
