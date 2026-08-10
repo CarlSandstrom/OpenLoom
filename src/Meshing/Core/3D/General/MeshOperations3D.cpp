@@ -85,8 +85,8 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     if (points.empty())
     {
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                         "createBoundingTetrahedron called with empty point list");
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "createBoundingTetrahedron called with empty point list");
     }
 
     // Compute bounding box of all points
@@ -224,20 +224,22 @@ void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& bo
 }
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
-                                                  const std::vector<std::string>& geometryIds)
+                                                  const std::vector<std::string>& geometryIds,
+                                                  double weight)
 {
-    return insertVertexBowyerWatson(point, queries_.findConflictingTetrahedra(point), geometryIds);
+    return insertVertexBowyerWatson(point, queries_.findConflictingTetrahedra(point, weight), geometryIds, weight);
 }
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
                                                   std::vector<size_t> conflicting,
-                                                  const std::vector<std::string>& geometryIds)
+                                                  const std::vector<std::string>& geometryIds,
+                                                  double weight)
 {
     if (conflicting.empty())
     {
         spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found");
         // Just add the vertex without removing any tetrahedra
-        size_t nodeId = mutator_->addNode(point);
+        size_t nodeId = mutator_->addNode(point, weight);
         return nodeId;
     }
 
@@ -268,9 +270,11 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 
         const auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
         const auto conflictingSideIt = std::find_if(
-            touching.begin(), touching.end(), [&](size_t tetId) { return conflictingSet.contains(tetId); });
+            touching.begin(), touching.end(), [&](size_t tetId)
+            { return conflictingSet.contains(tetId); });
         const auto neighborIt = std::find_if(
-            touching.begin(), touching.end(), [&](size_t tetId) { return !conflictingSet.contains(tetId); });
+            touching.begin(), touching.end(), [&](size_t tetId)
+            { return !conflictingSet.contains(tetId); });
 
         if (conflictingSideIt == touching.end() || neighborIt == touching.end())
         {
@@ -308,11 +312,11 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     size_t nodeId;
     if (!geometryIds.empty())
     {
-        nodeId = mutator_->addBoundaryNode(point, geometryIds);
+        nodeId = mutator_->addBoundaryNode(point, geometryIds, weight);
     }
     else
     {
-        nodeId = mutator_->addNode(point);
+        nodeId = mutator_->addNode(point, weight);
     }
 
     retriangulate(nodeId, normalFaces);
@@ -347,7 +351,8 @@ std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
 
             const auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
             const auto neighborIt = std::find_if(touching.begin(), touching.end(),
-                [&conflictingSet](size_t tetId) { return !conflictingSet.contains(tetId); });
+                                                 [&conflictingSet](size_t tetId)
+                                                 { return !conflictingSet.contains(tetId); });
 
             // Either there's no neighbor to extend into (a genuine domain
             // boundary) or both sides are already conflicting -- either way,

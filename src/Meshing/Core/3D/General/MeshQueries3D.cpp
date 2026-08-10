@@ -1,10 +1,10 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
-#include "Meshing/Core/3D/General/ConstraintChecker3D.h"
-#include "Meshing/Data/CurveSegmentManager.h"
-#include "Meshing/Core/3D/General/ElementQuality3D.h"
-#include "Meshing/Core/3D/General/RobustPredicates3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Meshing/Core/3D/General/ConstraintChecker3D.h"
+#include "Meshing/Core/3D/General/ElementQuality3D.h"
+#include "Meshing/Core/3D/General/RegularPredicates3D.h"
 #include "Meshing/Data/3D/Node3D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
@@ -18,7 +18,7 @@ MeshQueries3D::MeshQueries3D(const MeshData3D& meshData) :
 {
 }
 
-std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& point) const
+std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& point, double pointWeight) const
 {
     std::vector<size_t> conflicting;
 
@@ -31,12 +31,14 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
             continue;
         }
 
-        // In-sphere test via a robust (double-double precision) determinant
-        // sign, not an explicit circumcenter/radius: for a near-degenerate
-        // (nearly flat) tetrahedron, solving for the circumcenter is a
-        // near-singular linear system whose solution can be wrong by orders
-        // of magnitude, which silently corrupts this conflict search (see
-        // RobustPredicates3D, OPE-159).
+        // Weighted in-sphere ("orthosphere") test via a robust exact-
+        // arithmetic determinant sign, not an explicit circumcenter/radius:
+        // for a near-degenerate (nearly flat) tetrahedron, solving for the
+        // circumcenter is a near-singular linear system whose solution can
+        // be wrong by orders of magnitude, which silently corrupts this
+        // conflict search (see RobustPredicates3D, OPE-159). Reduces
+        // exactly to the plain (unweighted) test when every weight involved
+        // is 0 (see RegularPredicates3D, OPE-176).
         const auto& nodeIds = tet->getNodeIds();
         const Node3D* n0 = meshData_.getNode(nodeIds[0]);
         const Node3D* n1 = meshData_.getNode(nodeIds[1]);
@@ -47,8 +49,12 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
             continue;
         }
 
-        if (RobustPredicates3D::insidePointCircumsphere(
-                n0->getCoordinates(), n1->getCoordinates(), n2->getCoordinates(), n3->getCoordinates(), point))
+        if (RegularPredicates3D::insidePointOrthosphere(
+                n0->getCoordinates(), n0->getWeight(),
+                n1->getCoordinates(), n1->getWeight(),
+                n2->getCoordinates(), n2->getWeight(),
+                n3->getCoordinates(), n3->getWeight(),
+                point, pointWeight))
         {
             conflicting.push_back(tetId);
         }

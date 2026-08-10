@@ -230,6 +230,14 @@ bool RCDTRefiner::refineStep()
         if (!encroachingIds.empty())
             return splitSegment(encroachingIds[0]);
 
+        // Never insert inside an existing protecting ball (OPE-176) -- see
+        // encroachesProtectingBall()'s doc.
+        if (encroachesProtectingBall(projected))
+        {
+            unrefinableTriangles_.insert(bad.face);
+            continue;
+        }
+
         // Insert the projected circumcenter.
         // Do NOT clear unrefinableTriangles_ here: faces blocked by the size
         // floor stay blocked (they can't get any smaller than they already
@@ -352,6 +360,14 @@ bool RCDTRefiner::refineBadTetrahedra()
         if (!encroachingIds.empty())
             return splitSegment(encroachingIds[0]);
 
+        // Never insert inside an existing protecting ball (OPE-176) -- see
+        // encroachesProtectingBall()'s doc.
+        if (encroachesProtectingBall(circumcenter))
+        {
+            unrefinableTetrahedra_.insert(tetId);
+            continue;
+        }
+
         // Interior point: no geometryIds, matching insertVertexBowyerWatson's
         // convention for a non-boundary node.
         insertAndUpdate(circumcenter, {});
@@ -446,6 +462,14 @@ bool RCDTRefiner::refineNonManifoldEdges()
         const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
         if (!encroachingIds.empty())
             return splitSegment(encroachingIds[0]);
+
+        // Never insert inside an existing protecting ball (OPE-176) -- see
+        // encroachesProtectingBall()'s doc.
+        if (encroachesProtectingBall(projected))
+        {
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
 
         insertAndUpdate(projected, {defect.surfaceId});
         return true;
@@ -565,6 +589,19 @@ void RCDTRefiner::checkSegmentAgainstAllNodes(size_t segmentId)
             return;
         }
     }
+}
+
+bool RCDTRefiner::encroachesProtectingBall(const Point3D& point) const
+{
+    for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
+    {
+        const double weight = node->getWeight();
+        if (weight <= 0.0)
+            continue;
+        if ((point - node->getCoordinates()).squaredNorm() < weight)
+            return true;
+    }
+    return false;
 }
 
 double RCDTRefiner::resolveMinimumEdgeLength() const

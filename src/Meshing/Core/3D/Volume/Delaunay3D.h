@@ -46,10 +46,14 @@ public:
      * the same mesh (see class documentation)
      * @param points Vector of Point3D representing the input vertices
      * @param geometryIds Geometry IDs for each point (corner/edge/surface IDs)
+     * @param pointWeights Regular-triangulation weight for each point (0 --
+     * an ordinary, unweighted point -- if index-absent or the vector is
+     * left empty; see Node3D::getWeight() and RegularPredicates3D, OPE-176)
      */
     explicit Delaunay3D(MeshOperations3D& operations,
                         const std::vector<Point3D>& points,
-                        const std::vector<std::vector<std::string>>& geometryIds = {});
+                        const std::vector<std::vector<std::string>>& geometryIds = {},
+                        const std::vector<double>& pointWeights = {});
 
     /**
      * @brief Perform the Delaunay tetrahedralization. The bounding
@@ -73,6 +77,7 @@ private:
     MeshOperations3D& operations_;
     std::vector<Point3D> points_;
     std::vector<std::vector<std::string>> geometryIds_;
+    std::vector<double> pointWeights_;
     std::map<size_t, size_t> pointIndexToNodeIdMap_;
     std::array<size_t, 4> boundingNodeIds_{};
 };

@@ -60,6 +60,13 @@ class RCDTTetQualityController;
 /// segment, the segment is split instead. The same demotion applies to
 /// priority 4's repair point.
 ///
+/// Priorities 2-4 additionally never insert an ordinary Steiner point inside
+/// an existing protecting ball (see encroachesProtectingBall(), OPE-176):
+/// once CurveProtectionScheme sizes weighted points along every crease, a
+/// quality/repair insertion landing inside one would erode exactly the
+/// protection the ball exists to guarantee. Priority 1 is exempt -- its
+/// insertion points lie on the protected curve itself.
+///
 /// Priority 3 does not detect or fix slivers (tetrahedra with an acceptable
 /// circumradius/edge ratio but poor dihedral angles, or genuinely thin/flat
 /// tets whose true circumcenter recedes far outside the mesh's extent) --
@@ -195,6 +202,22 @@ private:
     /// an existing, unrelated node can already sit inside a freshly-split
     /// segment's (smaller) diametral sphere.
     void checkSegmentAgainstAllNodes(size_t segmentId);
+
+    /// True if point falls strictly inside any existing node's protecting
+    /// ball (a node with nonzero regular-triangulation weight -- see
+    /// Node3D::getWeight(), RegularPredicates3D, and CurveProtectionScheme,
+    /// OPE-176). Priorities 2-4 must never insert an ordinary Steiner point
+    /// there: doing so would let an unrelated quality/repair insertion erode
+    /// the crease protection the ball exists to guarantee. Checked at each
+    /// priority's plain-insertion call site, alongside (but conceptually
+    /// distinct from) the existing minimumEdgeLength_ proximity guard --
+    /// same "mark unrefinable rather than retry forever" treatment, since
+    /// there's no meaningful way to "split" a protecting ball the way an
+    /// encroached segment splits. Priority 1 (segment splitting) is exempt:
+    /// its insertion points lie on the protected curve itself, which is
+    /// what a ball's interior is *for* -- not a violation of the property
+    /// this guards.
+    bool encroachesProtectingBall(const Point3D& point) const;
 
     /// Returns the FaceKeys of faces shared by exactly two conflicting tetrahedra
     /// (cavity interior faces that will be removed by Bowyer-Watson insertion).

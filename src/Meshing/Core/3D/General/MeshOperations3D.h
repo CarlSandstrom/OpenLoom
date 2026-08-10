@@ -81,10 +81,14 @@ public:
      *
      * @param point The 3D point to insert
      * @param geometryIds Optional geometry entity IDs this vertex belongs to
+     * @param weight The vertex's regular-triangulation weight (0 for an
+     * ordinary, unweighted vertex -- see Node3D::getWeight() and
+     * RegularPredicates3D, OPE-176)
      * @return Node ID of the inserted vertex
      */
     size_t insertVertexBowyerWatson(const Point3D& point,
-                                    const std::vector<std::string>& geometryIds = {});
+                                    const std::vector<std::string>& geometryIds = {},
+                                    double weight = 0.0);
 
     /**
      * @brief Insert a vertex using 3D Bowyer-Watson algorithm with pre-computed conflicting tetrahedra
@@ -94,13 +98,15 @@ public:
      * before calling this). Avoids a redundant findConflictingTetrahedra() scan.
      *
      * @param point The 3D point to insert
-     * @param conflictingTetrahedra Pre-computed result of findConflictingTetrahedra(point)
+     * @param conflictingTetrahedra Pre-computed result of findConflictingTetrahedra(point, weight)
      * @param geometryIds Optional geometry entity IDs this vertex belongs to
+     * @param weight The vertex's regular-triangulation weight (see the other overload)
      * @return Node ID of the inserted vertex
      */
     size_t insertVertexBowyerWatson(const Point3D& point,
                                     std::vector<size_t> conflictingTetrahedra,
-                                    const std::vector<std::string>& geometryIds = {});
+                                    const std::vector<std::string>& geometryIds = {},
+                                    double weight = 0.0);
 
     /**
      * @brief Split a constrained segment at its parametric midpoint
@@ -189,7 +195,7 @@ private:
      * @return The grown set of conflicting tetrahedra
      */
     std::vector<size_t> growCavityThroughCoplanarFaces(const Point3D& point,
-                                                        std::vector<size_t> conflicting) const;
+                                                       std::vector<size_t> conflicting) const;
 
     /**
      * @brief Build a single positively-oriented tetrahedron from a face and an apex

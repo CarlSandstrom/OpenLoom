@@ -225,6 +225,27 @@ void RCDTMesher::buildInitial()
 
     auto& meshData = meshingContext_->getMeshData();
 
+    // NOT YET WIRED IN (OPE-176): CurveProtectionScheme can compute
+    // protecting-ball weights for the curve/corner network here, and
+    // Delaunay3D/insertVertexBowyerWatson/RCDTRefiner (see
+    // RCDTRefiner::encroachesProtectingBall()) correctly persist and act on
+    // them end to end (a weight-drop bug on this path was found and fixed
+    // during review). With that fix, RCDTMesherSphereTest genuinely
+    // converges -- faster than the unweighted baseline (26 iterations, ~4s
+    // vs. 30 iterations, ~6s). But RCDTMesherTorusTest exposes a deeper,
+    // separate problem: CurveProtectionScheme's own disjointness clamp
+    // (property 2) provably cannot always be satisfied together with its
+    // overlap guarantee (property 1) for real geometry -- confirmed on the
+    // torus's periodic seam, where the scheme's own consistency check logs
+    // exactly that violation. The clamped-too-small balls that result don't
+    // just leave a documented gap; they broke watertightness
+    // (AllEdgeNodesCovered, EulerCharacteristicIsZero both failed) and blew
+    // up refinement 34x (11.6s/449 iterations -> 6m24s/3208 iterations) --
+    // the same failure shape as OPE-172. Fixing this needs a redesign of
+    // the clamp itself (e.g. inserting extra points to relieve the
+    // conflict, rather than silently shrinking below the connectivity
+    // floor) before this is safe to enable. Re-enable this block once
+    // that's resolved.
     Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();

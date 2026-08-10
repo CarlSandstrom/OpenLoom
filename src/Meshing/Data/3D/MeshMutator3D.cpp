@@ -31,11 +31,12 @@ void MeshMutator3D::setConnectivity(MeshConnectivity* connectivity)
     connectivity_ = connectivity;
 }
 
-size_t MeshMutator3D::addNode(const Point3D& coordinates)
+size_t MeshMutator3D::addNode(const Point3D& coordinates, double weight)
 {
     size_t id = nextNodeId_++;
 
     auto node = std::make_unique<Node3D>(coordinates);
+    node->setWeight(weight);
     geometry_.addNodeInternal(id, std::move(node));
 
     // Notify transaction listener
@@ -48,11 +49,14 @@ size_t MeshMutator3D::addNode(const Point3D& coordinates)
 }
 
 size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
-                                      const std::vector<std::string>& geometryIds)
+                                      const std::vector<std::string>& geometryIds,
+                                      double weight)
 {
     size_t id = nextNodeId_++;
 
-    geometry_.addNodeInternal(id, std::make_unique<Node3D>(coordinates));
+    auto node = std::make_unique<Node3D>(coordinates);
+    node->setWeight(weight);
+    geometry_.addNodeInternal(id, std::move(node));
     geometry_.setNodeGeometryIdsInternal(id, geometryIds);
 
     // Notify transaction listener
@@ -227,7 +231,7 @@ void MeshMutator3D::removeConstrainedSubfacet(size_t nodeId1, size_t nodeId2, si
 }
 
 void MeshMutator3D::replaceConstrainedSubfacet(const ConstrainedSubfacet3D& oldFacet,
-                                                 const std::vector<ConstrainedSubfacet3D>& newFacets)
+                                               const std::vector<ConstrainedSubfacet3D>& newFacets)
 {
     geometry_.replaceConstrainedSubfacetInternal(oldFacet, newFacets);
 }
@@ -243,9 +247,9 @@ void MeshMutator3D::validateNodeRemoval(size_t nodeId) const
     {
         const auto& elements = connectivity_->getNodeElements(nodeId);
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                         "Cannot remove node " + std::to_string(nodeId) +
-                             ": still referenced by " + std::to_string(elements.size()) + " element(s)");
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "Cannot remove node " + std::to_string(nodeId) +
+                                ": still referenced by " + std::to_string(elements.size()) + " element(s)");
     }
 }
 

@@ -35,11 +35,21 @@ public:
     explicit MeshQueries3D(const MeshData3D& meshData);
 
     /**
-     * @brief Find tetrahedra whose circumsphere contains the point
+     * @brief Find tetrahedra whose orthogonal sphere contains the (possibly
+     * weighted) point
+     *
+     * Uses RegularPredicates3D's weighted in-sphere ("orthosphere") test,
+     * incorporating each candidate tetrahedron's own vertices' weights (see
+     * Node3D::getWeight()) as well as pointWeight. Reduces exactly to a
+     * plain Delaunay circumsphere test when every weight involved is 0 --
+     * the default for pointWeight and for every node until OPE-176's
+     * crease-protection scheme starts assigning nonzero weights.
+     *
      * @param point The point to test
+     * @param pointWeight The point's own weight (0 for an unweighted query)
      * @return IDs of conflicting tetrahedra
      */
-    std::vector<size_t> findConflictingTetrahedra(const Point3D& point) const;
+    std::vector<size_t> findConflictingTetrahedra(const Point3D& point, double pointWeight = 0.0) const;
 
     /**
      * @brief Find the boundary of the cavity formed by conflicting tetrahedra

@@ -7,10 +7,12 @@ namespace Meshing
 
 Delaunay3D::Delaunay3D(MeshOperations3D& operations,
                        const std::vector<Point3D>& points,
-                       const std::vector<std::vector<std::string>>& geometryIds) :
+                       const std::vector<std::vector<std::string>>& geometryIds,
+                       const std::vector<double>& pointWeights) :
     operations_(operations),
     points_(points),
-    geometryIds_(geometryIds)
+    geometryIds_(geometryIds),
+    pointWeights_(pointWeights)
 {
 }
 
@@ -33,15 +35,16 @@ void Delaunay3D::triangulate()
     for (size_t i = 0; i < points_.size(); ++i)
     {
         bool hasGeomIds = i < geometryIds_.size() && !geometryIds_[i].empty();
+        const double weight = i < pointWeights_.size() ? pointWeights_[i] : 0.0;
 
         size_t nodeId;
         if (hasGeomIds)
         {
-            nodeId = operations_.insertVertexBowyerWatson(points_[i], geometryIds_[i]);
+            nodeId = operations_.insertVertexBowyerWatson(points_[i], geometryIds_[i], weight);
         }
         else
         {
-            nodeId = operations_.insertVertexBowyerWatson(points_[i]);
+            nodeId = operations_.insertVertexBowyerWatson(points_[i], {}, weight);
         }
 
         pointIndexToNodeIdMap_[i] = nodeId;
