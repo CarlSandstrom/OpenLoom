@@ -226,28 +226,28 @@ void RCDTMesher::buildInitial()
 
     auto& meshData = meshingContext_->getMeshData();
 
-    // NOT YET WIRED IN (OPE-176): CurveProtectionSubdivider::subdivide()
-    // (inserting extra points near a genuine local-feature-size conflict,
-    // then CurveProtectionScheme::computeWeights() for the final weights)
-    // is implemented, tested in isolation, and DOES measurably help on
-    // RCDTMesherTorusTest's periodic seam: wiring it in here fixed one of
-    // the two watertightness failures the plain sequencing fix couldn't
-    // (AllEdgeNodesCovered now passes). But it doesn't fully close the gap:
-    // EulerCharacteristicIsZero still fails, and refinement is still ~15x
-    // slower than the unweighted baseline (11.6s/449 iterations ->
-    // 181s/2324 iterations) -- down from the ~34x/6m24s regression before
-    // subdivision existed, but not resolved. The subdivider hit
-    // minimumEdgeLength_ before closing 4 remaining violations near the
-    // seam corner; simply loosening that floor for the subdivider alone
-    // (it's a much cheaper operation to over-subdivide than
-    // general-purpose refinement is) is the most promising next step, but
-    // hasn't been tried -- flagging rather than guessing, since the reason
-    // bisection isn't converging as fast as expected right at this specific
-    // corner isn't yet understood (the torus's periodic curvature may mean
-    // "distance to the corner's problem feature" isn't monotonic along the
-    // curve the way the straight synthetic test cases that validated
-    // CurveProtectionSubdivider assumed). Re-enable this block (see the
-    // reverted code in git history) once that's resolved.
+    // NOT YET WIRED IN (OPE-176): CurveProtectionScheme's disjointness
+    // clamp had a real bug -- relatedness was defined per single edge, so
+    // two curves sharing a corner (e.g. a torus's two periodic seams,
+    // which close at the same vertex) saw each other's near-corner points
+    // as an unrelated proximity, clamping each other down, triggering more
+    // subdivision, which brought them closer still: a confirmed runaway
+    // loop, not a genuine local-feature-size conflict. Fixed by redefining
+    // relatedness as "same connected component of the curve network"
+    // (edges joined transitively via shared corners) -- see
+    // CurveProtectionScheme.cpp's union-find. Re-tested on
+    // RCDTMesherTorusTest: real, substantial improvement (no subdivision
+    // needed at all now; refinement iterations 2324 -> 1415; time
+    // 181s -> 76s; the Euler characteristic discrepancy shrank from 24 to
+    // 16) but not fully resolved -- EulerCharacteristicIsZero still fails.
+    // Worse, re-running the full suite with this fix live surfaced a NEW
+    // regression on RCDTMesherCylinderTest.AllEdgeNodesCovered (previously
+    // clean), needing exactly one subdivision and leaving 2 edge nodes
+    // outside any triangle -- a smaller-scale, likely different residual
+    // issue from the shared-corner bug just fixed, not yet diagnosed.
+    // Re-enable this block once that's understood; the relatedness fix
+    // itself is correct and committed regardless (see git history) --
+    // don't revert it just because the wiring stays off.
     Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();

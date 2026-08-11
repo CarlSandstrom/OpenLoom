@@ -57,17 +57,41 @@ constexpr double CORNER_OVERLAP_SLACK = 1.1;
 
 // See class comment, property 2: clamping every point's radius to at most
 // DISJOINT_FACTOR times its distance to the nearest point belonging to a
-// DIFFERENT edge (see "related" below) is sufficient to keep every
-// unrelated pair's balls from overlapping. For any unrelated pair (x,y),
-// each point's own nearest-unrelated distance is by definition <= dist(x,y)
-// (y itself is *a* unrelated point to x, and vice versa), so
-// radius(x) <= DISJOINT_FACTOR * dist(x,y) and
+// DIFFERENT connected component of the curve network (see "related" below)
+// is sufficient to keep every unrelated pair's balls from overlapping. For
+// any unrelated pair (x,y), each point's own nearest-unrelated distance is
+// by definition <= dist(x,y) (y itself is *a* unrelated point to x, and
+// vice versa), so radius(x) <= DISJOINT_FACTOR * dist(x,y) and
 // radius(y) <= DISJOINT_FACTOR * dist(x,y) both hold, giving
 // radius(x) + radius(y) <= 2*DISJOINT_FACTOR*dist(x,y) < dist(x,y) whenever
 // DISJOINT_FACTOR < 0.5. This clamp is purely positional (a function of
 // point positions only, never of any point's radius), so it can be
 // evaluated for any point independent of processing order.
 constexpr double DISJOINT_FACTOR = 0.45;
+
+// Union-find over edge IDs, standard iterative find with path compression.
+std::string find(std::unordered_map<std::string, std::string>& parent, const std::string& edgeId)
+{
+    std::string root = edgeId;
+    while (parent[root] != root)
+        root = parent[root];
+    std::string current = edgeId;
+    while (parent[current] != root)
+    {
+        std::string next = parent[current];
+        parent[current] = root;
+        current = next;
+    }
+    return root;
+}
+
+void unite(std::unordered_map<std::string, std::string>& parent, const std::string& a, const std::string& b)
+{
+    const std::string rootA = find(parent, a);
+    const std::string rootB = find(parent, b);
+    if (rootA != rootB)
+        parent[rootA] = rootB;
+}
 
 } // namespace
 
@@ -125,6 +149,36 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
     for (const auto& [cornerPoint, minFirstStep] : cornerMinFirstStep)
         cornerLocalRadius[cornerPoint] = CORNER_FACTOR * minFirstStep;
 
+    // Which connected component of the curve network each edge belongs to:
+    // two edges are joined whenever they share a corner, transitively. A
+    // corner shared by several curves (e.g. a torus's two periodic seams,
+    // both closing at the same vertex) makes all of them -- and every point
+    // on them -- part of ONE feature, not genuinely different "unrelated"
+    // features property 2 needs to keep apart. Without this (an earlier
+    // version related two points only if they shared the exact same single
+    // edge), two curves meeting at a corner fought each other: subdividing
+    // one curve's corner-adjacent segment brings its new point physically
+    // closer to the OTHER curve's own corner-adjacent points (both
+    // approach the same physical corner), which registered as an unrelated
+    // proximity needing an even smaller clamp, needing another split,
+    // bringing them closer still -- a runaway loop with no fixed point,
+    // confirmed on RCDTMesherTorusTest (its two periodic seams share their
+    // one corner).
+    std::unordered_map<std::string, std::string> edgeComponentParent;
+    for (const auto& [edgeId, chain] : edgeIdToPointIndicesMap)
+        edgeComponentParent.try_emplace(edgeId, edgeId);
+    for (const auto& [point, edges] : pointToEdges)
+    {
+        if (edges.size() < 2)
+            continue;
+        auto it = edges.begin();
+        const std::string& first = *it;
+        for (++it; it != edges.end(); ++it)
+            unite(edgeComponentParent, first, *it);
+    }
+    auto sameComponent = [&edgeComponentParent](const std::string& a, const std::string& b)
+    { return find(edgeComponentParent, a) == find(edgeComponentParent, b); };
+
     // Property 2's clamp (see DISJOINT_FACTOR) is purely positional, so it
     // can be applied to corners before interior radii are even computed --
     // and MUST be, so pass 3's CORNER_OVERLAP_SLACK compensation sizes
@@ -139,15 +193,16 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
     auto nearestUnrelatedDistance = [&](size_t p)
     {
         double nearest = std::numeric_limits<double>::infinity();
-        const auto& ownEdges = pointToEdges[p];
+        // Any one of p's edges suffices: union-find already merged every
+        // edge incident to the same corner as p into one component, so
+        // checking a single representative against a single representative
+        // of q is equivalent to checking all pairs.
+        const std::string& ownEdge = *pointToEdges[p].begin();
         for (size_t q : orderedFeaturePoints)
         {
             if (q == p)
                 continue;
-            const auto& otherEdges = pointToEdges[q];
-            const bool related = std::any_of(ownEdges.begin(), ownEdges.end(), [&otherEdges](const std::string& edgeId)
-                                             { return otherEdges.contains(edgeId); });
-            if (related)
+            if (sameComponent(ownEdge, *pointToEdges[q].begin()))
                 continue;
             nearest = std::min(nearest, (points[p] - points[q]).norm());
         }

@@ -111,6 +111,45 @@ TEST(CurveProtectionSchemeTest, NonUniformCurve_ConsecutiveBallsStillOverlap)
 }
 
 // ============================================================================
+// Two curves sharing a corner: NOT unrelated, even when their near-corner
+// points pass close to each other (e.g. a torus's two periodic seams,
+// closing at the same vertex -- see CurveProtectionSubdivider's history).
+// ============================================================================
+
+TEST(CurveProtectionSchemeTest, TwoCurvesSharingACorner_NearCornerPointsAreNotClamped)
+{
+    // Edge A: corner 0 -- point 1 (0.1 away) -- corner 2 (far).
+    // Edge B: corner 0 -- point 3 (0.1 away) -- corner 4 (far).
+    // Points 1 and 3 are both close to the SHARED corner 0, hence close to
+    // each other (dist ~0.14) -- but edge A and edge B are the same
+    // connected component (joined at corner 0), so they must NOT clamp
+    // each other via property 2 the way two genuinely separate curves
+    // would.
+    const std::vector<Point3D> points = {
+        Point3D(0.0, 0.0, 0.0), // 0: shared corner
+        Point3D(0.1, 0.0, 0.0), // 1: edgeA near-corner point
+        Point3D(5.0, 0.0, 0.0), // 2: edgeA far corner
+        Point3D(0.0, 0.1, 0.0), // 3: edgeB near-corner point
+        Point3D(0.0, 5.0, 0.0), // 4: edgeB far corner
+    };
+    const std::map<std::string, std::vector<size_t>> edges = {
+        {"edgeA", {0, 1, 2}},
+        {"edgeB", {0, 3, 4}},
+    };
+    const std::unordered_set<size_t> corners = {0, 2, 4};
+
+    const auto weights = CurveProtectionScheme::computeWeights(edges, corners, points);
+
+    // Unclamped, point 1's radius is driven by CORNER_OVERLAP_SLACK
+    // bridging toward corner 2's ~1.47 radius, well above the ~0.045
+    // (0.45 * dist(1,3)) a disjointness clamp against point 3 would force.
+    EXPECT_GT(radiusOf(weights, 1), 1.0);
+    EXPECT_GT(radiusOf(weights, 3), 1.0);
+    EXPECT_TRUE(
+        CurveProtectionScheme::findUnresolvedSegments(edges, weights, points).empty());
+}
+
+// ============================================================================
 // Two unrelated curves passing close to each other: property 2 (disjointness)
 // ============================================================================
 
