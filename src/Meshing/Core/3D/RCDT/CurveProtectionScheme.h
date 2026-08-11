@@ -33,7 +33,8 @@ struct UnresolvedProtectionSegment
  * edge chain in the resulting regular triangulation -- the ambiguity is
  * designed out structurally rather than repaired after the fact.
  *
- * Every computed radius satisfies two properties:
+ * Every computed radius satisfies two properties, WHERE POSSIBLE (see the
+ * note on corner-adjacent segments below):
  *
  *  1. Chain connectivity: consecutive balls along the SAME curve overlap
  *     (their radii sum to more than the distance between them), regardless
@@ -41,9 +42,13 @@ struct UnresolvedProtectionSegment
  *     discretization (see BoundaryDiscretizer3D) can vary segment length
  *     substantially along one curve, so a radius based on the LONGER of a
  *     point's two adjacent segments (never the shorter) is used: for any
- *     segment, both of its endpoints' radii are bounded below by a fixed
- *     fraction of that segment's own length, which guarantees overlap
- *     unconditionally rather than only for roughly-uniform sampling.
+ *     segment between two INTERIOR points, both endpoints' radii are
+ *     bounded below by a fixed fraction of that segment's own length, which
+ *     guarantees overlap unconditionally rather than only for
+ *     roughly-uniform sampling. A segment with a corner at one end instead
+ *     compensates the interior endpoint against the corner's own (smaller)
+ *     radius to force the same overlap in one jump -- see below for when
+ *     that compensation is trusted.
  *
  *  2. Disjointness: balls belonging to different, unrelated features (a
  *     different curve, a non-adjacent corner, or a non-consecutive point on
@@ -56,18 +61,30 @@ struct UnresolvedProtectionSegment
  * first step of any incident curve, independent of how that curve's own
  * interior points are sized -- so every curve's radii can shrink toward
  * whichever corner is closer without that corner's own ball ever growing to
- * meet them halfway.
+ * meet them halfway. When a corner is shared with a much more finely-sampled
+ * sibling curve, though, that sizing can starve THIS edge's compensation
+ * term: bridging the full, uncompensated gap in one jump would inflate the
+ * interior point's ball far past this edge's own local scale, encroaching
+ * unrelated refinement work well away from the corner (confirmed on
+ * RCDTMesherTorusTest's periodic seams, OPE-176). The compensation is
+ * therefore only trusted while the corner's radius is still reasonably
+ * proportionate to THIS edge's own first step (see
+ * CORNER_DILUTION_THRESHOLD in the .cpp); when a much finer sibling has
+ * diluted it too far, the segment is left at its natural, uncompensated
+ * radius instead, which can leave it unresolved -- see below.
  *
- * Property 1 and property 2 can conflict when an unrelated feature genuinely
- * passes close to a curve relative to that curve's own sampling density (a
- * small local feature size the discretization didn't anticipate); this
- * class detects that case (findUnresolvedSegments()) and logs it
- * (computeWeights()) rather than silently violating either property.
- * Resolving it means inserting more points into the curve network so radii
- * can close the gap gradually instead of in one jump -- this class doesn't
- * do that itself (it has no geometry access, so it can't place a new point
- * on the true curve) -- see CurveProtectionSubdivider, which drives this
- * class iteratively to do exactly that.
+ * Property 1 (including an undercompensated corner-adjacent segment above)
+ * and property 2 can both leave a segment unresolved when an unrelated
+ * feature, or a differently-scaled corner, is genuinely close to a curve
+ * relative to that curve's own sampling density (a small local feature size
+ * the discretization didn't anticipate); this class detects that case
+ * (findUnresolvedSegments()) and logs it (computeWeights()) rather than
+ * silently violating either property. Resolving it means inserting more
+ * points into the curve network so radii can close the gap gradually
+ * instead of in one jump -- this class doesn't do that itself (it has no
+ * geometry access, so it can't place a new point on the true curve) -- see
+ * CurveProtectionSubdivider, which drives this class iteratively to do
+ * exactly that.
  */
 class CurveProtectionScheme
 {

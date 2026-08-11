@@ -30,7 +30,7 @@ constexpr double INTERIOR_FACTOR = 0.6;
 // which can be far below another incident curve's own first-step length,
 // so that curve's first interior point cannot rely on the general
 // INTERIOR_FACTOR formula alone to overlap this (possibly much smaller)
-// corner ball -- see CORNER_OVERLAP_SLACK.
+// corner ball -- see CORNER_OVERLAP_SLACK and CORNER_DILUTION_THRESHOLD.
 constexpr double CORNER_FACTOR = 0.3;
 
 // A corner-adjacent segment [corner, firstInterior] needs
@@ -49,10 +49,12 @@ constexpr double CORNER_FACTOR = 0.3;
 //   = CORNER_OVERLAP_SLACK * length - (CORNER_OVERLAP_SLACK - 1) * radius(corner)
 //   > CORNER_OVERLAP_SLACK * length - (CORNER_OVERLAP_SLACK - 1) * length   [radius(corner) < length]
 //   = length,
-// unconditionally -- *provided* the interior point's own disjointness
-// clamp (property 2, applied after this) doesn't then shrink it back
-// below what this guarantees. See class comment for when that can still
-// happen (a genuine local-feature-size conflict, not a sequencing bug).
+// unconditionally -- *provided* radius(corner) is at least CORNER_FACTOR
+// times THIS edge's own first step (see CORNER_DILUTION_THRESHOLD for when
+// it isn't) and the interior point's own disjointness clamp (property 2,
+// applied after this) doesn't then shrink it back below what this
+// guarantees. See class comment for when that can still happen (a genuine
+// local-feature-size conflict, not a sequencing bug).
 constexpr double CORNER_OVERLAP_SLACK = 1.1;
 
 // See class comment, property 2: clamping every point's radius to at most
@@ -68,6 +70,34 @@ constexpr double CORNER_OVERLAP_SLACK = 1.1;
 // point positions only, never of any point's radius), so it can be
 // evaluated for any point independent of processing order.
 constexpr double DISJOINT_FACTOR = 0.45;
+
+// A corner-adjacent segment [corner, firstInterior] needs
+// radius(corner) + radius(firstInterior) > length. Bridging that in one
+// jump -- radius(firstInterior) = CORNER_OVERLAP_SLACK * (length -
+// radius(corner)) -- is provably safe (see CORNER_OVERLAP_SLACK) only while
+// radius(corner) is itself proportionate to THIS edge's own length, i.e.
+// this edge is (close to) the corner's own shortest incident edge, the one
+// that actually set radius(corner) via CORNER_FACTOR. When a corner is
+// shared with a much more finely-sampled sibling curve, CORNER_FACTOR sizes
+// the corner from that sibling instead (see CORNER_FACTOR), starving this
+// edge's compensation term: (length - radius(corner)) approaches the full,
+// uncompensated length, so the "one jump" would inflate firstInterior's
+// ball far past this edge's own local scale, potentially swallowing nearby
+// geometry unrelated to the size mismatch that produced it (confirmed on
+// RCDTMesherTorusTest's periodic seams, OPE-176). This threshold detects
+// that dilution directly from the pre-clamp, cross-curve-pooled
+// cornerMinFirstStep (see computeWeights()): compensation is only trusted
+// while cornerMinFirstStep is at least this fraction of THIS edge's own
+// first step -- i.e. this edge is close enough to being the one that set
+// the corner's radius, not just borrowing a much finer sibling's. (The
+// CORNER_FACTOR that would otherwise scale both sides of that ratio cancels
+// out, so the comparison is done directly on the first-step lengths.)
+// Below the threshold, the segment is left at its natural (uncompensated)
+// radius and, if that leaves it unresolved, is closed by
+// CurveProtectionSubdivider inserting points instead -- the same "insert
+// points rather than inflate one ball" resolution the class comment
+// describes for property 1/2 conflicts generally.
+constexpr double CORNER_DILUTION_THRESHOLD = 0.5;
 
 // Union-find over edge IDs, standard iterative find with path compression.
 std::string find(std::unordered_map<std::string, std::string>& parent, const std::string& edgeId)
@@ -215,10 +245,12 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
 
     // Pass 3: interior-point LOCAL radii, now that every corner's FINAL
     // radius is known. The general max-of-neighbors formula (property 1)
-    // applies except where an interior point is adjacent to a corner,
-    // where it must additionally satisfy CORNER_OVERLAP_SLACK against that
-    // corner's final radius -- a chain with exactly one interior point is
-    // adjacent to a corner on both sides at once and must satisfy both.
+    // applies except where an interior point is adjacent to a corner whose
+    // radius isn't diluted by a finer sibling curve (see
+    // CORNER_DILUTION_THRESHOLD), where it must additionally satisfy
+    // CORNER_OVERLAP_SLACK against that corner's final radius -- a chain
+    // with exactly one interior point is adjacent to a corner on both sides
+    // at once and must satisfy both independently.
     std::unordered_map<size_t, double> interiorLocalRadius;
     for (const auto& [edgeId, chain] : edgeIdToPointIndicesMap)
     {
@@ -229,12 +261,21 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
         for (size_t i = 1; i + 1 < chain.size(); ++i)
         {
             double radius = INTERIOR_FACTOR * std::max(segmentLength[i - 1], segmentLength[i]);
-            if (i == 1)
+
+            // Eligibility (see CORNER_DILUTION_THRESHOLD) compares this
+            // edge's own first step against the corner's PRE-clamp,
+            // cross-curve-pooled minimum (cornerMinFirstStep) -- whether a
+            // finer sibling curve dominated the corner's sizing is a
+            // property-1 question, independent of whatever property 2's
+            // disjointness clamp separately did to the corner's final
+            // radius below.
+            if (i == 1 && cornerMinFirstStep.at(chain.front()) >= CORNER_DILUTION_THRESHOLD * segmentLength[i - 1])
             {
                 const double cornerRadius = finalRadius.at(chain.front());
                 radius = std::max(radius, CORNER_OVERLAP_SLACK * (segmentLength[i - 1] - cornerRadius));
             }
-            if (i + 2 == chain.size())
+            if (i + 2 == chain.size() &&
+                cornerMinFirstStep.at(chain.back()) >= CORNER_DILUTION_THRESHOLD * segmentLength[i])
             {
                 const double cornerRadius = finalRadius.at(chain.back());
                 radius = std::max(radius, CORNER_OVERLAP_SLACK * (segmentLength[i] - cornerRadius));

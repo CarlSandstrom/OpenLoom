@@ -8,6 +8,7 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
+#include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
@@ -199,6 +200,22 @@ void RCDTMesher::buildInitial()
         qualitySettings_.minimumEdgeLength = computeMinimumEdgeLength(discretizationResult->points);
     spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", *qualitySettings_.minimumEdgeLength);
 
+    // Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample
+    // point is inserted into the initial triangulation as a WEIGHTED point
+    // (see RegularPredicates3D) rather than an ordinary one, which forces
+    // every crease to appear as an exact edge chain in the resulting
+    // regular triangulation -- this is what lets
+    // RestrictedTriangulation::classifyFace() disambiguate a
+    // crease-straddling face reliably instead of guessing. subdivide()
+    // both sizes those weights (CurveProtectionScheme) and, where a corner's
+    // radius and a curve's own sampling density are too far apart for a
+    // single pair of points to bridge, inserts additional curve points to
+    // close the gap gradually -- see CurveProtectionScheme/
+    // CurveProtectionSubdivider's own docs for the two properties every
+    // radius satisfies and how a conflict between them is resolved.
+    const auto pointWeightsByIndex = CurveProtectionSubdivider::subdivide(
+        *discretizationResult, *topology_, *geometry_, *qualitySettings_.minimumEdgeLength);
+
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces;
     for (const auto& edgeId : topology_->getAllEdgeIds())
         edgeToAdjacentSurfaces[edgeId] = topology_->getEdge(edgeId).getAdjacentSurfaceIds();
@@ -226,39 +243,19 @@ void RCDTMesher::buildInitial()
 
     auto& meshData = meshingContext_->getMeshData();
 
-    // NOT YET WIRED IN (OPE-176): fixed the RCDTMesherCylinderTest
-    // regression the last two fixes surfaced. Its two orphaned edge nodes
-    // traced back to Priority 1 (segment splitting) -- the one priority
-    // never guarded against protecting balls, on the theory that a split
-    // point lies on the protected curve itself. That's true of the curve's
-    // OWN overlapping-by-design balls, but not of an UNRELATED ball a split
-    // point can still land inside (e.g. a nearby corner's): such a point is
-    // "hidden" (redundant) in the weighted/regular triangulation sense, so
-    // Bowyer-Watson's conflict search comes back empty, and the only
-    // fallback (MeshOperations3D::insertVertexBowyerWatson) has is to add
-    // an isolated node with no surrounding tetrahedra at all -- confirmed
-    // via direct correlation (both orphaned nodes' split points had
-    // encroachesProtectingBall() == true, exactly matching the two "no
-    // conflicting tetrahedra" warnings logged for this run). Fixed by
-    // adding the same guard to Priority 1 via a new trySplitSegment()
-    // wrapper used at all five splitSegment() call sites, threaded so
-    // declining one split (mark unrefinable) tries the next candidate
-    // rather than terminating refineStep() -- see RCDTRefiner.h/.cpp.
-    //
-    // Re-tested end to end: RCDTMesherCylinderTest is fully fixed (5/5,
-    // faster than before: 175 iterations vs 243). RCDTMesherTorusTest
-    // improved dramatically too -- AllEdgeNodesCovered now passes (no
-    // orphaned nodes at all), refinement time dropped from 76s to 16.8s
-    // (close to the ~11.6s unweighted baseline), and the Euler
-    // characteristic discrepancy shrank from 16 to 7. Full suite: 352/353,
-    // ~115s (matching the unweighted baseline's timing). Only
-    // EulerCharacteristicIsZero still fails, by a much smaller margin than
-    // when this investigation started (was 24) -- likely the genuine,
-    // expected long-tail case OPE-176's own verification target anticipates
-    // (a handful of non-manifold edges Priority 4 can't close before
-    // hitting minimumEdgeLength_), not a new bug, but not yet confirmed.
-    // Re-enable this block once that's resolved or confirmed acceptable.
-    Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
+    // Every priority in RCDTRefiner is guarded against inserting a point
+    // inside an existing protecting ball (see
+    // RCDTRefiner::encroachesProtectingBall()'s doc) -- including priority
+    // 1's segment splits via trySplitSegment(), which needs the guard too:
+    // a split point lying on the protected curve itself can still land
+    // inside an UNRELATED ball (e.g. a nearby corner's), which would
+    // otherwise orphan the mesh via the empty-conflict-set fallback in
+    // weighted Bowyer-Watson insertion.
+    std::vector<double> pointWeights(discretizationResult->points.size(), 0.0);
+    for (const auto& [pointIndex, weight] : pointWeightsByIndex)
+        pointWeights[pointIndex] = weight;
+    Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds,
+                        pointWeights);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();
     boundingNodeIds_ = delaunay.getBoundingNodeIds();
