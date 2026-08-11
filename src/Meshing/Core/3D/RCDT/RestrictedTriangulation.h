@@ -138,6 +138,42 @@ private:
                                        const MeshData3D& meshData,
                                        const Geometry3D::ISurface3D& surface) const;
 
+    /// If two of face's three nodes are chain-adjacent along the same curve
+    /// -- i.e. meshData's CurveSegmentManager has a segment directly
+    /// connecting them -- returns that node pair. Property 1 of
+    /// CurveProtectionScheme guarantees such a pair's protecting balls
+    /// overlap, which is why classifyFace() treats the edge between them
+    /// specially (see isUniqueEdgeStarCandidate()).
+    static std::optional<std::pair<size_t, size_t>> findProtectedEdge(const FaceKey& face,
+                                                                       const MeshData3D& meshData);
+
+    /// Whether face is the ONLY face in the whole tetrahedralization sharing
+    /// edge (nodeIdA, nodeIdB) -- its "edge star", the ring of tets
+    /// surrounding that edge -- that is a genuinely LOCAL competing
+    /// candidate for surfaceId: passes verticesWithinTrimmedBoundary() AND
+    /// its own dual edge crosses surfaceId's tessellation. classifyFace()
+    /// uses this to trust vertex classification outright on a protected edge
+    /// (see findProtectedEdge()) instead of also requiring crossesSurface()
+    /// on THIS face to confirm it: that oracle's near-degenerate dual-edge
+    /// test is exactly what's unreliable right at a true crease. Rivals are
+    /// still required to pass crossesSurface() themselves -- unlike this
+    /// face, a rival several tets away isn't near-degenerate, so the oracle
+    /// is reliable there, and that's what keeps the ambiguity check LOCAL:
+    /// verticesWithinTrimmedBoundary alone passes for any point anywhere on
+    /// surfaceId's whole CAD patch, which made an earlier version of this
+    /// check (using that alone) reject almost every case as ambiguous with
+    /// no effect on the final mesh (see OPE-176 project memory). Trusting
+    /// ANY single-candidate face touching a protected edge, with no
+    /// uniqueness check at all, was tried before that and reverted too --
+    /// it accepted spurious faces from elsewhere in the edge star.
+    bool isUniqueEdgeStarCandidate(const FaceKey& face,
+                                   size_t nodeIdA,
+                                   size_t nodeIdB,
+                                   const std::string& surfaceId,
+                                   const Geometry3D::ISurface3D& surface,
+                                   const MeshData3D& meshData,
+                                   const MeshConnectivity& connectivity) const;
+
     /// Which of meshData's bounding supertet nodes tetId touches, if any.
     static std::optional<size_t> findTouchedBoundingNode(size_t tetId, const MeshData3D& meshData);
 

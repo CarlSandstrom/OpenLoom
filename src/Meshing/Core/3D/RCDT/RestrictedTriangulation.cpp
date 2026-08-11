@@ -9,7 +9,10 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include "Topology/Topology3D.h"
+
+#include <algorithm>
 
 namespace Meshing
 {
@@ -293,6 +296,35 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         return std::nullopt;
     }
 
+    // A face carrying a genuinely protected edge (two of its three nodes
+    // chain-adjacent along the same curve) has a structural guarantee
+    // crossesSurface()'s dual-edge oracle doesn't: property 1's overlapping
+    // protecting balls certify that edge belongs to exactly one crease. But
+    // that only certifies the EDGE, not this particular FACE -- an edge in a
+    // tetrahedralization is generally shared by many faces (the ring of tets
+    // surrounding it), not just the two genuine boundary ones, so trusting
+    // any single-candidate face touching a protected edge is unsound (tried
+    // and reverted, see OPE-176 project memory: it accepted spurious faces
+    // from elsewhere in that ring). Requiring this face to be the UNIQUE
+    // candidate across the whole edge star narrows the shortcut to the
+    // specific failure this is meant to fix: crossesSurface()'s
+    // near-degenerate crossing test coming back negative for the sole
+    // legitimate candidate.
+    if (candidates.size() == 1)
+    {
+        if (const auto protectedEdge = findProtectedEdge(face, meshData))
+        {
+            const std::string& surfaceId = *candidates.begin();
+            const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
+            if (surface && verticesWithinTrimmedBoundary(face, meshData, *surface) &&
+                isUniqueEdgeStarCandidate(face, protectedEdge->first, protectedEdge->second, surfaceId, *surface,
+                                          meshData, connectivity))
+            {
+                return surfaceId;
+            }
+        }
+    }
+
     const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
     if (!endpoints)
         return std::nullopt;
@@ -312,6 +344,85 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
     }
 
     return std::nullopt;
+}
+
+std::optional<std::pair<size_t, size_t>> RestrictedTriangulation::findProtectedEdge(const FaceKey& face,
+                                                                                     const MeshData3D& meshData)
+{
+    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    const auto& n = face.nodeIds;
+    const std::array<std::pair<size_t, size_t>, 3> edges = {
+        std::make_pair(n[0], n[1]), std::make_pair(n[0], n[2]), std::make_pair(n[1], n[2])};
+    for (const auto& edge : edges)
+    {
+        if (curveSegmentManager.findSegmentId(edge.first, edge.second))
+            return edge;
+    }
+    return std::nullopt;
+}
+
+bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
+                                                        size_t nodeIdA,
+                                                        size_t nodeIdB,
+                                                        const std::string& surfaceId,
+                                                        const Geometry3D::ISurface3D& surface,
+                                                        const MeshData3D& meshData,
+                                                        const MeshConnectivity& connectivity) const
+{
+    // verticesWithinTrimmedBoundary alone is NOT a local test -- it passes
+    // for any point actually on surfaceId's CAD patch, however far from this
+    // specific edge, so most crease edges have plenty of vertex-in-trim
+    // "rivals" purely from unrelated points elsewhere on the same surface
+    // (confirmed on SaddleSurfaceMesh: >95% of protected-edge candidates
+    // rejected as ambiguous by that test alone, with no measurable effect on
+    // the final mesh -- see OPE-176 project memory). crossesSurface() is a
+    // genuinely local test (it's testing THIS rival's own dual Voronoi edge),
+    // and it's only unreliable in the near-degenerate case this shortcut
+    // exists to work around -- which happens right at the true crease, not
+    // several tets away at an unrelated rival -- so requiring a rival to
+    // also pass ITS OWN crossesSurface() before it counts as a genuine
+    // competitor keeps this check local without reintroducing the oracle's
+    // failure mode for our own face.
+    const auto tessellationIt = surfaceTessellations_.find(surfaceId);
+    if (tessellationIt == surfaceTessellations_.end())
+        return false;
+
+    std::unordered_set<FaceKey, FaceKeyHash> edgeStar;
+    for (const size_t elementId : connectivity.getNodeElements(nodeIdA))
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        if (!tet)
+            continue;
+
+        const auto& tetNodeIds = tet->getNodeIds();
+        const bool touchesB = std::find(tetNodeIds.begin(), tetNodeIds.end(), nodeIdB) != tetNodeIds.end();
+        if (!touchesB)
+            continue;
+
+        for (const auto& faceArray : tet->getFaces())
+        {
+            const FaceKey candidateFace(faceArray);
+            const auto& ids = candidateFace.nodeIds;
+            const bool hasA = ids[0] == nodeIdA || ids[1] == nodeIdA || ids[2] == nodeIdA;
+            const bool hasB = ids[0] == nodeIdB || ids[1] == nodeIdB || ids[2] == nodeIdB;
+            if (hasA && hasB)
+                edgeStar.insert(candidateFace);
+        }
+    }
+
+    for (const auto& candidateFace : edgeStar)
+    {
+        if (candidateFace == face)
+            continue;
+        if (!verticesWithinTrimmedBoundary(candidateFace, meshData, surface))
+            continue;
+        const auto endpoints = computeDualEdgeEndpoints(candidateFace, meshData, connectivity);
+        if (!endpoints)
+            continue;
+        if (tessellationIt->second.crossesSurface(endpoints->first, endpoints->second))
+            return false;
+    }
+    return true;
 }
 
 std::optional<size_t> RestrictedTriangulation::findTouchedBoundingNode(size_t tetId, const MeshData3D& meshData)

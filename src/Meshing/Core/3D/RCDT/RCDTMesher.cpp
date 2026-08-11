@@ -263,16 +263,11 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
 
-    meshingContext_->rebuildConnectivity();
-
-    restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
-    const MeshConnectivity connectivity(meshData);
-    restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_,
-                                        *qualitySettings_.minimumEdgeLength, qualitySettings_);
-
-    spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
-                 restrictedTriangulation_->getRestrictedFaces().size());
-
+    // Populated before RestrictedTriangulation::buildFrom() below, not after:
+    // classifyFace() consults the CurveSegmentManager to recognize a
+    // genuinely protected edge (see its doc), so that lookup needs the curve
+    // network in place for the very first classification pass, not just for
+    // ones triggered later by refinement.
     CurveSegmentManager temporarySegmentManager;
     buildCurveSegments(temporarySegmentManager, *topology_, *geometry_,
                        discretizationResult->edgeIdToPointIndicesMap,
@@ -285,6 +280,16 @@ void RCDTMesher::buildInitial()
 
     spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
                  meshData.getCurveSegmentManager().size());
+
+    meshingContext_->rebuildConnectivity();
+
+    restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
+    const MeshConnectivity connectivity(meshData);
+    restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_,
+                                        *qualitySettings_.minimumEdgeLength, qualitySettings_);
+
+    spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
+                 restrictedTriangulation_->getRestrictedFaces().size());
 }
 
 void RCDTMesher::refine(bool includeTetQualityRefinement)

@@ -207,13 +207,22 @@ int main()
     // nearby, but can't close it -- it hits the same minimum-edge-length
     // floor and gives up, leaving a genuine gap rather than an infinite
     // retry. Weighted Delaunay refinement with protecting balls around every
-    // curve segment (now implemented -- see CurveProtectionScheme,
-    // RCDTMesher::buildInitial()) keeps creases as explicit, structurally
-    // protected features instead of repairing straddling faces after the
-    // fact, and has cut this count from 863 (pre-OPE-176) to 126 -- but
-    // classifyFace() itself hasn't been simplified yet to lean on that
-    // guarantee (the ambiguity above is stale commentary until that's done),
-    // and the remaining 126 haven't been root-caused. Not yet closed.
+    // curve segment (see CurveProtectionScheme, RCDTMesher::buildInitial())
+    // keeps creases as explicit, structurally protected features instead of
+    // repairing straddling faces after the fact, and has cut this count from
+    // 863 (pre-OPE-176) to 126. classifyFace() now also leans on that
+    // guarantee directly: a face whose vertex classification narrows to
+    // exactly one surface, on a protected edge (two nodes chain-adjacent
+    // along the same curve -- see CurveSegmentManager), is trusted without
+    // the crossing oracle's confirmation PROVIDED it's the unique such
+    // candidate across the whole edge star -- verified locally by requiring
+    // any rival to pass the oracle itself, since the oracle is only
+    // unreliable in the near-degenerate case right at the true crease, not
+    // several tets away (see RestrictedTriangulation::
+    // isUniqueEdgeStarCandidate()). That closes the specific "sole candidate,
+    // oracle false negative" failure mode and has cut this count further,
+    // from 126 to 84. The remaining 84 haven't been root-caused -- not yet
+    // closed.
     Meshing::SurfaceMesh3DQualitySettings quality;
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
