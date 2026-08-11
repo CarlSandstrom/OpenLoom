@@ -237,9 +237,11 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 {
     if (conflicting.empty())
     {
-        spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found");
         // Just add the vertex without removing any tetrahedra
         size_t nodeId = mutator_->addNode(point, weight);
+        spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found (node {}, "
+                     "point ({}, {}, {}), weight {})",
+                     nodeId, point.x(), point.y(), point.z(), weight);
         return nodeId;
     }
 

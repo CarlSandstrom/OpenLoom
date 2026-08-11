@@ -60,12 +60,15 @@ class RCDTTetQualityController;
 /// segment, the segment is split instead. The same demotion applies to
 /// priority 4's repair point.
 ///
-/// Priorities 2-4 additionally never insert an ordinary Steiner point inside
-/// an existing protecting ball (see encroachesProtectingBall(), OPE-176):
-/// once CurveProtectionScheme sizes weighted points along every crease, a
-/// quality/repair insertion landing inside one would erode exactly the
-/// protection the ball exists to guarantee. Priority 1 is exempt -- its
-/// insertion points lie on the protected curve itself.
+/// Every priority additionally never inserts a point inside an existing
+/// protecting ball (see encroachesProtectingBall(), OPE-176): once
+/// CurveProtectionScheme sizes weighted points along every crease, an
+/// insertion landing inside one would erode exactly the protection the ball
+/// exists to guarantee. This includes priority 1's segment splits (see
+/// trySplitSegment()) -- a split point lying on the protected curve itself
+/// can still fall inside an unrelated curve's ball (e.g. near a shared
+/// corner), which would otherwise orphan the mesh via the empty-conflict-set
+/// fallback in weighted Bowyer-Watson insertion.
 ///
 /// Priority 3 does not detect or fix slivers (tetrahedra with an acceptable
 /// circumradius/edge ratio but poor dihedral angles, or genuinely thin/flat
@@ -182,6 +185,28 @@ private:
     /// Returns true on success.
     bool splitSegment(size_t segmentId);
 
+    /// Guarded entry point for every splitSegment() call site (priority 1's
+    /// direct handling and priorities 2-4's demotion-to-segment-split):
+    /// declines and marks segmentId unrefinable, rather than calling
+    /// splitSegment(), if its own split point would land inside an existing
+    /// protecting ball (see encroachesProtectingBall()'s doc) -- unlike
+    /// priorities 2-4's own direct insertion points, a segment split's
+    /// point can be "hidden" (redundant) in the weighted/regular
+    /// triangulation sense by landing inside an UNRELATED ball (e.g. a
+    /// nearby corner's), not just the same curve's own overlapping-by-
+    /// design balls. When that happens, no existing tetrahedron's
+    /// orthosphere contains it, so Bowyer-Watson's conflict search comes
+    /// back empty -- and MeshOperations3D::insertVertexBowyerWatson's only
+    /// fallback for that case is to add an isolated node with no
+    /// surrounding tetrahedra at all, corrupting the mesh (confirmed: this
+    /// is exactly what orphaned edge nodes in
+    /// RCDTMesherCylinderTest.AllEdgeNodesCovered turned out to be).
+    /// Returns true only if splitSegment() actually ran and succeeded --
+    /// every call site must treat false as "try the next candidate
+    /// instead," not "stop all of refineStep()," since segmentId is
+    /// already handled (marked unrefinable) by the time this returns false.
+    bool trySplitSegment(size_t segmentId);
+
     /// Builds a node-ID → position lookup from the current mesh.
     std::unordered_map<size_t, Point3D> buildNodePositionMap() const;
 
@@ -206,17 +231,16 @@ private:
     /// True if point falls strictly inside any existing node's protecting
     /// ball (a node with nonzero regular-triangulation weight -- see
     /// Node3D::getWeight(), RegularPredicates3D, and CurveProtectionScheme,
-    /// OPE-176). Priorities 2-4 must never insert an ordinary Steiner point
-    /// there: doing so would let an unrelated quality/repair insertion erode
-    /// the crease protection the ball exists to guarantee. Checked at each
-    /// priority's plain-insertion call site, alongside (but conceptually
-    /// distinct from) the existing minimumEdgeLength_ proximity guard --
-    /// same "mark unrefinable rather than retry forever" treatment, since
-    /// there's no meaningful way to "split" a protecting ball the way an
-    /// encroached segment splits. Priority 1 (segment splitting) is exempt:
-    /// its insertion points lie on the protected curve itself, which is
-    /// what a ball's interior is *for* -- not a violation of the property
-    /// this guards.
+    /// OPE-176). No priority may insert a point there, including priority
+    /// 1's segment splits (see trySplitSegment()): doing so would let an
+    /// unrelated quality/repair/split insertion erode the crease protection
+    /// the ball exists to guarantee, or (for a split point specifically) hit
+    /// the empty-conflict-set fallback in weighted Bowyer-Watson insertion
+    /// and orphan the mesh. Checked at each priority's plain-insertion call
+    /// site, alongside (but conceptually distinct from) the existing
+    /// minimumEdgeLength_ proximity guard -- same "mark unrefinable rather
+    /// than retry forever" treatment, since there's no meaningful way to
+    /// "split" a protecting ball the way an encroached segment splits.
     bool encroachesProtectingBall(const Point3D& point) const;
 
     /// Returns the FaceKeys of faces shared by exactly two conflicting tetrahedra

@@ -226,28 +226,38 @@ void RCDTMesher::buildInitial()
 
     auto& meshData = meshingContext_->getMeshData();
 
-    // NOT YET WIRED IN (OPE-176): CurveProtectionScheme's disjointness
-    // clamp had a real bug -- relatedness was defined per single edge, so
-    // two curves sharing a corner (e.g. a torus's two periodic seams,
-    // which close at the same vertex) saw each other's near-corner points
-    // as an unrelated proximity, clamping each other down, triggering more
-    // subdivision, which brought them closer still: a confirmed runaway
-    // loop, not a genuine local-feature-size conflict. Fixed by redefining
-    // relatedness as "same connected component of the curve network"
-    // (edges joined transitively via shared corners) -- see
-    // CurveProtectionScheme.cpp's union-find. Re-tested on
-    // RCDTMesherTorusTest: real, substantial improvement (no subdivision
-    // needed at all now; refinement iterations 2324 -> 1415; time
-    // 181s -> 76s; the Euler characteristic discrepancy shrank from 24 to
-    // 16) but not fully resolved -- EulerCharacteristicIsZero still fails.
-    // Worse, re-running the full suite with this fix live surfaced a NEW
-    // regression on RCDTMesherCylinderTest.AllEdgeNodesCovered (previously
-    // clean), needing exactly one subdivision and leaving 2 edge nodes
-    // outside any triangle -- a smaller-scale, likely different residual
-    // issue from the shared-corner bug just fixed, not yet diagnosed.
-    // Re-enable this block once that's understood; the relatedness fix
-    // itself is correct and committed regardless (see git history) --
-    // don't revert it just because the wiring stays off.
+    // NOT YET WIRED IN (OPE-176): fixed the RCDTMesherCylinderTest
+    // regression the last two fixes surfaced. Its two orphaned edge nodes
+    // traced back to Priority 1 (segment splitting) -- the one priority
+    // never guarded against protecting balls, on the theory that a split
+    // point lies on the protected curve itself. That's true of the curve's
+    // OWN overlapping-by-design balls, but not of an UNRELATED ball a split
+    // point can still land inside (e.g. a nearby corner's): such a point is
+    // "hidden" (redundant) in the weighted/regular triangulation sense, so
+    // Bowyer-Watson's conflict search comes back empty, and the only
+    // fallback (MeshOperations3D::insertVertexBowyerWatson) has is to add
+    // an isolated node with no surrounding tetrahedra at all -- confirmed
+    // via direct correlation (both orphaned nodes' split points had
+    // encroachesProtectingBall() == true, exactly matching the two "no
+    // conflicting tetrahedra" warnings logged for this run). Fixed by
+    // adding the same guard to Priority 1 via a new trySplitSegment()
+    // wrapper used at all five splitSegment() call sites, threaded so
+    // declining one split (mark unrefinable) tries the next candidate
+    // rather than terminating refineStep() -- see RCDTRefiner.h/.cpp.
+    //
+    // Re-tested end to end: RCDTMesherCylinderTest is fully fixed (5/5,
+    // faster than before: 175 iterations vs 243). RCDTMesherTorusTest
+    // improved dramatically too -- AllEdgeNodesCovered now passes (no
+    // orphaned nodes at all), refinement time dropped from 76s to 16.8s
+    // (close to the ~11.6s unweighted baseline), and the Euler
+    // characteristic discrepancy shrank from 16 to 7. Full suite: 352/353,
+    // ~115s (matching the unweighted baseline's timing). Only
+    // EulerCharacteristicIsZero still fails, by a much smaller margin than
+    // when this investigation started (was 24) -- likely the genuine,
+    // expected long-tail case OPE-176's own verification target anticipates
+    // (a handful of non-manifold edges Priority 4 can't close before
+    // hitting minimumEdgeLength_), not a new bug, but not yet confirmed.
+    // Re-enable this block once that's resolved or confirmed acceptable.
     Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();

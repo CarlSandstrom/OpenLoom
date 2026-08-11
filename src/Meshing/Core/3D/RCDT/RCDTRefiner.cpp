@@ -126,7 +126,12 @@ bool RCDTRefiner::refineStep()
             continue;
         }
 
-        return splitSegment(segmentId);
+        // trySplitSegment() already marks segmentId unrefinable when it
+        // declines (ball-encroached or otherwise) -- try the next
+        // encroached segment instead of giving up on this refineStep()
+        // call entirely.
+        if (trySplitSegment(segmentId))
+            return true;
     }
 
     // ---- Priority 2: bad restricted triangles ----
@@ -226,9 +231,18 @@ bool RCDTRefiner::refineStep()
         }
 
         // Demotion: if the circumcenter would encroach a segment, split that segment instead.
+        // If trySplitSegment() declines (marking the segment unrefinable),
+        // this triangle's only resolution path is permanently blocked too
+        // -- mark it unrefinable rather than re-deriving the same doomed
+        // demotion every subsequent refineStep() call.
         const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
         if (!encroachingIds.empty())
-            return splitSegment(encroachingIds[0]);
+        {
+            if (trySplitSegment(encroachingIds[0]))
+                return true;
+            unrefinableTriangles_.insert(bad.face);
+            continue;
+        }
 
         // Never insert inside an existing protecting ball (OPE-176) -- see
         // encroachesProtectingBall()'s doc.
@@ -356,9 +370,18 @@ bool RCDTRefiner::refineBadTetrahedra()
         }
 
         // Demotion: if the circumcenter would encroach a segment, split that segment instead.
+        // If trySplitSegment() declines (marking the segment unrefinable),
+        // this tetrahedron's only resolution path is permanently blocked
+        // too -- mark it unrefinable rather than re-deriving the same
+        // doomed demotion every subsequent refineStep() call.
         const auto encroachingIds = curveSegmentManager.findEncroached(circumcenter, nodePositionMap);
         if (!encroachingIds.empty())
-            return splitSegment(encroachingIds[0]);
+        {
+            if (trySplitSegment(encroachingIds[0]))
+                return true;
+            unrefinableTetrahedra_.insert(tetId);
+            continue;
+        }
 
         // Never insert inside an existing protecting ball (OPE-176) -- see
         // encroachesProtectingBall()'s doc.
@@ -421,9 +444,17 @@ bool RCDTRefiner::refineNonManifoldEdges()
         // non-manifold-edge count grew instead of shrinking. Splitting the
         // segment keeps the new point exactly on the true curve, the same
         // arc-length-midpoint machinery priority 1 already uses.
+        // If trySplitSegment() declines (marking the segment unrefinable),
+        // this defect's preferred resolution is permanently blocked -- mark
+        // it unrefinable too rather than falling back to the surface-
+        // projection path the comment above already established doesn't
+        // reliably resolve a crease-adjacent defect.
         if (const auto segmentId = curveSegmentManager.findSegmentId(defect.edge.nodeIds[0], defect.edge.nodeIds[1]))
         {
-            return splitSegment(*segmentId);
+            if (trySplitSegment(*segmentId))
+                return true;
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
         }
 
         const Geometry3D::ISurface3D* surface = geometry->getSurface(defect.surfaceId);
@@ -459,9 +490,18 @@ bool RCDTRefiner::refineNonManifoldEdges()
         }
 
         // Demotion: if the insertion point would encroach a segment, split that segment instead.
+        // If trySplitSegment() declines (marking the segment unrefinable),
+        // this defect's only resolution path is permanently blocked too --
+        // mark it unrefinable rather than re-deriving the same doomed
+        // demotion every subsequent refineStep() call.
         const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
         if (!encroachingIds.empty())
-            return splitSegment(encroachingIds[0]);
+        {
+            if (trySplitSegment(encroachingIds[0]))
+                return true;
+            unrefinableNonManifoldEdges_.insert(defect.edge);
+            continue;
+        }
 
         // Never insert inside an existing protecting ball (OPE-176) -- see
         // encroachesProtectingBall()'s doc.
@@ -497,6 +537,32 @@ size_t RCDTRefiner::insertAndUpdate(const Point3D& point,
     updateEncroachedSegmentsForNewNode(newNodeId, point);
 
     return newNodeId;
+}
+
+bool RCDTRefiner::trySplitSegment(size_t segmentId)
+{
+    const auto* geometry = context_->getGeometry();
+    if (!geometry)
+    {
+        unrefinableSegments_.insert(segmentId);
+        return false;
+    }
+
+    const CurveSegment segment = context_->getMeshData().getCurveSegmentManager().getSegment(segmentId);
+    const Geometry3D::IEdge3D* edge = geometry->getEdge(segment.edgeId);
+    if (!edge)
+    {
+        unrefinableSegments_.insert(segmentId);
+        return false;
+    }
+
+    if (encroachesProtectingBall(computeSplitPoint(segment, *geometry)))
+    {
+        unrefinableSegments_.insert(segmentId);
+        return false;
+    }
+
+    return splitSegment(segmentId);
 }
 
 bool RCDTRefiner::splitSegment(size_t segmentId)
