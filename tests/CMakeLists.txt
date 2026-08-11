@@ -29,6 +29,7 @@ set(TEST_SOURCES
     Meshing/Core/test_RobustPredicates3D.cpp
     Meshing/Core/test_RegularPredicates3D.cpp
     Meshing/Core/test_CurveProtectionScheme.cpp
+    Meshing/Core/test_CurveProtectionSubdivider.cpp
     Meshing/Core/test_ConstraintChecker3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp

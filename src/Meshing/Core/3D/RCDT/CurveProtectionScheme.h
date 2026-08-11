@@ -11,6 +11,15 @@
 namespace Meshing
 {
 
+/// A curve segment whose two endpoints' final radii don't overlap it -- see
+/// CurveProtectionScheme::findUnresolvedSegments().
+struct UnresolvedProtectionSegment
+{
+    std::string edgeId;
+    size_t nodeId1 = 0;
+    size_t nodeId2 = 0;
+};
+
 /**
  * @brief Computes Boissonnat-Oudot-style protecting-ball weights for a
  * discretized curve network (OPE-176).
@@ -52,9 +61,13 @@ namespace Meshing
  * Property 1 and property 2 can conflict when an unrelated feature genuinely
  * passes close to a curve relative to that curve's own sampling density (a
  * small local feature size the discretization didn't anticipate); this
- * class detects that case and logs it rather than silently violating either
- * property (see .cpp) -- resolving it requires locally re-discretizing the
- * curve, out of this class's scope.
+ * class detects that case (findUnresolvedSegments()) and logs it
+ * (computeWeights()) rather than silently violating either property.
+ * Resolving it means inserting more points into the curve network so radii
+ * can close the gap gradually instead of in one jump -- this class doesn't
+ * do that itself (it has no geometry access, so it can't place a new point
+ * on the true curve) -- see CurveProtectionSubdivider, which drives this
+ * class iteratively to do exactly that.
  */
 class CurveProtectionScheme
 {
@@ -77,6 +90,22 @@ public:
     static std::unordered_map<size_t, double> computeWeights(
         const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
         const std::unordered_set<size_t>& cornerPointIndices,
+        const std::vector<Point3D>& points);
+
+    /// Every consecutive pair in edgeIdToPointIndicesMap whose weights (as
+    /// returned by computeWeights(), or any other weight assignment a
+    /// caller wants to check) don't overlap -- i.e. every violation of
+    /// property 1 (see class comment). weights maps point index to weight
+    /// (radius squared); a point absent from weights is treated as radius
+    /// 0. Exposed as its own query (mirrors RestrictedTriangulation::
+    /// findNonManifoldEdges()) so a caller like CurveProtectionSubdivider
+    /// can react to specific violations instead of only seeing
+    /// computeWeights()'s log output. computeWeights() itself calls this to
+    /// produce that log output, so the two never disagree about what counts
+    /// as a violation.
+    static std::vector<UnresolvedProtectionSegment> findUnresolvedSegments(
+        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
+        const std::unordered_map<size_t, double>& weights,
         const std::vector<Point3D>& points);
 };
 

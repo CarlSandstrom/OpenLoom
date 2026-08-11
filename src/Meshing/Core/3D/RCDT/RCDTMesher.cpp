@@ -33,45 +33,38 @@ namespace
 {
 
 // Computes a minimum edge length from the initial mesh's node distribution —
-// the median nearest-neighbor distance among non-bounding nodes, divided by
-// 10. Median rather than minimum because a periodic curve's discretization
-// can leave a short "remainder" segment near its seam vertex that isn't
+// the median nearest-neighbor distance among the points, divided by 10.
+// Median rather than minimum because a periodic curve's discretization can
+// leave a short "remainder" segment near its seam vertex that isn't
 // representative of the intended spacing (see project memory: Linear ticket
 // on removing OCC seams).
-double computeMinimumEdgeLength(const MeshData3D& meshData)
+//
+// Takes the raw discretization points rather than MeshData3D: computed from
+// discretizationResult->points before Delaunay3D::triangulate() runs (so
+// CurveProtectionSubdivider has a floor to subdivide against), which is
+// exactly the same point set the initial mesh's non-bounding nodes have
+// right after triangulation -- inserting the bounding tetrahedron and
+// triangulating neither adds nor removes any of them.
+double computeMinimumEdgeLength(const std::vector<Point3D>& points)
 {
-    const auto& nodes = meshData.getNodes();
-    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
-
-    const auto isBoundingNode = [&boundingNodeIds](size_t nodeId)
+    std::vector<double> nearestPerPoint;
+    nearestPerPoint.reserve(points.size());
+    for (size_t i = 0; i < points.size(); ++i)
     {
-        if (!boundingNodeIds)
-            return false;
-        for (const size_t id : *boundingNodeIds)
-            if (id == nodeId)
-                return true;
-        return false;
-    };
-
-    std::vector<double> nearestPerNode;
-    for (const auto& [nodeId, node] : nodes)
-    {
-        if (isBoundingNode(nodeId))
-            continue;
         double nearest = std::numeric_limits<double>::max();
-        for (const auto& [otherId, otherNode] : nodes)
+        for (size_t j = 0; j < points.size(); ++j)
         {
-            if (otherId == nodeId || isBoundingNode(otherId))
+            if (i == j)
                 continue;
-            nearest = std::min(nearest, (node->getCoordinates() - otherNode->getCoordinates()).norm());
+            nearest = std::min(nearest, (points[i] - points[j]).norm());
         }
-        nearestPerNode.push_back(nearest);
+        nearestPerPoint.push_back(nearest);
     }
-    if (nearestPerNode.empty())
+    if (nearestPerPoint.empty())
         return 0.0;
 
-    std::sort(nearestPerNode.begin(), nearestPerNode.end());
-    const double median = nearestPerNode[nearestPerNode.size() / 2];
+    std::sort(nearestPerPoint.begin(), nearestPerPoint.end());
+    const double median = nearestPerPoint[nearestPerPoint.size() / 2];
     constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
     return median / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
 }
@@ -198,6 +191,14 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: {} points after discretization",
                  discretizationResult->points.size());
 
+    // Resolved here, before CurveProtectionSubdivider/Delaunay3D run, since
+    // the subdivider needs a size floor to subdivide against -- see
+    // computeMinimumEdgeLength()'s doc for why this is the same value
+    // computing it from the post-triangulation mesh would give.
+    if (!qualitySettings_.minimumEdgeLength)
+        qualitySettings_.minimumEdgeLength = computeMinimumEdgeLength(discretizationResult->points);
+    spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", *qualitySettings_.minimumEdgeLength);
+
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces;
     for (const auto& edgeId : topology_->getAllEdgeIds())
         edgeToAdjacentSurfaces[edgeId] = topology_->getEdge(edgeId).getAdjacentSurfaceIds();
@@ -225,30 +226,28 @@ void RCDTMesher::buildInitial()
 
     auto& meshData = meshingContext_->getMeshData();
 
-    // NOT YET WIRED IN (OPE-176): CurveProtectionScheme can compute
-    // protecting-ball weights for the curve/corner network here, and
-    // Delaunay3D/insertVertexBowyerWatson/RCDTRefiner (see
-    // RCDTRefiner::encroachesProtectingBall()) correctly persist and act on
-    // them end to end. A corners-before-interior sequencing bug in the
-    // disjointness clamp (property 2) was found and fixed -- it sized a
-    // corner-adjacent interior point's compensation against the corner's
-    // PRE-clamp radius, which a later clamp pass could (and did) shrink out
-    // from under it. That fix is real and worth keeping, but re-testing on
-    // RCDTMesherTorusTest confirmed it doesn't resolve that test's failure:
-    // the interior point on the torus's periodic seam has its OWN
-    // independently-binding disjointness clamp (an unrelated feature sits
-    // close to it directly, not just close to its corner), so no
-    // corner-side fix can help -- the clamp numbers logged are bit-for-bit
-    // identical before and after the sequencing fix. This is a genuine
-    // local-feature-size conflict: the torus's sampling density is too
-    // coarse, relative to how close two unrelated parts of its geometry
-    // pass to each other, for ANY single-point resizing to satisfy both
-    // properties. The real fix is inserting additional points near the
-    // tight region so radii can shrink in several smaller geometric steps
-    // (the standard Boissonnat-Oudot approach) rather than one large jump --
-    // a bigger change (CurveProtectionScheme would need to add points, not
-    // just size existing ones) out of scope here. Re-enable this block once
-    // that's implemented.
+    // NOT YET WIRED IN (OPE-176): CurveProtectionSubdivider::subdivide()
+    // (inserting extra points near a genuine local-feature-size conflict,
+    // then CurveProtectionScheme::computeWeights() for the final weights)
+    // is implemented, tested in isolation, and DOES measurably help on
+    // RCDTMesherTorusTest's periodic seam: wiring it in here fixed one of
+    // the two watertightness failures the plain sequencing fix couldn't
+    // (AllEdgeNodesCovered now passes). But it doesn't fully close the gap:
+    // EulerCharacteristicIsZero still fails, and refinement is still ~15x
+    // slower than the unweighted baseline (11.6s/449 iterations ->
+    // 181s/2324 iterations) -- down from the ~34x/6m24s regression before
+    // subdivision existed, but not resolved. The subdivider hit
+    // minimumEdgeLength_ before closing 4 remaining violations near the
+    // seam corner; simply loosening that floor for the subdivider alone
+    // (it's a much cheaper operation to over-subdivide than
+    // general-purpose refinement is) is the most promising next step, but
+    // hasn't been tried -- flagging rather than guessing, since the reason
+    // bisection isn't converging as fast as expected right at this specific
+    // corner isn't yet understood (the torus's periodic curvature may mean
+    // "distance to the corner's problem feature" isn't monotonic along the
+    // curve the way the straight synthetic test cases that validated
+    // CurveProtectionSubdivider assumed). Re-enable this block (see the
+    // reverted code in git history) once that's resolved.
     Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds);
     delaunay.triangulate();
     const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();
@@ -256,16 +255,6 @@ void RCDTMesher::buildInitial()
 
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
-
-    // Resolve minimumEdgeLength here — the initial mesh is present, so the
-    // auto-computation (median nearest-neighbor / 10) has the data it needs.
-    // Storing it back into qualitySettings_ means RCDTRefiner reads the same
-    // value without recomputing, and the surface tessellation oracle can be
-    // sized correctly from the start rather than rebuilt during refinement.
-    if (!qualitySettings_.minimumEdgeLength)
-        qualitySettings_.minimumEdgeLength = computeMinimumEdgeLength(meshData);
-    spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}",
-                 *qualitySettings_.minimumEdgeLength);
 
     meshingContext_->rebuildConnectivity();
 

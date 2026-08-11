@@ -3,6 +3,7 @@
 #include "Common/Types.h"
 #include "Meshing/Core/3D/RCDT/CurveProtectionScheme.h"
 
+#include <algorithm>
 #include <cmath>
 
 using namespace Meshing;
@@ -24,7 +25,10 @@ double radiusOf(const std::unordered_map<size_t, double>& weights, size_t point)
 TEST(CurveProtectionSchemeTest, UniformCurve_EveryPointGetsAWeight)
 {
     const std::vector<Point3D> points = {
-        Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0), Point3D(2.0, 0.0, 0.0), Point3D(3.0, 0.0, 0.0),
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(3.0, 0.0, 0.0),
     };
     const std::map<std::string, std::vector<size_t>> edges = {{"edgeA", {0, 1, 2, 3}}};
     const std::unordered_set<size_t> corners = {0, 3};
@@ -40,7 +44,10 @@ TEST(CurveProtectionSchemeTest, UniformCurve_ConsecutiveBallsOverlap)
     // Property 1: for every consecutive pair, radii must sum to more than
     // the segment length between them.
     const std::vector<Point3D> points = {
-        Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0), Point3D(2.0, 0.0, 0.0), Point3D(3.0, 0.0, 0.0),
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(3.0, 0.0, 0.0),
     };
     const std::map<std::string, std::vector<size_t>> edges = {{"edgeA", {0, 1, 2, 3}}};
     const std::unordered_set<size_t> corners = {0, 3};
@@ -59,7 +66,10 @@ TEST(CurveProtectionSchemeTest, UniformCurve_CornersAreSmallerThanInteriorPoints
     // Corners get "strong" (smaller) balls that interior points shrink
     // toward -- not the reverse.
     const std::vector<Point3D> points = {
-        Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0), Point3D(2.0, 0.0, 0.0), Point3D(3.0, 0.0, 0.0),
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(3.0, 0.0, 0.0),
     };
     const std::map<std::string, std::vector<size_t>> edges = {{"edgeA", {0, 1, 2, 3}}};
     const std::unordered_set<size_t> corners = {0, 3};
@@ -111,8 +121,11 @@ TEST(CurveProtectionSchemeTest, TwoNearbyUnrelatedCurves_BallsDoNotOverlap)
     // within 0.05 of curve A's midpoint (point 1), much closer than curve
     // A's own 1.0 sampling density would otherwise suggest.
     const std::vector<Point3D> points = {
-        Point3D(0.0, 0.0, 0.0),  Point3D(1.0, 0.0, 0.0),  Point3D(2.0, 0.0, 0.0),
-        Point3D(1.0, 0.05, 0.0), Point3D(1.0, 1.0, 0.0),
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(1.0, 0.05, 0.0),
+        Point3D(1.0, 1.0, 0.0),
     };
     const std::map<std::string, std::vector<size_t>> edges = {
         {"edgeA", {0, 1, 2}},
@@ -135,8 +148,12 @@ TEST(CurveProtectionSchemeTest, TwoDistantUnrelatedCurves_ClampDoesNotShrinkBelo
     // actually nearby: two curves far apart from each other should size
     // exactly as the single-curve tests do.
     const std::vector<Point3D> points = {
-        Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0), Point3D(2.0, 0.0, 0.0),
-        Point3D(0.0, 100.0, 0.0), Point3D(1.0, 100.0, 0.0), Point3D(2.0, 100.0, 0.0),
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(0.0, 100.0, 0.0),
+        Point3D(1.0, 100.0, 0.0),
+        Point3D(2.0, 100.0, 0.0),
     };
     const std::map<std::string, std::vector<size_t>> edges = {
         {"edgeA", {0, 1, 2}},
@@ -162,10 +179,10 @@ TEST(CurveProtectionSchemeTest, CornerSharedByMultipleCurves_UsesShortestInciden
     // corner's radius must be driven by the shortest (0.1), not an average
     // or the longest.
     const std::vector<Point3D> points = {
-        Point3D(0.0, 0.0, 0.0),  // corner
-        Point3D(1.0, 0.0, 0.0),  // edgeA far endpoint
-        Point3D(0.0, 0.1, 0.0),  // edgeB far endpoint (short)
-        Point3D(0.0, 0.0, 1.0),  // edgeC far endpoint
+        Point3D(0.0, 0.0, 0.0), // corner
+        Point3D(1.0, 0.0, 0.0), // edgeA far endpoint
+        Point3D(0.0, 0.1, 0.0), // edgeB far endpoint (short)
+        Point3D(0.0, 0.0, 1.0), // edgeC far endpoint
     };
     const std::map<std::string, std::vector<size_t>> edges = {
         {"edgeA", {0, 1}},
@@ -177,4 +194,67 @@ TEST(CurveProtectionSchemeTest, CornerSharedByMultipleCurves_UsesShortestInciden
     const auto weights = CurveProtectionScheme::computeWeights(edges, corners, points);
 
     EXPECT_NEAR(radiusOf(weights, 0), 0.3 * 0.1, 1e-12);
+}
+
+// ============================================================================
+// findUnresolvedSegments
+// ============================================================================
+
+TEST(CurveProtectionSchemeTest, FindUnresolvedSegments_WellSeparatedCurve_ReportsNothing)
+{
+    const std::vector<Point3D> points = {
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(3.0, 0.0, 0.0),
+    };
+    const std::map<std::string, std::vector<size_t>> edges = {{"edgeA", {0, 1, 2, 3}}};
+    const std::unordered_set<size_t> corners = {0, 3};
+
+    const auto weights = CurveProtectionScheme::computeWeights(edges, corners, points);
+    const auto unresolved = CurveProtectionScheme::findUnresolvedSegments(edges, weights, points);
+
+    EXPECT_TRUE(unresolved.empty());
+}
+
+TEST(CurveProtectionSchemeTest, FindUnresolvedSegments_NearbyUnrelatedCurve_ReportsTheGap)
+{
+    // Same construction as TwoNearbyUnrelatedCurves_BallsDoNotOverlap: point
+    // 1 (curve A) and point 3 (curve B) are close enough that curve A's own
+    // 0-1 segment can't be bridged once point 1 is clamped for disjointness.
+    const std::vector<Point3D> points = {
+        Point3D(0.0, 0.0, 0.0),
+        Point3D(1.0, 0.0, 0.0),
+        Point3D(2.0, 0.0, 0.0),
+        Point3D(1.0, 0.05, 0.0),
+        Point3D(1.0, 1.0, 0.0),
+    };
+    const std::map<std::string, std::vector<size_t>> edges = {
+        {"edgeA", {0, 1, 2}},
+        {"edgeB", {3, 4}},
+    };
+    const std::unordered_set<size_t> corners = {0, 2, 3, 4};
+
+    const auto weights = CurveProtectionScheme::computeWeights(edges, corners, points);
+    const auto unresolved = CurveProtectionScheme::findUnresolvedSegments(edges, weights, points);
+
+    ASSERT_FALSE(unresolved.empty());
+    EXPECT_TRUE(std::any_of(unresolved.begin(), unresolved.end(),
+                            [](const auto& segment)
+                            { return segment.edgeId == "edgeA"; }));
+}
+
+TEST(CurveProtectionSchemeTest, FindUnresolvedSegments_MissingWeightTreatedAsZeroRadius)
+{
+    // A point absent from the weights map (e.g. one a caller hasn't sized
+    // yet) is treated as radius 0, not as an error.
+    const std::vector<Point3D> points = {Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0)};
+    const std::map<std::string, std::vector<size_t>> edges = {{"edgeA", {0, 1}}};
+    const std::unordered_map<size_t, double> weights = {{0, 0.01}}; // point 1 absent
+
+    const auto unresolved = CurveProtectionScheme::findUnresolvedSegments(edges, weights, points);
+
+    ASSERT_EQ(unresolved.size(), 1u);
+    EXPECT_EQ(unresolved[0].nodeId1, 0u);
+    EXPECT_EQ(unresolved[0].nodeId2, 1u);
 }

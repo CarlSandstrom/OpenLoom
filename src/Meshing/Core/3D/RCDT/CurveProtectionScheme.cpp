@@ -2,6 +2,7 @@
 
 #include "spdlog/spdlog.h"
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace Meshing
@@ -201,32 +202,49 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
     for (size_t p : orderedFeaturePoints)
         finalRadius.try_emplace(p, 0.0);
 
+    std::unordered_map<size_t, double> weights;
+    weights.reserve(finalRadius.size());
+    for (const auto& [point, radius] : finalRadius)
+        weights[point] = radius * radius;
+
     // Verify property 1 survived the property-2 clamp; a violation means an
     // unrelated feature passes close enough to this curve, relative to its
     // own local sampling, that no single-pass sizing can satisfy both
     // properties at once -- flagged rather than silently producing a gap in
     // the crease protection (see class comment).
+    for (const auto& violation : findUnresolvedSegments(edgeIdToPointIndicesMap, weights, points))
+    {
+        spdlog::warn("CurveProtectionScheme::computeWeights: protecting balls for edge '{}' do not overlap "
+                     "between points {} and {} -- an unrelated feature is too close to this curve for its "
+                     "current sampling density",
+                     violation.edgeId, violation.nodeId1, violation.nodeId2);
+    }
+
+    return weights;
+}
+
+std::vector<UnresolvedProtectionSegment> CurveProtectionScheme::findUnresolvedSegments(
+    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
+    const std::unordered_map<size_t, double>& weights,
+    const std::vector<Point3D>& points)
+{
+    auto radiusOf = [&weights](size_t point)
+    {
+        const auto it = weights.find(point);
+        return it == weights.end() ? 0.0 : std::sqrt(it->second);
+    };
+
+    std::vector<UnresolvedProtectionSegment> unresolved;
     for (const auto& [edgeId, chain] : edgeIdToPointIndicesMap)
     {
         for (size_t k = 0; k + 1 < chain.size(); ++k)
         {
             const double distance = (points[chain[k]] - points[chain[k + 1]]).norm();
-            if (finalRadius[chain[k]] + finalRadius[chain[k + 1]] <= distance)
-            {
-                spdlog::warn("CurveProtectionScheme::computeWeights: protecting balls for edge '{}' do not "
-                             "overlap between points {} and {} (radii {} + {} <= segment length {}) -- an "
-                             "unrelated feature is too close to this curve for its current sampling density",
-                             edgeId, chain[k], chain[k + 1], finalRadius[chain[k]], finalRadius[chain[k + 1]],
-                             distance);
-            }
+            if (radiusOf(chain[k]) + radiusOf(chain[k + 1]) <= distance)
+                unresolved.push_back({edgeId, chain[k], chain[k + 1]});
         }
     }
-
-    std::unordered_map<size_t, double> weights;
-    weights.reserve(finalRadius.size());
-    for (const auto& [point, radius] : finalRadius)
-        weights[point] = radius * radius;
-    return weights;
+    return unresolved;
 }
 
 } // namespace Meshing
