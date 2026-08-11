@@ -52,9 +52,12 @@ struct UnresolvedProtectionSegment
  *
  *  2. Disjointness: balls belonging to different, unrelated features (a
  *     different curve, a non-adjacent corner, or a non-consecutive point on
- *     the same curve) never overlap -- every point's radius is clamped to a
- *     fraction of its distance to the nearest point it isn't chain-adjacent
- *     to, which (see .cpp) is sufficient to keep every unrelated pair's
+ *     the same curve) never overlap, and no ball ever swallows a point
+ *     outside the curve network entirely (e.g. an ordinary face-interior
+ *     sample -- see BoundaryDiscretizer3D) -- every point's radius is
+ *     clamped to a fraction of its distance to the nearest point it isn't
+ *     chain-adjacent to, or to any point not part of the curve network at
+ *     all, which (see .cpp) is sufficient to keep every unrelated pair's
  *     balls from summing past their separation.
  *
  * Corners get the smallest ("strong") balls -- sized from the shortest

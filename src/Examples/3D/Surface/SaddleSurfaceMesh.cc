@@ -54,12 +54,13 @@
 #include <gp_Pnt.hxx>
 
 #include <iostream>
+#include <map>
 #include <numbers>
 
 namespace
 {
 
-constexpr double L = 2.0;       // half-extent of the saddle domain in x and y
+constexpr double L = 2.0;         // half-extent of the saddle domain in x and y
 constexpr double Z_BOTTOM = -5.0; // flat bottom, below the lowest saddle point (z = -L² = -4)
 
 // Builds the saddle solid: a closed shell consisting of the hyperbolic paraboloid
@@ -195,21 +196,24 @@ int main()
     // (encroachment/bad-triangle tracking is incremental, not an O(n)
     // rescan).
     //
-    // Known limitation: the finished mesh still has a few hundred
-    // non-manifold "hole" edges, concentrated on the creases between the
-    // saddle top and its four side/bottom neighbors. RestrictedTriangulation
-    // ::classifyFace() has to pick which of two candidate surfaces a
-    // crease-straddling face belongs to, using a discrete tessellation of
-    // each surface as an exact crossing oracle; right at a shared boundary
-    // that's an inherently ambiguous, all-or-nothing call, no matter how
-    // fine the oracle's grid is. Priority 4's repair loop narrows the
-    // failure window by densifying nearby, but can't close it -- it hits the
-    // same minimum-edge-length floor and gives up, leaving a genuine gap
-    // rather than an infinite retry. Fixing this properly means keeping
-    // creases as explicit, protected features in the triangulation (e.g.
-    // weighted Delaunay refinement with protecting balls around every curve
-    // segment) rather than repairing straddling faces after the fact -- not
-    // yet implemented.
+    // Known limitation (OPE-176): the finished mesh still has non-manifold
+    // "hole" edges, concentrated on the creases between the saddle top and
+    // its four side/bottom neighbors. RestrictedTriangulation::classifyFace()
+    // has to pick which of two candidate surfaces a crease-straddling face
+    // belongs to, using a discrete tessellation of each surface as an exact
+    // crossing oracle; right at a shared boundary that's an inherently
+    // ambiguous, all-or-nothing call, no matter how fine the oracle's grid
+    // is. Priority 4's repair loop narrows the failure window by densifying
+    // nearby, but can't close it -- it hits the same minimum-edge-length
+    // floor and gives up, leaving a genuine gap rather than an infinite
+    // retry. Weighted Delaunay refinement with protecting balls around every
+    // curve segment (now implemented -- see CurveProtectionScheme,
+    // RCDTMesher::buildInitial()) keeps creases as explicit, structurally
+    // protected features instead of repairing straddling faces after the
+    // fact, and has cut this count from 863 (pre-OPE-176) to 126 -- but
+    // classifyFace() itself hasn't been simplified yet to lean on that
+    // guarantee (the ambiguity above is stale commentary until that's done),
+    // and the remaining 126 haven't been root-caused. Not yet closed.
     Meshing::SurfaceMesh3DQualitySettings quality;
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
@@ -224,6 +228,27 @@ int main()
 
     exporter.writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh.vtu");
     std::cout << "Exported refined mesh to SaddleSurfaceMesh.vtu\n";
+
+    // Non-manifold hole edge count -- the OPE-176 verification target this
+    // stress test exists to check (see the "Known limitation" note above).
+    // An edge shared by exactly 2 triangles is a normal closed-manifold
+    // interior edge; any other count is a hole (< 2) or self-intersection
+    // (> 2) in the restricted face set.
+    std::map<std::pair<size_t, size_t>, int> edgeMultiplicity;
+    for (const auto& triangle : surfaceMesh.triangles)
+        for (size_t i = 0; i < 3; ++i)
+        {
+            size_t a = triangle[i];
+            size_t b = triangle[(i + 1) % 3];
+            if (a > b)
+                std::swap(a, b);
+            edgeMultiplicity[{a, b}]++;
+        }
+    int nonManifoldEdgeCount = 0;
+    for (const auto& [edge, count] : edgeMultiplicity)
+        if (count != 2)
+            ++nonManifoldEdgeCount;
+    std::cout << "Non-manifold hole edges: " << nonManifoldEdgeCount << "\n";
 
     return 0;
 }

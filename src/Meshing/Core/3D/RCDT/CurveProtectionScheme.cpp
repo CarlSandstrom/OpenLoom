@@ -68,7 +68,12 @@ constexpr double CORNER_OVERLAP_SLACK = 1.1;
 // radius(x) + radius(y) <= 2*DISJOINT_FACTOR*dist(x,y) < dist(x,y) whenever
 // DISJOINT_FACTOR < 0.5. This clamp is purely positional (a function of
 // point positions only, never of any point's radius), so it can be
-// evaluated for any point independent of processing order.
+// evaluated for any point independent of processing order. The same clamp
+// also applies against the nearest point outside the curve network
+// entirely (see nearestUnrelatedDistance() in computeWeights()) -- there
+// the bound is even more comfortable, since such a point has no ball of its
+// own to sum against: radius(x) <= DISJOINT_FACTOR * dist(x,q) < dist(x,q)
+// unconditionally for DISJOINT_FACTOR < 1.
 constexpr double DISJOINT_FACTOR = 0.45;
 
 // A corner-adjacent segment [corner, firstInterior] needs
@@ -236,6 +241,23 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
                 continue;
             nearest = std::min(nearest, (points[p] - points[q]).norm());
         }
+
+        // A point outside the curve network entirely (not in featurePoints
+        // at all -- typically a face-interior sample, see
+        // BoundaryDiscretizer3D) can never be chain-adjacent or
+        // same-component with p, so it's unconditionally unrelated too.
+        // Without this, a coarsely-sampled straight edge's natural or
+        // corner-compensated radius (property 1 alone, sized purely from
+        // curve-network topology) can legitimately come out large enough to
+        // swallow a nearby face-interior point the disjointness clamp above
+        // never even looks at -- confirmed on SaddleSurfaceMesh's flat
+        // bottom face, OPE-176. Same O(n) caveat as the loop above.
+        for (size_t q = 0; q < points.size(); ++q)
+        {
+            if (featurePoints.count(q))
+                continue;
+            nearest = std::min(nearest, (points[p] - points[q]).norm());
+        }
         return nearest;
     };
 
@@ -284,12 +306,13 @@ std::unordered_map<size_t, double> CurveProtectionScheme::computeWeights(
         }
     }
 
-    // Clamp interior points. Brute-force O(n^2) over feature points -- fine
-    // at the boundary-discretization point counts RCDT deals with today;
-    // revisit with a spatial index if profiling ever shows this dominating
-    // (see e.g. the SurfaceTessellation/RCDTRefiner incrementalization
-    // history for the project's general "correct first, optimize when it's
-    // an actual bottleneck" pattern).
+    // Clamp interior points. Brute-force O(featurePoints * points.size())
+    // (see nearestUnrelatedDistance()) -- fine at the boundary-discretization
+    // point counts RCDT deals with today; revisit with a spatial index if
+    // profiling ever shows this dominating (see e.g. the
+    // SurfaceTessellation/RCDTRefiner incrementalization history for the
+    // project's general "correct first, optimize when it's an actual
+    // bottleneck" pattern).
     for (const auto& [interiorPoint, localRadius] : interiorLocalRadius)
         finalRadius[interiorPoint] = std::min(localRadius, DISJOINT_FACTOR * nearestUnrelatedDistance(interiorPoint));
 
