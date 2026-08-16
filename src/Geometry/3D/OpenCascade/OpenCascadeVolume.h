@@ -35,6 +35,14 @@ private:
     // on every classifyPoint() call -- see OpenCascadeSurface's adaptors for
     // the same rationale.
     mutable std::unique_ptr<BRepClass3d_SolidClassifier> classifier_;
+
+    // Cached on first use -- see OpenCascadeSurface::isPointWithinTrimmedBoundary
+    // for why classification tolerance needs to scale with the geometry's own
+    // size rather than a bare Precision::Confusion(): a query point (a tet
+    // circumcenter) has typically gone through RCDT's own accumulated
+    // arithmetic, so a point genuinely meant to sit on the boundary can be
+    // numerically fuzzy well past kernel-level tolerance.
+    mutable double diameter_ = -1.0;
 };
 
 } // namespace Geometry3D

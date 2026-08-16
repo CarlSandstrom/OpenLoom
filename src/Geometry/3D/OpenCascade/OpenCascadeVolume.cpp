@@ -1,8 +1,12 @@
 #include "OpenCascadeVolume.h"
+#include <Bnd_Box.hxx>
+#include <BRepBndLib.hxx>
 #include <BRepClass3d_SolidClassifier.hxx>
 #include <Precision.hxx>
 #include <TopAbs_State.hxx>
 #include <TopoDS_Shape.hxx>
+#include <algorithm>
+#include <cmath>
 #include <functional>
 #include <gp_Pnt.hxx>
 #include <sstream>
@@ -31,7 +35,19 @@ VolumeClassification OpenCascadeVolume::classifyPoint(const Meshing::Point3D& po
     if (!classifier_)
         classifier_ = std::make_unique<BRepClass3d_SolidClassifier>(solid_);
 
-    classifier_->Perform(gp_Pnt(point.x(), point.y(), point.z()), Precision::Confusion());
+    if (diameter_ < 0.0)
+    {
+        Bnd_Box box;
+        BRepBndLib::Add(solid_, box);
+        diameter_ = box.IsVoid() ? 0.0 : std::sqrt(box.SquareExtent());
+        if (diameter_ <= 0.0)
+            diameter_ = 1.0;
+    }
+
+    constexpr double RELATIVE_TOLERANCE = 1e-4;
+    const double tolerance = std::max(Precision::Confusion(), RELATIVE_TOLERANCE * diameter_);
+
+    classifier_->Perform(gp_Pnt(point.x(), point.y(), point.z()), tolerance);
 
     switch (classifier_->State())
     {
