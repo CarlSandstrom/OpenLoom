@@ -7,6 +7,7 @@
 #include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
+#include "Topology/Volume3D.h"
 #include <TopoDS_Shape.hxx>
 #include <memory>
 #include <unordered_map>
@@ -28,6 +29,7 @@ private:
     void createSurfaces();
     void createEdges();
     void createCorners();
+    void createVolumes();
 
 private:
     const TopoDS_Shape& shape_;
@@ -36,6 +38,7 @@ private:
     std::unordered_map<std::string, Topology3D::Corner3D> corners_;
     std::unordered_map<std::string, Topology3D::Edge3D> edges_;
     std::unordered_map<std::string, Topology3D::Surface3D> surfaces_;
+    std::unordered_map<std::string, Topology3D::Volume3D> volumes_;
     Topology3D::SeamCollection seams_;
     std::unique_ptr<Topology3D::Topology3D> topology_;
 

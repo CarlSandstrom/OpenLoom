@@ -6,10 +6,12 @@ namespace Geometry3D
 
 GeometryCollection3D::GeometryCollection3D(std::unordered_map<std::string, std::unique_ptr<ISurface3D>> surfaces,
                                            std::unordered_map<std::string, std::unique_ptr<IEdge3D>> edges,
-                                           std::unordered_map<std::string, std::unique_ptr<ICorner3D>> corners) :
+                                           std::unordered_map<std::string, std::unique_ptr<ICorner3D>> corners,
+                                           std::unordered_map<std::string, std::unique_ptr<IVolume3D>> volumes) :
     surfaces_(std::move(surfaces)),
     edges_(std::move(edges)),
-    corners_(std::move(corners))
+    corners_(std::move(corners)),
+    volumes_(std::move(volumes))
 {
 }
 
@@ -39,6 +41,16 @@ ICorner3D* GeometryCollection3D::getCorner(const std::string& id) const
     if (it == corners_.end())
     {
         OPENLOOM_THROW_ENTITY_NOT_FOUND("Corner", id);
+    }
+    return it->second.get();
+}
+
+IVolume3D* GeometryCollection3D::getVolume(const std::string& id) const
+{
+    auto it = volumes_.find(id);
+    if (it == volumes_.end())
+    {
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("Volume", id);
     }
     return it->second.get();
 }

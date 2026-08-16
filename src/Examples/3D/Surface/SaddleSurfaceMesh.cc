@@ -44,11 +44,14 @@
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
 #include <BRepBuilderAPI_MakeFace.hxx>
+#include <BRepBuilderAPI_MakeSolid.hxx>
 #include <BRepBuilderAPI_Sewing.hxx>
 #include <Geom_BezierSurface.hxx>
 #include <Precision.hxx>
 #include <TColgp_Array2OfPnt.hxx>
+#include <TopoDS.hxx>
 #include <TopoDS_Shape.hxx>
+#include <TopoDS_Shell.hxx>
 #include <gp_Dir.hxx>
 #include <gp_Pln.hxx>
 #include <gp_Pnt.hxx>
@@ -151,7 +154,14 @@ TopoDS_Shape buildSaddleSolid()
     }
 
     sewing.Perform();
-    return sewing.SewedShape();
+
+    // Sewing only produces a closed TopoDS_Shell -- wrap it into an actual
+    // TopoDS_Solid so downstream consumers that need genuine solid topology
+    // (e.g. an inside/outside classifier querying the CAD model directly)
+    // have one to query, not just a shell that happens to be watertight.
+    const TopoDS_Shell shell = TopoDS::Shell(sewing.SewedShape());
+    BRepBuilderAPI_MakeSolid solidMaker(shell);
+    return solidMaker.Solid();
 }
 
 } // namespace

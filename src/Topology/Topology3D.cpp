@@ -9,11 +9,13 @@ namespace Topology3D
 Topology3D::Topology3D(const std::unordered_map<std::string, Surface3D>& surfaces,
                        const std::unordered_map<std::string, Edge3D>& edges,
                        const std::unordered_map<std::string, Corner3D>& corners,
-                       SeamCollection seams) :
+                       SeamCollection seams,
+                       const std::unordered_map<std::string, Volume3D>& volumes) :
     surfaces_(surfaces),
     edges_(edges),
     corners_(corners),
-    seams_(std::move(seams))
+    seams_(std::move(seams)),
+    volumes_(volumes)
 {
 }
 
@@ -47,6 +49,16 @@ const Corner3D& Topology3D::getCorner(const std::string& id) const
     return it->second;
 }
 
+const Volume3D& Topology3D::getVolume(const std::string& id) const
+{
+    auto it = volumes_.find(id);
+    if (it == volumes_.end())
+    {
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("Volume", id);
+    }
+    return it->second;
+}
+
 std::vector<std::string> Topology3D::getAllSurfaceIds() const
 {
     std::vector<std::string> ids;
@@ -74,6 +86,17 @@ std::vector<std::string> Topology3D::getAllCornerIds() const
     std::vector<std::string> ids;
     ids.reserve(corners_.size());
     for (const auto& pair : corners_)
+    {
+        ids.push_back(pair.first);
+    }
+    return ids;
+}
+
+std::vector<std::string> Topology3D::getAllVolumeIds() const
+{
+    std::vector<std::string> ids;
+    ids.reserve(volumes_.size());
+    for (const auto& pair : volumes_)
     {
         ids.push_back(pair.first);
     }
@@ -190,6 +213,30 @@ bool Topology3D::isValid() const
         for (const std::string& surfaceId : corner.getConnectedSurfaceIds())
         {
             if (!surfaces_.contains(surfaceId))
+            {
+                return false;
+            }
+        }
+    }
+
+    // Check volumes
+    for (const auto& volumePair : volumes_)
+    {
+        const Volume3D& volume = volumePair.second;
+
+        // Check that all boundary surfaces exist
+        for (const std::string& surfaceId : volume.getBoundarySurfaceIds())
+        {
+            if (!surfaces_.contains(surfaceId))
+            {
+                return false;
+            }
+        }
+
+        // Check that all adjacent volumes exist
+        for (const std::string& adjacentId : volume.getAdjacentVolumeIds())
+        {
+            if (!volumes_.contains(adjacentId))
             {
                 return false;
             }
