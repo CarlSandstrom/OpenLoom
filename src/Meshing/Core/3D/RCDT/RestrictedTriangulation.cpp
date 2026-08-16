@@ -2,6 +2,7 @@
 
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
+#include "Geometry/3D/Base/IVolume3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTQualityController.h"
@@ -27,6 +28,50 @@ constexpr size_t INVALID_ID = SIZE_MAX;
 // correctly classify any face whose shortest edge is at or above that floor.
 constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;
 
+enum class PointPhaseKind
+{
+    Exterior,
+    InVolume,
+    Ambiguous
+};
+
+struct PointPhase
+{
+    PointPhaseKind kind = PointPhaseKind::Exterior;
+    std::string volumeId;
+};
+
+PointPhase classifyPointPhase(const Point3D& point,
+                              const std::vector<std::string>& volumeIds,
+                              const Geometry3D::GeometryCollection3D& geometry)
+{
+    std::optional<std::string> insideVolumeId;
+    for (const auto& volumeId : volumeIds)
+    {
+        const Geometry3D::IVolume3D* volume = geometry.getVolume(volumeId);
+        if (!volume)
+            continue;
+
+        switch (volume->classifyPoint(point))
+        {
+        case Geometry3D::VolumeClassification::Inside:
+            if (insideVolumeId)
+                return {PointPhaseKind::Ambiguous, {}};
+            insideVolumeId = volumeId;
+            break;
+        case Geometry3D::VolumeClassification::OnBoundary:
+        case Geometry3D::VolumeClassification::Unknown:
+            return {PointPhaseKind::Ambiguous, {}};
+        case Geometry3D::VolumeClassification::Outside:
+            break;
+        }
+    }
+
+    if (insideVolumeId)
+        return {PointPhaseKind::InVolume, *insideVolumeId};
+    return {PointPhaseKind::Exterior, {}};
+}
+
 } // namespace
 
 void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
@@ -42,9 +87,25 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
     surfaceIds_.clear();
     edgeToAdjacentSurfaces_.clear();
     surfaceTessellations_.clear();
+    volumeIds_.clear();
+    periodicSurfaceIds_.clear();
 
     for (const auto& surfaceId : topology.getAllSurfaceIds())
         surfaceIds_.insert(surfaceId);
+
+    volumeIds_ = topology.getAllVolumeIds();
+
+    for (const auto& surfaceId : surfaceIds_)
+    {
+        for (const auto& edgeId : topology.getSurface(surfaceId).getBoundaryEdgeIds())
+        {
+            if (topology.getSeamCollection().isSeamTwin(edgeId))
+            {
+                periodicSurfaceIds_.insert(surfaceId);
+                break;
+            }
+        }
+    }
 
     for (const auto& edgeId : topology.getAllEdgeIds())
         edgeToAdjacentSurfaces_[edgeId] = topology.getEdge(edgeId).getAdjacentSurfaceIds();
@@ -296,6 +357,10 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         return std::nullopt;
     }
 
+    const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
+    if (!endpoints)
+        return std::nullopt;
+
     // A face carrying a genuinely protected edge (two of its three nodes
     // chain-adjacent along the same curve) has a structural guarantee
     // crossesSurface()'s dual-edge oracle doesn't: property 1's overlapping
@@ -312,22 +377,39 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
     // legitimate candidate.
     if (candidates.size() == 1)
     {
-        if (const auto protectedEdge = findProtectedEdge(face, meshData))
+        const std::string& surfaceId = *candidates.begin();
+        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
+        if (surface && verticesWithinTrimmedBoundary(face, meshData, *surface))
         {
-            const std::string& surfaceId = *candidates.begin();
-            const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
-            if (surface && verticesWithinTrimmedBoundary(face, meshData, *surface) &&
-                isUniqueEdgeStarCandidate(face, protectedEdge->first, protectedEdge->second, surfaceId, *surface,
-                                          meshData, connectivity))
+            if (const auto protectedEdge = findProtectedEdge(face, meshData))
             {
-                return surfaceId;
+                if (isUniqueEdgeStarCandidate(face, protectedEdge->first, protectedEdge->second, surfaceId, *surface,
+                                              meshData, connectivity))
+                {
+                    return surfaceId;
+                }
+            }
+
+            // Skipped for periodic (seam) surfaces -- see periodicSurfaceIds_'s
+            // member doc: unlike an ordinary crease, a seam surface exhibits a
+            // small but persistent stream of misclassifications through this
+            // path that prevents refinement from ever converging.
+            if (!periodicSurfaceIds_.count(surfaceId) && isPhaseBoundaryFace(face, meshData, connectivity, geometry))
+            {
+                const auto& n = face.nodeIds;
+                const std::array<std::pair<size_t, size_t>, 3> edges = {
+                    std::make_pair(n[0], n[1]), std::make_pair(n[0], n[2]), std::make_pair(n[1], n[2])};
+                for (const auto& edge : edges)
+                {
+                    if (isUniquePhaseBoundaryCandidate(face, edge.first, edge.second, *surface, meshData,
+                                                       connectivity, geometry))
+                    {
+                        return surfaceId;
+                    }
+                }
             }
         }
     }
-
-    const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
-    if (!endpoints)
-        return std::nullopt;
 
     for (const auto& surfaceId : candidates)
     {
@@ -421,6 +503,83 @@ bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
             continue;
         if (tessellationIt->second.crossesSurface(endpoints->first, endpoints->second))
             return false;
+    }
+    return true;
+}
+
+bool RestrictedTriangulation::isPhaseBoundaryFace(const FaceKey& face,
+                                                   const MeshData3D& meshData,
+                                                   const MeshConnectivity& connectivity,
+                                                   const Geometry3D::GeometryCollection3D& geometry) const
+{
+    if (volumeIds_.empty())
+        return false;
+
+    const auto& [elementId1, elementId2] = connectivity.getFaceElements(face);
+    if (elementId1 == INVALID_ID || elementId2 == INVALID_ID)
+        return false;
+
+    const auto* tet1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
+    const auto* tet2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
+    if (!tet1 || !tet2)
+        return false;
+
+    const ElementGeometry3D elementGeometry(meshData);
+    const PointPhase phase1 = classifyPointPhase(elementGeometry.computeCentroid(*tet1), volumeIds_, geometry);
+    const PointPhase phase2 = classifyPointPhase(elementGeometry.computeCentroid(*tet2), volumeIds_, geometry);
+    if (phase1.kind == PointPhaseKind::Ambiguous || phase2.kind == PointPhaseKind::Ambiguous)
+        return false;
+
+    if (phase1.kind != phase2.kind)
+        return true;
+
+    return phase1.kind == PointPhaseKind::InVolume && phase1.volumeId != phase2.volumeId;
+}
+
+bool RestrictedTriangulation::isUniquePhaseBoundaryCandidate(const FaceKey& face,
+                                                              size_t nodeIdA,
+                                                              size_t nodeIdB,
+                                                              const Geometry3D::ISurface3D& surface,
+                                                              const MeshData3D& meshData,
+                                                              const MeshConnectivity& connectivity,
+                                                              const Geometry3D::GeometryCollection3D& geometry) const
+{
+    std::unordered_set<FaceKey, FaceKeyHash> edgeStar;
+    for (const size_t elementId : connectivity.getNodeElements(nodeIdA))
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        if (!tet)
+            continue;
+
+        const auto& tetNodeIds = tet->getNodeIds();
+        const bool touchesB = std::find(tetNodeIds.begin(), tetNodeIds.end(), nodeIdB) != tetNodeIds.end();
+        if (!touchesB)
+            continue;
+
+        for (const auto& faceArray : tet->getFaces())
+        {
+            const FaceKey candidateFace(faceArray);
+            const auto& ids = candidateFace.nodeIds;
+            const bool hasA = ids[0] == nodeIdA || ids[1] == nodeIdA || ids[2] == nodeIdA;
+            const bool hasB = ids[0] == nodeIdB || ids[1] == nodeIdB || ids[2] == nodeIdB;
+            if (hasA && hasB)
+                edgeStar.insert(candidateFace);
+        }
+    }
+
+    int rivalCount = 0;
+    for (const auto& candidateFace : edgeStar)
+    {
+        if (candidateFace == face)
+            continue;
+        if (!verticesWithinTrimmedBoundary(candidateFace, meshData, surface))
+            continue;
+        if (isPhaseBoundaryFace(candidateFace, meshData, connectivity, geometry))
+        {
+            ++rivalCount;
+            if (rivalCount > 1)
+                return false;
+        }
     }
     return true;
 }

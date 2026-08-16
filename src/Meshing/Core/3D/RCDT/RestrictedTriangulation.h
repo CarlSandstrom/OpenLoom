@@ -174,6 +174,43 @@ private:
                                    const MeshData3D& meshData,
                                    const MeshConnectivity& connectivity) const;
 
+    /// Whether face's two adjacent tetrahedra's CENTROIDS (not circumcenters
+    /// -- see project memory: circumcenters of the severely degenerate
+    /// slivers that form near creases can land arbitrarily far from the tet
+    /// they claim to represent, while a centroid, being a convex combination
+    /// of the tet's own vertices, never can) fall in different phases, per
+    /// GeometryCollection3D's volumes (Geometry3D::IVolume3D::classifyPoint()
+    /// -- an exact CAD query, not a discretized tessellation crossing test).
+    /// A no-op (always false) when the geometry collection has no volumes at
+    /// all, so this never changes behavior where the signal isn't available.
+    bool isPhaseBoundaryFace(const FaceKey& face,
+                             const MeshData3D& meshData,
+                             const MeshConnectivity& connectivity,
+                             const Geometry3D::GeometryCollection3D& geometry) const;
+
+    /// Whether face is one of at most 2 candidates in edge (nodeIdA,
+    /// nodeIdB)'s edge star (see isUniqueEdgeStarCandidate()) that are
+    /// genuinely LOCAL competing candidates: pass verticesWithinTrimmedBoundary()
+    /// AND isPhaseBoundaryFace() itself. Allowing exactly one rival, not zero,
+    /// is what distinguishes this from isUniqueEdgeStarCandidate(): a
+    /// protected/crease edge's two genuine incident faces belong to two
+    /// DIFFERENT surfaces (a same-surface rival there is essentially never
+    /// the genuine partner), but an ordinary edge's two genuine incident
+    /// faces are typically for the SAME surface -- barring any rival at all
+    /// makes a face's own genuine partner disqualify it, collapsing this
+    /// path to a no-op (measured; see project memory). Also unlike
+    /// isUniqueEdgeStarCandidate(), nodeIdA/nodeIdB can be any edge of face,
+    /// not just a protected one -- what justifies trusting the result here
+    /// is isPhaseBoundaryFace()'s own robustness, not an a priori
+    /// topological guarantee about the edge.
+    bool isUniquePhaseBoundaryCandidate(const FaceKey& face,
+                                        size_t nodeIdA,
+                                        size_t nodeIdB,
+                                        const Geometry3D::ISurface3D& surface,
+                                        const MeshData3D& meshData,
+                                        const MeshConnectivity& connectivity,
+                                        const Geometry3D::GeometryCollection3D& geometry) const;
+
     /// Which of meshData's bounding supertet nodes tetId touches, if any.
     static std::optional<size_t> findTouchedBoundingNode(size_t tetId, const MeshData3D& meshData);
 
@@ -210,6 +247,17 @@ private:
     std::unordered_set<std::string> surfaceIds_;
     std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces_;
     std::unordered_map<std::string, std::vector<std::string>> cornerToAdjacentSurfaces_;
+    std::vector<std::string> volumeIds_;
+
+    // Surfaces with a seam (periodic in at least one direction -- cylinder,
+    // torus, etc.). isPhaseBoundaryFace()/isUniquePhaseBoundaryCandidate()
+    // are skipped for these -- see project memory: unlike ordinary
+    // non-periodic creases (where this path is a validated net win), a seam
+    // surface exhibits a small but persistent stream of misclassifications
+    // this path can't fully arbitrate, preventing refinement from ever
+    // reaching a fixed point. Root cause not yet found; this is a scoped
+    // safety net, not a fix for the underlying periodic-surface interaction.
+    std::unordered_set<std::string> periodicSurfaceIds_;
 
     // One tessellation per surface, built in buildFrom() at a resolution
     // derived from minimumEdgeLength and used by classifyFace() as an exact
