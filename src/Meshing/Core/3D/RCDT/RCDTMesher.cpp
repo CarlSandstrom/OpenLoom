@@ -119,6 +119,14 @@ SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_refined", counter);
     ++counter;
 
+    // Post-hoc cleanup, once refinement has converged -- see
+    // RestrictedTriangulation::removeChordFaces()'s doc for why this (not
+    // rejecting a chord face during classification, which regresses badly)
+    // is what actually fixes them.
+    const size_t chordFacesRemoved = restrictedTriangulation_->removeChordFaces(meshingContext_->getMeshData());
+    if (chordFacesRemoved > 0)
+        spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", chordFacesRemoved);
+
     removeBoundingTetrahedron();
 
     SurfaceMesh3D surfaceMesh = buildSurfaceMesh();

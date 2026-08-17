@@ -94,6 +94,23 @@ public:
 
     const std::unordered_map<FaceKey, std::string, FaceKeyHash>& getRestrictedFaces() const;
 
+    /// Removes every currently-restricted face that uses a same-curve chord
+    /// edge (see hasSameCurveChordEdge()) -- an edge between two points on
+    /// the same curve that aren't chain-adjacent, skipping over the curve's
+    /// own intermediate sample points. Meant to be called ONCE, after
+    /// refinement has fully converged. Rejecting chord faces during
+    /// classification itself was tried first and measured to regress
+    /// SaddleSurfaceMesh badly (28->69 non-manifold edges): it denies
+    /// refinement's normal self-correcting process the chance to naturally
+    /// supersede most chord faces with the correct fine chain before this
+    /// runs (measured: buildInitial() alone had ~24 more chord faces than
+    /// the converged mesh's residual 15, most resolved on their own by
+    /// refinement's end). A post-hoc cleanup instead finds the correct
+    /// alternative already in place for that much smaller residual set --
+    /// see OPE-176 project memory for the full investigation. Returns the
+    /// number of faces removed.
+    size_t removeChordFaces(const MeshData3D& meshData);
+
     /// The insertion point for the given bad triangle: where its dual Voronoi
     /// edge (the segment between its two adjacent tets' circumcenters) crosses
     /// the surface. Computed on demand rather than in getBadTriangles() to
@@ -146,6 +163,25 @@ private:
     /// specially (see isUniqueEdgeStarCandidate()).
     static std::optional<std::pair<size_t, size_t>> findProtectedEdge(const FaceKey& face,
                                                                        const MeshData3D& meshData);
+
+    /// Whether face has an edge between two points on the SAME curve that
+    /// aren't chain-adjacent (a "chord" skipping over the curve's own
+    /// intermediate sample points, as opposed to a genuine protected edge --
+    /// see findProtectedEdge()). Such a face can never be a genuine
+    /// restricted triangle: the true crease follows the curved path through
+    /// the skipped points, not a straight shortcut past them. This is
+    /// normal, unavoidable Delaunay behavior, not a defect in the
+    /// tetrahedralization itself -- Delaunay only knows where points sit in
+    /// 3D, not that several of them are meant to lie between two others
+    /// along a curved path, so a direct edge between non-adjacent curve
+    /// points is a perfectly ordinary edge of the ambient tetrahedralization
+    /// (the same way a Delaunay triangulation of points on a circle has
+    /// internal diagonals alongside the boundary polygon). The defect is
+    /// entirely in trusting a FACE built on that edge as if it were part of
+    /// the boundary -- see removeChordFaces() for how this is acted on (a
+    /// post-hoc cleanup, not a classification-time rejection -- see its own
+    /// doc for why).
+    bool hasSameCurveChordEdge(const FaceKey& face, const MeshData3D& meshData) const;
 
     /// Whether face is the ONLY face in the whole tetrahedralization sharing
     /// edge (nodeIdA, nodeIdB) -- its "edge star", the ring of tets

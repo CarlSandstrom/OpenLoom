@@ -256,6 +256,21 @@ const std::unordered_map<FaceKey, std::string, FaceKeyHash>& RestrictedTriangula
     return restrictedFaces_;
 }
 
+size_t RestrictedTriangulation::removeChordFaces(const MeshData3D& meshData)
+{
+    std::vector<FaceKey> toRemove;
+    for (const auto& [face, surfaceId] : restrictedFaces_)
+        if (hasSameCurveChordEdge(face, meshData))
+            toRemove.push_back(face);
+
+    for (const auto& face : toRemove)
+    {
+        restrictedFaces_.erase(face);
+        badFaces_.erase(face);
+    }
+    return toRemove.size();
+}
+
 std::optional<Point3D> RestrictedTriangulation::computeInsertionPoint(
     const FaceKey& face,
     const MeshData3D& meshData,
@@ -441,6 +456,30 @@ std::optional<std::pair<size_t, size_t>> RestrictedTriangulation::findProtectedE
             return edge;
     }
     return std::nullopt;
+}
+
+bool RestrictedTriangulation::hasSameCurveChordEdge(const FaceKey& face, const MeshData3D& meshData) const
+{
+    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    const auto& n = face.nodeIds;
+    const std::array<std::pair<size_t, size_t>, 3> edges = {
+        std::make_pair(n[0], n[1]), std::make_pair(n[0], n[2]), std::make_pair(n[1], n[2])};
+
+    for (const auto& edge : edges)
+    {
+        if (curveSegmentManager.findSegmentId(edge.first, edge.second))
+            continue; // chain-adjacent -- a genuine protected edge, not a chord
+
+        const auto& idsB = meshData.getGeometryIds(edge.second);
+        for (const auto& geometryId : meshData.getGeometryIds(edge.first))
+        {
+            if (!edgeToAdjacentSurfaces_.count(geometryId))
+                continue; // not an edge (curve)-type geometryId -- a surface or corner tag
+            if (std::find(idsB.begin(), idsB.end(), geometryId) != idsB.end())
+                return true; // both endpoints on the same curve, but not chain-adjacent
+        }
+    }
+    return false;
 }
 
 bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
