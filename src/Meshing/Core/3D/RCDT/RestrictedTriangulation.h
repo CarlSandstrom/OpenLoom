@@ -107,8 +107,18 @@ public:
     /// the converged mesh's residual 15, most resolved on their own by
     /// refinement's end). A post-hoc cleanup instead finds the correct
     /// alternative already in place for that much smaller residual set --
-    /// see OPE-176 project memory for the full investigation. Returns the
-    /// number of faces removed.
+    /// see OPE-176 project memory for the full investigation.
+    ///
+    /// A chord face is only dropped while its NON-chord edges can spare the
+    /// triangle -- i.e. none of them is at exactly 2. A face has 3 edges but
+    /// only the chord one is the problem; removing the face over that one
+    /// edge also takes the other two down with it, and an unconditional
+    /// version of this (measured on SaddleSurfaceMesh) tore fresh holes in
+    /// otherwise-healthy surface elsewhere, trading duplicates here for gaps
+    /// there. Applied greedily to a fixed point, since each removal changes
+    /// the counts the remaining candidates are judged against.
+    ///
+    /// Returns the number of faces removed.
     size_t removeChordFaces(const MeshData3D& meshData);
 
     /// The insertion point for the given bad triangle: where its dual Voronoi
@@ -182,6 +192,12 @@ private:
     /// post-hoc cleanup, not a classification-time rejection -- see its own
     /// doc for why).
     bool hasSameCurveChordEdge(const FaceKey& face, const MeshData3D& meshData) const;
+
+    /// Whether the single edge (nodeIdA, nodeIdB) is such a chord -- the
+    /// per-edge form of hasSameCurveChordEdge(). removeChordFaces() needs to
+    /// tell a face's chord edge apart from its other two, so it only weighs
+    /// the collateral cost of the edges the removal isn't meant to fix.
+    bool isSameCurveChordEdge(size_t nodeIdA, size_t nodeIdB, const MeshData3D& meshData) const;
 
     /// Whether face is the ONLY face in the whole tetrahedralization sharing
     /// edge (nodeIdA, nodeIdB) -- its "edge star", the ring of tets

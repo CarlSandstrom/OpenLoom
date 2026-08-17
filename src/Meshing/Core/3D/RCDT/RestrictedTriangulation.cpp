@@ -28,6 +28,12 @@ constexpr size_t INVALID_ID = SIZE_MAX;
 // correctly classify any face whose shortest edge is at or above that floor.
 constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;
 
+std::array<EdgeKey, 3> faceEdges(const FaceKey& face)
+{
+    const auto& n = face.nodeIds;
+    return {EdgeKey(n[0], n[1]), EdgeKey(n[0], n[2]), EdgeKey(n[1], n[2])};
+}
+
 enum class PointPhaseKind
 {
     Exterior,
@@ -258,17 +264,68 @@ const std::unordered_map<FaceKey, std::string, FaceKeyHash>& RestrictedTriangula
 
 size_t RestrictedTriangulation::removeChordFaces(const MeshData3D& meshData)
 {
-    std::vector<FaceKey> toRemove;
+    std::vector<FaceKey> candidates;
     for (const auto& [face, surfaceId] : restrictedFaces_)
         if (hasSameCurveChordEdge(face, meshData))
-            toRemove.push_back(face);
+            candidates.push_back(face);
 
-    for (const auto& face : toRemove)
+    if (candidates.empty())
+        return 0;
+
+    std::unordered_map<EdgeKey, int, EdgeKeyHash> edgeCounts;
+    for (const auto& [face, surfaceId] : restrictedFaces_)
+        for (const auto& edge : faceEdges(face))
+            ++edgeCounts[edge];
+
+    // Greedy, repeated to a fixed point: removing one candidate lowers its
+    // edges' counts, which can make a previously-unsafe neighbouring
+    // candidate safe (or vice versa), so a single pass in map order would
+    // make the result depend on iteration order.
+    size_t removed = 0;
+    bool progress = true;
+    while (progress)
     {
-        restrictedFaces_.erase(face);
-        badFaces_.erase(face);
+        progress = false;
+        for (auto it = candidates.begin(); it != candidates.end();)
+        {
+            const FaceKey& face = *it;
+            const auto& n = face.nodeIds;
+
+            // Removing this face decrements all 3 of its edges. On the chord
+            // edge that is the whole point. On a NON-chord edge it is only
+            // acceptable while that edge can spare the triangle: dropping one
+            // from exactly 2 to 1 tears open a fresh hole in an otherwise
+            // healthy part of the surface, trading a duplicate here for a gap
+            // there (measured on SaddleSurfaceMesh -- see project memory).
+            bool safe = true;
+            for (const auto& [nodeIdA, nodeIdB] : std::array<std::pair<size_t, size_t>, 3>{
+                     std::make_pair(n[0], n[1]), std::make_pair(n[0], n[2]), std::make_pair(n[1], n[2])})
+            {
+                if (isSameCurveChordEdge(nodeIdA, nodeIdB, meshData))
+                    continue;
+                if (edgeCounts[EdgeKey(nodeIdA, nodeIdB)] == 2)
+                {
+                    safe = false;
+                    break;
+                }
+            }
+
+            if (!safe)
+            {
+                ++it;
+                continue;
+            }
+
+            for (const auto& edge : faceEdges(face))
+                --edgeCounts[edge];
+            restrictedFaces_.erase(face);
+            badFaces_.erase(face);
+            ++removed;
+            it = candidates.erase(it);
+            progress = true;
+        }
     }
-    return toRemove.size();
+    return removed;
 }
 
 std::optional<Point3D> RestrictedTriangulation::computeInsertionPoint(
@@ -290,9 +347,7 @@ std::vector<NonManifoldRestrictedEdge> RestrictedTriangulation::findNonManifoldE
 
     for (const auto& [face, surfaceId] : restrictedFaces_)
     {
-        const auto& n = face.nodeIds;
-        const std::array<EdgeKey, 3> edges = {EdgeKey(n[0], n[1]), EdgeKey(n[0], n[2]), EdgeKey(n[1], n[2])};
-        for (const auto& edge : edges)
+        for (const auto& edge : faceEdges(face))
         {
             ++edgeCounts[edge];
             edgeSurfaceIds.try_emplace(edge, surfaceId);
@@ -458,28 +513,27 @@ std::optional<std::pair<size_t, size_t>> RestrictedTriangulation::findProtectedE
     return std::nullopt;
 }
 
-bool RestrictedTriangulation::hasSameCurveChordEdge(const FaceKey& face, const MeshData3D& meshData) const
+bool RestrictedTriangulation::isSameCurveChordEdge(size_t nodeIdA, size_t nodeIdB, const MeshData3D& meshData) const
 {
-    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-    const auto& n = face.nodeIds;
-    const std::array<std::pair<size_t, size_t>, 3> edges = {
-        std::make_pair(n[0], n[1]), std::make_pair(n[0], n[2]), std::make_pair(n[1], n[2])};
+    if (meshData.getCurveSegmentManager().findSegmentId(nodeIdA, nodeIdB))
+        return false; // chain-adjacent -- a genuine protected edge, not a chord
 
-    for (const auto& edge : edges)
+    const auto& idsB = meshData.getGeometryIds(nodeIdB);
+    for (const auto& geometryId : meshData.getGeometryIds(nodeIdA))
     {
-        if (curveSegmentManager.findSegmentId(edge.first, edge.second))
-            continue; // chain-adjacent -- a genuine protected edge, not a chord
-
-        const auto& idsB = meshData.getGeometryIds(edge.second);
-        for (const auto& geometryId : meshData.getGeometryIds(edge.first))
-        {
-            if (!edgeToAdjacentSurfaces_.count(geometryId))
-                continue; // not an edge (curve)-type geometryId -- a surface or corner tag
-            if (std::find(idsB.begin(), idsB.end(), geometryId) != idsB.end())
-                return true; // both endpoints on the same curve, but not chain-adjacent
-        }
+        if (!edgeToAdjacentSurfaces_.count(geometryId))
+            continue; // not an edge (curve)-type geometryId -- a surface or corner tag
+        if (std::find(idsB.begin(), idsB.end(), geometryId) != idsB.end())
+            return true; // both endpoints on the same curve, but not chain-adjacent
     }
     return false;
+}
+
+bool RestrictedTriangulation::hasSameCurveChordEdge(const FaceKey& face, const MeshData3D& meshData) const
+{
+    const auto& n = face.nodeIds;
+    return isSameCurveChordEdge(n[0], n[1], meshData) || isSameCurveChordEdge(n[0], n[2], meshData) ||
+           isSameCurveChordEdge(n[1], n[2], meshData);
 }
 
 bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
