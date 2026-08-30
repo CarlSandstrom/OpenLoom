@@ -55,6 +55,33 @@ std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
     return {0.0, 0.0, 1.0};
 }
 
+std::optional<PrincipalCurvatures> OpenCascadeSurface::getPrincipalCurvatures(double u,
+                                                                              double v) const
+{
+    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+    GeomLProp_SLProps props(geomSurface, u, v, 2, Precision::Confusion());
+
+    if (!props.IsCurvatureDefined())
+    {
+        return std::nullopt;
+    }
+
+    double minimum = props.MinCurvature();
+    double maximum = props.MaxCurvature();
+
+    // OCC signs both curvatures against the underlying geometric surface's
+    // own normal. getNormal() reverses that normal for a REVERSED face, so
+    // the signs must be reversed here too or the two would disagree about
+    // which way the surface bends. Negating swaps the ordering as well,
+    // since -maximum <= -minimum.
+    if (face_.Orientation() == TopAbs_REVERSED)
+    {
+        return PrincipalCurvatures{-maximum, -minimum};
+    }
+
+    return PrincipalCurvatures{minimum, maximum};
+}
+
 Meshing::Point3D OpenCascadeSurface::getPoint(double u, double v) const
 {
     if (!surfaceAdaptor_)

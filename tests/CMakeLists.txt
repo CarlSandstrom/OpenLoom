@@ -12,6 +12,7 @@ set(TEST_SOURCES
     Geometry/test_Corner.cpp
     Geometry/test_Edge.cpp
     Geometry/test_Surface.cpp
+    Geometry/test_OpenCascadeSurface.cpp
     
     # Meshing Data tests
     Meshing/Data/test_Node.cpp

@@ -3,6 +3,12 @@
 namespace Geometry3D
 {
 
+std::optional<PrincipalCurvatures> ISurface3D::getPrincipalCurvatures(double /*u*/,
+                                                                      double /*v*/) const
+{
+    return std::nullopt;
+}
+
 bool ISurface3D::isPointWithinTrimmedBoundary(const Meshing::Point3D& /*point*/) const
 {
     return true;

@@ -35,6 +35,7 @@ public:
         const Meshing::Point3D& point,
         const Meshing::Point2D& seedUV) const override;
     std::string getId() const override;
+    std::optional<PrincipalCurvatures> getPrincipalCurvatures(double u, double v) const override;
     bool isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const override;
     bool isUVWithinTrimmedBoundary(double u, double v) const override;
 
