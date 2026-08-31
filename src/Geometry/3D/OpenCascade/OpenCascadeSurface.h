@@ -8,6 +8,7 @@
 // only need the ISurface3D interface. Both are plain classes so forward
 // declarations are valid.
 class BRepAdaptor_Surface;
+class BRepTopAdaptor_FClass2d;
 class ShapeAnalysis_Surface;
 
 namespace Geometry3D
@@ -50,9 +51,19 @@ private:
     // on first use and caches it — re-creating it every call would rebuild
     // that grid each time, which is catastrophic for RCDT refinement on Bezier
     // surfaces.
+    // The UV classifier is cached for the same reason as the two adaptors
+    // above, and it matters more than either. A BRepClass_FaceClassifier is
+    // built from scratch on construction -- it walks the face's wires, loads
+    // every pcurve and prepares intersectors -- so classifying one point that
+    // way pays for the whole face each time. Profiling the cylinder example
+    // (callgrind, Release) put isUVWithinTrimmedBoundary at 78% of total
+    // runtime, most of it inside that repeated setup and the allocator churn
+    // it produces. BRepTopAdaptor_FClass2d exists precisely to be built once
+    // per face and asked many times.
     TopoDS_Face face_;
     mutable std::unique_ptr<BRepAdaptor_Surface> surfaceAdaptor_;
     mutable std::unique_ptr<ShapeAnalysis_Surface> surfaceAnalyzer_;
+    mutable std::unique_ptr<BRepTopAdaptor_FClass2d> uvClassifier_;
 };
 
 } // namespace Geometry3D

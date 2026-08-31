@@ -3,6 +3,7 @@
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepBndLib.hxx>
 #include <BRepClass_FaceClassifier.hxx>
+#include <BRepTopAdaptor_FClass2d.hxx>
 #include <BRepTools.hxx>
 #include <BRep_Tool.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
@@ -201,14 +202,19 @@ bool OpenCascadeSurface::isPointWithinTrimmedBoundary(const Meshing::Point3D& po
 
 bool OpenCascadeSurface::isUVWithinTrimmedBoundary(double u, double v) const
 {
-    // Classify the UV point directly in parameter space using OCC's 2D face
-    // classifier. This avoids the Extrema_GenExtPS surface-projection step
-    // that the 3D BRepClass_FaceClassifier overload triggers for non-analytic
-    // surfaces (Bezier, B-spline), which is O(extrema_grid²) per point.
-    // The 2D overload operates purely against the face's PCurves (O(numEdges))
-    // and requires no surface projection at all.
-    BRepClass_FaceClassifier classifier(face_, gp_Pnt2d(u, v), Precision::PConfusion());
-    const TopAbs_State state = classifier.State();
+    // Classify the UV point directly in parameter space. This avoids the
+    // Extrema_GenExtPS surface-projection step that the 3D
+    // BRepClass_FaceClassifier overload triggers for non-analytic surfaces
+    // (Bezier, B-spline), which is O(extrema_grid²) per point; classifying in
+    // UV works purely against the face's PCurves and needs no projection.
+    //
+    // The classifier is built once and reused (see the member's own comment).
+    // Constructing a BRepClass_FaceClassifier per call instead re-walked the
+    // face's wires and reloaded its pcurves for every single point.
+    if (!uvClassifier_)
+        uvClassifier_ = std::make_unique<BRepTopAdaptor_FClass2d>(face_, Precision::PConfusion());
+
+    const TopAbs_State state = uvClassifier_->Perform(gp_Pnt2d(u, v));
     return state == TopAbs_IN || state == TopAbs_ON;
 }
 
