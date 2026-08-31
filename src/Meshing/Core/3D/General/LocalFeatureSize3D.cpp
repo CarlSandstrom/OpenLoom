@@ -1,7 +1,5 @@
 #include "Meshing/Core/3D/General/LocalFeatureSize3D.h"
 
-#include "Geometry/3D/Base/GeometryCollection3D.h"
-#include "Geometry/3D/Base/ICorner3D.h"
 #include "Topology/Topology3D.h"
 
 #include <algorithm>
@@ -87,7 +85,6 @@ std::vector<std::string> entityCornerIds(const std::string& entityId,
 } // namespace
 
 std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>& samples,
-                                                const Geometry3D::GeometryCollection3D& geometry,
                                                 const Topology3D::Topology3D& topology)
 {
     const auto allEdgeIds = topology.getAllEdgeIds();
@@ -104,7 +101,6 @@ std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>
 
     std::unordered_map<std::string, std::vector<std::size_t>> boundaryEdgeIndicesByEntity;
     std::unordered_map<std::string, std::vector<std::string>> cornerIdsByEntity;
-    std::unordered_map<std::string, Point3D> cornerPositions;
 
     for (const auto& sample : samples)
     {
@@ -122,17 +118,8 @@ std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>
 
         boundaryEdgeIndicesByEntity.emplace(sample.entityId, std::move(indices));
 
-        auto cornerIds = entityCornerIds(sample.entityId, topology, edgeIds, surfaceIds);
-        for (const auto& cornerId : cornerIds)
-        {
-            if (cornerPositions.count(cornerId) > 0)
-                continue;
-
-            if (const auto* corner = geometry.getCorner(cornerId))
-                cornerPositions.emplace(cornerId, corner->getPoint());
-        }
-
-        cornerIdsByEntity.emplace(sample.entityId, std::move(cornerIds));
+        cornerIdsByEntity.emplace(sample.entityId,
+                                  entityCornerIds(sample.entityId, topology, edgeIds, surfaceIds));
     }
 
     // Each curve's own length, and whether it closes on itself -- both are
@@ -191,6 +178,17 @@ std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>
         }
     }
 
+    auto shareACorner = [&](const std::string& entityA, const std::string& entityB)
+    {
+        const auto& cornersB = cornerIdsByEntity.at(entityB);
+        for (const auto& cornerId : cornerIdsByEntity.at(entityA))
+        {
+            if (std::find(cornersB.begin(), cornersB.end(), cornerId) != cornersB.end())
+                return true;
+        }
+        return false;
+    };
+
     std::vector<double> featureSizes(samples.size(), infinity);
 
     for (std::size_t i = 0; i < samples.size(); ++i)
@@ -237,32 +235,47 @@ std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>
             }
             else
             {
-                // Different entities: the route runs through whatever they
-                // have in common -- a shared bounding edge, or just a shared
-                // corner. Take the cheapest such junction.
+                // Different entities meeting along a shared EDGE: the route
+                // runs through it, which is what lets a thin fin register --
+                // its two faces meet at the tip edge, yet mid-fin the route
+                // out to that edge and back is far longer than the thickness.
+                bool sharesEdge = false;
                 for (const std::size_t edge : edgesA)
                 {
                     if (std::find(edgesB.begin(), edgesB.end(), edge) == edgesB.end())
                         continue;
 
+                    sharesEdge = true;
                     pathLength =
                         std::min(pathLength, distanceToEdge[i][edge] + distanceToEdge[j][edge]);
                 }
 
-                const auto& cornersB = cornerIdsByEntity.at(b.entityId);
-                for (const auto& cornerId : cornerIdsByEntity.at(a.entityId))
-                {
-                    if (std::find(cornersB.begin(), cornersB.end(), cornerId) == cornersB.end())
-                        continue;
-
-                    const auto position = cornerPositions.find(cornerId);
-                    if (position == cornerPositions.end())
-                        continue;
-
-                    pathLength = std::min(pathLength,
-                                          (a.position - position->second).norm() +
-                                              (b.position - position->second).norm());
-                }
+                // Entities meeting at only a CORNER are deliberately never
+                // constrained against each other, however close they run.
+                //
+                // Two curves leaving a shared corner at angle theta, sampled
+                // at distance r along each, are 2*r*sin(theta/2) apart with a
+                // route of 2*r -- so the route test fires for every pair once
+                // theta drops below about 39 degrees, all the way down, while
+                // the separation itself tends to zero at the corner. Local
+                // feature size is therefore unbounded below in any wedge, and
+                // what it actually reports is the sampling density rather
+                // than the geometry: measured on SaddleSurfaceMesh, whose
+                // corner wedges are about 15 degrees, the field's finest size
+                // halved exactly as samplesPerCurve doubled (0.1136, 0.0573,
+                // 0.0289, 0.0145 for 16, 32, 64, 128).
+                //
+                // Sizing cannot fix that, because a closing wedge cannot be
+                // resolved by refinement at all -- it is the classic small
+                // input angle case, which this codebase already handles where
+                // it belongs, via the acute-angle splitting cascade
+                // terminating at minimumEdgeLength (see
+                // SurfaceMesh3DQualitySettings::maxRefinementIterations).
+                // Letting it into h(x) instead made SaddleSurfaceMesh diverge:
+                // 8991 nodes after 90 minutes against a 1223-node baseline,
+                // still growing.
+                if (!sharesEdge && shareACorner(a.entityId, b.entityId))
+                    continue;
             }
 
             if (pathLength <= PROXIMITY_PATH_FACTOR * distance)

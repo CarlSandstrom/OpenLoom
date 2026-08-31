@@ -5,8 +5,10 @@
 
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
+#include <BRepPrimAPI_MakeWedge.hxx>
 #include <TopoDS_Shape.hxx>
 #include <cmath>
+#include <cstddef>
 #include <gp_Ax2.hxx>
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
@@ -147,4 +149,45 @@ TEST(SizingFieldBuilder3DTest, FieldIsGradientLimitedAcrossTheWholeModel)
 
     EXPECT_LE(std::abs(field.evaluate(a) - field.evaluate(b)),
               settings.gradientLimit * (a - b).norm() + 1e-12);
+}
+
+TEST(SizingFieldBuilder3DTest, WedgeCornerDoesNotMakeTheFieldSamplingDependent)
+{
+    // Two curves leaving a shared corner at angle theta, sampled at distance
+    // r along each, are 2*r*sin(theta/2) apart with a route of 2*r along the
+    // geometry -- so the "straight line is a shortcut" test fires for every
+    // such pair once theta is small, all the way into the corner, while the
+    // separation itself tends to zero there. Local feature size is therefore
+    // unbounded below in a wedge, and what it reports is the probe density
+    // rather than the shape.
+    //
+    // A wedge tapered to a ridge has exactly that: the two sloping edges of
+    // each gable meet at the ridge corner at a few degrees. The field's
+    // finest size is a property of the geometry, so refining the probe
+    // density must not move it. Before corner-only pairs were excluded it
+    // halved every time samplesPerCurve doubled, which silently turned any
+    // consumer deriving a length from it into a function of the sampling.
+    constexpr double WIDTH = 0.5;
+    constexpr double DEPTH = 4.0;
+    constexpr double HEIGHT = 5.0;
+
+    auto converter = convert(BRepPrimAPI_MakeWedge(WIDTH, DEPTH, HEIGHT, 0.0).Shape());
+
+    const auto minimumSizeAt = [&converter](std::size_t samplesPerCurve)
+    {
+        SizingFieldSettings3D settings;
+        settings.samplesPerCurve = samplesPerCurve;
+        return SizingFieldBuilder3D::build(converter->getGeometryCollection(),
+                                           converter->getTopology(),
+                                           settings)
+            .getMinimumSourceSize();
+    };
+
+    const double coarse = minimumSizeAt(16);
+    const double medium = minimumSizeAt(32);
+    const double fine = minimumSizeAt(64);
+
+    EXPECT_GT(coarse, 0.0);
+    EXPECT_NEAR(medium, coarse, 0.05 * coarse);
+    EXPECT_NEAR(fine, coarse, 0.05 * coarse);
 }

@@ -127,7 +127,7 @@ SizingField3D SizingFieldBuilder3D::build(const Geometry3D::GeometryCollection3D
     }
 
     const std::vector<double> featureSizes =
-        LocalFeatureSize3D::compute(samples, geometry, topology);
+        LocalFeatureSize3D::compute(samples, topology);
 
     const double diagonal = boundingBoxDiagonal(samples);
     const double floor = settings.minimumSizeFraction * diagonal;

@@ -5,11 +5,6 @@
 #include <string>
 #include <vector>
 
-namespace Geometry3D
-{
-class GeometryCollection3D;
-}
-
 namespace Topology3D
 {
 class Topology3D;
@@ -64,9 +59,13 @@ struct FeatureSample
  * through space. The route is taken to be
  *
  *  - the curve itself, for two samples on one curve;
- *  - via the nearest edge or corner the two entities share, for samples on
- *    two entities that meet;
+ *  - via the nearest edge the two entities share, for samples on two
+ *    entities that meet along one;
  *  - nonexistent (so the rule always fires), when they share nothing.
+ *
+ * Entities meeting at only a CORNER are excluded outright instead, however
+ * close they run -- see the .cpp for why local feature size is unbounded
+ * below in a wedge and reports sampling density rather than geometry.
  *
  * A junction fails this test and is correctly ignored: two curves meeting
  * at a right angle, sampled at equal distance r from their shared corner,
@@ -103,7 +102,6 @@ public:
     /// Cost is quadratic in the sample count. That is deliberate: this runs
     /// once, on a sample set sized by the geometry rather than by the mesh.
     static std::vector<double> compute(const std::vector<FeatureSample>& samples,
-                                       const Geometry3D::GeometryCollection3D& geometry,
                                        const Topology3D::Topology3D& topology);
 };
 
