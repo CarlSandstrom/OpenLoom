@@ -1,10 +1,6 @@
 ---
 name: error-handling
-description: Error handling patterns for OpenLoom
-globs:
-  - "**/*.cpp"
-  - "**/*.hpp"
-  - "**/*.h"
+description: Which error mechanism to use in OpenLoom - OPENLOOM_THROW_* macros for programming errors, std::optional for legitimate absence, bool for simple success, VerificationResult for validation lists - plus the exception hierarchy and its code ranges, and the anti-patterns to avoid. Load before adding a throw, a failure path, or a lookup that can miss.
 ---
 
 # Error Handling in OpenLoom

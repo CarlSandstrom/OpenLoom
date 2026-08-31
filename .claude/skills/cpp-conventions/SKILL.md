@@ -1,11 +1,6 @@
 ---
 name: cpp-conventions
-description: C++ coding conventions for OpenLoom
-globs:
-  - "**/*.cpp"
-  - "**/*.hpp"
-  - "**/*.h"
-  - "**/*.cc"
+description: OpenLoom C++ house style - naming (camelCase_ members, I-prefixed interfaces), file layout, class design rules, const correctness, cast policy, and Microsoft/Allman formatting. Load before writing or reviewing any .h/.cpp/.cc file in this project.
 ---
 
 # C++ Conventions for OpenLoom
