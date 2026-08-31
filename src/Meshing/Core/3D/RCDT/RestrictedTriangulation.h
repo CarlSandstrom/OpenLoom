@@ -18,6 +18,7 @@ namespace Meshing
 {
 class MeshConnectivity;
 class MeshData3D;
+class TetrahedralElement;
 } // namespace Meshing
 
 namespace Geometry3D
@@ -51,6 +52,23 @@ struct NonManifoldRestrictedEdge
 {
     EdgeKey edge;
     std::string surfaceId;
+};
+
+/// Which side of the model a point falls on, as resolved against every
+/// IVolume3D in the geometry. Lives here rather than in the .cpp only so
+/// that RestrictedTriangulation can memoize it per element -- see
+/// centroidPhaseByElement_.
+enum class PointPhaseKind
+{
+    Exterior,
+    InVolume,
+    Ambiguous
+};
+
+struct PointPhase
+{
+    PointPhaseKind kind = PointPhaseKind::Exterior;
+    std::string volumeId;
 };
 
 class RestrictedTriangulation
@@ -129,9 +147,9 @@ public:
     /// Returns nullopt if the endpoints cannot be computed or the edge does not
     /// cross the surface.
     std::optional<Point3D> computeInsertionPoint(const FaceKey& face,
-                                                  const MeshData3D& meshData,
-                                                  const MeshConnectivity& connectivity,
-                                                  const Geometry3D::ISurface3D& surface) const;
+                                                 const MeshData3D& meshData,
+                                                 const MeshConnectivity& connectivity,
+                                                 const Geometry3D::ISurface3D& surface) const;
 
     /// Every edge of the restricted-face set whose triangle count isn't
     /// exactly 2 -- i.e. every place the set fails to be a closed 2-manifold.
@@ -141,6 +159,29 @@ public:
     std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges() const;
 
 private:
+    /// Centroid phase memoized per element, valid only within a single
+    /// classification pass. `classifyPointPhase` is by far the most expensive
+    /// thing this class does -- on SaddleSurfaceMesh it was 85% of total
+    /// runtime, each call running BRepClass3d_SolidClassifier::Perform, which
+    /// on Bezier faces drops into OCC's Extrema/global-optimisation machinery.
+    ///
+    /// The redundancy it removes is structural rather than accidental: a
+    /// tetrahedron has four faces, and isPhaseBoundaryFace() classifies both
+    /// adjacent tetrahedra of whichever face it is given, so one tetrahedron's
+    /// centroid is asked for about four times per pass. Measured over 120
+    /// refinement iterations: 19,908 calls.
+    ///
+    /// Deliberately cleared at the start of every pass rather than kept across
+    /// them. Element ids are stable while a pass runs (the mesh is already
+    /// updated before reclassification begins) but are reused after deletion,
+    /// so a longer-lived cache could answer for a different tetrahedron.
+    mutable std::unordered_map<std::size_t, PointPhase> centroidPhaseByElement_;
+
+    const PointPhase& centroidPhase(std::size_t elementId,
+                                    const TetrahedralElement& tetrahedron,
+                                    const MeshData3D& meshData,
+                                    const Geometry3D::GeometryCollection3D& geometry) const;
+
     /// Core restricted test for a single face.
     /// Returns the surfaceId if the face is restricted to it, nullopt otherwise.
     std::optional<std::string> classifyFace(const FaceKey& face,
@@ -172,7 +213,7 @@ private:
     /// overlap, which is why classifyFace() treats the edge between them
     /// specially (see isUniqueEdgeStarCandidate()).
     static std::optional<std::pair<size_t, size_t>> findProtectedEdge(const FaceKey& face,
-                                                                       const MeshData3D& meshData);
+                                                                      const MeshData3D& meshData);
 
     /// Whether face has an edge between two points on the SAME curve that
     /// aren't chain-adjacent (a "chord" skipping over the curve's own

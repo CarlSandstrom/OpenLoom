@@ -34,19 +34,6 @@ std::array<EdgeKey, 3> faceEdges(const FaceKey& face)
     return {EdgeKey(n[0], n[1]), EdgeKey(n[0], n[2]), EdgeKey(n[1], n[2])};
 }
 
-enum class PointPhaseKind
-{
-    Exterior,
-    InVolume,
-    Ambiguous
-};
-
-struct PointPhase
-{
-    PointPhaseKind kind = PointPhaseKind::Exterior;
-    std::string volumeId;
-};
-
 PointPhase classifyPointPhase(const Point3D& point,
                               const std::vector<std::string>& volumeIds,
                               const Geometry3D::GeometryCollection3D& geometry)
@@ -87,6 +74,8 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
                                         double minimumEdgeLength,
                                         const SurfaceMesh3DQualitySettings& settings)
 {
+    centroidPhaseByElement_.clear();
+
     settings_ = settings;
     restrictedFaces_.clear();
     badFaces_.clear();
@@ -161,6 +150,10 @@ void RestrictedTriangulation::updateAfterInsertion(
     const MeshConnectivity& connectivity,
     const Geometry3D::GeometryCollection3D& geometry)
 {
+    // Element ids are reused after deletion, so the memo is only trustworthy
+    // for the duration of one pass -- see centroidPhaseByElement_.
+    centroidPhaseByElement_.clear();
+
     for (const auto& face : cavityInteriorFaceKeys)
     {
         restrictedFaces_.erase(face);
@@ -219,9 +212,9 @@ void RestrictedTriangulation::invalidateFacesWithEdge(size_t nodeId1, size_t nod
 }
 
 void RestrictedTriangulation::updateBadFaceEntry(const FaceKey& face,
-                                                  const std::string& surfaceId,
-                                                  const MeshData3D& meshData,
-                                                  const Geometry3D::GeometryCollection3D& geometry)
+                                                 const std::string& surfaceId,
+                                                 const MeshData3D& meshData,
+                                                 const Geometry3D::GeometryCollection3D& geometry)
 {
     const RCDTQualityController qualityController(meshData, geometry, settings_);
     const TriangleElement triangle(face.nodeIds);
@@ -499,7 +492,7 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
 }
 
 std::optional<std::pair<size_t, size_t>> RestrictedTriangulation::findProtectedEdge(const FaceKey& face,
-                                                                                     const MeshData3D& meshData)
+                                                                                    const MeshData3D& meshData)
 {
     const auto& curveSegmentManager = meshData.getCurveSegmentManager();
     const auto& n = face.nodeIds;
@@ -600,10 +593,27 @@ bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
     return true;
 }
 
+const PointPhase& RestrictedTriangulation::centroidPhase(
+    std::size_t elementId,
+    const TetrahedralElement& tetrahedron,
+    const MeshData3D& meshData,
+    const Geometry3D::GeometryCollection3D& geometry) const
+{
+    const auto found = centroidPhaseByElement_.find(elementId);
+    if (found != centroidPhaseByElement_.end())
+        return found->second;
+
+    const ElementGeometry3D elementGeometry(meshData);
+    return centroidPhaseByElement_
+        .emplace(elementId,
+                 classifyPointPhase(elementGeometry.computeCentroid(tetrahedron), volumeIds_, geometry))
+        .first->second;
+}
+
 bool RestrictedTriangulation::isPhaseBoundaryFace(const FaceKey& face,
-                                                   const MeshData3D& meshData,
-                                                   const MeshConnectivity& connectivity,
-                                                   const Geometry3D::GeometryCollection3D& geometry) const
+                                                  const MeshData3D& meshData,
+                                                  const MeshConnectivity& connectivity,
+                                                  const Geometry3D::GeometryCollection3D& geometry) const
 {
     if (volumeIds_.empty())
         return false;
@@ -617,9 +627,8 @@ bool RestrictedTriangulation::isPhaseBoundaryFace(const FaceKey& face,
     if (!tet1 || !tet2)
         return false;
 
-    const ElementGeometry3D elementGeometry(meshData);
-    const PointPhase phase1 = classifyPointPhase(elementGeometry.computeCentroid(*tet1), volumeIds_, geometry);
-    const PointPhase phase2 = classifyPointPhase(elementGeometry.computeCentroid(*tet2), volumeIds_, geometry);
+    const PointPhase& phase1 = centroidPhase(elementId1, *tet1, meshData, geometry);
+    const PointPhase& phase2 = centroidPhase(elementId2, *tet2, meshData, geometry);
     if (phase1.kind == PointPhaseKind::Ambiguous || phase2.kind == PointPhaseKind::Ambiguous)
         return false;
 
@@ -630,12 +639,12 @@ bool RestrictedTriangulation::isPhaseBoundaryFace(const FaceKey& face,
 }
 
 bool RestrictedTriangulation::isUniquePhaseBoundaryCandidate(const FaceKey& face,
-                                                              size_t nodeIdA,
-                                                              size_t nodeIdB,
-                                                              const Geometry3D::ISurface3D& surface,
-                                                              const MeshData3D& meshData,
-                                                              const MeshConnectivity& connectivity,
-                                                              const Geometry3D::GeometryCollection3D& geometry) const
+                                                             size_t nodeIdA,
+                                                             size_t nodeIdB,
+                                                             const Geometry3D::ISurface3D& surface,
+                                                             const MeshData3D& meshData,
+                                                             const MeshConnectivity& connectivity,
+                                                             const Geometry3D::GeometryCollection3D& geometry) const
 {
     std::unordered_set<FaceKey, FaceKeyHash> edgeStar;
     for (const size_t elementId : connectivity.getNodeElements(nodeIdA))
@@ -742,8 +751,8 @@ std::optional<std::pair<Point3D, Point3D>> RestrictedTriangulation::computeDualE
 }
 
 bool RestrictedTriangulation::verticesWithinTrimmedBoundary(const FaceKey& face,
-                                                             const MeshData3D& meshData,
-                                                             const Geometry3D::ISurface3D& surface) const
+                                                            const MeshData3D& meshData,
+                                                            const Geometry3D::ISurface3D& surface) const
 {
     for (const size_t nodeId : face.nodeIds)
     {
