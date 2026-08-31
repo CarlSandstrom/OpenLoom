@@ -211,8 +211,36 @@ private:
     /// directly is robust regardless of how far a candidate's circumcenters
     /// (and thus its dual edge) happen to land from the face itself.
     bool verticesWithinTrimmedBoundary(const FaceKey& face,
+                                       const std::string& surfaceId,
                                        const MeshData3D& meshData,
                                        const Geometry3D::ISurface3D& surface) const;
+
+    /// Whether a single node lies within surface's trimmed boundary, memoized
+    /// per (surface, node) for the whole refinement run.
+    ///
+    /// The projection this performs is the single most expensive thing in
+    /// classifyFace(): ShapeAnalysis_Surface::ValueOfUV runs a global
+    /// Extrema_GenExtPS search whose grid is rebuilt per call on a Bezier or
+    /// NURBS surface, and caching the ShapeAnalysis_Surface analyzer (as
+    /// OpenCascadeSurface already does) does not avoid that. Measured at 49%
+    /// of SaddleSurfaceMesh's total instructions.
+    ///
+    /// The redundancy is structural: a node is a vertex of many faces, every
+    /// one of which projects all three of its vertices, and those faces are
+    /// reclassified repeatedly as refinement proceeds around them. The answer
+    /// depends only on the node's coordinates and the surface, both of which
+    /// are fixed for the whole of refinement -- the same invariant that lets
+    /// centroidPhaseByTetrahedron_ outlive a single pass.
+    ///
+    /// Takes surfaceId rather than calling surface.getId(): the OpenCascade
+    /// implementation of getId() formats a string through an ostringstream on
+    /// every call, which would cost more than the lookup it keys.
+    bool nodeWithinTrimmedBoundary(const std::string& surfaceId,
+                                   size_t nodeId,
+                                   const Point3D& coordinates,
+                                   const Geometry3D::ISurface3D& surface) const;
+
+    mutable std::unordered_map<std::string, std::unordered_map<size_t, bool>> nodeWithinTrimmedBoundaryBySurface_;
 
     /// If two of face's three nodes are chain-adjacent along the same curve
     /// -- i.e. meshData's CurveSegmentManager has a segment directly
@@ -307,6 +335,7 @@ private:
     bool isUniquePhaseBoundaryCandidate(const FaceKey& face,
                                         size_t nodeIdA,
                                         size_t nodeIdB,
+                                        const std::string& surfaceId,
                                         const Geometry3D::ISurface3D& surface,
                                         const MeshData3D& meshData,
                                         const MeshConnectivity& connectivity,

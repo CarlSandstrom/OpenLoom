@@ -75,6 +75,7 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
                                         const SurfaceMesh3DQualitySettings& settings)
 {
     centroidPhaseByTetrahedron_.clear();
+    nodeWithinTrimmedBoundaryBySurface_.clear();
 
     settings_ = settings;
     restrictedFaces_.clear();
@@ -410,7 +411,7 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         for (const auto& surfaceId : candidates)
         {
             const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
-            if (surface && verticesWithinTrimmedBoundary(face, meshData, *surface))
+            if (surface && verticesWithinTrimmedBoundary(face, surfaceId, meshData, *surface))
                 return surfaceId;
         }
         return std::nullopt;
@@ -438,7 +439,7 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
     {
         const std::string& surfaceId = *candidates.begin();
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
-        if (surface && verticesWithinTrimmedBoundary(face, meshData, *surface))
+        if (surface && verticesWithinTrimmedBoundary(face, surfaceId, meshData, *surface))
         {
             if (const auto protectedEdge = findProtectedEdge(face, meshData))
             {
@@ -460,8 +461,8 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
                     std::make_pair(n[0], n[1]), std::make_pair(n[0], n[2]), std::make_pair(n[1], n[2])};
                 for (const auto& edge : edges)
                 {
-                    if (isUniquePhaseBoundaryCandidate(face, edge.first, edge.second, *surface, meshData,
-                                                       connectivity, geometry))
+                    if (isUniquePhaseBoundaryCandidate(face, edge.first, edge.second, surfaceId, *surface,
+                                                       meshData, connectivity, geometry))
                     {
                         return surfaceId;
                     }
@@ -475,7 +476,7 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         if (!surface)
             continue;
-        if (!verticesWithinTrimmedBoundary(face, meshData, *surface))
+        if (!verticesWithinTrimmedBoundary(face, surfaceId, meshData, *surface))
             continue;
         const auto tessellationIt = surfaceTessellations_.find(surfaceId);
         if (tessellationIt == surfaceTessellations_.end())
@@ -578,7 +579,7 @@ bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
     {
         if (candidateFace == face)
             continue;
-        if (!verticesWithinTrimmedBoundary(candidateFace, meshData, surface))
+        if (!verticesWithinTrimmedBoundary(candidateFace, surfaceId, meshData, surface))
             continue;
         const auto endpoints = computeDualEdgeEndpoints(candidateFace, meshData, connectivity);
         if (!endpoints)
@@ -638,6 +639,7 @@ bool RestrictedTriangulation::isPhaseBoundaryFace(const FaceKey& face,
 bool RestrictedTriangulation::isUniquePhaseBoundaryCandidate(const FaceKey& face,
                                                              size_t nodeIdA,
                                                              size_t nodeIdB,
+                                                             const std::string& surfaceId,
                                                              const Geometry3D::ISurface3D& surface,
                                                              const MeshData3D& meshData,
                                                              const MeshConnectivity& connectivity,
@@ -671,7 +673,7 @@ bool RestrictedTriangulation::isUniquePhaseBoundaryCandidate(const FaceKey& face
     {
         if (candidateFace == face)
             continue;
-        if (!verticesWithinTrimmedBoundary(candidateFace, meshData, surface))
+        if (!verticesWithinTrimmedBoundary(candidateFace, surfaceId, meshData, surface))
             continue;
         if (isPhaseBoundaryFace(candidateFace, meshData, connectivity, geometry))
         {
@@ -748,6 +750,7 @@ std::optional<std::pair<Point3D, Point3D>> RestrictedTriangulation::computeDualE
 }
 
 bool RestrictedTriangulation::verticesWithinTrimmedBoundary(const FaceKey& face,
+                                                            const std::string& surfaceId,
                                                             const MeshData3D& meshData,
                                                             const Geometry3D::ISurface3D& surface) const
 {
@@ -756,19 +759,36 @@ bool RestrictedTriangulation::verticesWithinTrimmedBoundary(const FaceKey& face,
         const Node3D* node = meshData.getNode(nodeId);
         if (!node)
             return false;
-        // Project the node's 3D coordinates to UV, then classify in UV space.
-        // Avoids the 3D-point overload of BRepClass_FaceClassifier, which
-        // internally triggers Extrema_GenExtPS (a grid-based surface projection
-        // that rebuilds its grid on every call for Bezier/NURBS surfaces).
-        // projectPointToUnderlyingSurface uses the cached ShapeAnalysis_Surface
-        // analyzer (O(grid_scan + Newton) ≈ a few microseconds per call after
-        // the first), while isUVWithinTrimmedBoundary uses OCC's 2D face
-        // classifier (O(numEdges), always fast).
-        const auto uv = surface.projectPointToUnderlyingSurface(node->getCoordinates());
-        if (!uv || !surface.isUVWithinTrimmedBoundary(uv->x(), uv->y()))
+        if (!nodeWithinTrimmedBoundary(surfaceId, nodeId, node->getCoordinates(), surface))
             return false;
     }
     return true;
+}
+
+bool RestrictedTriangulation::nodeWithinTrimmedBoundary(const std::string& surfaceId,
+                                                        size_t nodeId,
+                                                        const Point3D& coordinates,
+                                                        const Geometry3D::ISurface3D& surface) const
+{
+    auto& cacheForSurface = nodeWithinTrimmedBoundaryBySurface_[surfaceId];
+    const auto found = cacheForSurface.find(nodeId);
+    if (found != cacheForSurface.end())
+        return found->second;
+
+    // Project the node's 3D coordinates to UV, then classify in UV space.
+    // Avoids the 3D-point overload of BRepClass_FaceClassifier, which
+    // internally triggers Extrema_GenExtPS (a grid-based surface projection
+    // that rebuilds its grid on every call for Bezier/NURBS surfaces).
+    // isUVWithinTrimmedBoundary then uses OCC's 2D face classifier
+    // (O(numEdges), always fast, and cached per surface).
+    //
+    // projectPointToUnderlyingSurface is NOT cheap despite going through the
+    // cached ShapeAnalysis_Surface analyzer -- ValueOfUV still runs a global
+    // Extrema search per call -- which is why the result is memoized here
+    // rather than recomputed per face.
+    const auto uv = surface.projectPointToUnderlyingSurface(coordinates);
+    const bool within = uv.has_value() && surface.isUVWithinTrimmedBoundary(uv->x(), uv->y());
+    return cacheForSurface.emplace(nodeId, within).first->second;
 }
 
 std::unordered_set<std::string> RestrictedTriangulation::effectiveSurfaceIds(
