@@ -14,8 +14,15 @@ project(OpenLoom)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Default to Debug, but honour a build type the caller asked for. This was an
+# unconditional set(), which silently overrode -DCMAKE_BUILD_TYPE=Release on
+# the command line and made an optimized build impossible -- so every timing
+# ever taken of this project was measured at -O0.
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
+endif()
+
 # Debug configuration - maximum debug information
-set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 -DDEBUG -fno-omit-frame-pointer")
 set(CMAKE_C_FLAGS_DEBUG "-g3 -O0 -DDEBUG -fno-omit-frame-pointer")
 

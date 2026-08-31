@@ -4,5 +4,6 @@ src/Delauney
 .cache/
 *.vtu
 build_release/
+build-release/
 build_prof/
 build_rel/
