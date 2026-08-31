@@ -74,7 +74,7 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
                                         double minimumEdgeLength,
                                         const SurfaceMesh3DQualitySettings& settings)
 {
-    centroidPhaseByElement_.clear();
+    centroidPhaseByTetrahedron_.clear();
 
     settings_ = settings;
     restrictedFaces_.clear();
@@ -150,10 +150,6 @@ void RestrictedTriangulation::updateAfterInsertion(
     const MeshConnectivity& connectivity,
     const Geometry3D::GeometryCollection3D& geometry)
 {
-    // Element ids are reused after deletion, so the memo is only trustworthy
-    // for the duration of one pass -- see centroidPhaseByElement_.
-    centroidPhaseByElement_.clear();
-
     for (const auto& face : cavityInteriorFaceKeys)
     {
         restrictedFaces_.erase(face);
@@ -594,19 +590,20 @@ bool RestrictedTriangulation::isUniqueEdgeStarCandidate(const FaceKey& face,
 }
 
 const PointPhase& RestrictedTriangulation::centroidPhase(
-    std::size_t elementId,
     const TetrahedralElement& tetrahedron,
     const MeshData3D& meshData,
     const Geometry3D::GeometryCollection3D& geometry) const
 {
-    const auto found = centroidPhaseByElement_.find(elementId);
-    if (found != centroidPhaseByElement_.end())
+    const auto& nodeIds = tetrahedron.getNodeIds();
+    const TetrahedronKey key(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
+
+    const auto found = centroidPhaseByTetrahedron_.find(key);
+    if (found != centroidPhaseByTetrahedron_.end())
         return found->second;
 
     const ElementGeometry3D elementGeometry(meshData);
-    return centroidPhaseByElement_
-        .emplace(elementId,
-                 classifyPointPhase(elementGeometry.computeCentroid(tetrahedron), volumeIds_, geometry))
+    return centroidPhaseByTetrahedron_
+        .emplace(key, classifyPointPhase(elementGeometry.computeCentroid(tetrahedron), volumeIds_, geometry))
         .first->second;
 }
 
@@ -627,8 +624,8 @@ bool RestrictedTriangulation::isPhaseBoundaryFace(const FaceKey& face,
     if (!tet1 || !tet2)
         return false;
 
-    const PointPhase& phase1 = centroidPhase(elementId1, *tet1, meshData, geometry);
-    const PointPhase& phase2 = centroidPhase(elementId2, *tet2, meshData, geometry);
+    const PointPhase& phase1 = centroidPhase(*tet1, meshData, geometry);
+    const PointPhase& phase2 = centroidPhase(*tet2, meshData, geometry);
     if (phase1.kind == PointPhaseKind::Ambiguous || phase2.kind == PointPhaseKind::Ambiguous)
         return false;
 

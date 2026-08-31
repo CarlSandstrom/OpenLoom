@@ -3,6 +3,7 @@
 #include "Common/Types.h"
 #include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Meshing/Connectivity/TetrahedronKey.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
@@ -56,8 +57,8 @@ struct NonManifoldRestrictedEdge
 
 /// Which side of the model a point falls on, as resolved against every
 /// IVolume3D in the geometry. Lives here rather than in the .cpp only so
-/// that RestrictedTriangulation can memoize it per element -- see
-/// centroidPhaseByElement_.
+/// that RestrictedTriangulation can memoize it per tetrahedron -- see
+/// centroidPhaseByTetrahedron_.
 enum class PointPhaseKind
 {
     Exterior,
@@ -159,26 +160,33 @@ public:
     std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges() const;
 
 private:
-    /// Centroid phase memoized per element, valid only within a single
-    /// classification pass. `classifyPointPhase` is by far the most expensive
-    /// thing this class does -- on SaddleSurfaceMesh it was 85% of total
-    /// runtime, each call running BRepClass3d_SolidClassifier::Perform, which
-    /// on Bezier faces drops into OCC's Extrema/global-optimisation machinery.
+    /// Centroid phase memoized per tetrahedron, for the whole refinement run.
+    /// `classifyPointPhase` is by far the most expensive thing this class does
+    /// -- on SaddleSurfaceMesh it was 85% of total runtime, each call running
+    /// BRepClass3d_SolidClassifier::Perform, which on Bezier faces drops into
+    /// OCC's Extrema/global-optimisation machinery.
     ///
-    /// The redundancy it removes is structural rather than accidental: a
-    /// tetrahedron has four faces, and isPhaseBoundaryFace() classifies both
-    /// adjacent tetrahedra of whichever face it is given, so one tetrahedron's
-    /// centroid is asked for about four times per pass. Measured over 120
-    /// refinement iterations: 19,908 calls.
+    /// The redundancy it removes is structural rather than accidental, and has
+    /// two sources. Within one pass: a tetrahedron has four faces, and
+    /// isPhaseBoundaryFace() classifies both adjacent tetrahedra of whichever
+    /// face it is given, so one tetrahedron's centroid is asked for about four
+    /// times. Across passes: updateAfterInsertion() reclassifies the faces of
+    /// every tetrahedron incident to the new node, and each of those faces
+    /// pulls in the tetrahedron on its far side -- which is an OLD, unmodified
+    /// tetrahedron that was already classified in an earlier pass.
     ///
-    /// Deliberately cleared at the start of every pass rather than kept across
-    /// them. Element ids are stable while a pass runs (the mesh is already
-    /// updated before reclassification begins) but are reused after deletion,
-    /// so a longer-lived cache could answer for a different tetrahedron.
-    mutable std::unordered_map<std::size_t, PointPhase> centroidPhaseByElement_;
+    /// Keyed by the tetrahedron's node set rather than by its element id, so
+    /// it can safely outlive the elements. An element id is only a handle: it
+    /// says nothing about which tetrahedron it currently names, so a cache
+    /// keyed by one needs an invalidation hook on element deletion to stay
+    /// honest. The node set, by contrast, is what the centroid is a function
+    /// of, so an entry cannot go stale: node coordinates are fixed for the
+    /// whole of refinement (RCDTMesher only moves nodes during post-refinement
+    /// smoothing, after the last classification), and two distinct live
+    /// tetrahedra cannot share a node set.
+    mutable std::unordered_map<TetrahedronKey, PointPhase, TetrahedronKeyHash> centroidPhaseByTetrahedron_;
 
-    const PointPhase& centroidPhase(std::size_t elementId,
-                                    const TetrahedralElement& tetrahedron,
+    const PointPhase& centroidPhase(const TetrahedralElement& tetrahedron,
                                     const MeshData3D& meshData,
                                     const Geometry3D::GeometryCollection3D& geometry) const;
 
