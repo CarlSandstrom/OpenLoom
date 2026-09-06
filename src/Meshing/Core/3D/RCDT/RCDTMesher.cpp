@@ -159,6 +159,35 @@ SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
     if (excessFacesRemoved > 0)
         spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", excessFacesRemoved);
 
+    // What the cleanup passes could not resolve, broken down by kind. The
+    // three are different defects wanting different fixes -- a hole is a face
+    // classification never made, an excess is one made twice -- and a single
+    // total cannot tell them apart, which has misled this area before.
+    const auto residualDefects = restrictedTriangulation_->findNonManifoldEdges(meshingContext_->getMeshData());
+    if (!residualDefects.empty())
+    {
+        size_t missingFaces = 0;
+        size_t excessFaces = 0;
+        size_t surfaceMismatches = 0;
+        for (const auto& defect : residualDefects)
+        {
+            switch (defect.defect)
+            {
+            case RestrictedEdgeDefect::MissingFace:
+                ++missingFaces;
+                break;
+            case RestrictedEdgeDefect::ExcessFace:
+                ++excessFaces;
+                break;
+            case RestrictedEdgeDefect::SurfaceMismatch:
+                ++surfaceMismatches;
+                break;
+            }
+        }
+        spdlog::info("RCDTMesher::runPipeline: {} non-manifold edges remain — {} holes, {} excess, {} surface mismatch",
+                     residualDefects.size(), missingFaces, excessFaces, surfaceMismatches);
+    }
+
     removeBoundingTetrahedron();
 
     SurfaceMesh3D surfaceMesh = buildSurfaceMesh();
@@ -245,8 +274,7 @@ void RCDTMesher::buildInitial()
     // computeMinimumEdgeLength()'s doc for why this is the same value
     // computing it from the post-triangulation mesh would give.
     if (!qualitySettings_.minimumEdgeLength)
-        qualitySettings_.minimumEdgeLength = sizingField_ ? minimumEdgeLengthFrom(*sizingField_)
-                                                          : computeMinimumEdgeLength(discretizationResult->points);
+        qualitySettings_.minimumEdgeLength = sizingField_ ? minimumEdgeLengthFrom(*sizingField_) : computeMinimumEdgeLength(discretizationResult->points);
     spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", *qualitySettings_.minimumEdgeLength);
 
     // Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample
