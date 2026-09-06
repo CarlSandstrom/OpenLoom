@@ -40,10 +40,19 @@ int main()
 
     Geometry3D::DiscretizationSettings3D discretizationSettings(3, 2);
 
+    // The sizing field is what keeps this model meshable (OPE-185). Without
+    // it the bore's crease and seam are discretized into 2.0-long segments
+    // while refinement targets 0.33, so their protecting balls span several
+    // elements and freeze a band around the bore that refinement can never
+    // enter -- leaving holes in the restricted boundary, which lets the
+    // ambient flood fill reach the interior and classify every tetrahedron
+    // as ambient. h(x) bounds those segments to the size the mesh actually
+    // wants, and the balls shrink with them.
     Meshing::VolumeMesher3D mesher(converter.getGeometryCollection(),
                                    converter.getTopology(),
                                    discretizationSettings,
-                                   Meshing::SurfaceMesh3DQualitySettings{});
+                                   Meshing::SurfaceMesh3DQualitySettings{},
+                                   Meshing::SizingFieldSettings3D{});
 
     auto volumeMesh = mesher.mesh();
 

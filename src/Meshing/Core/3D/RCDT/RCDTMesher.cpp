@@ -46,6 +46,12 @@ namespace
 // exactly the same point set the initial mesh's non-bounding nodes have
 // right after triangulation -- inserting the bounding tetrahedron and
 // triangulating neither adds nor removes any of them.
+// The size floor is a SLIVER GUARD, not a size target: refinement must be
+// free to reach the size actually being asked for, so the floor has to sit
+// well below it. Setting it AT the target disables refinement wherever the
+// mesh has arrived, which collapses the torus to degenerate triangles.
+constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
+
 double computeMinimumEdgeLength(const std::vector<Point3D>& points)
 {
     std::vector<double> nearestPerPoint;
@@ -66,8 +72,25 @@ double computeMinimumEdgeLength(const std::vector<Point3D>& points)
 
     std::sort(nearestPerPoint.begin(), nearestPerPoint.end());
     const double median = nearestPerPoint[nearestPerPoint.size() / 2];
-    constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
     return median / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
+}
+
+// The floor when an explicit sizing field is available (OPE-181).
+//
+// Deriving it from the discretization's own spacing, as computeMinimumEdgeLength
+// does, is CIRCULAR once that spacing comes from h(x): making the boundary
+// finer lowers the floor, which lets refinement chase proportionally deeper,
+// and -- because RestrictedTriangulation scales its tessellation oracle's
+// cell size by this same value -- rebuilds the oracle finer at the same time.
+// Measured on SaddleSurfaceMesh: bounding segment length by h(x) moved the
+// derived floor 0.0523 -> 0.0212 and the non-manifold count 17 -> 388, of
+// which 349 disappeared again when the floor alone was held at its old value.
+//
+// h's own minimum is the non-circular quantity: it is set by the geometry,
+// so it does not move when the discretization does.
+double minimumEdgeLengthFrom(const SizingField3D& sizingField)
+{
+    return sizingField.getMinimumSourceSize() / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
 }
 
 // Zero-fill rather than plain resize(): node IDs below the highest surviving
@@ -95,11 +118,13 @@ std::vector<Point3D> buildZeroFilledNodeList(const MeshData3D& meshData)
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        const Topology3D::Topology3D& topology,
                        Geometry3D::DiscretizationSettings3D discretizationSettings,
-                       SurfaceMesh3DQualitySettings qualitySettings) :
+                       SurfaceMesh3DQualitySettings qualitySettings,
+                       std::optional<SizingFieldSettings3D> sizingFieldSettings) :
     geometry_(&geometry),
     topology_(&topology),
     discretizationSettings_(discretizationSettings),
     qualitySettings_(qualitySettings),
+    sizingFieldSettings_(std::move(sizingFieldSettings)),
     meshingContext_(std::make_unique<MeshingContext3D>(geometry, topology))
 {
 }
@@ -193,7 +218,15 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: discretizing boundary ({} surface samples/direction)",
                  discretizationSettings_.getNumSamplesPerSurfaceDirection());
 
-    BoundaryDiscretizer3D discretizer(*geometry_, *topology_, discretizationSettings_);
+    // Built before discretization and kept, so the size floor below reads the
+    // same h(x) the discretization did.
+    if (sizingFieldSettings_.has_value() && !sizingField_.has_value())
+        sizingField_ = SizingFieldBuilder3D::build(*geometry_, *topology_, sizingFieldSettings_.value());
+
+    BoundaryDiscretizer3D discretizer(*geometry_,
+                                      *topology_,
+                                      discretizationSettings_,
+                                      sizingField_ ? &sizingField_.value() : nullptr);
     discretizer.discretize();
     auto discretizationResult = discretizer.releaseDiscretizationResult();
 
@@ -205,7 +238,8 @@ void RCDTMesher::buildInitial()
     // computeMinimumEdgeLength()'s doc for why this is the same value
     // computing it from the post-triangulation mesh would give.
     if (!qualitySettings_.minimumEdgeLength)
-        qualitySettings_.minimumEdgeLength = computeMinimumEdgeLength(discretizationResult->points);
+        qualitySettings_.minimumEdgeLength = sizingField_ ? minimumEdgeLengthFrom(*sizingField_)
+                                                          : computeMinimumEdgeLength(discretizationResult->points);
     spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", *qualitySettings_.minimumEdgeLength);
 
     // Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample

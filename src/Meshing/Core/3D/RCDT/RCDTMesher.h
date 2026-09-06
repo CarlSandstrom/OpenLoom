@@ -7,8 +7,12 @@
 #include "Meshing/Interfaces/ISurfaceMesher3D.h"
 #include "Meshing/Interfaces/IVolumeMesher3D.h"
 
+#include "Meshing/Core/3D/General/SizingField3D.h"
+#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
+
 #include <array>
 #include <memory>
+#include <optional>
 
 namespace Geometry3D
 {
@@ -36,10 +40,15 @@ class RestrictedTriangulation;
 class RCDTMesher : public ISurfaceMesher3D, public IVolumeMesher3D
 {
 public:
+    /// sizingFieldSettings, when set, bounds boundary-discretization segment
+    /// length by h(x) in addition to the tangent-angle criterion -- see
+    /// BoundaryDiscretizer3D's class comment for why the angle criterion
+    /// alone cannot bound length. Off by default.
     RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                const Topology3D::Topology3D& topology,
                Geometry3D::DiscretizationSettings3D discretizationSettings = {},
-               SurfaceMesh3DQualitySettings qualitySettings = {});
+               SurfaceMesh3DQualitySettings qualitySettings = {},
+               std::optional<SizingFieldSettings3D> sizingFieldSettings = std::nullopt);
 
     ~RCDTMesher();
 
@@ -59,6 +68,12 @@ private:
     const Topology3D::Topology3D* topology_;
     Geometry3D::DiscretizationSettings3D discretizationSettings_;
     SurfaceMesh3DQualitySettings qualitySettings_;
+    std::optional<SizingFieldSettings3D> sizingFieldSettings_;
+
+    /// h(x), built once in buildInitial() when sizingFieldSettings_ is set.
+    /// Shared by boundary discretization and the minimumEdgeLength floor --
+    /// the point of OPE-181 is that those read the same field.
+    std::optional<SizingField3D> sizingField_;
 
     std::unique_ptr<MeshingContext3D> meshingContext_;
     std::unique_ptr<RestrictedTriangulation> restrictedTriangulation_;

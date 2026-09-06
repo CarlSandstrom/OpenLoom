@@ -6,6 +6,8 @@
 #include "Topology/Topology3D.h"
 #include <algorithm>
 #include <cmath>
+#include <limits>
+#include <optional>
 
 namespace Meshing
 {
@@ -24,10 +26,12 @@ double angleBetweenTangents(const std::array<double, 3>& a, const std::array<dou
 
 BoundaryDiscretizer3D::BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
                                              const Topology3D::Topology3D& topology,
-                                             const Geometry3D::DiscretizationSettings3D& settings) :
+                                             const Geometry3D::DiscretizationSettings3D& settings,
+                                             const SizingField3D* sizingField) :
     geometry_(&geometry),
     topology_(&topology),
     settings_(settings),
+    sizingField_(sizingField),
     result_(std::make_unique<DiscretizationResult3D>())
 {
 }
@@ -53,6 +57,11 @@ void BoundaryDiscretizer3D::discretize()
     // Step 2: Sample edge interior points (excluding endpoints)
     const auto maxAngle = settings_.getMaxAngleBetweenSegments();
     const auto numSegments = settings_.getNumSegmentsPerEdge();
+
+    // The sizing field supplies the length bound the angle criterion cannot
+    // express (see the class comment). Supplied by the caller so that every
+    // consumer of h(x) reads one field.
+    const SizingField3D* const sizingField = sizingField_;
 
     for (const auto& edgeId : topology_->getAllEdgeIds())
     {
@@ -88,14 +97,58 @@ void BoundaryDiscretizer3D::discretize()
         {
             // no interior points
         }
-        else if (maxAngle.has_value())
+        // Angle mode takes priority over fixed-count mode (see
+        // DiscretizationSettings3D), and a sizing field refines whichever
+        // mode is active rather than replacing it: in angle mode it adds the
+        // length criterion to the walk, and in fixed-count mode it treats
+        // the count's uniform segment length as a maximum that h(x) may
+        // shorten but never lengthen. The field only ever ADDS points --
+        // a count is a coarseness request, not a protection guarantee, and
+        // CurveProtectionSubdivider already densifies past it wherever the
+        // protection properties demand (so the count was never authoritative
+        // to begin with).
+        else if (maxAngle.has_value() || sizingField != nullptr)
         {
+            // In fixed-count mode the count contributes its uniform segment
+            // arc length as a cap on the walk's length criterion. Total arc
+            // length is not available analytically, so accumulate it with the
+            // same chord stepping the walk itself uses.
+            std::optional<double> uniformSegmentLength;
+            if (!maxAngle.has_value() && numSegments.has_value() && numSegments.value() > 0)
+            {
+                constexpr size_t NUM_LENGTH_STEPS = 1000;
+                double totalLength = 0.0;
+                Point3D previous = edge->getPoint(tMin);
+                for (size_t i = 1; i <= NUM_LENGTH_STEPS; ++i)
+                {
+                    const double t = tMin + static_cast<double>(i) * (tMax - tMin) /
+                                                static_cast<double>(NUM_LENGTH_STEPS);
+                    const Point3D current = edge->getPoint(t);
+                    totalLength += (current - previous).norm();
+                    previous = current;
+                }
+                uniformSegmentLength = totalLength / static_cast<double>(numSegments.value());
+            }
             // Angle-based: walk 1000 uniform steps; insert a point whenever the
             // accumulated tangent-angle change since the last inserted point
             // meets or exceeds maxAngle. Straight edges produce no interior points.
+            //
+            // With a sizing field, accumulated ARCLENGTH is tracked alongside
+            // the angle and either criterion alone triggers a point. That is
+            // what bounds segment length on a curve that is steep but barely
+            // turning, where the angle criterion permits a segment of any
+            // length at all (see the class comment). A straight edge still
+            // produces no interior points from the angle term, but the length
+            // term does subdivide it -- which is the point: a long straight
+            // crease needs interior points for its protecting balls to stay
+            // proportionate to the local mesh size.
             constexpr size_t NUM_STEPS = 1000;
             auto prevTangent = edge->getTangent(tMin);
             double accumulated = 0.0;
+
+            Point3D prevPoint = edge->getPoint(tMin);
+            Point3D segmentStartPoint = prevPoint;
+            double accumulatedLength = 0.0;
 
             for (size_t i = 1; i <= NUM_STEPS; ++i)
             {
@@ -104,14 +157,37 @@ void BoundaryDiscretizer3D::discretize()
                 accumulated += angleBetweenTangents(prevTangent, nextTangent);
                 prevTangent = nextTangent;
 
-                if (accumulated >= maxAngle.value())
+                const Point3D point = edge->getPoint(t);
+                accumulatedLength += (point - prevPoint).norm();
+                prevPoint = point;
+
+                const bool angleReached = maxAngle.has_value() && accumulated >= maxAngle.value();
+
+                // Bound the segment by the SMALLER of the sizes its two ends
+                // ask for, so a segment running from a coarse region into a
+                // fine one is cut to suit the fine end rather than overshoot
+                // it.
+                bool lengthReached = false;
+                if (sizingField != nullptr || uniformSegmentLength.has_value())
+                {
+                    double allowedLength = uniformSegmentLength.value_or(std::numeric_limits<double>::max());
+                    if (sizingField != nullptr)
+                        allowedLength = std::min({allowedLength,
+                                                  sizingField->evaluate(segmentStartPoint),
+                                                  sizingField->evaluate(point)});
+                    lengthReached = accumulatedLength >= allowedLength;
+                }
+
+                if (angleReached || lengthReached)
                 {
                     size_t pointIndex = result_->points.size();
-                    result_->points.push_back(edge->getPoint(t));
+                    result_->points.push_back(point);
                     result_->edgeParameters.push_back({t});
                     result_->geometryIds.push_back({edgeId});
                     edgePointIndices.push_back(pointIndex);
                     accumulated = 0.0;
+                    accumulatedLength = 0.0;
+                    segmentStartPoint = point;
                 }
 
                 if (t >= tMax)
@@ -120,7 +196,8 @@ void BoundaryDiscretizer3D::discretize()
         }
         else if (numSegments.has_value() && numSegments.value() > 1)
         {
-            // Fixed-count: divide the edge into numSegments uniform segments.
+            // Fixed-count without a sizing field: divide the edge into
+            // numSegments uniform segments in parameter space.
             const size_t n = numSegments.value();
             for (size_t i = 1; i < n; ++i)
             {

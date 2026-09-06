@@ -8,9 +8,13 @@ namespace Meshing
 VolumeMesher3D::VolumeMesher3D(const Geometry3D::GeometryCollection3D& geometry,
                                const Topology3D::Topology3D& topology,
                                Geometry3D::DiscretizationSettings3D discretizationSettings,
-                               SurfaceMesh3DQualitySettings qualitySettings) :
-    impl_(std::make_unique<RCDTMesher>(
-        geometry, topology, std::move(discretizationSettings), std::move(qualitySettings)))
+                               SurfaceMesh3DQualitySettings qualitySettings,
+                               std::optional<SizingFieldSettings3D> sizingFieldSettings) :
+    impl_(std::make_unique<RCDTMesher>(geometry,
+                                       topology,
+                                       std::move(discretizationSettings),
+                                       std::move(qualitySettings),
+                                       std::move(sizingFieldSettings)))
 {
 }
 

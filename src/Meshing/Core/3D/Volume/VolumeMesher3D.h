@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
 
 #include <memory>
+#include <optional>
 
 namespace Geometry3D
 {
@@ -39,10 +41,14 @@ class IVolumeMesher3D;
 class VolumeMesher3D
 {
 public:
+    /// sizingFieldSettings, when set, bounds boundary-discretization segment
+    /// length by h(x) as well as by tangent angle (see
+    /// BoundaryDiscretizer3D). Off by default.
     VolumeMesher3D(const Geometry3D::GeometryCollection3D& geometry,
                    const Topology3D::Topology3D& topology,
                    Geometry3D::DiscretizationSettings3D discretizationSettings = {},
-                   SurfaceMesh3DQualitySettings qualitySettings = {});
+                   SurfaceMesh3DQualitySettings qualitySettings = {},
+                   std::optional<SizingFieldSettings3D> sizingFieldSettings = std::nullopt);
 
     ~VolumeMesher3D();
 
