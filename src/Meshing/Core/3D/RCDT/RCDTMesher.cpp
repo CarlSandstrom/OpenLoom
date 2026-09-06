@@ -152,6 +152,13 @@ SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
     if (chordFacesRemoved > 0)
         spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", chordFacesRemoved);
 
+    // Then the doubled patches of OPE-184: flaps of restricted faces laid
+    // over surface that is already covered. Runs after the chord cleanup
+    // above, whose removals change the per-edge counts this judges.
+    const size_t excessFacesRemoved = restrictedTriangulation_->removeExcessFaces(meshingContext_->getMeshData());
+    if (excessFacesRemoved > 0)
+        spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", excessFacesRemoved);
+
     removeBoundingTetrahedron();
 
     SurfaceMesh3D surfaceMesh = buildSurfaceMesh();

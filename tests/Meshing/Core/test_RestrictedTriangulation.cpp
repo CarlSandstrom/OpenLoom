@@ -108,7 +108,7 @@ Geometry3D::GeometryCollection3D makeSingleSurfaceGeometry(const std::string& su
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
     return Geometry3D::GeometryCollection3D(std::move(surfaces), std::move(edges),
-                                           std::move(corners));
+                                            std::move(corners));
 }
 
 // ============================================================================
@@ -269,7 +269,7 @@ TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SingleFace_AllThreeEdgesA
 
     // A single triangle isn't closed -- all 3 of its edges are boundary
     // edges (count 1, not the 2 a closed 2-manifold requires).
-    const auto defects = rt.findNonManifoldEdges();
+    const auto defects = rt.findNonManifoldEdges(setup.meshData);
     ASSERT_EQ(defects.size(), 3u);
     for (const auto& defect : defects)
         EXPECT_EQ(defect.surfaceId, FlatPlaneSetup::SURFACE_ID);
@@ -308,10 +308,148 @@ TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SharedEdgeNotReported_Ope
     rt.buildFrom(meshData, connectivity, geometry, topology, 0.1, SurfaceMesh3DQualitySettings{});
     ASSERT_EQ(rt.getRestrictedFaces().size(), 2u);
 
-    const auto defects = rt.findNonManifoldEdges();
+    const auto defects = rt.findNonManifoldEdges(meshData);
     ASSERT_EQ(defects.size(), 4u);
     for (const auto& defect : defects)
         EXPECT_FALSE(defect.edge == EdgeKey(n0, n2));
+}
+
+// ============================================================================
+// removeExcessFaces
+// ============================================================================
+
+namespace
+{
+
+// A closed fan of 5 restricted triangles around a centre node, plus a sixth
+// laid over one of the fan's spokes -- the doubled patch of OPE-184 in
+// miniature. Every node sits on z = 0; each triangle gets its own pair of
+// tetrahedra straddling the plane, so all 6 classify as restricted.
+//
+// The fan is a CYCLE, which is what makes the flap identifiable: cutting the
+// doubled spoke leaves the fan connected the long way round, so it stays one
+// component while the flap falls out as its own. A fan cut into pieces by its
+// own defect would leave the flap indistinguishable from any other fragment
+// -- all of them sit on the doubled edge symmetrically.
+struct FanWithFlapSetup
+{
+    static constexpr const char* SURFACE_ID = "surface";
+    static constexpr size_t RING_SIZE = 5;
+
+    MeshData3D meshData;
+    size_t centre = 0;
+    std::array<size_t, RING_SIZE> ring{};
+    size_t flapNode = 0;
+
+    Geometry3D::GeometryCollection3D geometry = makeSingleSurfaceGeometry(SURFACE_ID);
+
+    FanWithFlapSetup()
+    {
+        MeshMutator3D mutator(meshData);
+        centre = mutator.addBoundaryNode(Point3D(0.0, 0.0, 0.0), {SURFACE_ID});
+        for (size_t index = 0; index < RING_SIZE; ++index)
+        {
+            const double angle = 2.0 * M_PI * static_cast<double>(index) / RING_SIZE;
+            ring[index] = mutator.addBoundaryNode(Point3D(std::cos(angle), std::sin(angle), 0.0),
+                                                  {SURFACE_ID});
+        }
+        // Sits outside the ring, so the flap covers the doubled spoke without
+        // duplicating any node of the fan.
+        flapNode = mutator.addBoundaryNode(Point3D(2.0, 0.5, 0.0), {SURFACE_ID});
+
+        for (size_t index = 0; index < RING_SIZE; ++index)
+            addStraddlingPair(mutator, centre, ring[index], ring[(index + 1) % RING_SIZE]);
+
+        // The flap, on spoke (centre, ring[0]).
+        addStraddlingPair(mutator, centre, ring[0], flapNode);
+    }
+
+    // The two tetrahedra that make face (nodeA, nodeB, nodeC) restricted: one
+    // apex above z = 0 and one below, each apex its own node so no face is
+    // ever claimed by more than the two tetrahedra sharing it.
+    void addStraddlingPair(MeshMutator3D& mutator, size_t nodeA, size_t nodeB, size_t nodeC)
+    {
+        const Point3D centroid = (meshData.getNode(nodeA)->getCoordinates() +
+                                  meshData.getNode(nodeB)->getCoordinates() +
+                                  meshData.getNode(nodeC)->getCoordinates()) /
+                                 3.0;
+        const size_t above = mutator.addNode(Point3D(centroid.x(), centroid.y(), 10.0));
+        const size_t below = mutator.addNode(Point3D(centroid.x(), centroid.y(), -10.0));
+        mutator.addElement(
+            std::make_unique<TetrahedralElement>(std::array<size_t, 4>{nodeA, nodeB, nodeC, above}));
+        mutator.addElement(
+            std::make_unique<TetrahedralElement>(std::array<size_t, 4>{nodeA, nodeB, nodeC, below}));
+    }
+};
+
+// A topology whose single curve is adjacent to three surfaces -- the triple
+// line of a multi-material model. Only surfaceId carries geometry; the other
+// two exist purely as topology, which is all the expected-count check reads.
+Topology3D::Topology3D makeTripleLineTopology(const std::string& surfaceId,
+                                              const std::string& edgeId)
+{
+    std::unordered_map<std::string, Topology3D::Surface3D> surfaces;
+    surfaces.emplace(surfaceId, Topology3D::Surface3D(surfaceId, {edgeId}, {}));
+
+    std::unordered_map<std::string, Topology3D::Edge3D> edges;
+    edges.emplace(edgeId,
+                  Topology3D::Edge3D(edgeId, "", "", {surfaceId, "second_phase", "third_phase"}));
+
+    std::unordered_map<std::string, Topology3D::Corner3D> corners;
+    return Topology3D::Topology3D(surfaces, edges, corners);
+}
+
+} // namespace
+
+TEST(RestrictedTriangulationTest, RemoveExcessFaces_DropsTheFlapAndLeavesTheFanIntact)
+{
+    FanWithFlapSetup setup;
+    MeshConnectivity connectivity(setup.meshData);
+    const auto topology = makeSingleSurfaceTopology(FanWithFlapSetup::SURFACE_ID);
+
+    RestrictedTriangulation rt;
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, topology, 0.1,
+                 SurfaceMesh3DQualitySettings{});
+    ASSERT_EQ(rt.getRestrictedFaces().size(), 6u);
+
+    const FaceKey flap(setup.centre, setup.ring[0], setup.flapNode);
+    ASSERT_EQ(rt.getRestrictedFaces().count(flap), 1u);
+
+    EXPECT_EQ(rt.removeExcessFaces(setup.meshData), 1u);
+    EXPECT_EQ(rt.getRestrictedFaces().size(), 5u);
+    EXPECT_EQ(rt.getRestrictedFaces().count(flap), 0u);
+
+    for (const auto& defect : rt.findNonManifoldEdges(setup.meshData))
+        EXPECT_NE(defect.defect, RestrictedEdgeDefect::ExcessFace);
+}
+
+// The same 3 faces on one edge, but now that edge is a triple line where
+// three surfaces genuinely meet. Three faces is what the topology calls for
+// there, so nothing is in excess and nothing may be removed -- the flat
+// "every edge has exactly 2 faces" rule this replaced would have pruned a
+// real feature of the model instead. See OPE-184.
+TEST(RestrictedTriangulationTest, RemoveExcessFaces_LeavesAGenuineTripleLineAlone)
+{
+    constexpr const char* EDGE_ID = "triple_line";
+
+    FanWithFlapSetup setup;
+    MeshMutator3D mutator(setup.meshData);
+    CurveSegment segment;
+    segment.nodeId1 = setup.centre;
+    segment.nodeId2 = setup.ring[0];
+    segment.edgeId = EDGE_ID;
+    mutator.addCurveSegment(segment);
+
+    MeshConnectivity connectivity(setup.meshData);
+    const auto topology = makeTripleLineTopology(FanWithFlapSetup::SURFACE_ID, EDGE_ID);
+
+    RestrictedTriangulation rt;
+    rt.buildFrom(setup.meshData, connectivity, setup.geometry, topology, 0.1,
+                 SurfaceMesh3DQualitySettings{});
+    ASSERT_EQ(rt.getRestrictedFaces().size(), 6u);
+
+    EXPECT_EQ(rt.removeExcessFaces(setup.meshData), 0u);
+    EXPECT_EQ(rt.getRestrictedFaces().size(), 6u);
 }
 
 // ============================================================================
@@ -406,7 +544,8 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ElongatedTriangle_ReportedAsBa
     ASSERT_FALSE(badTriangles.empty());
     const FaceKey expectedFace(n0, n1, n2);
     const bool found = std::any_of(badTriangles.begin(), badTriangles.end(),
-                                   [&](const BadRestrictedTriangle& t) {
+                                   [&](const BadRestrictedTriangle& t)
+                                   {
                                        return t.face == expectedFace &&
                                               t.surfaceId == SURFACE_ID;
                                    });
@@ -495,7 +634,8 @@ TEST(RestrictedTriangulationTest, GetBadTriangles_ChordDeviationFailure)
     ASSERT_FALSE(badTriangles.empty());
     const FaceKey expectedFace(n0, n1, n2);
     const bool found = std::any_of(badTriangles.begin(), badTriangles.end(),
-                                   [&](const BadRestrictedTriangle& t) {
+                                   [&](const BadRestrictedTriangle& t)
+                                   {
                                        return t.face == expectedFace;
                                    });
     EXPECT_TRUE(found);

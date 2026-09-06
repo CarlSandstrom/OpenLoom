@@ -14,6 +14,7 @@
 #include "Topology/Topology3D.h"
 
 #include <algorithm>
+#include <numeric>
 
 namespace Meshing
 {
@@ -330,27 +331,248 @@ std::optional<Point3D> RestrictedTriangulation::computeInsertionPoint(
     return surfaceProjector_.findSurfaceCrossing(endpoints->first, endpoints->second, surface);
 }
 
-std::vector<NonManifoldRestrictedEdge> RestrictedTriangulation::findNonManifoldEdges() const
+std::optional<std::unordered_map<std::string, size_t>> RestrictedTriangulation::expectedIncidentSurfaces(
+    const EdgeKey& edge,
+    const CurveSegmentManager& curveSegmentManager) const
 {
-    std::unordered_map<EdgeKey, int, EdgeKeyHash> edgeCounts;
-    std::unordered_map<EdgeKey, std::string, EdgeKeyHash> edgeSurfaceIds;
+    const auto segmentId = curveSegmentManager.findSegmentId(edge.nodeIds[0], edge.nodeIds[1]);
+    if (!segmentId)
+        return std::nullopt;
 
+    const auto adjacentIt = edgeToAdjacentSurfaces_.find(curveSegmentManager.getSegment(*segmentId).edgeId);
+    if (adjacentIt == edgeToAdjacentSurfaces_.end() || adjacentIt->second.empty())
+        return std::nullopt;
+
+    // A seam curve is listed twice against its own surface -- it bounds that
+    // surface's UV domain on both sides -- which is exactly the expectation
+    // of 2 same-surface faces it should carry, so the multiset is taken as
+    // it comes rather than deduplicated.
+    std::unordered_map<std::string, size_t> expected;
+    for (const auto& surfaceId : adjacentIt->second)
+        ++expected[surfaceId];
+    return expected;
+}
+
+RestrictedTriangulation::RestrictedEdgeCoverageMap RestrictedTriangulation::buildEdgeCoverage(
+    const MeshData3D& meshData) const
+{
+    RestrictedEdgeCoverageMap coverage;
     for (const auto& [face, surfaceId] : restrictedFaces_)
     {
         for (const auto& edge : faceEdges(face))
         {
-            ++edgeCounts[edge];
-            edgeSurfaceIds.try_emplace(edge, surfaceId);
+            auto& entry = coverage[edge];
+            entry.incidentFaces.push_back(face);
+            ++entry.actualBySurface[surfaceId];
         }
     }
 
-    std::vector<NonManifoldRestrictedEdge> nonManifoldEdges;
-    for (const auto& [edge, count] : edgeCounts)
+    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    for (auto& [edge, entry] : coverage)
     {
-        if (count != 2)
-            nonManifoldEdges.push_back({edge, edgeSurfaceIds.at(edge)});
+        if (const auto fromTopology = expectedIncidentSurfaces(edge, curveSegmentManager))
+        {
+            entry.expectedBySurface = *fromTopology;
+            for (const auto& [surfaceId, expectedCount] : entry.expectedBySurface)
+                entry.expectedCount += expectedCount;
+        }
+        else
+        {
+            // Off a model curve the topology fixes no expectation of its own,
+            // so the surface-interior rule applies: 2 faces on one and the
+            // same surface. WHICH surface is only pinned down when the faces
+            // already agree -- when they don't, the count of 2 still stands
+            // but there is no per-surface expectation left to check against.
+            entry.expectedCount = 2;
+            if (entry.actualBySurface.size() == 1)
+                entry.expectedBySurface[entry.actualBySurface.begin()->first] = 2;
+        }
+    }
+    return coverage;
+}
+
+std::vector<NonManifoldRestrictedEdge> RestrictedTriangulation::findNonManifoldEdges(const MeshData3D& meshData) const
+{
+    std::vector<NonManifoldRestrictedEdge> nonManifoldEdges;
+    for (const auto& [edge, entry] : buildEdgeCoverage(meshData))
+    {
+        if (entry.expectedBySurface.empty())
+        {
+            nonManifoldEdges.push_back(
+                {edge, entry.actualBySurface.begin()->first, RestrictedEdgeDefect::SurfaceMismatch});
+            continue;
+        }
+
+        // A surface short of a face is reported in preference to one carrying
+        // an excess: it names where a repair point has to be projected, while
+        // an excess names only where one already is.
+        std::optional<std::string> missingSurfaceId;
+        std::optional<std::string> excessSurfaceId;
+        for (const auto& [surfaceId, expectedCount] : entry.expectedBySurface)
+        {
+            const auto actualIt = entry.actualBySurface.find(surfaceId);
+            const size_t actualCount = actualIt == entry.actualBySurface.end() ? 0 : actualIt->second;
+            if (actualCount < expectedCount && !missingSurfaceId)
+                missingSurfaceId = surfaceId;
+            else if (actualCount > expectedCount && !excessSurfaceId)
+                excessSurfaceId = surfaceId;
+        }
+        for (const auto& actualEntry : entry.actualBySurface)
+        {
+            // A surface not expected here at all: every face it contributes
+            // is an excess one.
+            if (!entry.expectedBySurface.count(actualEntry.first) && !excessSurfaceId)
+                excessSurfaceId = actualEntry.first;
+        }
+
+        if (missingSurfaceId)
+        {
+            // Short on one surface and long on another is the expected number
+            // of faces landing on the wrong surfaces, not a hole beside a
+            // duplicate -- repair still projects onto the surface that is short.
+            const auto defect =
+                excessSurfaceId ? RestrictedEdgeDefect::SurfaceMismatch : RestrictedEdgeDefect::MissingFace;
+            nonManifoldEdges.push_back({edge, *missingSurfaceId, defect});
+        }
+        else if (excessSurfaceId)
+        {
+            nonManifoldEdges.push_back({edge, *excessSurfaceId, RestrictedEdgeDefect::ExcessFace});
+        }
     }
     return nonManifoldEdges;
+}
+
+size_t RestrictedTriangulation::removeExcessFaces(const MeshData3D& meshData)
+{
+    size_t removed = 0;
+    bool progress = true;
+    while (progress)
+    {
+        progress = false;
+
+        const auto coverage = buildEdgeCoverage(meshData);
+
+        std::unordered_map<FaceKey, size_t, FaceKeyHash> faceIndices;
+        std::vector<FaceKey> faces;
+        faces.reserve(restrictedFaces_.size());
+        for (const auto& [face, surfaceId] : restrictedFaces_)
+        {
+            faceIndices.emplace(face, faces.size());
+            faces.push_back(face);
+        }
+        if (faces.empty())
+            break;
+
+        // Union-find over the faces, joining them across every edge that is
+        // NOT over-covered. An over-covered edge is left as a cut, which is
+        // what separates a flap from the sheet it was laid over.
+        std::vector<size_t> parents(faces.size());
+        std::iota(parents.begin(), parents.end(), size_t{0});
+        auto findRoot = [&parents](size_t index)
+        {
+            while (parents[index] != index)
+            {
+                parents[index] = parents[parents[index]];
+                index = parents[index];
+            }
+            return index;
+        };
+
+        for (const auto& [edge, entry] : coverage)
+        {
+            if (entry.incidentFaces.size() > entry.expectedCount)
+                continue;
+            for (size_t i = 1; i < entry.incidentFaces.size(); ++i)
+            {
+                const size_t rootA = findRoot(faceIndices.at(entry.incidentFaces[0]));
+                const size_t rootB = findRoot(faceIndices.at(entry.incidentFaces[i]));
+                if (rootA != rootB)
+                    parents[rootB] = rootA;
+            }
+        }
+
+        std::unordered_map<size_t, std::vector<FaceKey>> components;
+        for (size_t index = 0; index < faces.size(); ++index)
+            components[findRoot(index)].push_back(faces[index]);
+
+        // Components are ranked by size, ties broken on their smallest face.
+        // Size alone leaves the outcome to restrictedFaces_'s hash order in
+        // any configuration where several components are equally removable,
+        // which would make the mesh depend on iteration order -- the same
+        // hazard removeChordFaces() repeats itself to a fixed point to avoid.
+        for (auto& [root, componentFaces] : components)
+            std::sort(componentFaces.begin(), componentFaces.end());
+
+        const auto ranking = [&components](size_t root)
+        { return std::make_pair(components.at(root).size(), components.at(root).front()); };
+
+        size_t largestComponentRoot = components.begin()->first;
+        for (const auto& [root, componentFaces] : components)
+        {
+            if (ranking(largestComponentRoot) < ranking(root))
+                largestComponentRoot = root;
+        }
+
+        // Smallest first: a flap is small, and testing it before anything
+        // larger keeps a big component from being judged against counts a
+        // smaller one has already been credited with.
+        std::vector<size_t> roots;
+        for (const auto& [root, componentFaces] : components)
+        {
+            if (root != largestComponentRoot)
+                roots.push_back(root);
+        }
+        std::sort(roots.begin(),
+                  roots.end(),
+                  [&ranking](size_t rootA, size_t rootB)
+                  { return ranking(rootA) < ranking(rootB); });
+
+        for (const size_t root : roots)
+        {
+            const auto& componentFaces = components.at(root);
+
+            std::unordered_map<EdgeKey, size_t, EdgeKeyHash> contributed;
+            for (const auto& face : componentFaces)
+                for (const auto& edge : faceEdges(face))
+                    ++contributed[edge];
+
+            // Only a component that is actually piled on top of something is
+            // a candidate: one touching no over-covered edge is ordinary
+            // surface, however small, and removing it would tear a hole.
+            bool touchesOverCoveredEdge = false;
+            bool safe = true;
+            for (const auto& [edge, contributedCount] : contributed)
+            {
+                const auto& entry = coverage.at(edge);
+                if (entry.incidentFaces.size() > entry.expectedCount)
+                    touchesOverCoveredEdge = true;
+
+                // What is left on the edge must still meet the expected count
+                // -- or be nothing at all, which is the flap's own interior
+                // edges leaving the restricted set along with it rather than
+                // being left behind as holes.
+                const size_t remaining = entry.incidentFaces.size() - contributedCount;
+                if (remaining != 0 && remaining < entry.expectedCount)
+                {
+                    safe = false;
+                    break;
+                }
+            }
+
+            if (!touchesOverCoveredEdge || !safe)
+                continue;
+
+            for (const auto& face : componentFaces)
+            {
+                restrictedFaces_.erase(face);
+                badFaces_.erase(face);
+                ++removed;
+            }
+            progress = true;
+            break;
+        }
+    }
+    return removed;
 }
 
 std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& face,

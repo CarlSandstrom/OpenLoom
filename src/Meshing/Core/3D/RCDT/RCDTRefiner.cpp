@@ -409,7 +409,7 @@ bool RCDTRefiner::refineNonManifoldEdges()
         return false;
 
     const auto& nodePositionMap = getNodePositionMap();
-    const auto defects = restrictedTriangulation_->findNonManifoldEdges();
+    const auto defects = restrictedTriangulation_->findNonManifoldEdges(meshData);
 
     for (const auto& defect : defects)
     {

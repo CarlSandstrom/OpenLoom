@@ -17,6 +17,7 @@
 
 namespace Meshing
 {
+class CurveSegmentManager;
 class MeshConnectivity;
 class MeshData3D;
 class TetrahedralElement;
@@ -44,15 +45,31 @@ struct BadRestrictedTriangle
     double shortestEdge;
 };
 
-/// An edge of the restricted-face set not shared by exactly 2 triangles --
-/// a hole (count < 2) or a self-intersection (count > 2) in what should be a
-/// closed 2-manifold. surfaceId is the surface of one restricted face
-/// touching the edge (arbitrary when more than one candidate exists), used
-/// as where to project a repair point onto.
+/// How an edge's restricted-face coverage departs from what the CAD
+/// topology calls for -- see findNonManifoldEdges() for the invariant itself.
+enum class RestrictedEdgeDefect
+{
+    /// Fewer incident faces than expected: a hole in the surface.
+    MissingFace,
+    /// More incident faces than expected: the same piece of surface covered
+    /// twice, the over-acceptance flap of OPE-184.
+    ExcessFace,
+    /// The expected NUMBER of faces, but restricted to the wrong surfaces --
+    /// e.g. two faces on an edge that lies in a surface's interior but that
+    /// disagree about which surface, or a curve whose two incident faces
+    /// both claim the same one of its two adjacent surfaces.
+    SurfaceMismatch
+};
+
+/// An edge whose incident restricted faces do not match what the CAD
+/// topology calls for. surfaceId is where a repair point should be projected:
+/// the surface the edge is short of a face on when one is missing, otherwise
+/// the surface carrying the excess.
 struct NonManifoldRestrictedEdge
 {
     EdgeKey edge;
     std::string surfaceId;
+    RestrictedEdgeDefect defect = RestrictedEdgeDefect::MissingFace;
 };
 
 /// Which side of the model a point falls on, as resolved against every
@@ -140,6 +157,40 @@ public:
     /// Returns the number of faces removed.
     size_t removeChordFaces(const MeshData3D& meshData);
 
+    /// Post-hoc manifold enforcement: removes flaps of restricted faces that
+    /// cover a piece of surface already covered, leaving the edges they were
+    /// piled onto with exactly the number of faces the CAD topology calls for
+    /// (see findNonManifoldEdges() for that invariant). Meant to be called
+    /// ONCE, after refinement has fully converged and after
+    /// removeChordFaces(), whose removals change the counts this judges.
+    ///
+    /// A flap is identified as a whole CONNECTED COMPONENT rather than
+    /// face-by-face. Faces are joined through every edge that is NOT
+    /// over-covered, so an over-covered edge acts as a cut: a flap laid over
+    /// an otherwise correct sheet meets that sheet only along over-covered
+    /// edges -- its own interior edges carry just its own two triangles --
+    /// and so falls out as a component of its own. This is what OPE-184
+    /// measured the defect to be: not 222 independent faults but 21 doubled
+    /// patches of 4-7 elements across, the seam between patch and sheet
+    /// showing up as the multiplicity-3 edges.
+    ///
+    /// A component is removed only when it touches an over-covered edge at
+    /// all, and only while every edge it touches can spare its faces: what
+    /// remains after the removal must still meet the expected count, or must
+    /// be nothing at all (a flap's own interior edges leave the restricted
+    /// set along with it, so they cannot be left as holes). The largest
+    /// component is never removed. Applied greedily to a fixed point, since
+    /// each removal changes the counts the remaining candidates are judged
+    /// against.
+    ///
+    /// Deliberately NOT "for any edge with more than 2 faces, keep the best
+    /// 2 and drop the rest": the expected count is read off the topology,
+    /// so an edge where three surfaces genuinely meet -- a triple line in a
+    /// multi-material model -- expects 3 and is never touched here.
+    ///
+    /// Returns the number of faces removed.
+    size_t removeExcessFaces(const MeshData3D& meshData);
+
     /// The insertion point for the given bad triangle: where its dual Voronoi
     /// edge (the segment between its two adjacent tets' circumcenters) crosses
     /// the surface. Computed on demand rather than in getBadTriangles() to
@@ -152,12 +203,42 @@ public:
                                                  const MeshConnectivity& connectivity,
                                                  const Geometry3D::ISurface3D& surface) const;
 
-    /// Every edge of the restricted-face set whose triangle count isn't
-    /// exactly 2 -- i.e. every place the set fails to be a closed 2-manifold.
-    /// A watertight restricted set (what AmbientTetrahedronClassifier's flood
-    /// fill requires, and what a correct RCDT run should eventually produce)
+    /// Every edge whose incident restricted faces do not match what the CAD
+    /// topology calls for there. A restricted set that satisfies the
+    /// invariant everywhere (what AmbientTetrahedronClassifier's flood fill
+    /// requires, and what a correct RCDT run should eventually produce)
     /// returns an empty vector.
-    std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges() const;
+    ///
+    /// The invariant is per-edge and depends on whether the edge lies ON a
+    /// model curve -- i.e. its two nodes are chain-adjacent along one, per
+    /// meshData's CurveSegmentManager:
+    ///
+    ///  * On a curve: exactly one incident face per surface adjacent to that
+    ///    curve, as listed by Topology3D::Edge3D::getAdjacentSurfaceIds().
+    ///    Two for an ordinary crease, one for a free boundary, and THREE OR
+    ///    MORE at a junction where that many surfaces meet.
+    ///  * Not on a curve (a surface interior, or a chord skipping a curve's
+    ///    own sample points): exactly 2 incident faces, both restricted to
+    ///    the same surface.
+    ///
+    /// This is deliberately NOT the flat "every edge has exactly 2 faces"
+    /// test it replaces. That test states a closed-2-manifold requirement
+    /// the models this library targets do not all satisfy: in a conformal
+    /// multi-material model -- a polycrystal or multiphase microstructure --
+    /// grain boundaries meet along TRIPLE LINES where three boundary patches
+    /// share one edge, and at quadruple points where four triple lines meet.
+    /// Three faces on such an edge is the equilibrium configuration, not a
+    /// defect, and Edge3D has always documented its adjacency list as
+    /// "usually 2, can be 1 (boundary) or >2 (non-manifold)". Reading the
+    /// expected count off the topology rather than assuming 2 is what lets
+    /// a legitimate junction and an over-acceptance flap be told apart.
+    ///
+    /// The distinction also matters for the flap itself: the count test
+    /// lumps holes, duplicates and (in future) junctions into one number, so
+    /// it cannot serve as a quality gate, and any repair of the "keep the
+    /// best 2, drop the rest" shape built on it would silently destroy
+    /// triple lines. See OPE-184.
+    std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(const MeshData3D& meshData) const;
 
 private:
     /// Centroid phase memoized per tetrahedron, for the whole refinement run.
@@ -241,6 +322,47 @@ private:
                                    const Geometry3D::ISurface3D& surface) const;
 
     mutable std::unordered_map<std::string, std::unordered_map<size_t, bool>> nodeWithinTrimmedBoundaryBySurface_;
+
+    /// One edge's restricted-face coverage set against what the CAD topology
+    /// calls for there -- the raw material of the invariant documented on
+    /// findNonManifoldEdges(), shared by that check and by
+    /// removeExcessFaces().
+    struct RestrictedEdgeCoverage
+    {
+        std::vector<FaceKey> incidentFaces;
+        std::unordered_map<std::string, size_t> actualBySurface;
+
+        /// How many faces the edge should carry in total. Always populated.
+        size_t expectedCount = 0;
+
+        /// Which surfaces those faces should belong to. Empty when the edge
+        /// lies off any model curve AND its faces already disagree about the
+        /// surface: the count is still expected to be 2, but the faces
+        /// themselves pin down no surface to expect them on.
+        std::unordered_map<std::string, size_t> expectedBySurface;
+    };
+
+    using RestrictedEdgeCoverageMap = std::unordered_map<EdgeKey, RestrictedEdgeCoverage, EdgeKeyHash>;
+
+    /// Every edge of the restricted-face set, with its incident faces and the
+    /// coverage the CAD topology expects of it.
+    RestrictedEdgeCoverageMap buildEdgeCoverage(const MeshData3D& meshData) const;
+
+    /// How many incident restricted faces each surface should carry on edge,
+    /// per the CAD topology -- the expectation findNonManifoldEdges() checks
+    /// the actual coverage against. Returns nullopt when edge does not lie on
+    /// a model curve, where the topology fixes no expectation of its own and
+    /// the surface-interior rule applies instead.
+    ///
+    /// An edge lies on a model curve when its two nodes are chain-adjacent
+    /// along one. Sharing a curve is NOT enough: two non-adjacent sample
+    /// points of the same curve are joined by a chord that skips the points
+    /// between them (see hasSameCurveChordEdge()), which is an ordinary edge
+    /// of the ambient tetrahedralization rather than a piece of the crease,
+    /// and inherits no expectation from it.
+    std::optional<std::unordered_map<std::string, size_t>> expectedIncidentSurfaces(
+        const EdgeKey& edge,
+        const CurveSegmentManager& curveSegmentManager) const;
 
     /// If two of face's three nodes are chain-adjacent along the same curve
     /// -- i.e. meshData's CurveSegmentManager has a segment directly
