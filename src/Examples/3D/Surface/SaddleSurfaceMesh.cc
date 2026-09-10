@@ -176,19 +176,18 @@ int main()
     // π/8 (22.5°) angle threshold: the parabolic arcs on the four sides are
     // curved enough to be densely sampled at this threshold, giving the interior
     // refiner sufficient boundary constraint nodes along each curved edge.
-    Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 2);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
-    Meshing::BoundaryDiscretizer3D discretizer(converter.getGeometryCollection(),
-                                               converter.getTopology(),
-                                               discSettings);
-    discretizer.discretize();
-    auto discResult = discretizer.releaseDiscretizationResult();
+    auto discretizationResult =
+        Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                   converter.getTopology(),
+                                                   discretizationSettings);
 
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(*discResult, "SaddleSurfaceMeshEdges.vtu");
+    exporter.writeEdgeMesh(*discretizationResult, "SaddleSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to SaddleSurfaceMeshEdges.vtu\n";
 
     // Default quality settings: circumradiusToShortestEdgeRatio = 1.0 (≡ min
@@ -237,7 +236,7 @@ int main()
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
-                                    discSettings,
+                                    discretizationSettings,
                                     quality,
                                     Meshing::SurfaceMeshingStrategy::AmbientRCDT);
     auto surfaceMesh = mesher.mesh();

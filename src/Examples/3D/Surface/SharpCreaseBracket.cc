@@ -144,28 +144,27 @@ int main()
     TopoDS_Shape shape = buildSharpCreaseBracket();
     Readers::TopoDS_ShapeConverter converter(shape);
 
-    Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 2);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
     // Export the raw boundary discretization for inspection near the crease,
     // independent of the meshing strategy used below.
-    Meshing::BoundaryDiscretizer3D discretizer(converter.getGeometryCollection(),
-                                               converter.getTopology(),
-                                               discSettings);
-    discretizer.discretize();
-    auto discResult = discretizer.releaseDiscretizationResult();
+    auto discretizationResult =
+        Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                   converter.getTopology(),
+                                                   discretizationSettings);
 
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(*discResult, "SharpCreaseBracketEdges.vtu");
+    exporter.writeEdgeMesh(*discretizationResult, "SharpCreaseBracketEdges.vtu");
     std::cout << "Exported edge mesh to SharpCreaseBracketEdges.vtu (color by EdgeID)\n";
 
     // Force AmbientRCDT: this shape has no periodic/seam surfaces, so Auto
     // would otherwise resolve to the legacy per-face UV-space pipeline.
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
-                                    discSettings,
+                                    discretizationSettings,
                                     Meshing::SurfaceMesh3DQualitySettings{},
                                     Meshing::SurfaceMeshingStrategy::AmbientRCDT);
 

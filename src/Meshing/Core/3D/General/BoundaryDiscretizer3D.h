@@ -24,12 +24,9 @@ namespace Meshing
  * Samples points along corners, edges, and surface interiors based on
  * discretization settings.
  *
- * The result is owned by the caller via the release method so it can outlive
- * the discretizer:
+ * Stateless: the whole job is one call, and the result is owned by the caller.
  * @code
- * BoundaryDiscretizer3D disc(geometry, topology, settings);
- * disc.discretize();
- * auto result = disc.releaseDiscretizationResult();
+ * auto result = BoundaryDiscretizer3D::discretize(geometry, topology, settings);
  * @endcode
  *
  * ## Bounding segment length with a sizing field (OPE-181, opt-in)
@@ -61,7 +58,8 @@ class BoundaryDiscretizer3D
 {
 public:
     /**
-     * @brief Construct a boundary discretizer
+     * @brief Discretize all boundaries in the geometry.
+     *
      * @param geometry  The geometry collection containing corners, edges, and surfaces
      * @param topology  The topology defining connectivity between geometric entities
      * @param settings  Discretization settings (segments per edge, surface samples)
@@ -70,43 +68,14 @@ public:
      *        segment length unbounded, which is the historical behaviour.
      *        Only affects the angle-based mode; fixed-count mode is defined
      *        as uniform subdivision and is left alone. Borrowed, not owned --
-     *        must outlive discretize().
+     *        must outlive the call.
+     * @return The freshly built result, owned by the caller.
      */
-    BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
-                          const Topology3D::Topology3D& topology,
-                          const Geometry3D::DiscretizationSettings3D& settings = {},
-                          const SizingField3D* sizingField = nullptr);
-
-    /**
-     * @brief Discretize all boundaries in the geometry.
-     *
-     * Populates the internal DiscretizationResult3D.
-     * Safe to call multiple times — subsequent calls recompute from scratch.
-     */
-    void discretize();
-
-    /**
-     * @brief Non-owning view of the discretization result.
-     *
-     * Valid until releaseDiscretizationResult() is called or the discretizer
-     * is destroyed. After release, must not be called.
-     */
-    const DiscretizationResult3D& getDiscretizationResult() const;
-
-    /**
-     * @brief Transfer ownership of the discretization result to the caller.
-     *
-     * After this call getDiscretizationResult() must not be called.
-     */
-    std::unique_ptr<DiscretizationResult3D> releaseDiscretizationResult();
-
-private:
-    const Geometry3D::GeometryCollection3D* geometry_;
-    const Topology3D::Topology3D* topology_;
-    Geometry3D::DiscretizationSettings3D settings_;
-    const SizingField3D* sizingField_;
-
-    std::unique_ptr<DiscretizationResult3D> result_;
+    static std::unique_ptr<DiscretizationResult3D>
+    discretize(const Geometry3D::GeometryCollection3D& geometry,
+               const Topology3D::Topology3D& topology,
+               const Geometry3D::DiscretizationSettings3D& settings = {},
+               const SizingField3D* sizingField = nullptr);
 };
 
 } // namespace Meshing

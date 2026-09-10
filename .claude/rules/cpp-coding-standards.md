@@ -46,6 +46,7 @@ paths:
 - Ownership via `std::unique_ptr` for heap-allocated objects
 - Only use `static_cast` and `dynamic_cast` (no C-style casts)
 - Prefer composition over inheritance
+- If a class only has a simple method to execute code and the only a getter, or a getter and a release method, use a static class instead is possible.
 
 ## Constructors & Initialization
 - Use `explicit` on single-argument constructors

@@ -89,27 +89,26 @@ int main()
     const TopoDS_Shape shape = buildHexNut();
     Readers::TopoDS_ShapeConverter converter(shape);
 
-    Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 2);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
     // Export the discretized boundary edges for inspection.
-    Meshing::BoundaryDiscretizer3D discretizer(converter.getGeometryCollection(),
-                                               converter.getTopology(),
-                                               discSettings);
-    discretizer.discretize();
-    auto discResult = discretizer.releaseDiscretizationResult();
+    auto discretizationResult =
+        Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                   converter.getTopology(),
+                                                   discretizationSettings);
 
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(*discResult, "HexNutEdges.vtu");
+    exporter.writeEdgeMesh(*discretizationResult, "HexNutEdges.vtu");
     std::cout << "Exported edge mesh to HexNutEdges.vtu (color by EdgeID)\n";
 
     // Auto dispatch routes this shape through AmbientRCDT because the cylindrical
     // bore is a periodic (seam) surface — the SeamCollection is non-empty.
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
-                                    discSettings,
+                                    discretizationSettings,
                                     Meshing::SurfaceMesh3DQualitySettings{});
 
     auto surfaceMesh = mesher.mesh();

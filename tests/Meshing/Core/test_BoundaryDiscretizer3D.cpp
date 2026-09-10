@@ -178,10 +178,9 @@ TEST(BoundaryDiscretizer3D, CornerPoints_ArePresent)
     TriangleStripFixture fix;
 
     Geometry3D::DiscretizationSettings3D settings(1, 1);
-    BoundaryDiscretizer3D disc(*fix.geometry, *fix.topology, settings);
-    disc.discretize();
-
-    const auto& result = disc.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fix.geometry, *fix.topology, settings);
+    const auto& result = *discretizationResult;
 
     EXPECT_TRUE(result.cornerIdToPointIndexMap.contains("C1"));
     EXPECT_TRUE(result.cornerIdToPointIndexMap.contains("C2"));
@@ -195,10 +194,9 @@ TEST(BoundaryDiscretizer3D, EdgePoints_OneSegment_EndpointsOnly)
     TriangleStripFixture fix;
 
     Geometry3D::DiscretizationSettings3D settings(1, 1);
-    BoundaryDiscretizer3D disc(*fix.geometry, *fix.topology, settings);
-    disc.discretize();
-
-    const auto& result = disc.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fix.geometry, *fix.topology, settings);
+    const auto& result = *discretizationResult;
 
     // 1 segment per edge → edge sequence is just [start, end]
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E23"));
@@ -216,10 +214,9 @@ TEST(BoundaryDiscretizer3D, EdgePoints_TwoSegments_HasMidpoint)
     TriangleStripFixture fix;
 
     Geometry3D::DiscretizationSettings3D settings(2, 1);
-    BoundaryDiscretizer3D disc(*fix.geometry, *fix.topology, settings);
-    disc.discretize();
-
-    const auto& result = disc.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fix.geometry, *fix.topology, settings);
+    const auto& result = *discretizationResult;
 
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E23"));
     const auto& e23pts = result.edgeIdToPointIndicesMap.at("E23");
@@ -231,10 +228,9 @@ TEST(BoundaryDiscretizer3D, EdgePoints_InteriorPoint_HasCorrectEdgeParameter)
     TriangleStripFixture fixture;
 
     Geometry3D::DiscretizationSettings3D settings(2, 0);
-    BoundaryDiscretizer3D discretizer(*fixture.geometry, *fixture.topology, settings);
-    discretizer.discretize();
-
-    const auto& result = discretizer.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fixture.geometry, *fixture.topology, settings);
+    const auto& result = *discretizationResult;
 
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E12"));
     const auto& edgePointIndices = result.edgeIdToPointIndicesMap.at("E12");
@@ -250,10 +246,9 @@ TEST(BoundaryDiscretizer3D, EdgePoints_TwoInteriorPoints_HaveCorrectEdgeParamete
     TriangleStripFixture fixture;
 
     Geometry3D::DiscretizationSettings3D settings(3, 0);
-    BoundaryDiscretizer3D discretizer(*fixture.geometry, *fixture.topology, settings);
-    discretizer.discretize();
-
-    const auto& result = discretizer.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fixture.geometry, *fixture.topology, settings);
+    const auto& result = *discretizationResult;
 
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E12"));
     const auto& edgePointIndices = result.edgeIdToPointIndicesMap.at("E12");
@@ -301,10 +296,9 @@ TEST(BoundaryDiscretizer3D, SeamTwinEdge_SequenceIsReverseOfOriginalEdge)
         topoSurfaces, topoEdges, topoCorners, std::move(seams));
 
     Geometry3D::DiscretizationSettings3D settings(2, 0);
-    BoundaryDiscretizer3D discretizer(*geometry, *topology, settings);
-    discretizer.discretize();
-
-    const auto& result = discretizer.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*geometry, *topology, settings);
+    const auto& result = *discretizationResult;
 
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("seam"));
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("seam_twin"));
@@ -323,10 +317,9 @@ TEST(BoundaryDiscretizer3D, SurfaceInterior_NonzeroSamples_SurfaceMapIsPopulated
 
     // 2 samples per surface direction → 1×1 = 1 interior point per surface
     Geometry3D::DiscretizationSettings3D settings(1, 2);
-    BoundaryDiscretizer3D discretizer(*fixture.geometry, *fixture.topology, settings);
-    discretizer.discretize();
-
-    const auto& result = discretizer.getDiscretizationResult();
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fixture.geometry, *fixture.topology, settings);
+    const auto& result = *discretizationResult;
 
     ASSERT_TRUE(result.surfaceIdToPointIndicesMap.contains("S1"));
     ASSERT_TRUE(result.surfaceIdToPointIndicesMap.contains("S2"));

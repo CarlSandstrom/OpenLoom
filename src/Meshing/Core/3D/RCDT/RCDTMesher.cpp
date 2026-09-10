@@ -259,12 +259,11 @@ void RCDTMesher::buildInitial()
     if (sizingFieldSettings_.has_value() && !sizingField_.has_value())
         sizingField_ = SizingFieldBuilder3D::build(*geometry_, *topology_, sizingFieldSettings_.value());
 
-    BoundaryDiscretizer3D discretizer(*geometry_,
-                                      *topology_,
-                                      discretizationSettings_,
-                                      sizingField_ ? &sizingField_.value() : nullptr);
-    discretizer.discretize();
-    auto discretizationResult = discretizer.releaseDiscretizationResult();
+    auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*geometry_,
+                                          *topology_,
+                                          discretizationSettings_,
+                                          sizingField_ ? &sizingField_.value() : nullptr);
 
     spdlog::info("RCDTMesher::buildInitial: {} points after discretization",
                  discretizationResult->points.size());

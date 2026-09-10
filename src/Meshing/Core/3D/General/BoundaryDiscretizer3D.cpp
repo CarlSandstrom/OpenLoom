@@ -24,66 +24,53 @@ double angleBetweenTangents(const std::array<double, 3>& a, const std::array<dou
 
 } // namespace
 
-BoundaryDiscretizer3D::BoundaryDiscretizer3D(const Geometry3D::GeometryCollection3D& geometry,
-                                             const Topology3D::Topology3D& topology,
-                                             const Geometry3D::DiscretizationSettings3D& settings,
-                                             const SizingField3D* sizingField) :
-    geometry_(&geometry),
-    topology_(&topology),
-    settings_(settings),
-    sizingField_(sizingField),
-    result_(std::make_unique<DiscretizationResult3D>())
+std::unique_ptr<DiscretizationResult3D>
+BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geometry,
+                                  const Topology3D::Topology3D& topology,
+                                  const Geometry3D::DiscretizationSettings3D& settings,
+                                  const SizingField3D* sizingField)
 {
-}
-
-void BoundaryDiscretizer3D::discretize()
-{
-    result_ = std::make_unique<DiscretizationResult3D>();
+    auto result = std::make_unique<DiscretizationResult3D>();
 
     // Step 1: Sample corner points
-    for (const auto& cornerId : topology_->getAllCornerIds())
+    for (const auto& cornerId : topology.getAllCornerIds())
     {
-        const auto* corner = geometry_->getCorner(cornerId);
+        const auto* corner = geometry.getCorner(cornerId);
         if (!corner)
             continue;
 
-        size_t pointIndex = result_->points.size();
-        result_->points.push_back(corner->getPoint());
-        result_->edgeParameters.push_back({});
-        result_->geometryIds.push_back({});
-        result_->cornerIdToPointIndexMap[cornerId] = pointIndex;
+        size_t pointIndex = result->points.size();
+        result->points.push_back(corner->getPoint());
+        result->edgeParameters.push_back({});
+        result->geometryIds.push_back({});
+        result->cornerIdToPointIndexMap[cornerId] = pointIndex;
     }
 
     // Step 2: Sample edge interior points (excluding endpoints)
-    const auto maxAngle = settings_.getMaxAngleBetweenSegments();
-    const auto numSegments = settings_.getNumSegmentsPerEdge();
+    const auto maxAngle = settings.getMaxAngleBetweenSegments();
+    const auto numSegments = settings.getNumSegmentsPerEdge();
 
-    // The sizing field supplies the length bound the angle criterion cannot
-    // express (see the class comment). Supplied by the caller so that every
-    // consumer of h(x) reads one field.
-    const SizingField3D* const sizingField = sizingField_;
-
-    for (const auto& edgeId : topology_->getAllEdgeIds())
+    for (const auto& edgeId : topology.getAllEdgeIds())
     {
         // Seam twin edges have no 3D geometry; they are handled in Step 2b.
-        if (topology_->getSeamCollection().isSeamTwin(edgeId))
+        if (topology.getSeamCollection().isSeamTwin(edgeId))
             continue;
 
-        const auto& topoEdge = topology_->getEdge(edgeId);
-        const auto* edge = geometry_->getEdge(edgeId);
+        const auto& topoEdge = topology.getEdge(edgeId);
+        const auto* edge = geometry.getEdge(edgeId);
 
         if (!edge)
             continue;
 
         auto [tMin, tMax] = edge->getParameterBounds();
 
-        size_t startIdx = result_->cornerIdToPointIndexMap.at(topoEdge.getStartCornerId());
-        size_t endIdx = result_->cornerIdToPointIndexMap.at(topoEdge.getEndCornerId());
+        size_t startIdx = result->cornerIdToPointIndexMap.at(topoEdge.getStartCornerId());
+        size_t endIdx = result->cornerIdToPointIndexMap.at(topoEdge.getEndCornerId());
 
-        result_->edgeParameters[startIdx].push_back(tMin);
-        result_->geometryIds[startIdx].push_back(edgeId);
-        result_->edgeParameters[endIdx].push_back(tMax);
-        result_->geometryIds[endIdx].push_back(edgeId);
+        result->edgeParameters[startIdx].push_back(tMin);
+        result->geometryIds[startIdx].push_back(edgeId);
+        result->edgeParameters[endIdx].push_back(tMax);
+        result->geometryIds[endIdx].push_back(edgeId);
 
         std::vector<size_t> edgePointIndices;
         edgePointIndices.push_back(startIdx);
@@ -180,10 +167,10 @@ void BoundaryDiscretizer3D::discretize()
 
                 if (angleReached || lengthReached)
                 {
-                    size_t pointIndex = result_->points.size();
-                    result_->points.push_back(point);
-                    result_->edgeParameters.push_back({t});
-                    result_->geometryIds.push_back({edgeId});
+                    size_t pointIndex = result->points.size();
+                    result->points.push_back(point);
+                    result->edgeParameters.push_back({t});
+                    result->geometryIds.push_back({edgeId});
                     edgePointIndices.push_back(pointIndex);
                     accumulated = 0.0;
                     accumulatedLength = 0.0;
@@ -204,41 +191,41 @@ void BoundaryDiscretizer3D::discretize()
                 double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(n);
                 Point3D point = edge->getPoint(t);
 
-                size_t pointIndex = result_->points.size();
-                result_->points.push_back(point);
-                result_->edgeParameters.push_back({t});
-                result_->geometryIds.push_back({edgeId});
+                size_t pointIndex = result->points.size();
+                result->points.push_back(point);
+                result->edgeParameters.push_back({t});
+                result->geometryIds.push_back({edgeId});
                 edgePointIndices.push_back(pointIndex);
             }
         }
         // else: no interior points — edge represented by endpoints only.
 
         edgePointIndices.push_back(endIdx);
-        result_->edgeIdToPointIndicesMap[edgeId] = edgePointIndices;
+        result->edgeIdToPointIndicesMap[edgeId] = edgePointIndices;
     }
 
     // Step 2b: Populate seam twin edge point sequences (reversed copy of original seam).
     // Seam twin edges have no 3D geometry entry; their point sequence is the reverse of
     // the original seam edge, representing the same curve at U + uPeriod in UV space.
-    const auto& seams = topology_->getSeamCollection();
+    const auto& seams = topology.getSeamCollection();
     for (const auto& twinId : seams.getSeamTwinEdgeIds())
     {
         const std::string& originalId = seams.getOriginalEdgeId(twinId);
-        auto origIt = result_->edgeIdToPointIndicesMap.find(originalId);
-        if (origIt == result_->edgeIdToPointIndicesMap.end())
+        auto origIt = result->edgeIdToPointIndicesMap.find(originalId);
+        if (origIt == result->edgeIdToPointIndicesMap.end())
             continue;
 
         auto reversed = origIt->second;
         std::reverse(reversed.begin(), reversed.end());
-        result_->edgeIdToPointIndicesMap[twinId] = std::move(reversed);
+        result->edgeIdToPointIndicesMap[twinId] = std::move(reversed);
     }
 
     // Step 3: Sample surface interior points
-    size_t surfaceSamples = settings_.getNumSamplesPerSurfaceDirection();
+    size_t surfaceSamples = settings.getNumSamplesPerSurfaceDirection();
 
-    for (const auto& surfaceId : topology_->getAllSurfaceIds())
+    for (const auto& surfaceId : topology.getAllSurfaceIds())
     {
-        const auto* surface = geometry_->getSurface(surfaceId);
+        const auto* surface = geometry.getSurface(surfaceId);
 
         if (!surface)
             continue;
@@ -266,27 +253,18 @@ void BoundaryDiscretizer3D::discretize()
                 if (!surface->isPointWithinTrimmedBoundary(point))
                     continue;
 
-                size_t pointIndex = result_->points.size();
-                result_->points.push_back(point);
-                result_->edgeParameters.push_back({});
-                result_->geometryIds.push_back({surfaceId});
+                size_t pointIndex = result->points.size();
+                result->points.push_back(point);
+                result->edgeParameters.push_back({});
+                result->geometryIds.push_back({surfaceId});
                 surfacePointIndices.push_back(pointIndex);
             }
         }
 
-        result_->surfaceIdToPointIndicesMap[surfaceId] = surfacePointIndices;
+        result->surfaceIdToPointIndicesMap[surfaceId] = surfacePointIndices;
     }
 
-}
-
-const DiscretizationResult3D& BoundaryDiscretizer3D::getDiscretizationResult() const
-{
-    return *result_;
-}
-
-std::unique_ptr<DiscretizationResult3D> BoundaryDiscretizer3D::releaseDiscretizationResult()
-{
-    return std::move(result_);
+    return result;
 }
 
 } // namespace Meshing
