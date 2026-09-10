@@ -34,7 +34,7 @@ OpenCascadeSurface::OpenCascadeSurface(const TopoDS_Face& face) :
 // ShapeAnalysis_Surface when instantiating std::unique_ptr's destructor.
 OpenCascadeSurface::~OpenCascadeSurface() = default;
 
-std::array<double, 3> OpenCascadeSurface::getNormal(double u, double v) const
+Meshing::Vector3D OpenCascadeSurface::getNormal(double u, double v) const
 {
     Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
     GeomLProp_SLProps props(geomSurface, u, v, 1, Precision::Confusion());

@@ -25,7 +25,7 @@ public:
     // complete (required by std::unique_ptr<ShapeAnalysis_Surface>).
     ~OpenCascadeSurface() override;
 
-    std::array<double, 3> getNormal(double u, double v) const override;
+    Meshing::Vector3D getNormal(double u, double v) const override;
     Meshing::Point3D getPoint(double u, double v) const override;
     Common::BoundingBox2D getParameterBounds() const override;
     double getGap(const Meshing::Point3D& point) const override;

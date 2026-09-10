@@ -55,7 +55,7 @@ public:
         return Point3D(radius_ * std::cos(t), radius_ * std::sin(t), z_);
     }
 
-    std::array<double, 3> getTangent(double t) const override
+    Vector3D getTangent(double t) const override
     {
         return {-radius_ * std::sin(t), radius_ * std::cos(t), 0.0};
     }
@@ -103,7 +103,7 @@ class MockNonUniformEdge : public Geometry3D::IEdge3D
 public:
     Point3D getPoint(double t) const override { return Point3D(t * t, 0.0, 0.0); }
 
-    std::array<double, 3> getTangent(double t) const override { return {2.0 * t, 0.0, 0.0}; }
+    Vector3D getTangent(double t) const override { return {2.0 * t, 0.0, 0.0}; }
 
     Point3D getStartPoint() const override { return getPoint(0.0); }
     Point3D getEndPoint() const override { return getPoint(1.0); }

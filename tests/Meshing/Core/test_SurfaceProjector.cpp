@@ -37,7 +37,7 @@ public:
         return Point3D(radius_ * std::cos(u), radius_ * std::sin(u), v);
     }
 
-    std::array<double, 3> getNormal(double u, double /*v*/) const override
+    Vector3D getNormal(double u, double /*v*/) const override
     {
         return {std::cos(u), std::sin(u), 0.0};
     }

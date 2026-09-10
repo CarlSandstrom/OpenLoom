@@ -26,7 +26,7 @@ public:
     }
 
     Point3D getPoint(double t) const override { return start_ + t * (end_ - start_); }
-    std::array<double, 3> getTangent(double /*t*/) const override
+    Vector3D getTangent(double /*t*/) const override
     {
         const Point3D dir = (end_ - start_).normalized();
         return {dir.x(), dir.y(), dir.z()};

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <optional>
 #include <string>
 
@@ -39,7 +38,7 @@ class ISurface3D
 public:
     virtual ~ISurface3D() = default;
 
-    virtual std::array<double, 3> getNormal(double u, double v) const = 0;
+    virtual Meshing::Vector3D getNormal(double u, double v) const = 0;
     virtual Meshing::Point3D getPoint(double u, double v) const = 0;
     virtual Common::BoundingBox2D getParameterBounds() const = 0;
     virtual double getGap(const Meshing::Point3D& point) const = 0;

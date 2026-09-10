@@ -18,8 +18,7 @@ double SurfaceProjector::signedDistance(const Point3D& point,
         return 0.0;
 
     const Point3D surfacePoint = surface.getPoint(uv->x(), uv->y());
-    const auto normalArray = surface.getNormal(uv->x(), uv->y());
-    const Point3D normal(normalArray[0], normalArray[1], normalArray[2]);
+    const Vector3D normal = surface.getNormal(uv->x(), uv->y());
 
     return (point - surfacePoint).dot(normal);
 }

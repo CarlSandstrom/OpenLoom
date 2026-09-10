@@ -15,10 +15,9 @@ namespace Meshing
 namespace
 {
 
-double angleBetweenTangents(const std::array<double, 3>& a, const std::array<double, 3>& b)
+double angleBetweenTangents(const Vector3D& a, const Vector3D& b)
 {
-    double dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    dot = std::clamp(dot, -1.0, 1.0);
+    const double dot = std::clamp(a.dot(b), -1.0, 1.0);
     return std::acos(dot);
 }
 

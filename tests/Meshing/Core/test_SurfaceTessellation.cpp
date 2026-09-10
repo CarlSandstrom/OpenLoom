@@ -29,7 +29,7 @@ public:
 
     Point3D getPoint(double u, double v) const override { return Point3D(u, v, planeZ_); }
 
-    std::array<double, 3> getNormal(double /*u*/, double /*v*/) const override { return {0.0, 0.0, 1.0}; }
+    Vector3D getNormal(double /*u*/, double /*v*/) const override { return {0.0, 0.0, 1.0}; }
 
     Common::BoundingBox2D getParameterBounds() const override
     {
@@ -110,7 +110,7 @@ public:
     // Analytic normal of the height field z = f(u): tangents are
     // dS/du = (1, 0, f'(u)) and dS/dv = (0, 1, 0), so their cross product is
     // (-f'(u), 0, 1), normalized.
-    std::array<double, 3> getNormal(double u, double /*v*/) const override
+    Vector3D getNormal(double u, double /*v*/) const override
     {
         const double offset = u - spikeCenter_;
         const double normalizedU = offset / spikeWidth_;

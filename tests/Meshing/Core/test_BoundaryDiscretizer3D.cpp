@@ -45,10 +45,9 @@ public:
         id_(id), start_(start), end_(end) {}
 
     Point3D getPoint(double t) const override { return start_ + t * (end_ - start_); }
-    std::array<double, 3> getTangent(double /*t*/) const override
+    Vector3D getTangent(double /*t*/) const override
     {
-        Point3D dir = (end_ - start_).normalized();
-        return {dir.x(), dir.y(), dir.z()};
+        return (end_ - start_).normalized();
     }
     Point3D getStartPoint() const override { return start_; }
     Point3D getEndPoint() const override { return end_; }
@@ -69,7 +68,7 @@ class MockPlanarSurface : public Geometry3D::ISurface3D
 public:
     explicit MockPlanarSurface(const std::string& id) : id_(id) {}
 
-    std::array<double, 3> getNormal(double /*u*/, double /*v*/) const override
+    Vector3D getNormal(double /*u*/, double /*v*/) const override
     {
         return {0.0, 0.0, 1.0};
     }

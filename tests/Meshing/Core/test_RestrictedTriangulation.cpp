@@ -42,7 +42,7 @@ public:
 
     Point3D getPoint(double u, double v) const override { return Point3D(u, v, planeZ_); }
 
-    std::array<double, 3> getNormal(double /*u*/, double /*v*/) const override
+    Vector3D getNormal(double /*u*/, double /*v*/) const override
     {
         return {0.0, 0.0, 1.0};
     }

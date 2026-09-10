@@ -26,7 +26,7 @@ public:
     }
 
     Point3D getPoint(double) const override { return Point3D::Zero(); }
-    std::array<double, 3> getTangent(double) const override { return {1, 0, 0}; }
+    Vector3D getTangent(double) const override { return {1, 0, 0}; }
     Point3D getStartPoint() const override { return Point3D::Zero(); }
     Point3D getEndPoint() const override { return Point3D::Zero(); }
     std::pair<double, double> getParameterBounds() const override { return {tMin_, tMax_}; }
@@ -48,7 +48,7 @@ public:
     {
     }
 
-    std::array<double, 3> getNormal(double, double) const override { return {0, 0, 1}; }
+    Vector3D getNormal(double, double) const override { return {0, 0, 1}; }
     Point3D getPoint(double u, double v) const override { return Point3D(u, v, 0); }
     Common::BoundingBox2D getParameterBounds() const override { return bounds_; }
     double getGap(const Point3D& point) const override { return std::abs(point.z()); }
