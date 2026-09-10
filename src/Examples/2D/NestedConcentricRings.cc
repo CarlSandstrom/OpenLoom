@@ -162,9 +162,8 @@ int main()
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
     spdlog::info("Generating constrained Delaunay triangulation...");
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     spdlog::info("Refining mesh with ShewchukRefiner2D...");
     ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});

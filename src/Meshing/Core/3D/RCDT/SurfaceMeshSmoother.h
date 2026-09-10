@@ -30,13 +30,10 @@ namespace Meshing
 class SurfaceMeshSmoother
 {
 public:
-    explicit SurfaceMeshSmoother(const Geometry3D::GeometryCollection3D& geometry);
-
     /// Smooths mesh in place, running the given number of Laplacian sweeps.
-    void smooth(SurfaceMesh3D& mesh, std::size_t iterations) const;
-
-private:
-    const Geometry3D::GeometryCollection3D* geometry_;
+    static void smooth(const Geometry3D::GeometryCollection3D& geometry,
+                       SurfaceMesh3D& mesh,
+                       std::size_t iterations);
 };
 
 } // namespace Meshing

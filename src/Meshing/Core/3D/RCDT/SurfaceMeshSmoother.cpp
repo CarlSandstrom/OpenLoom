@@ -55,12 +55,9 @@ std::unordered_map<size_t, std::string> buildNodeToFaceMap(const SurfaceMesh3D& 
 
 } // namespace
 
-SurfaceMeshSmoother::SurfaceMeshSmoother(const Geometry3D::GeometryCollection3D& geometry) :
-    geometry_(&geometry)
-{
-}
-
-void SurfaceMeshSmoother::smooth(SurfaceMesh3D& mesh, std::size_t iterations) const
+void SurfaceMeshSmoother::smooth(const Geometry3D::GeometryCollection3D& geometry,
+                                 SurfaceMesh3D& mesh,
+                                 std::size_t iterations)
 {
     if (mesh.nodes.empty() || iterations == 0)
         return;
@@ -84,7 +81,7 @@ void SurfaceMeshSmoother::smooth(SurfaceMesh3D& mesh, std::size_t iterations) co
             if (faceIt == nodeToFace.end())
                 continue;
 
-            const Geometry3D::ISurface3D* surface = geometry_->getSurface(faceIt->second);
+            const Geometry3D::ISurface3D* surface = geometry.getSurface(faceIt->second);
             if (!surface)
                 continue;
 

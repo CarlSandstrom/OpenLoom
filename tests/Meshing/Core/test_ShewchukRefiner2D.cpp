@@ -183,8 +183,7 @@ TEST(ShewchukRefiner2D, TwoCircularHoles_CurvedConstraintSplitProducesValidMesh)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Enable per-iteration mesh checking so that a transient CW triangle
     // (which would later be cleaned up by exterior-triangle removal) is caught
@@ -226,8 +225,7 @@ TEST(ShewchukRefiner2D, InternalCircularConstraints_CurvedConstraintSplitProduce
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Enable per-iteration mesh checking so that overlapping triangles (which
     // would otherwise cause an infinite refinement loop) are caught immediately
@@ -263,8 +261,7 @@ TEST(ShewchukRefiner2D, SquareWithInternalCirclesTerminates)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
 
@@ -303,8 +300,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Locate the four corner nodes by coordinate
     size_t c0Id = SIZE_MAX, c1Id = SIZE_MAX, c2Id = SIZE_MAX, c3Id = SIZE_MAX;

@@ -30,13 +30,11 @@ int main()
         spdlog::info("  Point {}: ({:.2f}, {:.2f})", i, points[i].x(), points[i].y());
     }
 
-    // Create Delaunay triangulator
     MeshData2D meshData2D;
-    Delaunay2D triangulator(points, &meshData2D);
 
     // Perform triangulation
     spdlog::info("Running triangulation...");
-    triangulator.triangulate();
+    Delaunay2D::triangulate(points, meshData2D);
     const auto& triangles = meshData2D.getElements();
     const auto& nodes = meshData2D.getNodes();
 

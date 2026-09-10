@@ -18,14 +18,15 @@ constexpr size_t INVALID_ID = SIZE_MAX;
 
 } // namespace
 
-void AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
-                                            const RestrictedTriangulation& restrictedTriangulation)
+std::unordered_set<size_t>
+AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
+                                       const RestrictedTriangulation& restrictedTriangulation)
 {
-    ambientTetIds_.clear();
+    std::unordered_set<size_t> ambientTetIds;
 
     const auto& boundingNodeIds = meshData.getBoundingNodeIds();
     if (!boundingNodeIds)
-        return;
+        return ambientTetIds;
 
     const MeshConnectivity connectivity(meshData);
     const auto& restrictedFaces = restrictedTriangulation.getRestrictedFaces();
@@ -35,7 +36,7 @@ void AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
     {
         for (const size_t tetId : connectivity.getNodeElements(boundingNodeId))
         {
-            if (ambientTetIds_.insert(tetId).second)
+            if (ambientTetIds.insert(tetId).second)
                 queue.push(tetId);
         }
     }
@@ -60,15 +61,12 @@ void AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
             if (neighborId == INVALID_ID)
                 continue;
 
-            if (ambientTetIds_.insert(neighborId).second)
+            if (ambientTetIds.insert(neighborId).second)
                 queue.push(neighborId);
         }
     }
-}
 
-bool AmbientTetrahedronClassifier::isAmbient(size_t tetId) const
-{
-    return ambientTetIds_.contains(tetId);
+    return ambientTetIds;
 }
 
 } // namespace Meshing

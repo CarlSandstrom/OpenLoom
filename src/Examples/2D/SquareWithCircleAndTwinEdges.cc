@@ -162,8 +162,7 @@ int main()
     auto discretization = discretizer.discretize();
 
     spdlog::info("Triangulating...");
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     spdlog::info("Triangulation complete: {} triangles", context.getMeshData().getElementCount());
 

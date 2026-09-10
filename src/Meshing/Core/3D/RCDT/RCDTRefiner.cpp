@@ -296,8 +296,7 @@ bool RCDTRefiner::refineBadTetrahedra()
     // contain). AmbientTetrahedronClassifier excludes both in one pass: see
     // its class docs for why a hole's interior and the true exterior are
     // indistinguishable to the ambient tetrahedralization.
-    AmbientTetrahedronClassifier ambientClassifier;
-    ambientClassifier.classify(meshData, *restrictedTriangulation_);
+    const auto ambientTetIds = AmbientTetrahedronClassifier::classify(meshData, *restrictedTriangulation_);
 
     const auto skinnyTetIds =
         context_->getOperations().getQueries().findSkinnyTetrahedra(settings_.tetCircumradiusToShortestEdgeRatio);
@@ -314,7 +313,7 @@ bool RCDTRefiner::refineBadTetrahedra()
         if (!tet)
             continue;
 
-        if (ambientClassifier.isAmbient(tetId))
+        if (ambientTetIds.contains(tetId))
             continue;
 
         // Size floor, same reasoning as the restricted-triangle version above.

@@ -5,57 +5,51 @@
 namespace Meshing
 {
 
-Delaunay3D::Delaunay3D(MeshOperations3D& operations,
-                       const std::vector<Point3D>& points,
-                       const std::vector<std::vector<std::string>>& geometryIds,
-                       const std::vector<double>& pointWeights) :
-    operations_(operations),
-    points_(points),
-    geometryIds_(geometryIds),
-    pointWeights_(pointWeights)
+Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
+                                         const std::vector<Point3D>& points,
+                                         const std::vector<std::vector<std::string>>& geometryIds,
+                                         const std::vector<double>& pointWeights)
 {
-}
+    Delaunay3DResult result;
 
-void Delaunay3D::triangulate()
-{
-    if (points_.empty())
+    if (points.empty())
     {
         spdlog::warn("Delaunay3D::triangulate: Empty point list");
-        return;
+        return result;
     }
 
-    spdlog::info("Delaunay3D::triangulate: Starting with {} points", points_.size());
+    spdlog::info("Delaunay3D::triangulate: Starting with {} points", points.size());
 
     // Create bounding tetrahedron. Left in the mesh -- see class documentation.
-    boundingNodeIds_ = operations_.createBoundingTetrahedron(points_);
+    result.boundingNodeIds = operations.createBoundingTetrahedron(points);
 
     // Insert each point using Bowyer-Watson
-    pointIndexToNodeIdMap_.clear();
-
-    for (size_t i = 0; i < points_.size(); ++i)
+    for (size_t i = 0; i < points.size(); ++i)
     {
-        bool hasGeomIds = i < geometryIds_.size() && !geometryIds_[i].empty();
-        const double weight = i < pointWeights_.size() ? pointWeights_[i] : 0.0;
+        bool hasGeomIds = i < geometryIds.size() && !geometryIds[i].empty();
+        const double weight = i < pointWeights.size() ? pointWeights[i] : 0.0;
 
         size_t nodeId;
         if (hasGeomIds)
         {
-            nodeId = operations_.insertVertexBowyerWatson(points_[i], geometryIds_[i], weight);
+            nodeId = operations.insertVertexBowyerWatson(points[i], geometryIds[i], weight);
         }
         else
         {
-            nodeId = operations_.insertVertexBowyerWatson(points_[i], {}, weight);
+            nodeId = operations.insertVertexBowyerWatson(points[i], {}, weight);
         }
 
-        pointIndexToNodeIdMap_[i] = nodeId;
+        result.pointIndexToNodeIdMap[i] = nodeId;
 
         if ((i + 1) % 100 == 0)
         {
-            spdlog::debug("Delaunay3D::triangulate: Inserted {}/{} points", i + 1, points_.size());
+            spdlog::debug("Delaunay3D::triangulate: Inserted {}/{} points", i + 1, points.size());
         }
     }
 
-    spdlog::info("Delaunay3D::triangulate: Complete - {} points inserted", pointIndexToNodeIdMap_.size());
+    spdlog::info("Delaunay3D::triangulate: Complete - {} points inserted", result.pointIndexToNodeIdMap.size());
+
+    return result;
 }
 
 } // namespace Meshing

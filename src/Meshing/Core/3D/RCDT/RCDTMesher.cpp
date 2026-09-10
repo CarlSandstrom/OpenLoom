@@ -196,8 +196,7 @@ SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
     {
         spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)",
                      qualitySettings_.smoothingIterations);
-        const SurfaceMeshSmoother smoother(*geometry_);
-        smoother.smooth(surfaceMesh, qualitySettings_.smoothingIterations);
+        SurfaceMeshSmoother::smooth(*geometry_, surfaceMesh, qualitySettings_.smoothingIterations);
 
         // Smoothing only moves the SurfaceMesh3D copy above. The same node IDs
         // are still referenced by the ambient tetrahedra in meshingContext_'s
@@ -330,11 +329,12 @@ void RCDTMesher::buildInitial()
     std::vector<double> pointWeights(discretizationResult->points.size(), 0.0);
     for (const auto& [pointIndex, weight] : pointWeightsByIndex)
         pointWeights[pointIndex] = weight;
-    Delaunay3D delaunay(meshingContext_->getOperations(), discretizationResult->points, enrichedGeometryIds,
-                        pointWeights);
-    delaunay.triangulate();
-    const auto pointIndexToNodeIdMap = delaunay.getPointIndexToNodeIdMap();
-    boundingNodeIds_ = delaunay.getBoundingNodeIds();
+    const auto delaunayResult = Delaunay3D::triangulate(meshingContext_->getOperations(),
+                                                        discretizationResult->points,
+                                                        enrichedGeometryIds,
+                                                        pointWeights);
+    const auto& pointIndexToNodeIdMap = delaunayResult.pointIndexToNodeIdMap;
+    boundingNodeIds_ = delaunayResult.boundingNodeIds;
 
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
@@ -393,8 +393,8 @@ void RCDTMesher::removeBoundingTetrahedron()
     // just the ones literally touching a bounding node. See
     // AmbientTetrahedronClassifier's class docs for why one flood fill
     // handles both.
-    AmbientTetrahedronClassifier ambientClassifier;
-    ambientClassifier.classify(meshingContext_->getMeshData(), *restrictedTriangulation_);
+    const auto ambientTetIdSet =
+        AmbientTetrahedronClassifier::classify(meshingContext_->getMeshData(), *restrictedTriangulation_);
 
     // getOperations()'s mutator, not getMutator(): the latter validates node
     // removal against a MeshConnectivity snapshot that's only refreshed by an
@@ -407,7 +407,7 @@ void RCDTMesher::removeBoundingTetrahedron()
     std::vector<size_t> ambientTetIds;
     for (const auto& [elementId, element] : meshData.getElements())
     {
-        if (dynamic_cast<const TetrahedralElement*>(element.get()) && ambientClassifier.isAmbient(elementId))
+        if (dynamic_cast<const TetrahedralElement*>(element.get()) && ambientTetIdSet.contains(elementId))
             ambientTetIds.push_back(elementId);
     }
 

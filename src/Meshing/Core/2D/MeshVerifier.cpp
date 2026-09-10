@@ -8,8 +8,7 @@
 namespace Meshing
 {
 
-MeshVerifier::MeshVerifier(const MeshData2D& meshData) :
-    meshData_(meshData)
+MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData)
 {
 #ifndef OPENLOOM_HAS_OPENMP
     static bool warned = false;
@@ -20,15 +19,12 @@ MeshVerifier::MeshVerifier(const MeshData2D& meshData) :
         warned = true;
     }
 #endif
-}
 
-MeshVerifier::VerificationResult MeshVerifier::verify() const
-{
     VerificationResult result;
     result.isValid = true;
 
     // Check orientation
-    for (const auto& [id, element] : meshData_.getElements())
+    for (const auto& [id, element] : meshData.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
@@ -38,9 +34,9 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
         }
 
         const auto& nodeIds = triangle->getNodeIdArray();
-        const Point2D& p1 = meshData_.getNode(nodeIds[0])->getCoordinates();
-        const Point2D& p2 = meshData_.getNode(nodeIds[1])->getCoordinates();
-        const Point2D& p3 = meshData_.getNode(nodeIds[2])->getCoordinates();
+        const Point2D& p1 = meshData.getNode(nodeIds[0])->getCoordinates();
+        const Point2D& p2 = meshData.getNode(nodeIds[1])->getCoordinates();
+        const Point2D& p3 = meshData.getNode(nodeIds[2])->getCoordinates();
 
         double area = GeometryUtilities2D::computeSignedArea(p1, p2, p3);
         if (area < -1e-10)
@@ -62,7 +58,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
     std::vector<size_t> elementIds;
     std::vector<std::array<Point2D, 3>> triangleCoords;
 
-    for (const auto& [id, element] : meshData_.getElements())
+    for (const auto& [id, element] : meshData.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
@@ -72,9 +68,9 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
 
         const auto& nodeIds = triangle->getNodeIdArray();
         std::array<Point2D, 3> coords = {
-            meshData_.getNode(nodeIds[0])->getCoordinates(),
-            meshData_.getNode(nodeIds[1])->getCoordinates(),
-            meshData_.getNode(nodeIds[2])->getCoordinates()};
+            meshData.getNode(nodeIds[0])->getCoordinates(),
+            meshData.getNode(nodeIds[1])->getCoordinates(),
+            meshData.getNode(nodeIds[2])->getCoordinates()};
 
         elementIds.push_back(id);
         triangleCoords.push_back(coords);
@@ -127,7 +123,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify() const
 
     if (result.isValid)
     {
-        SPDLOG_INFO("Mesh verification passed: {} elements verified", meshData_.getElementCount());
+        SPDLOG_INFO("Mesh verification passed: {} elements verified", meshData.getElementCount());
     }
     else
     {

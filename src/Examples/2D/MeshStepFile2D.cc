@@ -44,8 +44,7 @@ int main(int argc, char* argv[])
 
     // Create constrained Delaunay triangulation
     spdlog::info("Generating constrained Delaunay triangulation...");
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Refine mesh
     spdlog::info("Refining mesh...");
