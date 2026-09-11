@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <set>
 #include <unordered_set>
 
@@ -283,4 +284,28 @@ TEST(RCDTMesherVolumeWithHoleInBoundaryTest, Throws)
                       Geometry3D::DiscretizationSettings3D(3, 2));
 
     EXPECT_THROW(mesher.meshVolume(), OpenLoom::MeshException);
+}
+
+// ============================================================================
+// RCDTMesherSettingsTest
+//
+// An explicit minimumEdgeLength must be finite and strictly positive. Zero is
+// not "no floor": the tessellation oracle is sized by it and builds nothing
+// for a size <= 0. Leaving the setting unset is how to get a derived floor.
+// ============================================================================
+
+TEST(RCDTMesherSettingsTest, NonPositiveOrNonFiniteMinimumEdgeLength_Throws)
+{
+    const Readers::TopoDS_ShapeConverter converter(BRepPrimAPI_MakeBox(1.0, 1.0, 1.0).Shape());
+
+    for (const double minimumEdgeLength : {0.0, -0.1, std::numeric_limits<double>::infinity(),
+                                           std::numeric_limits<double>::quiet_NaN()})
+    {
+        SurfaceMesh3DQualitySettings qualitySettings;
+        qualitySettings.minimumEdgeLength = minimumEdgeLength;
+
+        EXPECT_THROW(RCDTMesher(converter.getGeometryCollection(), converter.getTopology(), {}, qualitySettings),
+                     OpenLoom::MeshException)
+            << "minimumEdgeLength = " << minimumEdgeLength;
+    }
 }

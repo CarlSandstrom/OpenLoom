@@ -24,6 +24,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -155,6 +156,17 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
     qualitySettings_(qualitySettings),
     sizingFieldSettings_(std::move(sizingFieldSettings))
 {
+    // A non-positive floor is not "no floor": RestrictedTriangulation sizes its
+    // tessellation oracle by it, and SurfaceTessellation builds no cells at all
+    // for a target size <= 0, leaving every surface's crossing test with
+    // nothing to test against.
+    const auto& minimumEdgeLength = qualitySettings_.minimumEdgeLength;
+    if (minimumEdgeLength && (!(*minimumEdgeLength > 0.0) || !std::isfinite(*minimumEdgeLength)))
+    {
+        OPENLOOM_THROW_MESH(INVALID_OPERATION,
+                            "RCDTMesher: minimumEdgeLength must be finite and strictly positive when set; "
+                            "leave it unset to derive it from the geometry");
+    }
 }
 
 SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,

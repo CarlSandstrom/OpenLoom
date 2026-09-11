@@ -41,7 +41,8 @@ struct SurfaceMesh3DQualitySettings
     /// past the threshold can have its circumcenter land within roughly one
     /// edge-length of its own vertices, producing an equally-bad, slightly
     /// smaller sliver next to it every iteration — a non-terminating cascade.
-    /// If unset, RCDTMesher derives it (see MinimumEdgeLengthEstimator).
+    /// If unset, RCDTMesher derives it (see MinimumEdgeLengthEstimator); if
+    /// set, it must be finite and strictly positive.
     std::optional<double> minimumEdgeLength;
 
     /// Maximum allowed tetrahedron circumradius / shortest-edge ratio
