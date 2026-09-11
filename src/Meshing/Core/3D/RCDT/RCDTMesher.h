@@ -75,8 +75,6 @@ private:
                 RestrictedTriangulation& restrictedTriangulation,
                 double minimumEdgeLength,
                 bool includeTetQualityRefinement) const;
-    void removeBoundingTetrahedron(MeshingContext3D& context,
-                                   const RestrictedTriangulation& restrictedTriangulation) const;
 
     /// Shared build -> refine -> remove-supertet -> smooth pipeline, common to
     /// both meshSurface() and meshVolume(). Returns the (possibly smoothed)

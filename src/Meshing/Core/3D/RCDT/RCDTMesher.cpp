@@ -1,6 +1,5 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
-#include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
@@ -8,7 +7,7 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/General/SizingField3D.h"
-#include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
+#include "Meshing/Core/3D/RCDT/AmbientTetrahedronRemover.h"
 #include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
@@ -20,12 +19,10 @@
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
-#include <array>
 #include <vector>
 
 namespace Meshing
@@ -137,7 +134,16 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
                      defectRemoval.remainingSurfaceMismatchEdges);
     }
 
-    removeBoundingTetrahedron(context, restrictedTriangulation);
+    // Strips every ambient tetrahedron -- both the seed triangulation's
+    // outer shell and, for domains with holes, the tetrahedra RCDT kept
+    // triangulating interior voids with. getOperations()'s mutator, not
+    // getMutator(): the latter validates node removal against a
+    // MeshConnectivity snapshot that's only refreshed by an explicit
+    // rebuildConnectivity() call, and refine()'s many insertions never call
+    // it -- that snapshot is stale by the time we get here. The operations
+    // mutator performs no such (now-stale) validation.
+    AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(),
+                                      restrictedTriangulation);
 
     SurfaceMesh3D surfaceMesh =
         RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedTriangulation, *topology_);
@@ -257,48 +263,6 @@ void RCDTMesher::refine(MeshingContext3D& context,
                         tetQualityController.get());
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
-}
-
-void RCDTMesher::removeBoundingTetrahedron(MeshingContext3D& context,
-                                           const RestrictedTriangulation& restrictedTriangulation) const
-{
-    // Strips every ambient tetrahedron -- both the seed triangulation's
-    // outer shell (touching the supertet's corners) and, for domains with
-    // holes, the tets RCDT kept triangulating interior voids with -- not
-    // just the ones literally touching a bounding node. See
-    // AmbientTetrahedronClassifier's class docs for why one flood fill
-    // handles both.
-    const auto ambientTetIdSet =
-        AmbientTetrahedronClassifier::classify(context.getMeshData(), restrictedTriangulation);
-
-    // getOperations()'s mutator, not getMutator(): the latter validates node
-    // removal against a MeshConnectivity snapshot that's only refreshed by an
-    // explicit rebuildConnectivity() call, and refine()'s many insertions
-    // never call it -- that snapshot is stale by the time we get here. The
-    // operations mutator performs no such (now-stale) validation.
-    auto& mutator = context.getOperations().getMutator();
-    const auto& meshData = context.getMeshData();
-    if (!meshData.getBoundingNodeIds())
-        OPENLOOM_THROW_MESH(INVALID_OPERATION, "RCDTMesher::removeBoundingTetrahedron: no bounding tetrahedron in the mesh");
-    const std::array<size_t, 4> boundingNodeIds = *meshData.getBoundingNodeIds();
-
-    std::vector<size_t> ambientTetIds;
-    for (const auto& [elementId, element] : meshData.getElements())
-    {
-        if (dynamic_cast<const TetrahedralElement*>(element.get()) && ambientTetIdSet.contains(elementId))
-            ambientTetIds.push_back(elementId);
-    }
-
-    for (const size_t tetId : ambientTetIds)
-        mutator.removeElement(tetId);
-
-    for (const size_t nodeId : boundingNodeIds)
-        mutator.removeNode(nodeId);
-    mutator.clearBoundingNodeIds();
-
-    spdlog::info("RCDTMesher::removeBoundingTetrahedron: Removed {} ambient tetrahedra "
-                 "(true exterior + holes) and 4 bounding nodes",
-                 ambientTetIds.size());
 }
 
 } // namespace Meshing

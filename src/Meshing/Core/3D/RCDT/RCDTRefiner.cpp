@@ -273,7 +273,7 @@ bool RCDTRefiner::refineBadTetrahedra()
     const auto& curveSegmentManager = meshData.getCurveSegmentManager();
     const auto& nodePositionMap = getNodePositionMap();
 
-    // Priority 3 runs before removeBoundingTetrahedron() -- priorities 1/2
+    // Priority 3 runs before AmbientTetrahedronRemover::remove() -- priorities 1/2
     // need the supertet kept alive (see class docs) -- so at this point the
     // mesh still contains ambient tetrahedra: the seed triangulation's
     // artifacts touching the supertet's corners, and (for domains with
