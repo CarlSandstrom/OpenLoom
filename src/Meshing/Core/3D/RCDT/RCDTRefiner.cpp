@@ -1,7 +1,6 @@
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 
 #include "Geometry/3D/Base/GeometryCollection3D.h"
-#include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
@@ -9,12 +8,9 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
-#include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Data/CurveSegmentManager.h"
@@ -22,81 +18,10 @@
 
 #include <cmath>
 #include <optional>
-#include <unordered_map>
 #include <unordered_set>
 
 namespace Meshing
 {
-
-namespace
-{
-
-/// Builds a node-ID → position lookup from the current mesh.
-std::unordered_map<size_t, Point3D> buildNodePositionMap(const MeshData3D& meshData)
-{
-    std::unordered_map<size_t, Point3D> positionMap;
-    for (const auto& [nodeId, node] : meshData.getNodes())
-        positionMap.emplace(nodeId, node->getCoordinates());
-    return positionMap;
-}
-
-/// True if point lies closer than distance to any node of the mesh.
-bool isWithinDistanceOfAnyNode(const MeshData3D& meshData, const Point3D& point, double distance)
-{
-    for (const auto& [nodeId, node] : meshData.getNodes())
-    {
-        if ((point - node->getCoordinates()).norm() < distance)
-            return true;
-    }
-    return false;
-}
-
-/// True if point lies strictly inside the protecting ball of a node with a
-/// positive weight (see Node3D::getWeight() and CurveProtectionScheme,
-/// OPE-176). An insertion there would erode the crease protection the
-/// ball exists for. A ball cannot be split the way an encroached segment
-/// can, so the candidate is marked unrefinable instead.
-bool encroachesProtectingBall(const MeshData3D& meshData, const Point3D& point)
-{
-    for (const auto& [nodeId, node] : meshData.getNodes())
-    {
-        const double weight = node->getWeight();
-        if (weight <= 0.0)
-            continue;
-        if ((point - node->getCoordinates()).squaredNorm() < weight)
-            return true;
-    }
-    return false;
-}
-
-/// Returns the FaceKeys of faces shared by exactly two of conflictingTets:
-/// the cavity's interior faces, as the conflict set stands before insertion.
-std::vector<FaceKey> computeCavityInteriorFaces(const MeshData3D& meshData,
-                                                const std::vector<size_t>& conflictingTets)
-{
-    std::unordered_map<FaceKey, size_t, FaceKeyHash> faceCount;
-    for (const size_t tetId : conflictingTets)
-    {
-        const auto* element = meshData.getElement(tetId);
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-        if (!tet)
-            continue;
-
-        for (const auto& faceArray : tet->getFaces())
-            ++faceCount[FaceKey(faceArray)];
-    }
-
-    std::vector<FaceKey> interiorFaces;
-    for (const auto& [face, count] : faceCount)
-    {
-        if (count == 2)
-            interiorFaces.push_back(face);
-    }
-
-    return interiorFaces;
-}
-
-} // namespace
 
 RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          RestrictedTriangulation& restrictedTriangulation,
@@ -107,7 +32,8 @@ RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
     restrictedTriangulation_(&restrictedTriangulation),
     settings_(settings),
     tetQualityController_(tetQualityController),
-    minimumEdgeLength_(minimumEdgeLength)
+    minimumEdgeLength_(minimumEdgeLength),
+    pointInserter_(context, restrictedTriangulation, minimumEdgeLength)
 {
 }
 
@@ -120,20 +46,7 @@ void RCDTRefiner::refine()
 
     spdlog::info("RCDTRefiner: minimum edge length floor = {}", minimumEdgeLength_);
 
-    // One-time full scan to seed encroachedSegments_; each insertion keeps it
-    // current from here (see the member doc).
-    {
-        const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-        const auto nodePositionMap = buildNodePositionMap(meshData);
-        for (const auto& [nodeId, node] : meshData.getNodes())
-        {
-            for (const size_t segmentId :
-                 curveSegmentManager.findEncroached(node->getCoordinates(), nodePositionMap, nodeId))
-            {
-                encroachedSegments_.insert(segmentId);
-            }
-        }
-    }
+    pointInserter_.seedEncroachedSegments();
 
     size_t iteration = 0;
     exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
@@ -157,44 +70,14 @@ void RCDTRefiner::refine()
 
 bool RCDTRefiner::refineStep()
 {
-    // A fresh iteration: any node positions cached from the previous call are
-    // stale (an insertion happened). See cachedNodePositionMap_'s member doc.
-    cachedNodePositionMap_.reset();
+    pointInserter_.beginStep();
 
-    const auto& meshData = context_->getMeshData();
-    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-
-    // ---- Priority 1: encroached curve segments ----
-    // encroachedSegments_ is kept current incrementally (see its member doc)
-    // rather than rescanned here.
-
-    for (const size_t segmentId : encroachedSegments_)
-    {
-        if (unrefinableSegments_.count(segmentId))
-            continue;
-
-        // Size floor: a segment at or below minimumEdgeLength_ is left
-        // encroached rather than bisected forever (see unrefinableSegments_).
-        const CurveSegment segment = curveSegmentManager.getSegment(segmentId);
-        const auto* node1 = meshData.getNode(segment.nodeId1);
-        const auto* node2 = meshData.getNode(segment.nodeId2);
-        const double length = (node1 && node2) ? (node1->getCoordinates() - node2->getCoordinates()).norm() : 0.0;
-        if (length <= minimumEdgeLength_)
-        {
-            unrefinableSegments_.insert(segmentId);
-            continue;
-        }
-
-        // trySplitSegment() already marks segmentId unrefinable when it
-        // declines (ball-encroached or otherwise) -- try the next
-        // encroached segment instead of giving up on this refineStep()
-        // call entirely.
-        if (trySplitSegment(segmentId))
-            return true;
-    }
+    if (pointInserter_.splitEncroachedSegment())
+        return true;
 
     // ---- Priority 2: bad restricted triangles ----
 
+    const auto& meshData = context_->getMeshData();
     const auto* geometry = context_->getGeometry();
     if (!geometry)
         return false;
@@ -204,11 +87,6 @@ bool RCDTRefiner::refineStep()
 
     if (badTriangles.empty())
         return refineRemainingPriorities();
-
-    // Only needed for the segment-encroachment demotion check below; built
-    // here (not unconditionally at the top of refineStep()) so priority 1
-    // resolving something this iteration skips paying for it.
-    const auto& nodePositionMap = getNodePositionMap();
 
     for (const auto& bad : badTriangles)
     {
@@ -235,10 +113,11 @@ bool RCDTRefiner::refineStep()
         // crosses the surface. When there is none -- usually because the
         // face's classification is stale and its current dual edge no longer
         // crosses the surface -- fall back to projecting the circumcenter; the
-        // proximity guard below rejects a fallback point that lands on an
-        // existing vertex. Dropping the fallback was measured worse: most
-        // fallback points are usable. Computed for this one triangle rather
-        // than for every bad triangle, since it bisects with OCC calls.
+        // proximity guard in RCDTPointInserter::tryInsert() rejects a fallback
+        // point that lands on an existing vertex. Dropping the fallback was
+        // measured worse: most fallback points are usable. Computed for this
+        // one triangle rather than for every bad triangle, since it bisects
+        // with OCC calls.
         std::optional<Point3D> projectedOpt =
             restrictedTriangulation_->computeInsertionPoint(bad.face, meshData, connectivity, *surface);
         if (!projectedOpt)
@@ -251,40 +130,9 @@ bool RCDTRefiner::refineStep()
 
         const Point3D& projected = *projectedOpt;
 
-        // Proximity guard: reject a point within minimumEdgeLength_ of any
-        // existing vertex. The shortest-edge check above only sees the
-        // triangle before insertion, so it cannot catch a point landing on or
-        // next to a vertex, including one of an unrelated triangle. Such a
-        // near-duplicate corrupts the mesh locally and keeps generating new
-        // bad triangles around it.
-        if (isWithinDistanceOfAnyNode(meshData, projected, minimumEdgeLength_))
-        {
-            unrefinableTriangles_.insert(bad.face);
-            continue;
-        }
-
-        // Demotion: if the point would encroach a segment, split that segment
-        // instead. If trySplitSegment() declines, this triangle has no other
-        // way to be refined, so it is marked unrefinable rather than retried.
-        const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
-        if (!encroachingIds.empty())
-        {
-            if (trySplitSegment(encroachingIds[0]))
-                return true;
-            unrefinableTriangles_.insert(bad.face);
-            continue;
-        }
-
-        // Never insert inside an existing protecting ball (OPE-176) -- see
-        // encroachesProtectingBall()'s doc.
-        if (encroachesProtectingBall(meshData, projected))
-        {
-            unrefinableTriangles_.insert(bad.face);
-            continue;
-        }
-
-        insertAndUpdate(projected, {bad.surfaceId});
-        return true;
+        if (pointInserter_.tryInsert(projected, {bad.surfaceId}))
+            return true;
+        unrefinableTriangles_.insert(bad.face);
     }
 
     return refineRemainingPriorities();
@@ -303,8 +151,6 @@ bool RCDTRefiner::refineBadTetrahedra()
         return false;
 
     const auto& meshData = context_->getMeshData();
-    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-    const auto& nodePositionMap = getNodePositionMap();
 
     // AmbientTetrahedronRemover only runs after refinement, so the mesh still
     // contains ambient tetrahedra: those touching the bounding tetrahedron's
@@ -360,35 +206,11 @@ bool RCDTRefiner::refineBadTetrahedra()
 
         const Point3D& circumcenter = circumsphere->center;
 
-        // Proximity guard, as in refineStep().
-        if (isWithinDistanceOfAnyNode(meshData, circumcenter, minimumEdgeLength_))
-        {
-            unrefinableTetrahedra_.insert(tetId);
-            continue;
-        }
-
-        // Demotion, as in refineStep().
-        const auto encroachingIds = curveSegmentManager.findEncroached(circumcenter, nodePositionMap);
-        if (!encroachingIds.empty())
-        {
-            if (trySplitSegment(encroachingIds[0]))
-                return true;
-            unrefinableTetrahedra_.insert(tetId);
-            continue;
-        }
-
-        // Never insert inside an existing protecting ball (OPE-176) -- see
-        // encroachesProtectingBall()'s doc.
-        if (encroachesProtectingBall(meshData, circumcenter))
-        {
-            unrefinableTetrahedra_.insert(tetId);
-            continue;
-        }
-
         // Interior point: no geometryIds, matching insertVertexBowyerWatson's
         // convention for a non-boundary node.
-        insertAndUpdate(circumcenter, {});
-        return true;
+        if (pointInserter_.tryInsert(circumcenter, {}))
+            return true;
+        unrefinableTetrahedra_.insert(tetId);
     }
 
     return false;
@@ -402,7 +224,7 @@ bool RCDTRefiner::refineNonManifoldEdges()
     if (!geometry)
         return false;
 
-    const auto& nodePositionMap = getNodePositionMap();
+    const auto& nodePositionMap = pointInserter_.getNodePositionMap();
     const auto defects = restrictedTriangulation_->findNonManifoldEdges(meshData);
 
     for (const auto& defect : defects)
@@ -434,7 +256,7 @@ bool RCDTRefiner::refineNonManifoldEdges()
         // than falling back to that projection.
         if (const auto segmentId = curveSegmentManager.findSegmentId(defect.edge.nodeIds[0], defect.edge.nodeIds[1]))
         {
-            if (trySplitSegment(*segmentId))
+            if (pointInserter_.trySplitSegment(*segmentId))
                 return true;
             unrefinableNonManifoldEdges_.insert(defect.edge);
             continue;
@@ -456,167 +278,12 @@ bool RCDTRefiner::refineNonManifoldEdges()
         }
         const Point3D& projected = *projectedOpt;
 
-        // Proximity guard, same reasoning as the other priorities.
-        if (isWithinDistanceOfAnyNode(meshData, projected, minimumEdgeLength_))
-        {
-            unrefinableNonManifoldEdges_.insert(defect.edge);
-            continue;
-        }
-
-        // Demotion, as in refineStep().
-        const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
-        if (!encroachingIds.empty())
-        {
-            if (trySplitSegment(encroachingIds[0]))
-                return true;
-            unrefinableNonManifoldEdges_.insert(defect.edge);
-            continue;
-        }
-
-        // Never insert inside an existing protecting ball (OPE-176) -- see
-        // encroachesProtectingBall()'s doc.
-        if (encroachesProtectingBall(meshData, projected))
-        {
-            unrefinableNonManifoldEdges_.insert(defect.edge);
-            continue;
-        }
-
-        insertAndUpdate(projected, {defect.surfaceId});
-        return true;
+        if (pointInserter_.tryInsert(projected, {defect.surfaceId}))
+            return true;
+        unrefinableNonManifoldEdges_.insert(defect.edge);
     }
 
     return false;
-}
-
-size_t RCDTRefiner::insertAndUpdate(const Point3D& point,
-                                    const std::vector<std::string>& geometryIds)
-{
-    auto& operations = context_->getOperations();
-    const auto& meshData = context_->getMeshData();
-    const auto* geometry = context_->getGeometry();
-
-    auto conflictingTets = operations.getQueries().findConflictingTetrahedra(point);
-    const auto interiorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
-
-    const size_t newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTets), geometryIds);
-
-    const MeshConnectivity postConnectivity(meshData);
-    restrictedTriangulation_->updateAfterInsertion(
-        interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
-
-    updateEncroachedSegmentsForNewNode(newNodeId, point);
-
-    return newNodeId;
-}
-
-bool RCDTRefiner::trySplitSegment(size_t segmentId)
-{
-    const auto* geometry = context_->getGeometry();
-    if (!geometry)
-    {
-        unrefinableSegments_.insert(segmentId);
-        return false;
-    }
-
-    const CurveSegment segment = context_->getMeshData().getCurveSegmentManager().getSegment(segmentId);
-    const Geometry3D::IEdge3D* edge = geometry->getEdge(segment.edgeId);
-    if (!edge)
-    {
-        unrefinableSegments_.insert(segmentId);
-        return false;
-    }
-
-    if (encroachesProtectingBall(context_->getMeshData(), CurveSegmentOperations::computeSplitPoint(segment, *geometry)))
-    {
-        unrefinableSegments_.insert(segmentId);
-        return false;
-    }
-
-    return splitSegment(segmentId);
-}
-
-bool RCDTRefiner::splitSegment(size_t segmentId)
-{
-    const auto& meshData = context_->getMeshData();
-    const auto* geometry = context_->getGeometry();
-    if (!geometry)
-        return false;
-
-    const CurveSegment segment = meshData.getCurveSegmentManager().getSegment(segmentId);
-    const Geometry3D::IEdge3D* edge = geometry->getEdge(segment.edgeId);
-    if (!edge)
-        return false;
-
-    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(segment, *geometry);
-
-    auto& operations = context_->getOperations();
-    auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
-    const auto interiorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
-
-    const size_t newNodeId = operations.insertVertexBowyerWatson(splitPoint, std::move(conflictingTets), {segment.edgeId});
-
-    const double tMid =
-        edge->getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
-    const auto [segmentId1, segmentId2] = context_->getMutator().splitCurveSegment(segmentId, newNodeId, tMid);
-
-    // The original segment is gone; the two it split into inherit its
-    // encroachment status only insofar as they're recomputed below -- an
-    // existing, unrelated node can already sit inside one of the (smaller)
-    // new diametral spheres even though it didn't encroach the original.
-    encroachedSegments_.erase(segmentId);
-
-    restrictedTriangulation_->invalidateFacesWithEdge(segment.nodeId1, segment.nodeId2);
-
-    const MeshConnectivity postConnectivity(meshData);
-    restrictedTriangulation_->updateAfterInsertion(interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
-
-    updateEncroachedSegmentsForNewNode(newNodeId, splitPoint);
-    checkSegmentAgainstAllNodes(segmentId1);
-    checkSegmentAgainstAllNodes(segmentId2);
-
-    return true;
-}
-
-void RCDTRefiner::updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position)
-{
-    const auto& meshData = context_->getMeshData();
-    const auto& nodePositionMap = getNodePositionMap();
-    for (const size_t segmentId :
-         meshData.getCurveSegmentManager().findEncroached(position, nodePositionMap, newNodeId))
-    {
-        encroachedSegments_.insert(segmentId);
-    }
-}
-
-void RCDTRefiner::checkSegmentAgainstAllNodes(size_t segmentId)
-{
-    const auto& meshData = context_->getMeshData();
-    const CurveSegment& segment = meshData.getCurveSegmentManager().getSegment(segmentId);
-    const auto* node1 = meshData.getNode(segment.nodeId1);
-    const auto* node2 = meshData.getNode(segment.nodeId2);
-    if (!node1 || !node2)
-        return;
-
-    const Point3D center = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
-    const double radiusSquared = (node2->getCoordinates() - node1->getCoordinates()).squaredNorm() * 0.25;
-
-    for (const auto& [nodeId, node] : meshData.getNodes())
-    {
-        if (nodeId == segment.nodeId1 || nodeId == segment.nodeId2)
-            continue;
-        if ((node->getCoordinates() - center).squaredNorm() < radiusSquared)
-        {
-            encroachedSegments_.insert(segmentId);
-            return;
-        }
-    }
-}
-
-const std::unordered_map<size_t, Point3D>& RCDTRefiner::getNodePositionMap()
-{
-    if (!cachedNodePositionMap_)
-        cachedNodePositionMap_ = buildNodePositionMap(context_->getMeshData());
-    return *cachedNodePositionMap_;
 }
 
 } // namespace Meshing

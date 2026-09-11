@@ -1,16 +1,12 @@
 #pragma once
 
-#include "Common/Types.h"
 #include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
-#include <optional>
-#include <string>
-#include <unordered_map>
 #include <unordered_set>
-#include <vector>
 
 namespace Meshing
 {
@@ -76,31 +72,13 @@ private:
     std::unordered_set<size_t> unrefinableTetrahedra_;
     std::unordered_set<EdgeKey, EdgeKeyHash> unrefinableNonManifoldEdges_;
 
-    /// Curve segments that are not split again: at or below
-    /// minimumEdgeLength_, or declined by trySplitSegment(). Without the size
-    /// floor, a segment near a small input angle is bisected forever, because
-    /// each half is encroached again by the same nearby vertex.
-    std::unordered_set<size_t> unrefinableSegments_;
-
-    /// Curve segments currently encroached by some node. Seeded once in
-    /// refine(), then kept current by each insertion (see
-    /// updateEncroachedSegmentsForNewNode() and splitSegment()) rather than
-    /// rescanned every step, which cost O(nodes x segments) per step.
-    /// Priority 1 iterates it, so its iteration order shapes the output.
-    std::unordered_set<size_t> encroachedSegments_;
-
-    /// Node positions for the current refineStep(), built on first use by
-    /// getNodePositionMap() and reset at the start of each step. It may be
-    /// built before or after the step's one insertion: the only lookup after
-    /// an insertion skips segments ending at the new node, so both give the
-    /// same answer.
-    std::optional<std::unordered_map<size_t, Point3D>> cachedNodePositionMap_;
-
     /// Size floor (see MinimumEdgeLengthEstimator). Bounds how short a segment,
     /// restricted triangle or non-manifold edge may get before it is left
     /// unrefined, how close an insertion may land to an existing node, and how
     /// large a tetrahedron's circumradius may be.
     double minimumEdgeLength_;
+
+    RCDTPointInserter pointInserter_;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
@@ -120,43 +98,6 @@ private:
     /// inserting its midpoint projected onto the defect's surface. Returns true
     /// if an insertion or split was made.
     bool refineNonManifoldEdges();
-
-    /// Inserts point into the Delaunay and updates RestrictedTriangulation.
-    /// Pre-computes cavity interior faces before insertion so the restricted
-    /// triangulation can remove stale faces incrementally.
-    /// Returns the new node ID.
-    size_t insertAndUpdate(const Point3D& point, const std::vector<std::string>& geometryIds);
-
-    /// Splits a curve segment at its arc-length midpoint.
-    /// Inserts the new node via Bowyer-Watson and updates RestrictedTriangulation.
-    /// Returns true on success.
-    bool splitSegment(size_t segmentId);
-
-    /// The only route to splitSegment(). Declines -- marking segmentId
-    /// unrefinable and returning false -- when the geometry or edge is missing
-    /// or the split point lies inside a protecting ball; callers then move on
-    /// to their next candidate. The ball check matters even though the point
-    /// is on the curve: inside an unrelated ball (e.g. a nearby corner's) the
-    /// point is hidden, Bowyer-Watson finds no conflicting tetrahedra, and the
-    /// node is added unconnected to the mesh -- the orphaned edge nodes
-    /// RCDTMesherCylinderTest.AllEdgeNodesCovered caught.
-    bool trySplitSegment(size_t segmentId);
-
-    /// Returns cachedNodePositionMap_, building it on first access since the
-    /// last reset (see its member doc) rather than every call.
-    const std::unordered_map<size_t, Point3D>& getNodePositionMap();
-
-    /// Adds every curve segment that the new node at position encroaches to
-    /// encroachedSegments_, skipping segments that end at newNodeId. Called
-    /// after every insertion.
-    void updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position);
-
-    /// Checks segmentId against every current node and adds it to
-    /// encroachedSegments_ if any (other than its own endpoints) encroaches
-    /// it. Called for each of the two new segments a split produces, since
-    /// an existing, unrelated node can already sit inside a freshly-split
-    /// segment's (smaller) diametral sphere.
-    void checkSegmentAgainstAllNodes(size_t segmentId);
 };
 
 } // namespace Meshing
