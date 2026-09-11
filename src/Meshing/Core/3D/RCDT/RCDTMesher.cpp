@@ -26,9 +26,75 @@
 #include "spdlog/spdlog.h"
 
 #include <array>
+#include <vector>
 
 namespace Meshing
 {
+
+namespace
+{
+
+// Resolved before CurveProtectionSubdivider/Delaunay3D run, since the
+// subdivider needs a size floor to subdivide against.
+double resolveMinimumEdgeLength(const SurfaceMesh3DQualitySettings& qualitySettings,
+                                const SizingField3D* sizingField,
+                                const std::vector<Point3D>& points)
+{
+    if (qualitySettings.minimumEdgeLength)
+        return *qualitySettings.minimumEdgeLength;
+    if (sizingField)
+        return MinimumEdgeLengthEstimator::fromSizingField(*sizingField);
+    return MinimumEdgeLengthEstimator::fromPointSpacing(points);
+}
+
+// Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample
+// point is inserted into the initial triangulation as a WEIGHTED point
+// (see RegularPredicates3D) rather than an ordinary one, which forces
+// every crease to appear as an exact edge chain in the resulting
+// regular triangulation -- this is what lets
+// RestrictedTriangulation::classifyFace() disambiguate a
+// crease-straddling face reliably instead of guessing. subdivide()
+// both sizes those weights (CurveProtectionScheme) and, where a corner's
+// radius and a curve's own sampling density are too far apart for a
+// single pair of points to bridge, inserts additional curve points to
+// close the gap gradually -- see CurveProtectionScheme/
+// CurveProtectionSubdivider's own docs for the two properties every
+// radius satisfies and how a conflict between them is resolved.
+//
+// The curve segments are populated here, before RestrictedTriangulation::buildFrom()
+// runs, not after: classifyFace() consults the CurveSegmentManager to
+// recognize a genuinely protected edge (see its doc), so that lookup needs
+// the curve network in place for the very first classification pass, not
+// just for ones triggered later by refinement.
+void seedAmbientTriangulation(MeshingContext3D& context,
+                              DiscretizationResult3D& discretizationResult,
+                              const Geometry3D::GeometryCollection3D& geometry,
+                              const Topology3D::Topology3D& topology,
+                              double minimumEdgeLength)
+{
+    const auto pointWeights =
+        CurveProtectionSubdivider::subdivide(discretizationResult, topology, geometry, minimumEdgeLength);
+
+    const auto& meshData = context.getMeshData();
+    const auto delaunayResult = Delaunay3D::triangulate(context.getOperations(),
+                                                        discretizationResult.points,
+                                                        discretizationResult.geometryIds,
+                                                        pointWeights);
+
+    spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
+                 meshData.getNodeCount(), meshData.getElementCount());
+
+    context.getMutator().setCurveSegmentManager(
+        CurveSegmentOperations::buildCurveSegments(topology, geometry,
+                                                   discretizationResult.edgeIdToPointIndicesMap,
+                                                   delaunayResult.pointIndexToNodeIdMap,
+                                                   discretizationResult.edgeParameters));
+
+    spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
+                 meshData.getCurveSegmentManager().size());
+}
+
+} // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        const Topology3D::Topology3D& topology,
@@ -151,58 +217,14 @@ double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulati
     spdlog::info("RCDTMesher::buildInitial: {} points after discretization",
                  discretizationResult->points.size());
 
-    // Resolved here, before CurveProtectionSubdivider/Delaunay3D run, since
-    // the subdivider needs a size floor to subdivide against.
-    double minimumEdgeLength = 0.0;
-    if (qualitySettings_.minimumEdgeLength)
-        minimumEdgeLength = *qualitySettings_.minimumEdgeLength;
-    else if (sizingField)
-        minimumEdgeLength = MinimumEdgeLengthEstimator::fromSizingField(*sizingField);
-    else
-        minimumEdgeLength = MinimumEdgeLengthEstimator::fromPointSpacing(discretizationResult->points);
+    const double minimumEdgeLength =
+        resolveMinimumEdgeLength(qualitySettings_, sizingField ? &sizingField.value() : nullptr,
+                                 discretizationResult->points);
     spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", minimumEdgeLength);
 
-    // Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample
-    // point is inserted into the initial triangulation as a WEIGHTED point
-    // (see RegularPredicates3D) rather than an ordinary one, which forces
-    // every crease to appear as an exact edge chain in the resulting
-    // regular triangulation -- this is what lets
-    // RestrictedTriangulation::classifyFace() disambiguate a
-    // crease-straddling face reliably instead of guessing. subdivide()
-    // both sizes those weights (CurveProtectionScheme) and, where a corner's
-    // radius and a curve's own sampling density are too far apart for a
-    // single pair of points to bridge, inserts additional curve points to
-    // close the gap gradually -- see CurveProtectionScheme/
-    // CurveProtectionSubdivider's own docs for the two properties every
-    // radius satisfies and how a conflict between them is resolved.
-    const auto pointWeights = CurveProtectionSubdivider::subdivide(
-        *discretizationResult, *topology_, *geometry_, minimumEdgeLength);
+    seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_, minimumEdgeLength);
 
-    auto& meshData = context.getMeshData();
-
-    const auto delaunayResult = Delaunay3D::triangulate(context.getOperations(),
-                                                        discretizationResult->points,
-                                                        discretizationResult->geometryIds,
-                                                        pointWeights);
-    const auto& pointIndexToNodeIdMap = delaunayResult.pointIndexToNodeIdMap;
-
-    spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
-                 meshData.getNodeCount(), meshData.getElementCount());
-
-    // Populated before RestrictedTriangulation::buildFrom() below, not after:
-    // classifyFace() consults the CurveSegmentManager to recognize a
-    // genuinely protected edge (see its doc), so that lookup needs the curve
-    // network in place for the very first classification pass, not just for
-    // ones triggered later by refinement.
-    context.getMutator().setCurveSegmentManager(
-        CurveSegmentOperations::buildCurveSegments(*topology_, *geometry_,
-                                                   discretizationResult->edgeIdToPointIndicesMap,
-                                                   pointIndexToNodeIdMap,
-                                                   discretizationResult->edgeParameters));
-
-    spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
-                 meshData.getCurveSegmentManager().size());
-
+    const auto& meshData = context.getMeshData();
     const MeshConnectivity connectivity(meshData);
     restrictedTriangulation.buildFrom(meshData, connectivity, *geometry_, *topology_, minimumEdgeLength,
                                       qualitySettings_);
