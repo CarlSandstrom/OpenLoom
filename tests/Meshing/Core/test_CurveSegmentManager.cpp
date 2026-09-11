@@ -202,9 +202,8 @@ TEST(CurveSegmentManagerTest, BuildFrom_CylinderLikeTopology_SkipsSeamTwin)
     const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
     const std::vector<std::vector<double>> edgeParameters = {{}, {}};
 
-    CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry,
-                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
+    auto manager = CurveSegmentOperations::buildCurveSegments(topology, geometry, edgeIdToPointIndicesMap,
+                                                              pointIndexToNodeIdMap, edgeParameters);
 
     // seam_twin must be skipped → 3 segments only
     EXPECT_EQ(manager.size(), 3u);
@@ -231,9 +230,8 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
     const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 10}, {1, 11}};
     const std::vector<std::vector<double>> edgeParameters = {{}, {}};
 
-    CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry,
-                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
+    auto manager = CurveSegmentOperations::buildCurveSegments(topology, geometry, edgeIdToPointIndicesMap,
+                                                              pointIndexToNodeIdMap, edgeParameters);
 
     ASSERT_EQ(manager.size(), 1u);
     const auto& segment = manager.getAllSegments().begin()->second;
@@ -265,9 +263,8 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
     const std::vector<std::vector<double>> edgeParameters = {
         {}, {M_PI / 3.0}, {2.0 * M_PI / 3.0}, {}};
 
-    CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry,
-                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
+    auto manager = CurveSegmentOperations::buildCurveSegments(topology, geometry, edgeIdToPointIndicesMap,
+                                                              pointIndexToNodeIdMap, edgeParameters);
 
     ASSERT_EQ(manager.size(), 3u);
 
@@ -400,6 +397,39 @@ TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
 }
 
 // ============================================================================
+// getOrderedNodeIdsForEdge: chain follows curve order after splits
+// ============================================================================
+
+TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainInCurveOrder)
+{
+    CurveSegment segment;
+    segment.nodeId1 = 0;
+    segment.nodeId2 = 1;
+    segment.edgeId = "arc";
+    segment.tStart = 0.0;
+    segment.tEnd = 1.0;
+
+    CurveSegment otherEdgeSegment;
+    otherEdgeSegment.nodeId1 = 1;
+    otherEdgeSegment.nodeId2 = 5;
+    otherEdgeSegment.edgeId = "other";
+    otherEdgeSegment.tStart = 0.0;
+    otherEdgeSegment.tEnd = 1.0;
+
+    CurveSegmentManager manager;
+    const size_t segmentId = manager.addSegment(segment);
+    manager.addSegment(otherEdgeSegment);
+
+    // Split the right half after the left, so segment IDs are not in curve order
+    const auto [leftId, rightId] = manager.splitAt(segmentId, /*newNodeId=*/2, 0.5);
+    manager.splitAt(rightId, /*newNodeId=*/3, 0.75);
+    manager.splitAt(leftId, /*newNodeId=*/4, 0.25);
+
+    EXPECT_EQ(manager.getOrderedNodeIdsForEdge("arc"), (std::vector<size_t>{0, 4, 2, 3, 1}));
+    EXPECT_TRUE(manager.getOrderedNodeIdsForEdge("missing").empty());
+}
+
+// ============================================================================
 // computeSplitPoint: split point lies on the circle (gap ≤ tolerance)
 // ============================================================================
 
@@ -421,7 +451,7 @@ TEST(CurveSegmentManagerTest, ComputeSplitPoint_LiesOnCircle)
     CurveSegmentManager manager;
     const size_t segmentId = manager.addSegment(segment);
 
-    const Point3D splitPoint = computeSplitPoint(manager.getSegment(segmentId), geometry);
+    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(manager.getSegment(segmentId), geometry);
 
     // Point must lie on the circle of radius 2
     const double radialGap =
@@ -459,7 +489,7 @@ TEST(CurveSegmentManagerTest, ComputeSplitPoint_ArcLengthMidpoint_MoreEquidistan
     CurveSegmentManager manager;
     const size_t segmentId = manager.addSegment(segment);
 
-    const Point3D splitPoint = computeSplitPoint(manager.getSegment(segmentId), geometry);
+    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(manager.getSegment(segmentId), geometry);
 
     // Arc-length midpoint lands at (0.5, 0, 0) — equidistant on the curve
     EXPECT_NEAR(splitPoint.x(), 0.5, 1e-9);
@@ -497,9 +527,8 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
     const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
     const std::vector<std::vector<double>> edgeParameters = {{}, {}};
 
-    CurveSegmentManager manager;
-    buildCurveSegments(manager, topology, geometry,
-                       edgeIdToPointIndicesMap, pointIndexToNodeIdMap, edgeParameters);
+    auto manager = CurveSegmentOperations::buildCurveSegments(topology, geometry, edgeIdToPointIndicesMap,
+                                                              pointIndexToNodeIdMap, edgeParameters);
 
     // Only one segment (seam), not two
     ASSERT_EQ(manager.size(), 1u);

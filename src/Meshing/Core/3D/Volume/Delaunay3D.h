@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Common/Types.h"
-#include <array>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Meshing
@@ -17,10 +17,6 @@ struct Delaunay3DResult
 {
     /// Mapping from input point index to mesh node ID.
     std::map<size_t, size_t> pointIndexToNodeIdMap;
-
-    /// The 4 node IDs of the bounding tetrahedron left in the mesh by
-    /// triangulate(). The caller owns removing them when appropriate.
-    std::array<size_t, 4> boundingNodeIds{};
 };
 
 /**
@@ -44,9 +40,8 @@ struct Delaunay3DResult
  * during later refinement) that ends up on the true convex hull has cavity
  * boundary faces with no neighbor to fall back on if they turn out to be
  * coplanar with the new vertex. Keeping it in place guarantees a neighbor is
- * always reachable; the caller is responsible for removing it (via
- * Delaunay3DResult::boundingNodeIds and
- * MeshOperations3D::removeBoundingTetrahedron()) once it is safe to do so.
+ * always reachable; the caller is responsible for removing it (its node IDs
+ * are recorded in MeshData3D::getBoundingNodeIds()) once it is safe to do so.
  */
 class Delaunay3D
 {
@@ -59,14 +54,14 @@ public:
      * the same mesh (see class documentation)
      * @param points Vector of Point3D representing the input vertices
      * @param geometryIds Geometry IDs for each point (corner/edge/surface IDs)
-     * @param pointWeights Regular-triangulation weight for each point (0 --
-     * an ordinary, unweighted point -- if index-absent or the vector is
-     * left empty; see Node3D::getWeight() and RegularPredicates3D, OPE-176)
+     * @param pointWeights Regular-triangulation weight by point index (0 --
+     * an ordinary, unweighted point -- if index-absent; see
+     * Node3D::getWeight() and RegularPredicates3D, OPE-176)
      */
     static Delaunay3DResult triangulate(MeshOperations3D& operations,
                                         const std::vector<Point3D>& points,
                                         const std::vector<std::vector<std::string>>& geometryIds = {},
-                                        const std::vector<double>& pointWeights = {});
+                                        const std::unordered_map<size_t, double>& pointWeights = {});
 };
 
 } // namespace Meshing

@@ -72,6 +72,17 @@ struct NonManifoldRestrictedEdge
     RestrictedEdgeDefect defect = RestrictedEdgeDefect::MissingFace;
 };
 
+/// What RestrictedTriangulation::removeDefectiveFaces() removed, and the
+/// non-manifold edges it could not resolve, counted per RestrictedEdgeDefect.
+struct DefectiveFaceRemovalSummary
+{
+    size_t chordFacesRemoved = 0;
+    size_t excessFacesRemoved = 0;
+    size_t remainingMissingFaceEdges = 0;
+    size_t remainingExcessFaceEdges = 0;
+    size_t remainingSurfaceMismatchEdges = 0;
+};
+
 /// Which side of the model a point falls on, as resolved against every
 /// IVolume3D in the geometry. Lives here rather than in the .cpp only so
 /// that RestrictedTriangulation can memoize it per tetrahedron -- see
@@ -130,6 +141,66 @@ public:
 
     const std::unordered_map<FaceKey, std::string, FaceKeyHash>& getRestrictedFaces() const;
 
+    /// Post-hoc cleanup, meant to be called ONCE after refinement has fully
+    /// converged: removeChordFaces(), then removeExcessFaces() -- in that
+    /// order, since the chord removals change the per-edge counts
+    /// removeExcessFaces() judges -- then counts the non-manifold edges
+    /// neither could resolve (see findNonManifoldEdges()). Counted per defect
+    /// kind because the three want different fixes -- a hole is a face
+    /// classification never made, an excess is one made twice -- and a single
+    /// total cannot tell them apart, which has misled this area before.
+    DefectiveFaceRemovalSummary removeDefectiveFaces(const MeshData3D& meshData);
+
+    /// The insertion point for the given bad triangle: where its dual Voronoi
+    /// edge (the segment between its two adjacent tets' circumcenters) crosses
+    /// the surface. Computed on demand rather than in getBadTriangles() to
+    /// avoid paying 30 bisection iterations × 3 OCC calls for every bad face
+    /// when only one will actually be inserted this step.
+    /// Returns nullopt if the endpoints cannot be computed or the edge does not
+    /// cross the surface.
+    std::optional<Point3D> computeInsertionPoint(const FaceKey& face,
+                                                 const MeshData3D& meshData,
+                                                 const MeshConnectivity& connectivity,
+                                                 const Geometry3D::ISurface3D& surface) const;
+
+    /// Every edge whose incident restricted faces do not match what the CAD
+    /// topology calls for there. A restricted set that satisfies the
+    /// invariant everywhere (what AmbientTetrahedronClassifier's flood fill
+    /// requires, and what a correct RCDT run should eventually produce)
+    /// returns an empty vector.
+    ///
+    /// The invariant is per-edge and depends on whether the edge lies ON a
+    /// model curve -- i.e. its two nodes are chain-adjacent along one, per
+    /// meshData's CurveSegmentManager:
+    ///
+    ///  * On a curve: exactly one incident face per surface adjacent to that
+    ///    curve, as listed by Topology3D::Edge3D::getAdjacentSurfaceIds().
+    ///    Two for an ordinary crease, one for a free boundary, and THREE OR
+    ///    MORE at a junction where that many surfaces meet.
+    ///  * Not on a curve (a surface interior, or a chord skipping a curve's
+    ///    own sample points): exactly 2 incident faces, both restricted to
+    ///    the same surface.
+    ///
+    /// This is deliberately NOT the flat "every edge has exactly 2 faces"
+    /// test it replaces. That test states a closed-2-manifold requirement
+    /// the models this library targets do not all satisfy: in a conformal
+    /// multi-material model -- a polycrystal or multiphase microstructure --
+    /// grain boundaries meet along TRIPLE LINES where three boundary patches
+    /// share one edge, and at quadruple points where four triple lines meet.
+    /// Three faces on such an edge is the equilibrium configuration, not a
+    /// defect, and Edge3D has always documented its adjacency list as
+    /// "usually 2, can be 1 (boundary) or >2 (non-manifold)". Reading the
+    /// expected count off the topology rather than assuming 2 is what lets
+    /// a legitimate junction and an over-acceptance flap be told apart.
+    ///
+    /// The distinction also matters for the flap itself: the count test
+    /// lumps holes, duplicates and (in future) junctions into one number, so
+    /// it cannot serve as a quality gate, and any repair of the "keep the
+    /// best 2, drop the rest" shape built on it would silently destroy
+    /// triple lines. See OPE-184.
+    std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(const MeshData3D& meshData) const;
+
+private:
     /// Removes every currently-restricted face that uses a same-curve chord
     /// edge (see hasSameCurveChordEdge()) -- an edge between two points on
     /// the same curve that aren't chain-adjacent, skipping over the curve's
@@ -191,56 +262,6 @@ public:
     /// Returns the number of faces removed.
     size_t removeExcessFaces(const MeshData3D& meshData);
 
-    /// The insertion point for the given bad triangle: where its dual Voronoi
-    /// edge (the segment between its two adjacent tets' circumcenters) crosses
-    /// the surface. Computed on demand rather than in getBadTriangles() to
-    /// avoid paying 30 bisection iterations × 3 OCC calls for every bad face
-    /// when only one will actually be inserted this step.
-    /// Returns nullopt if the endpoints cannot be computed or the edge does not
-    /// cross the surface.
-    std::optional<Point3D> computeInsertionPoint(const FaceKey& face,
-                                                 const MeshData3D& meshData,
-                                                 const MeshConnectivity& connectivity,
-                                                 const Geometry3D::ISurface3D& surface) const;
-
-    /// Every edge whose incident restricted faces do not match what the CAD
-    /// topology calls for there. A restricted set that satisfies the
-    /// invariant everywhere (what AmbientTetrahedronClassifier's flood fill
-    /// requires, and what a correct RCDT run should eventually produce)
-    /// returns an empty vector.
-    ///
-    /// The invariant is per-edge and depends on whether the edge lies ON a
-    /// model curve -- i.e. its two nodes are chain-adjacent along one, per
-    /// meshData's CurveSegmentManager:
-    ///
-    ///  * On a curve: exactly one incident face per surface adjacent to that
-    ///    curve, as listed by Topology3D::Edge3D::getAdjacentSurfaceIds().
-    ///    Two for an ordinary crease, one for a free boundary, and THREE OR
-    ///    MORE at a junction where that many surfaces meet.
-    ///  * Not on a curve (a surface interior, or a chord skipping a curve's
-    ///    own sample points): exactly 2 incident faces, both restricted to
-    ///    the same surface.
-    ///
-    /// This is deliberately NOT the flat "every edge has exactly 2 faces"
-    /// test it replaces. That test states a closed-2-manifold requirement
-    /// the models this library targets do not all satisfy: in a conformal
-    /// multi-material model -- a polycrystal or multiphase microstructure --
-    /// grain boundaries meet along TRIPLE LINES where three boundary patches
-    /// share one edge, and at quadruple points where four triple lines meet.
-    /// Three faces on such an edge is the equilibrium configuration, not a
-    /// defect, and Edge3D has always documented its adjacency list as
-    /// "usually 2, can be 1 (boundary) or >2 (non-manifold)". Reading the
-    /// expected count off the topology rather than assuming 2 is what lets
-    /// a legitimate junction and an over-acceptance flap be told apart.
-    ///
-    /// The distinction also matters for the flap itself: the count test
-    /// lumps holes, duplicates and (in future) junctions into one number, so
-    /// it cannot serve as a quality gate, and any repair of the "keep the
-    /// best 2, drop the rest" shape built on it would silently destroy
-    /// triple lines. See OPE-184.
-    std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(const MeshData3D& meshData) const;
-
-private:
     /// Centroid phase memoized per tetrahedron, for the whole refinement run.
     /// `classifyPointPhase` is by far the most expensive thing this class does
     /// -- on SaddleSurfaceMesh it was 85% of total runtime, each call running

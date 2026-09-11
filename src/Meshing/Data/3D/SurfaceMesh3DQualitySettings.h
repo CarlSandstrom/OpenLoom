@@ -41,9 +41,7 @@ struct SurfaceMesh3DQualitySettings
     /// past the threshold can have its circumcenter land within roughly one
     /// edge-length of its own vertices, producing an equally-bad, slightly
     /// smaller sliver next to it every iteration — a non-terminating cascade.
-    /// If unset, RCDTRefiner derives it from the initial boundary
-    /// discretization: the median nearest-neighbor distance among the
-    /// initial nodes, divided by 10.
+    /// If unset, RCDTMesher derives it (see MinimumEdgeLengthEstimator).
     std::optional<double> minimumEdgeLength;
 
     /// Maximum allowed tetrahedron circumradius / shortest-edge ratio

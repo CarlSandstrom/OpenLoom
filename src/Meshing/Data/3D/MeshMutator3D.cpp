@@ -208,6 +208,11 @@ void MeshMutator3D::addCurveSegment(const CurveSegment& segment)
     geometry_.curveSegmentManager_.addSegment(segment);
 }
 
+void MeshMutator3D::setCurveSegmentManager(CurveSegmentManager manager)
+{
+    geometry_.curveSegmentManager_ = std::move(manager);
+}
+
 std::pair<size_t, size_t> MeshMutator3D::splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid)
 {
     return geometry_.curveSegmentManager_.splitAt(segmentId, newNodeId, tMid);

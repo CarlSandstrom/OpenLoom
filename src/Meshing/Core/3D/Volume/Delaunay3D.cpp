@@ -8,7 +8,7 @@ namespace Meshing
 Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
                                          const std::vector<Point3D>& points,
                                          const std::vector<std::vector<std::string>>& geometryIds,
-                                         const std::vector<double>& pointWeights)
+                                         const std::unordered_map<size_t, double>& pointWeights)
 {
     Delaunay3DResult result;
 
@@ -21,13 +21,14 @@ Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
     spdlog::info("Delaunay3D::triangulate: Starting with {} points", points.size());
 
     // Create bounding tetrahedron. Left in the mesh -- see class documentation.
-    result.boundingNodeIds = operations.createBoundingTetrahedron(points);
+    operations.createBoundingTetrahedron(points);
 
     // Insert each point using Bowyer-Watson
     for (size_t i = 0; i < points.size(); ++i)
     {
         bool hasGeomIds = i < geometryIds.size() && !geometryIds[i].empty();
-        const double weight = i < pointWeights.size() ? pointWeights[i] : 0.0;
+        const auto weightIt = pointWeights.find(i);
+        const double weight = weightIt != pointWeights.end() ? weightIt->second : 0.0;
 
         size_t nodeId;
         if (hasGeomIds)

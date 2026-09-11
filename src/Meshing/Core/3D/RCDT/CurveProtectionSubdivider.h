@@ -62,7 +62,7 @@ public:
     /// computation (a seam twin duplicates its original edge's points in
     /// reverse; a degenerate edge, e.g. a sphere's polar edge, has no real
     /// length to subdivide). minimumEdgeLength is the same size floor
-    /// RCDTRefiner resolves at the start of refinement.
+    /// RCDTRefiner refines down to (see MinimumEdgeLengthEstimator).
     static std::unordered_map<size_t, double> subdivide(
         DiscretizationResult3D& discretizationResult,
         const Topology3D::Topology3D& topology,

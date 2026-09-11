@@ -44,6 +44,7 @@ public:
 
     // Curve segment operations
     void addCurveSegment(const CurveSegment& segment);
+    void setCurveSegmentManager(CurveSegmentManager manager);
     std::pair<size_t, size_t> splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid);
     void clearCurveSegments();
 

@@ -102,6 +102,20 @@ std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::str
     return result;
 }
 
+std::vector<size_t> CurveSegmentManager::getOrderedNodeIdsForEdge(const std::string& edgeId) const
+{
+    const auto segments = getSegmentsForEdge(edgeId);
+    if (segments.empty())
+        return {};
+
+    std::vector<size_t> nodeIds;
+    nodeIds.reserve(segments.size() + 1);
+    nodeIds.push_back(segments.front().nodeId1);
+    for (const auto& segment : segments)
+        nodeIds.push_back(segment.nodeId2);
+    return nodeIds;
+}
+
 size_t CurveSegmentManager::size() const
 {
     return segments_.size();

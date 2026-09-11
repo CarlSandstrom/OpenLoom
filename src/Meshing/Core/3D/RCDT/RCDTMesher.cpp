@@ -1,6 +1,7 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
 #include "Common/Exceptions/GeometryException.h"
+#include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
@@ -10,6 +11,8 @@
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
 #include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
+#include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
+#include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
@@ -20,100 +23,12 @@
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
-#include <algorithm>
-#include <limits>
-#include <unordered_map>
+#include <array>
 
 namespace Meshing
 {
-
-namespace
-{
-
-// Computes a minimum edge length from the initial mesh's node distribution —
-// the median nearest-neighbor distance among the points, divided by 10.
-// Median rather than minimum because a periodic curve's discretization can
-// leave a short "remainder" segment near its seam vertex that isn't
-// representative of the intended spacing (see project memory: Linear ticket
-// on removing OCC seams).
-//
-// Takes the raw discretization points rather than MeshData3D: computed from
-// discretizationResult->points before Delaunay3D::triangulate() runs (so
-// CurveProtectionSubdivider has a floor to subdivide against), which is
-// exactly the same point set the initial mesh's non-bounding nodes have
-// right after triangulation -- inserting the bounding tetrahedron and
-// triangulating neither adds nor removes any of them.
-// The size floor is a SLIVER GUARD, not a size target: refinement must be
-// free to reach the size actually being asked for, so the floor has to sit
-// well below it. Setting it AT the target disables refinement wherever the
-// mesh has arrived, which collapses the torus to degenerate triangles.
-constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
-
-double computeMinimumEdgeLength(const std::vector<Point3D>& points)
-{
-    std::vector<double> nearestPerPoint;
-    nearestPerPoint.reserve(points.size());
-    for (size_t i = 0; i < points.size(); ++i)
-    {
-        double nearest = std::numeric_limits<double>::max();
-        for (size_t j = 0; j < points.size(); ++j)
-        {
-            if (i == j)
-                continue;
-            nearest = std::min(nearest, (points[i] - points[j]).norm());
-        }
-        nearestPerPoint.push_back(nearest);
-    }
-    if (nearestPerPoint.empty())
-        return 0.0;
-
-    std::sort(nearestPerPoint.begin(), nearestPerPoint.end());
-    const double median = nearestPerPoint[nearestPerPoint.size() / 2];
-    return median / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
-}
-
-// The floor when an explicit sizing field is available (OPE-181).
-//
-// Deriving it from the discretization's own spacing, as computeMinimumEdgeLength
-// does, is CIRCULAR once that spacing comes from h(x): making the boundary
-// finer lowers the floor, which lets refinement chase proportionally deeper,
-// and -- because RestrictedTriangulation scales its tessellation oracle's
-// cell size by this same value -- rebuilds the oracle finer at the same time.
-// Measured on SaddleSurfaceMesh: bounding segment length by h(x) moved the
-// derived floor 0.0523 -> 0.0212 and the non-manifold count 17 -> 388, of
-// which 349 disappeared again when the floor alone was held at its old value.
-//
-// h's own minimum is the non-circular quantity: it is set by the geometry,
-// so it does not move when the discretization does.
-double minimumEdgeLengthFrom(const SizingField3D& sizingField)
-{
-    return sizingField.getMinimumSourceSize() / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
-}
-
-// Zero-fill rather than plain resize(): node IDs below the highest surviving
-// one may be gaps left by the removed supertet corners, and Eigen's default
-// constructor does not zero-initialize — an unfilled slot would otherwise
-// hold whatever was previously in that memory.
-std::vector<Point3D> buildZeroFilledNodeList(const MeshData3D& meshData)
-{
-    std::vector<Point3D> nodes;
-    if (meshData.getNodeCount() == 0)
-        return nodes;
-
-    size_t maxNodeId = 0;
-    for (const auto& [nodeId, node] : meshData.getNodes())
-        maxNodeId = std::max(maxNodeId, nodeId);
-
-    nodes.resize(maxNodeId + 1, Point3D::Zero());
-    for (const auto& [nodeId, node] : meshData.getNodes())
-        nodes[nodeId] = node->getCoordinates();
-    return nodes;
-}
-
-} // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        const Topology3D::Topology3D& topology,
@@ -135,6 +50,10 @@ RCDTMesher& RCDTMesher::operator=(RCDTMesher&&) noexcept = default;
 
 SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
 {
+    if (hasMeshed_)
+        OPENLOOM_THROW_MESH(INVALID_OPERATION, "RCDTMesher: meshSurface()/meshVolume() may only be called once per instance");
+    hasMeshed_ = true;
+
     size_t counter = 0;
     buildInitial();
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_initial", counter);
@@ -144,53 +63,25 @@ SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
     Meshing::exportMesh3D(meshingContext_->getMeshData(), "rcdt_refined", counter);
     ++counter;
 
-    // Post-hoc cleanup, once refinement has converged -- see
-    // RestrictedTriangulation::removeChordFaces()'s doc for why this (not
-    // rejecting a chord face during classification, which regresses badly)
-    // is what actually fixes them.
-    const size_t chordFacesRemoved = restrictedTriangulation_->removeChordFaces(meshingContext_->getMeshData());
-    if (chordFacesRemoved > 0)
-        spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", chordFacesRemoved);
+    const auto defectRemoval = restrictedTriangulation_->removeDefectiveFaces(meshingContext_->getMeshData());
+    if (defectRemoval.chordFacesRemoved > 0)
+        spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", defectRemoval.chordFacesRemoved);
+    if (defectRemoval.excessFacesRemoved > 0)
+        spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", defectRemoval.excessFacesRemoved);
 
-    // Then the doubled patches of OPE-184: flaps of restricted faces laid
-    // over surface that is already covered. Runs after the chord cleanup
-    // above, whose removals change the per-edge counts this judges.
-    const size_t excessFacesRemoved = restrictedTriangulation_->removeExcessFaces(meshingContext_->getMeshData());
-    if (excessFacesRemoved > 0)
-        spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", excessFacesRemoved);
-
-    // What the cleanup passes could not resolve, broken down by kind. The
-    // three are different defects wanting different fixes -- a hole is a face
-    // classification never made, an excess is one made twice -- and a single
-    // total cannot tell them apart, which has misled this area before.
-    const auto residualDefects = restrictedTriangulation_->findNonManifoldEdges(meshingContext_->getMeshData());
-    if (!residualDefects.empty())
+    const size_t remainingDefects = defectRemoval.remainingMissingFaceEdges + defectRemoval.remainingExcessFaceEdges +
+                                    defectRemoval.remainingSurfaceMismatchEdges;
+    if (remainingDefects > 0)
     {
-        size_t missingFaces = 0;
-        size_t excessFaces = 0;
-        size_t surfaceMismatches = 0;
-        for (const auto& defect : residualDefects)
-        {
-            switch (defect.defect)
-            {
-            case RestrictedEdgeDefect::MissingFace:
-                ++missingFaces;
-                break;
-            case RestrictedEdgeDefect::ExcessFace:
-                ++excessFaces;
-                break;
-            case RestrictedEdgeDefect::SurfaceMismatch:
-                ++surfaceMismatches;
-                break;
-            }
-        }
         spdlog::info("RCDTMesher::runPipeline: {} non-manifold edges remain — {} holes, {} excess, {} surface mismatch",
-                     residualDefects.size(), missingFaces, excessFaces, surfaceMismatches);
+                     remainingDefects, defectRemoval.remainingMissingFaceEdges, defectRemoval.remainingExcessFaceEdges,
+                     defectRemoval.remainingSurfaceMismatchEdges);
     }
 
     removeBoundingTetrahedron();
 
-    SurfaceMesh3D surfaceMesh = buildSurfaceMesh();
+    SurfaceMesh3D surfaceMesh = RCDTMeshExtractor::extractSurfaceMesh(meshingContext_->getMeshData(),
+                                                                      *restrictedTriangulation_, *topology_);
 
     if (qualitySettings_.smoothingIterations > 0)
     {
@@ -200,7 +91,7 @@ SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
 
         // Smoothing only moves the SurfaceMesh3D copy above. The same node IDs
         // are still referenced by the ambient tetrahedra in meshingContext_'s
-        // live MeshData3D (buildVolumeMesh() reads those directly) — sync the
+        // live MeshData3D (extractVolumeMesh() reads those directly) — sync the
         // smoothed positions back so both stay geometrically consistent,
         // rather than only the returned copy.
         auto& mutator = meshingContext_->getMutator();
@@ -235,11 +126,11 @@ VolumeMesh3D RCDTMesher::meshVolume()
 {
     // The returned SurfaceMesh3D is only needed for the smoother's triangle
     // adjacency inside runPipeline() — smoothing already synced the resulting
-    // positions back into the live mesh, so buildVolumeMesh() (reading that
+    // positions back into the live mesh, so extractVolumeMesh() (reading that
     // live mesh directly) sees the same, consistent positions.
     runPipeline(true);
 
-    return buildVolumeMesh();
+    return RCDTMeshExtractor::extractVolumeMesh(meshingContext_->getMeshData(), *restrictedTriangulation_, *topology_);
 }
 
 const MeshingContext3D& RCDTMesher::getMeshingContext() const
@@ -255,7 +146,7 @@ void RCDTMesher::buildInitial()
 
     // Built before discretization and kept, so the size floor below reads the
     // same h(x) the discretization did.
-    if (sizingFieldSettings_.has_value() && !sizingField_.has_value())
+    if (sizingFieldSettings_.has_value())
         sizingField_ = SizingFieldBuilder3D::build(*geometry_, *topology_, sizingFieldSettings_.value());
 
     auto discretizationResult =
@@ -268,12 +159,14 @@ void RCDTMesher::buildInitial()
                  discretizationResult->points.size());
 
     // Resolved here, before CurveProtectionSubdivider/Delaunay3D run, since
-    // the subdivider needs a size floor to subdivide against -- see
-    // computeMinimumEdgeLength()'s doc for why this is the same value
-    // computing it from the post-triangulation mesh would give.
-    if (!qualitySettings_.minimumEdgeLength)
-        qualitySettings_.minimumEdgeLength = sizingField_ ? minimumEdgeLengthFrom(*sizingField_) : computeMinimumEdgeLength(discretizationResult->points);
-    spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", *qualitySettings_.minimumEdgeLength);
+    // the subdivider needs a size floor to subdivide against.
+    if (qualitySettings_.minimumEdgeLength)
+        minimumEdgeLength_ = *qualitySettings_.minimumEdgeLength;
+    else if (sizingField_)
+        minimumEdgeLength_ = MinimumEdgeLengthEstimator::fromSizingField(*sizingField_);
+    else
+        minimumEdgeLength_ = MinimumEdgeLengthEstimator::fromPointSpacing(discretizationResult->points);
+    spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", minimumEdgeLength_);
 
     // Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample
     // point is inserted into the initial triangulation as a WEIGHTED point
@@ -288,53 +181,16 @@ void RCDTMesher::buildInitial()
     // close the gap gradually -- see CurveProtectionScheme/
     // CurveProtectionSubdivider's own docs for the two properties every
     // radius satisfies and how a conflict between them is resolved.
-    const auto pointWeightsByIndex = CurveProtectionSubdivider::subdivide(
-        *discretizationResult, *topology_, *geometry_, *qualitySettings_.minimumEdgeLength);
-
-    std::unordered_map<std::string, std::vector<std::string>> edgeToAdjacentSurfaces;
-    for (const auto& edgeId : topology_->getAllEdgeIds())
-        edgeToAdjacentSurfaces[edgeId] = topology_->getEdge(edgeId).getAdjacentSurfaceIds();
-
-    auto enrichedGeometryIds = discretizationResult->geometryIds;
-    for (auto& ids : enrichedGeometryIds)
-    {
-        std::vector<std::string> toAdd;
-        for (const auto& geometryId : ids)
-        {
-            auto it = edgeToAdjacentSurfaces.find(geometryId);
-            if (it == edgeToAdjacentSurfaces.end())
-                continue;
-            for (const auto& surfaceId : it->second)
-            {
-                if (std::find(ids.begin(), ids.end(), surfaceId) == ids.end() &&
-                    std::find(toAdd.begin(), toAdd.end(), surfaceId) == toAdd.end())
-                {
-                    toAdd.push_back(surfaceId);
-                }
-            }
-        }
-        ids.insert(ids.end(), toAdd.begin(), toAdd.end());
-    }
+    const auto pointWeights = CurveProtectionSubdivider::subdivide(
+        *discretizationResult, *topology_, *geometry_, minimumEdgeLength_);
 
     auto& meshData = meshingContext_->getMeshData();
 
-    // Every priority in RCDTRefiner is guarded against inserting a point
-    // inside an existing protecting ball (see
-    // RCDTRefiner::encroachesProtectingBall()'s doc) -- including priority
-    // 1's segment splits via trySplitSegment(), which needs the guard too:
-    // a split point lying on the protected curve itself can still land
-    // inside an UNRELATED ball (e.g. a nearby corner's), which would
-    // otherwise orphan the mesh via the empty-conflict-set fallback in
-    // weighted Bowyer-Watson insertion.
-    std::vector<double> pointWeights(discretizationResult->points.size(), 0.0);
-    for (const auto& [pointIndex, weight] : pointWeightsByIndex)
-        pointWeights[pointIndex] = weight;
     const auto delaunayResult = Delaunay3D::triangulate(meshingContext_->getOperations(),
                                                         discretizationResult->points,
-                                                        enrichedGeometryIds,
+                                                        discretizationResult->geometryIds,
                                                         pointWeights);
     const auto& pointIndexToNodeIdMap = delaunayResult.pointIndexToNodeIdMap;
-    boundingNodeIds_ = delaunayResult.boundingNodeIds;
 
     spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
@@ -344,15 +200,11 @@ void RCDTMesher::buildInitial()
     // genuinely protected edge (see its doc), so that lookup needs the curve
     // network in place for the very first classification pass, not just for
     // ones triggered later by refinement.
-    CurveSegmentManager temporarySegmentManager;
-    buildCurveSegments(temporarySegmentManager, *topology_, *geometry_,
-                       discretizationResult->edgeIdToPointIndicesMap,
-                       pointIndexToNodeIdMap,
-                       discretizationResult->edgeParameters);
-
-    auto& mutator = meshingContext_->getMutator();
-    for (const auto& [segmentId, segment] : temporarySegmentManager.getAllSegments())
-        mutator.addCurveSegment(segment);
+    meshingContext_->getMutator().setCurveSegmentManager(
+        CurveSegmentOperations::buildCurveSegments(*topology_, *geometry_,
+                                                   discretizationResult->edgeIdToPointIndicesMap,
+                                                   pointIndexToNodeIdMap,
+                                                   discretizationResult->edgeParameters));
 
     spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
                  meshData.getCurveSegmentManager().size());
@@ -362,7 +214,7 @@ void RCDTMesher::buildInitial()
     restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
     const MeshConnectivity connectivity(meshData);
     restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_,
-                                        *qualitySettings_.minimumEdgeLength, qualitySettings_);
+                                        minimumEdgeLength_, qualitySettings_);
 
     spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
                  restrictedTriangulation_->getRestrictedFaces().size());
@@ -380,7 +232,11 @@ void RCDTMesher::refine(bool includeTetQualityRefinement)
             std::make_unique<RCDTTetQualityController>(meshingContext_->getMeshData(), qualitySettings_);
     }
 
-    RCDTRefiner refiner(*meshingContext_, *restrictedTriangulation_, qualitySettings_, tetQualityController.get());
+    RCDTRefiner refiner(*meshingContext_,
+                        *restrictedTriangulation_,
+                        qualitySettings_,
+                        minimumEdgeLength_,
+                        tetQualityController.get());
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
 }
@@ -403,6 +259,9 @@ void RCDTMesher::removeBoundingTetrahedron()
     // operations mutator performs no such (now-stale) validation.
     auto& mutator = meshingContext_->getOperations().getMutator();
     const auto& meshData = meshingContext_->getMeshData();
+    if (!meshData.getBoundingNodeIds())
+        OPENLOOM_THROW_MESH(INVALID_OPERATION, "RCDTMesher::removeBoundingTetrahedron: no bounding tetrahedron in the mesh");
+    const std::array<size_t, 4> boundingNodeIds = *meshData.getBoundingNodeIds();
 
     std::vector<size_t> ambientTetIds;
     for (const auto& [elementId, element] : meshData.getElements())
@@ -414,7 +273,7 @@ void RCDTMesher::removeBoundingTetrahedron()
     for (const size_t tetId : ambientTetIds)
         mutator.removeElement(tetId);
 
-    for (const size_t nodeId : boundingNodeIds_)
+    for (const size_t nodeId : boundingNodeIds)
         mutator.removeNode(nodeId);
     mutator.clearBoundingNodeIds();
 
@@ -423,93 +282,6 @@ void RCDTMesher::removeBoundingTetrahedron()
                  ambientTetIds.size());
 
     meshingContext_->rebuildConnectivity();
-}
-
-SurfaceMesh3D RCDTMesher::buildSurfaceMesh() const
-{
-    SurfaceMesh3D surfaceMesh;
-    const auto& meshData = meshingContext_->getMeshData();
-
-    surfaceMesh.nodes = buildZeroFilledNodeList(meshData);
-
-    for (const auto& [faceKey, surfaceId] : restrictedTriangulation_->getRestrictedFaces())
-    {
-        const size_t triangleIndex = surfaceMesh.triangles.size();
-        surfaceMesh.triangles.push_back({faceKey.nodeIds[0], faceKey.nodeIds[1], faceKey.nodeIds[2]});
-        surfaceMesh.faceTriangleIds[surfaceId].push_back(triangleIndex);
-    }
-
-    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-    for (const auto& edgeId : topology_->getAllEdgeIds())
-    {
-        const auto segments = curveSegmentManager.getSegmentsForEdge(edgeId);
-        if (segments.empty())
-            continue;
-
-        std::vector<size_t> nodeIds;
-        nodeIds.push_back(segments[0].nodeId1);
-        for (const auto& segment : segments)
-            nodeIds.push_back(segment.nodeId2);
-
-        surfaceMesh.edgeNodeIds[edgeId] = std::move(nodeIds);
-    }
-
-    spdlog::debug("RCDTMesher::buildSurfaceMesh: {} nodes, {} triangles, {} faces, {} edges",
-                  surfaceMesh.nodes.size(), surfaceMesh.triangles.size(),
-                  surfaceMesh.faceTriangleIds.size(), surfaceMesh.edgeNodeIds.size());
-
-    return surfaceMesh;
-}
-
-VolumeMesh3D RCDTMesher::buildVolumeMesh() const
-{
-    VolumeMesh3D volumeMesh;
-    const auto& meshData = meshingContext_->getMeshData();
-
-    volumeMesh.nodes = buildZeroFilledNodeList(meshData);
-
-    // removeBoundingTetrahedron() already ran (part of runPipeline(), called
-    // before this) — every tetrahedron still in meshData is a genuine
-    // interior tet, none touch the supertet's corners, so no extra filtering
-    // is needed here.
-    for (const auto& [elementId, element] : meshData.getElements())
-    {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-            continue;
-
-        const auto& nodeIds = tet->getNodeIds();
-        volumeMesh.tetrahedra.push_back({nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]});
-    }
-
-    for (const auto& [faceKey, surfaceId] : restrictedTriangulation_->getRestrictedFaces())
-    {
-        const size_t triangleIndex = volumeMesh.boundaryTriangles.size();
-        volumeMesh.boundaryTriangles.push_back({faceKey.nodeIds[0], faceKey.nodeIds[1], faceKey.nodeIds[2]});
-        volumeMesh.boundaryFaceTriangleIds[surfaceId].push_back(triangleIndex);
-    }
-
-    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-    for (const auto& edgeId : topology_->getAllEdgeIds())
-    {
-        const auto segments = curveSegmentManager.getSegmentsForEdge(edgeId);
-        if (segments.empty())
-            continue;
-
-        std::vector<size_t> nodeIds;
-        nodeIds.push_back(segments[0].nodeId1);
-        for (const auto& segment : segments)
-            nodeIds.push_back(segment.nodeId2);
-
-        volumeMesh.boundaryEdgeNodeIds[edgeId] = std::move(nodeIds);
-    }
-
-    spdlog::debug("RCDTMesher::buildVolumeMesh: {} nodes, {} tetrahedra, {} boundary triangles, "
-                  "{} boundary faces, {} boundary edges",
-                  volumeMesh.nodes.size(), volumeMesh.tetrahedra.size(), volumeMesh.boundaryTriangles.size(),
-                  volumeMesh.boundaryFaceTriangleIds.size(), volumeMesh.boundaryEdgeNodeIds.size());
-
-    return volumeMesh;
 }
 
 } // namespace Meshing

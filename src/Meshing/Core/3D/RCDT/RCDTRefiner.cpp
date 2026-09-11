@@ -20,9 +20,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
-#include <algorithm>
 #include <cmath>
-#include <limits>
 #include <optional>
 #include <unordered_map>
 #include <unordered_set>
@@ -30,23 +28,16 @@
 namespace Meshing
 {
 
-namespace
-{
-
-// Divisor applied to the initial discretization's smallest pairwise distance
-// when settings_.minimumEdgeLength is unset. See resolveMinimumEdgeLength().
-constexpr double AUTO_MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
-
-} // namespace
-
 RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          RestrictedTriangulation& restrictedTriangulation,
                          const SurfaceMesh3DQualitySettings& settings,
+                         double minimumEdgeLength,
                          const RCDTTetQualityController* tetQualityController) :
     context_(&context),
     restrictedTriangulation_(&restrictedTriangulation),
     settings_(settings),
-    tetQualityController_(tetQualityController)
+    tetQualityController_(tetQualityController),
+    minimumEdgeLength_(minimumEdgeLength)
 {
 }
 
@@ -57,7 +48,6 @@ void RCDTRefiner::refine()
                  meshData.getNodeCount(),
                  meshData.getCurveSegmentManager().size());
 
-    minimumEdgeLength_ = resolveMinimumEdgeLength();
     spdlog::info("RCDTRefiner: minimum edge length floor = {}", minimumEdgeLength_);
 
     // One-time full scan to seed encroachedSegments_; refineStep() keeps it
@@ -555,7 +545,7 @@ bool RCDTRefiner::trySplitSegment(size_t segmentId)
         return false;
     }
 
-    if (encroachesProtectingBall(computeSplitPoint(segment, *geometry)))
+    if (encroachesProtectingBall(CurveSegmentOperations::computeSplitPoint(segment, *geometry)))
     {
         unrefinableSegments_.insert(segmentId);
         return false;
@@ -576,7 +566,7 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     if (!edge)
         return false;
 
-    const Point3D splitPoint = computeSplitPoint(segment, *geometry);
+    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(segment, *geometry);
 
     auto& operations = context_->getOperations();
     auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
@@ -667,54 +657,6 @@ bool RCDTRefiner::encroachesProtectingBall(const Point3D& point) const
             return true;
     }
     return false;
-}
-
-double RCDTRefiner::resolveMinimumEdgeLength() const
-{
-    if (settings_.minimumEdgeLength)
-        return *settings_.minimumEdgeLength;
-
-    const auto& meshData = context_->getMeshData();
-    const auto& nodes = meshData.getNodes();
-    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
-
-    const auto isBoundingNode = [&boundingNodeIds](size_t nodeId)
-    {
-        if (!boundingNodeIds)
-            return false;
-        for (const size_t id : *boundingNodeIds)
-            if (id == nodeId)
-                return true;
-        return false;
-    };
-
-    std::vector<double> nearestPerNode;
-    for (const auto& [nodeId, node] : nodes)
-    {
-        if (isBoundingNode(nodeId))
-            continue;
-        double nearest = std::numeric_limits<double>::max();
-        for (const auto& [otherId, otherNode] : nodes)
-        {
-            if (otherId == nodeId || isBoundingNode(otherId))
-                continue;
-            nearest = std::min(nearest, (node->getCoordinates() - otherNode->getCoordinates()).norm());
-        }
-        nearestPerNode.push_back(nearest);
-    }
-    if (nearestPerNode.empty())
-        return 0.0;
-
-    // Median, not minimum: a periodic curve's discretization (e.g. a
-    // cylinder's circular edges either side of the OCC seam) leaves one
-    // short "remainder" segment wherever the curve length doesn't divide
-    // evenly into whole angle steps starting from the seam vertex. A raw
-    // minimum reliably picks up that artifact instead of the intended
-    // spacing; the median is robust to the handful of short segments this
-    // produces (see project memory: Linear ticket on removing OCC seams).
-    std::sort(nearestPerNode.begin(), nearestPerNode.end());
-    const double median = nearestPerNode[nearestPerNode.size() / 2];
-    return median / AUTO_MINIMUM_EDGE_LENGTH_DIVISOR;
 }
 
 std::unordered_map<size_t, Point3D> RCDTRefiner::buildNodePositionMap() const

@@ -85,6 +85,7 @@ public:
     RCDTRefiner(MeshingContext3D& context,
                 RestrictedTriangulation& restrictedTriangulation,
                 const SurfaceMesh3DQualitySettings& settings,
+                double minimumEdgeLength,
                 const RCDTTetQualityController* tetQualityController = nullptr);
 
     void refine();
@@ -134,19 +135,10 @@ private:
     /// sees a fresh map on first use.
     std::optional<std::unordered_map<size_t, Point3D>> cachedNodePositionMap_;
 
-    /// Resolved once at the start of refine() from settings_.minimumEdgeLength
-    /// (or derived from the initial discretization if unset — see
-    /// resolveMinimumEdgeLength()). A restricted triangle at or below this
-    /// shortest-edge length is left unrefined even if still quality-bad.
-    double minimumEdgeLength_ = 0.0;
-
-    /// Resolves minimumEdgeLength_: settings_.minimumEdgeLength if set,
-    /// otherwise the median nearest-neighbor distance among the nodes
-    /// present before refinement starts (excluding the supertet corners),
-    /// divided by 10. Median rather than minimum because a periodic curve's
-    /// discretization can leave a short "remainder" segment near its seam
-    /// vertex that isn't representative of the intended spacing.
-    double resolveMinimumEdgeLength() const;
+    /// Size floor (see MinimumEdgeLengthEstimator). A restricted triangle at
+    /// or below this shortest-edge length is left unrefined even if still
+    /// quality-bad.
+    double minimumEdgeLength_;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();

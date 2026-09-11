@@ -10,7 +10,6 @@
 #include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 
-#include <array>
 #include <memory>
 #include <optional>
 
@@ -36,6 +35,9 @@ class RestrictedTriangulation;
  * tetrahedralization + restriction + refinement pipeline — meshSurface()
  * and meshVolume() differ only in their final extraction step (and, once
  * tet-quality refinement lands, whether that third refinement priority runs).
+ *
+ * Both run the pipeline on this instance's own mesh, so an instance meshes
+ * once: a second meshSurface() or meshVolume() call throws.
  */
 class RCDTMesher : public ISurfaceMesher3D, public IVolumeMesher3D
 {
@@ -75,13 +77,14 @@ private:
     /// the point of OPE-181 is that those read the same field.
     std::optional<SizingField3D> sizingField_;
 
+    /// qualitySettings_.minimumEdgeLength if set, otherwise derived in
+    /// buildInitial() (see MinimumEdgeLengthEstimator).
+    double minimumEdgeLength_ = 0.0;
+
+    bool hasMeshed_ = false;
+
     std::unique_ptr<MeshingContext3D> meshingContext_;
     std::unique_ptr<RestrictedTriangulation> restrictedTriangulation_;
-
-    // Node IDs of the super-tetrahedron used to seed the initial Delaunay
-    // triangulation. Kept alive through refine() -- see Delaunay3D's class
-    // documentation for why -- and removed once refinement completes.
-    std::array<size_t, 4> boundingNodeIds_{};
 
     void buildInitial();
 
@@ -96,11 +99,8 @@ private:
     /// both meshSurface() and meshVolume(). Returns the (possibly smoothed)
     /// surface mesh; meshVolume() only needs it for the smoother's triangle
     /// adjacency and discards it once smoothing has synced back to the live
-    /// mesh (see buildVolumeMesh()).
+    /// mesh (see meshVolume()).
     SurfaceMesh3D runPipeline(bool includeTetQualityRefinement);
-
-    SurfaceMesh3D buildSurfaceMesh() const;
-    VolumeMesh3D buildVolumeMesh() const;
 };
 
 } // namespace Meshing

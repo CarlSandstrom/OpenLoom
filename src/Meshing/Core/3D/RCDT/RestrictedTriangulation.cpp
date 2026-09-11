@@ -253,6 +253,30 @@ const std::unordered_map<FaceKey, std::string, FaceKeyHash>& RestrictedTriangula
     return restrictedFaces_;
 }
 
+DefectiveFaceRemovalSummary RestrictedTriangulation::removeDefectiveFaces(const MeshData3D& meshData)
+{
+    DefectiveFaceRemovalSummary summary;
+    summary.chordFacesRemoved = removeChordFaces(meshData);
+    summary.excessFacesRemoved = removeExcessFaces(meshData);
+
+    for (const auto& nonManifoldEdge : findNonManifoldEdges(meshData))
+    {
+        switch (nonManifoldEdge.defect)
+        {
+        case RestrictedEdgeDefect::MissingFace:
+            ++summary.remainingMissingFaceEdges;
+            break;
+        case RestrictedEdgeDefect::ExcessFace:
+            ++summary.remainingExcessFaceEdges;
+            break;
+        case RestrictedEdgeDefect::SurfaceMismatch:
+            ++summary.remainingSurfaceMismatchEdges;
+            break;
+        }
+    }
+    return summary;
+}
+
 size_t RestrictedTriangulation::removeChordFaces(const MeshData3D& meshData)
 {
     std::vector<FaceKey> candidates;

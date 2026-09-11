@@ -315,7 +315,7 @@ TEST(RestrictedTriangulationTest, FindNonManifoldEdges_SharedEdgeNotReported_Ope
 }
 
 // ============================================================================
-// removeExcessFaces
+// removeDefectiveFaces
 // ============================================================================
 
 namespace
@@ -401,7 +401,7 @@ Topology3D::Topology3D makeTripleLineTopology(const std::string& surfaceId,
 
 } // namespace
 
-TEST(RestrictedTriangulationTest, RemoveExcessFaces_DropsTheFlapAndLeavesTheFanIntact)
+TEST(RestrictedTriangulationTest, RemoveDefectiveFaces_DropsTheFlapAndLeavesTheFanIntact)
 {
     FanWithFlapSetup setup;
     MeshConnectivity connectivity(setup.meshData);
@@ -415,12 +415,11 @@ TEST(RestrictedTriangulationTest, RemoveExcessFaces_DropsTheFlapAndLeavesTheFanI
     const FaceKey flap(setup.centre, setup.ring[0], setup.flapNode);
     ASSERT_EQ(rt.getRestrictedFaces().count(flap), 1u);
 
-    EXPECT_EQ(rt.removeExcessFaces(setup.meshData), 1u);
+    const auto summary = rt.removeDefectiveFaces(setup.meshData);
+    EXPECT_EQ(summary.excessFacesRemoved, 1u);
+    EXPECT_EQ(summary.remainingExcessFaceEdges, 0u);
     EXPECT_EQ(rt.getRestrictedFaces().size(), 5u);
     EXPECT_EQ(rt.getRestrictedFaces().count(flap), 0u);
-
-    for (const auto& defect : rt.findNonManifoldEdges(setup.meshData))
-        EXPECT_NE(defect.defect, RestrictedEdgeDefect::ExcessFace);
 }
 
 // The same 3 faces on one edge, but now that edge is a triple line where
@@ -428,7 +427,7 @@ TEST(RestrictedTriangulationTest, RemoveExcessFaces_DropsTheFlapAndLeavesTheFanI
 // there, so nothing is in excess and nothing may be removed -- the flat
 // "every edge has exactly 2 faces" rule this replaced would have pruned a
 // real feature of the model instead. See OPE-184.
-TEST(RestrictedTriangulationTest, RemoveExcessFaces_LeavesAGenuineTripleLineAlone)
+TEST(RestrictedTriangulationTest, RemoveDefectiveFaces_LeavesAGenuineTripleLineAlone)
 {
     constexpr const char* EDGE_ID = "triple_line";
 
@@ -448,7 +447,7 @@ TEST(RestrictedTriangulationTest, RemoveExcessFaces_LeavesAGenuineTripleLineAlon
                  SurfaceMesh3DQualitySettings{});
     ASSERT_EQ(rt.getRestrictedFaces().size(), 6u);
 
-    EXPECT_EQ(rt.removeExcessFaces(setup.meshData), 0u);
+    EXPECT_EQ(rt.removeDefectiveFaces(setup.meshData).excessFacesRemoved, 0u);
     EXPECT_EQ(rt.getRestrictedFaces().size(), 6u);
 }
 

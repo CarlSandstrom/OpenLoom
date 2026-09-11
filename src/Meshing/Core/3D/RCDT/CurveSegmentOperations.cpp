@@ -9,15 +9,14 @@
 namespace Meshing
 {
 
-void buildCurveSegments(CurveSegmentManager& manager,
-                        const Topology3D::Topology3D& topology,
-                        const Geometry3D::GeometryCollection3D& geometry,
-                        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
-                        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-                        const std::vector<std::vector<double>>& edgeParameters)
+CurveSegmentManager CurveSegmentOperations::buildCurveSegments(
+    const Topology3D::Topology3D& topology,
+    const Geometry3D::GeometryCollection3D& geometry,
+    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
+    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+    const std::vector<std::vector<double>>& edgeParameters)
 {
-    manager.clear();
-
+    CurveSegmentManager manager;
     const auto& seams = topology.getSeamCollection();
 
     for (const auto& edgeId : topology.getAllEdgeIds())
@@ -77,10 +76,11 @@ void buildCurveSegments(CurveSegmentManager& manager,
             manager.addSegment(segment);
         }
     }
+    return manager;
 }
 
-Point3D computeSplitPoint(const CurveSegment& segment,
-                          const Geometry3D::GeometryCollection3D& geometry)
+Point3D CurveSegmentOperations::computeSplitPoint(const CurveSegment& segment,
+                                                  const Geometry3D::GeometryCollection3D& geometry)
 {
     const Geometry3D::IEdge3D* edge = geometry.getEdge(segment.edgeId);
     OPENLOOM_REQUIRE_NOT_NULL(edge, segment.edgeId);
