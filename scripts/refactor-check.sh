@@ -28,9 +28,13 @@ FAST_EXAMPLES=(
     "2D/SimpleDelaunay2D"          # 2D Delaunay core
     "2D/SquareWithCircularHole"    # 2D constraints and holes
     "3D/Volume/CreateBox"          # 3D volume tetrahedralization
-    "3D/Surface/CylinderSurfaceMesh"  # periodic surface -> AmbientRCDT
-    "3D/Surface/HexNutSurfaceMesh"    # non-periodic surface -> legacy PerFaceUV
+    "3D/Surface/CylinderSurfaceMesh"  # single periodic surface, seam handling
+    "3D/Surface/HexNutSurfaceMesh"    # planar faces plus a periodic bore
 )
+# Both surface models above resolve to AmbientRCDT: SurfaceMesher3D's Auto
+# strategy picks it whenever the topology has seams, and a cylindrical face
+# always produces one. The legacy PerFaceUV pipeline has no example and no
+# golden -- its only coverage is two unit tests on a unit box.
 
 # Full tier adds the slow models, including the crease-protection benchmark.
 FULL_EXAMPLES=(
@@ -54,6 +58,13 @@ fi
 
 workDirectory="$(mktemp -d)"
 trap 'rm -rf "$workDirectory"' EXIT
+
+# Cheap and closely related: a refactor that moves or deletes a module should
+# not leave the architecture table in CLAUDE.md describing the old shape.
+if ! $accept && ! "$ROOT/scripts/check-docs.sh"; then
+    echo "(architecture table is stale -- fix CLAUDE.md before continuing)" >&2
+    exit 1
+fi
 
 changed=0
 missing=0

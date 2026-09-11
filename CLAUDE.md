@@ -30,6 +30,10 @@ ctest --test-dir build/tests -R "TestClass.TestName" --output-on-failure
 ./scripts/refactor-check.sh              # fast tier, ~9s
 TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
 ./scripts/refactor-check.sh --accept     # re-bless after an intended change
+
+# Assert the Key Modules table in this file still matches the code.
+# Runs automatically as the first step of refactor-check.sh.
+./scripts/check-docs.sh
 ```
 
 ## Examples
@@ -56,21 +60,27 @@ View output with ParaView: `paraview output.vtu`
 ## Architecture
 
 ### Key Modules
-| Module | Purpose |
-|--------|---------|
-| `Common/` | Types, BoundingBox, Exceptions |
-| `Geometry/2D/` | 2D geometric entities (ICorner2D, IEdge2D, IFace2D — Base and OpenCascade impls) |
-| `Geometry/3D/` | 3D geometric entities (ICorner3D, IEdge3D, ISurface3D — Base and OpenCascade impls) |
-| `Topology/` | 3D topological relationships (Corner3D, Edge3D, Surface3D, Topology3D) |
-| `Topology2D/` | 2D topological relationships |
-| `Meshing/Core/2D/` | 2D Delaunay: ConstrainedDelaunay2D, MeshOperations2D, ShewchukRefiner2D |
-| `Meshing/Core/3D/General/` | Shared 3D infrastructure: MeshingContext3D, MeshOperations3D, geometry/quality utils |
-| `Meshing/Core/3D/Surface/` | UV-space surface mesher (SurfaceMesher3D, SurfaceMeshingContext3D) — superseded by RCDT |
-| `Meshing/Core/3D/Volume/` | Initial (unconstrained) Delaunay tetrahedralization: Delaunay3D. Top-level entry point: VolumeMesher3D |
-| `Meshing/Core/3D/RCDT/` | Ambient-space RCDT mesher: RCDTMesher, RCDTContext, RCDTRefiner — the only volume/surface meshing algorithm implemented today, behind ISurfaceMesher3D/IVolumeMesher3D |
-| `Meshing/Data/` | MeshData2D/3D, Node2D/3D, TriangleElement, TetrahedralElement |
-| `Readers/` | OpenCASCADE CAD import |
-| `Export/` | VtkExporter (VTU format) |
+Class names and module paths in this table are written in backticks, and `./scripts/check-docs.sh` asserts every one of them still exists. Keep the backticks when editing a row.
+
+| Module | Status | Purpose |
+|--------|--------|---------|
+| `Common/` | live | Types, `BoundingBox2D`, `BoundingBox3D`, exceptions |
+| `Geometry/2D/` | live | 2D geometric entities (`ICorner2D`, `IEdge2D`, `IFace2D`) — Base and OpenCascade implementations |
+| `Geometry/3D/` | live | 3D geometric entities (`ICorner3D`, `IEdge3D`, `ISurface3D`) — Base and OpenCascade implementations |
+| `Topology/` | live | 3D topological relationships (`Corner3D`, `Edge3D`, `Surface3D`, `Topology3D`) |
+| `Topology2D/` | live | 2D topological relationships |
+| `Meshing/Core/2D/` | live | 2D Delaunay: `ConstrainedDelaunay2D`, `MeshOperations2D`, `ShewchukRefiner2D` |
+| `Meshing/Core/3D/General/` | live | Shared 3D infrastructure: `MeshingContext3D`, `MeshOperations3D`, geometry and quality utilities |
+| `Meshing/Core/3D/RCDT/` | live | Ambient-space RCDT mesher: `RCDTMesher`, `RCDTRefiner`, `RestrictedTriangulation`. Implements both `ISurfaceMesher3D` and `IVolumeMesher3D`. There is no RCDT-specific context — state lives in `RCDTMesher`, which owns a `MeshingContext3D`. |
+| `Meshing/Core/3D/Surface/` | legacy | `SurfaceMesher3D` dispatches between two pipelines. `Auto` selects `AmbientRCDT` whenever the shape has seams, which is true of anything with a cylindrical face, so the UV-space `PerFaceUV` pipeline is in practice reachable only by requesting it explicitly. No example uses it; its coverage is two unit tests on a unit box. Do not assume this module is dead — it is still the entry point every surface example goes through. |
+| `Meshing/Core/3D/Volume/` | live | Initial unconstrained Delaunay tetrahedralization: `Delaunay3D`. Top-level entry point `VolumeMesher3D` |
+| `Meshing/Data/` | live | `MeshData2D`, `MeshData3D`, `Node2D`, `Node3D`, `TriangleElement`, `TetrahedralElement`, `CurveSegmentManager` |
+| `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController` |
+| `Meshing/Connectivity/` | live | Element key types: `EdgeKey`, `FaceKey`, `TetrahedronKey` |
+| `Meshing/Operations/` | live | Transactional mutation: `MeshTransaction`, `ScopedTransaction` |
+| `Readers/` | live | OpenCASCADE CAD import |
+| `Export/` | live | `VtkExporter` (VTU format) |
+| `Utils/` | live | `MeshLogger` |
 
 ### Design Patterns
 - **Strategy Pattern**: `IMesher` interface with pluggable implementations

@@ -7,6 +7,7 @@
       "Bash(make:*)",
       "Bash(./build/tests/runTests:*)",
       "Bash(./build/src/Examples/*:*)",
+      "Bash(./scripts/check-docs.sh:*)",
       "Bash(./scripts/refactor-check.sh:*)",
       "Bash(TIER=full ./scripts/refactor-check.sh:*)",
       "Bash(timeout:*)",
