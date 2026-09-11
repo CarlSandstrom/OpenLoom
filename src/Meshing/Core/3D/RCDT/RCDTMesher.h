@@ -7,10 +7,8 @@
 #include "Meshing/Interfaces/ISurfaceMesher3D.h"
 #include "Meshing/Interfaces/IVolumeMesher3D.h"
 
-#include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 
-#include <memory>
 #include <optional>
 
 namespace Geometry3D
@@ -36,8 +34,8 @@ class RestrictedTriangulation;
  * and meshVolume() differ only in their final extraction step (and, once
  * tet-quality refinement lands, whether that third refinement priority runs).
  *
- * Both run the pipeline on this instance's own mesh, so an instance meshes
- * once: a second meshSurface() or meshVolume() call throws.
+ * Each call builds its own mesh from scratch and releases it on return;
+ * nothing is kept between calls.
  */
 class RCDTMesher : public ISurfaceMesher3D, public IVolumeMesher3D
 {
@@ -52,8 +50,6 @@ public:
                SurfaceMesh3DQualitySettings qualitySettings = {},
                std::optional<SizingFieldSettings3D> sizingFieldSettings = std::nullopt);
 
-    ~RCDTMesher();
-
     RCDTMesher(const RCDTMesher&) = delete;
     RCDTMesher& operator=(const RCDTMesher&) = delete;
 
@@ -67,35 +63,29 @@ private:
     SurfaceMesh3DQualitySettings qualitySettings_;
     std::optional<SizingFieldSettings3D> sizingFieldSettings_;
 
-    /// h(x), built once in buildInitial() when sizingFieldSettings_ is set.
-    /// Shared by boundary discretization and the minimumEdgeLength floor --
-    /// the point of OPE-181 is that those read the same field.
-    std::optional<SizingField3D> sizingField_;
-
-    /// qualitySettings_.minimumEdgeLength if set, otherwise derived in
-    /// buildInitial() (see MinimumEdgeLengthEstimator).
-    double minimumEdgeLength_ = 0.0;
-
-    bool hasMeshed_ = false;
-
-    std::unique_ptr<MeshingContext3D> meshingContext_;
-    std::unique_ptr<RestrictedTriangulation> restrictedTriangulation_;
-
-    void buildInitial();
+    /// Returns the resolved minimum edge length: qualitySettings_'s if set,
+    /// otherwise derived here (see MinimumEdgeLengthEstimator).
+    double buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const;
 
     /// includeTetQualityRefinement enables RCDTRefiner's priority-3 (bad
     /// tetrahedra) refinement pass -- meshVolume() passes true, meshSurface()
     /// passes false so it never pays for volume-quality refinement it has no
     /// use for.
-    void refine(bool includeTetQualityRefinement);
-    void removeBoundingTetrahedron();
+    void refine(MeshingContext3D& context,
+                RestrictedTriangulation& restrictedTriangulation,
+                double minimumEdgeLength,
+                bool includeTetQualityRefinement) const;
+    void removeBoundingTetrahedron(MeshingContext3D& context,
+                                   const RestrictedTriangulation& restrictedTriangulation) const;
 
     /// Shared build -> refine -> remove-supertet -> smooth pipeline, common to
     /// both meshSurface() and meshVolume(). Returns the (possibly smoothed)
     /// surface mesh; meshVolume() only needs it for the smoother's triangle
     /// adjacency and discards it once smoothing has synced back to the live
     /// mesh (see meshVolume()).
-    SurfaceMesh3D runPipeline(bool includeTetQualityRefinement);
+    SurfaceMesh3D runPipeline(MeshingContext3D& context,
+                              RestrictedTriangulation& restrictedTriangulation,
+                              bool includeTetQualityRefinement) const;
 };
 
 } // namespace Meshing

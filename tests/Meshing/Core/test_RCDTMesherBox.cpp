@@ -160,8 +160,6 @@ TEST_F(RCDTMesherBoxTest, NoDegenerateTriangles)
 // RCDTMesherBoxVolumeTest
 //
 // End-to-end test: mesh a unit box's interior using RCDTMesher::meshVolume().
-// Uses its own RCDTMesher instance since meshSurface()/meshVolume() may only
-// be called once per instance.
 //
 // Checks:
 //   1. meshVolume() completes without throwing and produces non-empty output
