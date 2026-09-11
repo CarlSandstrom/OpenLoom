@@ -1,10 +1,16 @@
+#include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
+#include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
+#include <BRepPrimAPI_MakeCylinder.hxx>
 #include <TopoDS_Shape.hxx>
+#include <gp_Ax2.hxx>
+#include <gp_Dir.hxx>
+#include <gp_Pnt.hxx>
 
 #include <algorithm>
 #include <array>
@@ -253,4 +259,28 @@ TEST_F(RCDTMesherBoxVolumeTest, BoundaryTriangleNodesAppearInSomeTetrahedron)
         for (const size_t nodeId : triangle)
             EXPECT_TRUE(nodesInTetrahedra.count(nodeId))
                 << "Boundary triangle node " << nodeId << " does not appear in any tetrahedron";
+}
+
+// ============================================================================
+// RCDTMesherVolumeWithHoleInBoundaryTest
+//
+// A volume mesh must not be returned while the restricted boundary still has a
+// hole. AmbientTetrahedronRemover's flood fill crosses every face that is not
+// restricted, so a hole lets it walk into the solid and delete tetrahedra that
+// belong to the model -- OPE-185's empty BoxWithHole mesh. Stopping refinement
+// before it starts leaves the bore's coarse initial boundary with holes.
+// ============================================================================
+
+TEST(RCDTMesherVolumeWithHoleInBoundaryTest, Throws)
+{
+    const TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+    const gp_Ax2 axis(gp_Pnt(5.0, 5.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
+    const TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 10.0).Shape();
+    const Readers::TopoDS_ShapeConverter converter(BRepAlgoAPI_Cut(box, cylinder).Shape());
+
+    RCDTMesher mesher(converter.getGeometryCollection(),
+                      converter.getTopology(),
+                      Geometry3D::DiscretizationSettings3D(3, 2));
+
+    EXPECT_THROW(mesher.meshVolume(), OpenLoom::MeshException);
 }

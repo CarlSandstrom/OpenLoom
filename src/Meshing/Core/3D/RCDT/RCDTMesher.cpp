@@ -1,5 +1,6 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
+#include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
@@ -23,6 +24,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
+#include <string>
 #include <vector>
 
 namespace Meshing
@@ -123,6 +125,23 @@ void syncNodePositions(MeshingContext3D& context, const SurfaceMesh3D& surfaceMe
     }
 }
 
+// AmbientTetrahedronRemover's flood fill crosses every face that is not
+// restricted, so a hole in the restricted boundary lets it walk into the solid
+// and delete tetrahedra that belong to the model -- OPE-185's empty BoxWithHole
+// mesh. A surface mesh with a hole is still a usable result that reports its
+// own defects; a volume mesh missing part of its interior is not.
+void requireClosedBoundary(const DefectiveFaceRemovalSummary& defectRemoval)
+{
+    if (defectRemoval.remainingMissingFaceEdges == 0)
+        return;
+
+    OPENLOOM_THROW_MESH(GENERATION_FAILED,
+                        "RCDTMesher::meshVolume: the restricted boundary still has holes (" +
+                            std::to_string(defectRemoval.remainingMissingFaceEdges) +
+                            " edges missing a face), so the solid's interior cannot be separated "
+                            "from the ambient tetrahedra");
+}
+
 } // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -140,15 +159,18 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
 
 SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
                                       RestrictedTriangulation& restrictedTriangulation,
-                                      bool includeTetQualityRefinement) const
+                                      bool meshingVolume) const
 {
     const double minimumEdgeLength = buildInitial(context, restrictedTriangulation);
     exportMesh3D(context.getMeshData(), "rcdt_initial", 0);
 
-    refine(context, restrictedTriangulation, minimumEdgeLength, includeTetQualityRefinement);
+    refine(context, restrictedTriangulation, minimumEdgeLength, meshingVolume);
     exportMesh3D(context.getMeshData(), "rcdt_refined", 1);
 
-    logDefectiveFaceRemoval(restrictedTriangulation.removeDefectiveFaces(context.getMeshData()));
+    const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
+    logDefectiveFaceRemoval(defectRemoval);
+    if (meshingVolume)
+        requireClosedBoundary(defectRemoval);
 
     // Strips every ambient tetrahedron -- both the seed triangulation's
     // outer shell and, for domains with holes, the tetrahedra RCDT kept

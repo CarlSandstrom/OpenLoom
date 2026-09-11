@@ -77,13 +77,15 @@ private:
                 bool includeTetQualityRefinement) const;
 
     /// Shared build -> refine -> remove-supertet -> smooth pipeline, common to
-    /// both meshSurface() and meshVolume(). Returns the (possibly smoothed)
-    /// surface mesh; meshVolume() only needs it for the smoother's triangle
-    /// adjacency and discards it once smoothing has synced back to the live
-    /// mesh (see meshVolume()).
+    /// both meshSurface() and meshVolume(). meshingVolume is true from
+    /// meshVolume(): it enables tetrahedron-quality refinement, and makes a
+    /// restricted boundary that still has holes an error. Returns the
+    /// (possibly smoothed) surface mesh; meshVolume() only needs it for the
+    /// smoother's triangle adjacency and discards it once smoothing has synced
+    /// back to the live mesh (see meshVolume()).
     SurfaceMesh3D runPipeline(MeshingContext3D& context,
                               RestrictedTriangulation& restrictedTriangulation,
-                              bool includeTetQualityRefinement) const;
+                              bool meshingVolume) const;
 };
 
 } // namespace Meshing

@@ -105,7 +105,7 @@ include(GoogleTest)
 # loop can skip them (ctest -j$(nproc) -LE slow) and run them before a commit.
 set(SLOW_TEST_FILTER
     "RCDTMesherTorusTest.*:RCDTMesherSphereTest.*:RCDTMesherCylinderTest.*"
-    ":VolumeMesher3DBoxWithHoleTest.*:SizingFieldBuilder3DTest.*"
+    ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*"
     ":SurfaceMesher3DStrategyTest.*"
     ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
     ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates"
