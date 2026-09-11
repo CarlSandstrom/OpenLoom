@@ -1,13 +1,12 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
 #include "Meshing/Interfaces/ISurfaceMesher3D.h"
 #include "Meshing/Interfaces/IVolumeMesher3D.h"
-
-#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 
 #include <optional>
 
@@ -31,8 +30,8 @@ class RestrictedTriangulation;
  * @brief Ambient-space RCDT mesher: implements both ISurfaceMesher3D and
  * IVolumeMesher3D, since both share the same underlying ambient
  * tetrahedralization + restriction + refinement pipeline — meshSurface()
- * and meshVolume() differ only in their final extraction step (and, once
- * tet-quality refinement lands, whether that third refinement priority runs).
+ * and meshVolume() differ only in what volume output additionally needs (see
+ * runPipeline()) and in their final extraction step.
  *
  * Each call builds its own mesh from scratch and releases it on return;
  * nothing is kept between calls.
@@ -67,23 +66,24 @@ private:
     /// otherwise derived here (see MinimumEdgeLengthEstimator).
     double buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const;
 
-    /// includeTetQualityRefinement enables RCDTRefiner's priority-3 (bad
-    /// tetrahedra) refinement pass -- meshVolume() passes true, meshSurface()
-    /// passes false so it never pays for volume-quality refinement it has no
-    /// use for.
+    /// includeTetrahedronQualityRefinement enables RCDTRefiner's priority-3
+    /// (bad tetrahedra) refinement pass -- meshVolume() passes true,
+    /// meshSurface() passes false so it never pays for volume-quality
+    /// refinement it has no use for.
     void refine(MeshingContext3D& context,
                 RestrictedTriangulation& restrictedTriangulation,
                 double minimumEdgeLength,
-                bool includeTetQualityRefinement) const;
+                bool includeTetrahedronQualityRefinement) const;
 
-    /// Shared build -> refine -> remove-supertet -> smooth pipeline, common to
-    /// both meshSurface() and meshVolume(). meshingVolume is true from
-    /// meshVolume(): it enables tetrahedron-quality refinement, keeps
-    /// smoothing from inverting tetrahedra, and makes a restricted boundary
-    /// that still has holes an error. Returns the (possibly smoothed) surface
-    /// mesh; meshVolume() only needs it for the smoother's triangle adjacency
-    /// and discards it once smoothing has synced back to the live mesh (see
-    /// meshVolume()).
+    /// Shared pipeline for meshSurface() and meshVolume(): build the initial
+    /// triangulation, refine, remove defective restricted faces, remove the
+    /// ambient tetrahedra (the bounding tetrahedron's included), then extract
+    /// and smooth the surface mesh. meshingVolume is true from meshVolume(): it
+    /// enables tetrahedron-quality refinement, keeps smoothing from inverting
+    /// tetrahedra, and makes a restricted boundary that still has holes an
+    /// error. Returns the (possibly smoothed) surface mesh; meshVolume() only
+    /// needs it for the smoother's triangle adjacency and discards it once
+    /// smoothing has synced back to the live mesh (see meshVolume()).
     SurfaceMesh3D runPipeline(MeshingContext3D& context,
                               RestrictedTriangulation& restrictedTriangulation,
                               bool meshingVolume) const;

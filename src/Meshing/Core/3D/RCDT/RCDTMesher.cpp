@@ -288,15 +288,15 @@ double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulati
 void RCDTMesher::refine(MeshingContext3D& context,
                         RestrictedTriangulation& restrictedTriangulation,
                         double minimumEdgeLength,
-                        bool includeTetQualityRefinement) const
+                        bool includeTetrahedronQualityRefinement) const
 {
     spdlog::info("RCDTMesher::refine: starting RCDT refinement (tet quality: {})",
-                 includeTetQualityRefinement);
+                 includeTetrahedronQualityRefinement);
 
-    std::unique_ptr<RCDTTetQualityController> tetQualityController;
-    if (includeTetQualityRefinement)
+    std::unique_ptr<RCDTTetQualityController> tetrahedronQualityController;
+    if (includeTetrahedronQualityRefinement)
     {
-        tetQualityController =
+        tetrahedronQualityController =
             std::make_unique<RCDTTetQualityController>(context.getMeshData(), qualitySettings_);
     }
 
@@ -304,7 +304,7 @@ void RCDTMesher::refine(MeshingContext3D& context,
                         restrictedTriangulation,
                         qualitySettings_,
                         minimumEdgeLength,
-                        tetQualityController.get());
+                        tetrahedronQualityController.get());
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
 }
