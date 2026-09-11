@@ -105,8 +105,21 @@ When fixing a bug or adding a feature, make the right change — not the conveni
 - **Remove failed attempts**: If a fix attempt didn't work, remove it entirely before trying the next approach. Never leave dead or commented-out code behind.
 - **Use the debugger to investigate**: An lldb debugger is available via MCP. Prefer it over adding `spdlog` statements — use breakpoints, backtraces, and expression evaluation to inspect state. Only add permanent `spdlog` calls when they provide ongoing diagnostic value beyond a single debugging session. (`SPDLOG_LEVEL=debug` is set by default.)
 - **No temporary scaffolding**: Do not add temporary assertions, diagnostic tests, or throwaway log statements. Remove any that were added during investigation once the bug is resolved.
-- **Tests must be intentional**: Only add a test if it covers a real scenario worth keeping permanently. Do not add tests just to verify a fix during debugging.
+- **Tests must be intentional**: Only add a test if it covers a real scenario worth keeping permanently. Do not add tests just to verify a fix during debugging. (Characterization tests written during a refactor are the one exception — see Refactoring below.)
 - **Mesh integrity checks**: When running examples or tests to investigate a bug, always set the environment variable `CHECK_MESH_EACH_ITERATION=1`. This enables per-iteration mesh consistency checks that help catch corruption early.
+
+## Refactoring
+
+Refactoring means changing structure while behaviour stays identical. It is a different activity from bug fixing and carries a different standard of proof: passing tests do not show that a mesh came out the same.
+
+- **Prove it, don't assert it**: run `./scripts/refactor-check.sh` before and after the change. It meshes representative models and diffs every `.vtu` against `tests/golden/`. If a golden changes, the change is not a refactor — stop and report which model moved and how.
+- **Re-blessing is a decision, not a step**: `--accept` overwrites the goldens and is only for a behaviour change that was discussed and intended. Never run it to make a failing check pass.
+- **No smuggling**: never fix a bug, adjust a tolerance, or change a concept's meaning in the same step as a structural move. If the refactor exposes a bug, say so and leave it — a separate change fixes it afterwards.
+- **Inventory before editing**: for any move, split, or rename, first list every call site with the LSP (`findReferences`, `incomingCalls`) rather than grep, and propose the seam. Agree on the seam before touching files.
+- **One move per step**: extract, build, `ctest --test-dir build/tests -j$(nproc) -LE slow`, then `./scripts/refactor-check.sh`. Only then start the next move. Each such green point is a checkpoint worth keeping.
+- **Delete the old shape**: the pre-refactor code goes in the same step. Never leave the old path beside the new one, behind a flag, or commented out.
+- **Characterization tests are allowed**: a test written to pin existing behaviour so it can be restructured safely is worth keeping permanently, and is the exception to "Tests must be intentional" above.
+- **Full tier before finishing**: end with `TIER=full ./scripts/refactor-check.sh` and the complete `ctest --test-dir build/tests -j$(nproc)`. The fast tier does not cover `BoxWithHole` or `SaddleSurfaceMesh`.
 
 ## Error Handling
 
