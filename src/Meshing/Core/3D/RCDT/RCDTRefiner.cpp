@@ -28,6 +28,65 @@
 namespace Meshing
 {
 
+namespace
+{
+
+/// Builds a node-ID → position lookup from the current mesh.
+std::unordered_map<size_t, Point3D> buildNodePositionMap(const MeshData3D& meshData)
+{
+    std::unordered_map<size_t, Point3D> positionMap;
+    for (const auto& [nodeId, node] : meshData.getNodes())
+        positionMap.emplace(nodeId, node->getCoordinates());
+    return positionMap;
+}
+
+/// True if point lies strictly inside the protecting ball of a node with a
+/// positive weight (see Node3D::getWeight() and CurveProtectionScheme,
+/// OPE-176). An insertion there would erode the crease protection the
+/// ball exists for. A ball cannot be split the way an encroached segment
+/// can, so the candidate is marked unrefinable instead.
+bool encroachesProtectingBall(const MeshData3D& meshData, const Point3D& point)
+{
+    for (const auto& [nodeId, node] : meshData.getNodes())
+    {
+        const double weight = node->getWeight();
+        if (weight <= 0.0)
+            continue;
+        if ((point - node->getCoordinates()).squaredNorm() < weight)
+            return true;
+    }
+    return false;
+}
+
+/// Returns the FaceKeys of faces shared by exactly two of conflictingTets:
+/// the cavity's interior faces, as the conflict set stands before insertion.
+std::vector<FaceKey> computeCavityInteriorFaces(const MeshData3D& meshData,
+                                                const std::vector<size_t>& conflictingTets)
+{
+    std::unordered_map<FaceKey, size_t, FaceKeyHash> faceCount;
+    for (const size_t tetId : conflictingTets)
+    {
+        const auto* element = meshData.getElement(tetId);
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
+        if (!tet)
+            continue;
+
+        for (const auto& faceArray : tet->getFaces())
+            ++faceCount[FaceKey(faceArray)];
+    }
+
+    std::vector<FaceKey> interiorFaces;
+    for (const auto& [face, count] : faceCount)
+    {
+        if (count == 2)
+            interiorFaces.push_back(face);
+    }
+
+    return interiorFaces;
+}
+
+} // namespace
+
 RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          RestrictedTriangulation& restrictedTriangulation,
                          const SurfaceMesh3DQualitySettings& settings,
@@ -54,7 +113,7 @@ void RCDTRefiner::refine()
     // current from here (see the member doc).
     {
         const auto& curveSegmentManager = meshData.getCurveSegmentManager();
-        const auto nodePositionMap = buildNodePositionMap();
+        const auto nodePositionMap = buildNodePositionMap(meshData);
         for (const auto& [nodeId, node] : meshData.getNodes())
         {
             for (const size_t segmentId :
@@ -216,7 +275,7 @@ bool RCDTRefiner::refineStep()
 
         // Never insert inside an existing protecting ball (OPE-176) -- see
         // encroachesProtectingBall()'s doc.
-        if (encroachesProtectingBall(projected))
+        if (encroachesProtectingBall(meshData, projected))
         {
             unrefinableTriangles_.insert(bad.face);
             continue;
@@ -327,7 +386,7 @@ bool RCDTRefiner::refineBadTetrahedra()
 
         // Never insert inside an existing protecting ball (OPE-176) -- see
         // encroachesProtectingBall()'s doc.
-        if (encroachesProtectingBall(circumcenter))
+        if (encroachesProtectingBall(meshData, circumcenter))
         {
             unrefinableTetrahedra_.insert(tetId);
             continue;
@@ -432,7 +491,7 @@ bool RCDTRefiner::refineNonManifoldEdges()
 
         // Never insert inside an existing protecting ball (OPE-176) -- see
         // encroachesProtectingBall()'s doc.
-        if (encroachesProtectingBall(projected))
+        if (encroachesProtectingBall(meshData, projected))
         {
             unrefinableNonManifoldEdges_.insert(defect.edge);
             continue;
@@ -453,7 +512,7 @@ size_t RCDTRefiner::insertAndUpdate(const Point3D& point,
     const auto* geometry = context_->getGeometry();
 
     auto conflictingTets = operations.getQueries().findConflictingTetrahedra(point);
-    const auto interiorFaces = computeCavityInteriorFaces(conflictingTets);
+    const auto interiorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
 
     const size_t newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTets), geometryIds);
 
@@ -483,7 +542,7 @@ bool RCDTRefiner::trySplitSegment(size_t segmentId)
         return false;
     }
 
-    if (encroachesProtectingBall(CurveSegmentOperations::computeSplitPoint(segment, *geometry)))
+    if (encroachesProtectingBall(context_->getMeshData(), CurveSegmentOperations::computeSplitPoint(segment, *geometry)))
     {
         unrefinableSegments_.insert(segmentId);
         return false;
@@ -508,7 +567,7 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
 
     auto& operations = context_->getOperations();
     auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
-    const auto interiorFaces = computeCavityInteriorFaces(conflictingTets);
+    const auto interiorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
 
     const size_t newNodeId = operations.insertVertexBowyerWatson(splitPoint, std::move(conflictingTets), {segment.edgeId});
 
@@ -569,59 +628,11 @@ void RCDTRefiner::checkSegmentAgainstAllNodes(size_t segmentId)
     }
 }
 
-bool RCDTRefiner::encroachesProtectingBall(const Point3D& point) const
-{
-    for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
-    {
-        const double weight = node->getWeight();
-        if (weight <= 0.0)
-            continue;
-        if ((point - node->getCoordinates()).squaredNorm() < weight)
-            return true;
-    }
-    return false;
-}
-
-std::unordered_map<size_t, Point3D> RCDTRefiner::buildNodePositionMap() const
-{
-    std::unordered_map<size_t, Point3D> positionMap;
-    for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
-        positionMap.emplace(nodeId, node->getCoordinates());
-    return positionMap;
-}
-
 const std::unordered_map<size_t, Point3D>& RCDTRefiner::getNodePositionMap()
 {
     if (!cachedNodePositionMap_)
-        cachedNodePositionMap_ = buildNodePositionMap();
+        cachedNodePositionMap_ = buildNodePositionMap(context_->getMeshData());
     return *cachedNodePositionMap_;
-}
-
-std::vector<FaceKey> RCDTRefiner::computeCavityInteriorFaces(
-    const std::vector<size_t>& conflictingTets) const
-{
-    const auto& meshData = context_->getMeshData();
-
-    std::unordered_map<FaceKey, size_t, FaceKeyHash> faceCount;
-    for (const size_t tetId : conflictingTets)
-    {
-        const auto* element = meshData.getElement(tetId);
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-        if (!tet)
-            continue;
-
-        for (const auto& faceArray : tet->getFaces())
-            ++faceCount[FaceKey(faceArray)];
-    }
-
-    std::vector<FaceKey> interiorFaces;
-    for (const auto& [face, count] : faceCount)
-    {
-        if (count == 2)
-            interiorFaces.push_back(face);
-    }
-
-    return interiorFaces;
 }
 
 } // namespace Meshing

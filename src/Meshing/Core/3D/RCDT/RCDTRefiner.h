@@ -39,9 +39,9 @@ class RCDTTetQualityController;
 ///
 /// Priorities 2-4 demote to splitting a curve segment when their point would
 /// encroach one (Shewchuk), and never insert within minimumEdgeLength_ of an
-/// existing node. No priority inserts inside a protecting ball (see
-/// encroachesProtectingBall()). A candidate refused for any of these reasons
-/// is recorded as unrefinable and not tried again.
+/// existing node. No priority inserts inside a protecting ball, which would
+/// erode the crease protection it exists for (OPE-176). A candidate refused for
+/// any of these reasons is recorded as unrefinable and not tried again.
 ///
 /// Slivers -- tetrahedra with an acceptable circumradius/edge ratio but poor
 /// dihedral angles -- are not detected, and a near-flat tetrahedron whose
@@ -142,9 +142,6 @@ private:
     /// RCDTMesherCylinderTest.AllEdgeNodesCovered caught.
     bool trySplitSegment(size_t segmentId);
 
-    /// Builds a node-ID → position lookup from the current mesh.
-    std::unordered_map<size_t, Point3D> buildNodePositionMap() const;
-
     /// Returns cachedNodePositionMap_, building it on first access since the
     /// last reset (see its member doc) rather than every call.
     const std::unordered_map<size_t, Point3D>& getNodePositionMap();
@@ -160,18 +157,6 @@ private:
     /// an existing, unrelated node can already sit inside a freshly-split
     /// segment's (smaller) diametral sphere.
     void checkSegmentAgainstAllNodes(size_t segmentId);
-
-    /// True if point lies strictly inside the protecting ball of a node with a
-    /// positive weight (see Node3D::getWeight() and CurveProtectionScheme,
-    /// OPE-176). An insertion there would erode the crease protection the
-    /// ball exists for. A ball cannot be split the way an encroached segment
-    /// can, so the candidate is marked unrefinable instead.
-    bool encroachesProtectingBall(const Point3D& point) const;
-
-    /// Returns the FaceKeys of faces shared by exactly two of conflictingTets:
-    /// the cavity's interior faces, as the conflict set stands before insertion.
-    std::vector<FaceKey> computeCavityInteriorFaces(
-        const std::vector<size_t>& conflictingTets) const;
 };
 
 } // namespace Meshing
