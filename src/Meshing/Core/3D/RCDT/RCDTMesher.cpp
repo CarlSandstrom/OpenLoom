@@ -26,6 +26,7 @@
 
 #include <array>
 #include <cmath>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -293,18 +294,15 @@ void RCDTMesher::refine(MeshingContext3D& context,
     spdlog::info("RCDTMesher::refine: starting RCDT refinement (tet quality: {})",
                  includeTetrahedronQualityRefinement);
 
-    std::unique_ptr<RCDTTetQualityController> tetrahedronQualityController;
+    std::optional<RCDTTetQualityController> tetrahedronQualityController;
     if (includeTetrahedronQualityRefinement)
-    {
-        tetrahedronQualityController =
-            std::make_unique<RCDTTetQualityController>(context.getMeshData(), qualitySettings_);
-    }
+        tetrahedronQualityController.emplace(context.getMeshData(), qualitySettings_);
 
     RCDTRefiner refiner(context,
                         restrictedTriangulation,
                         qualitySettings_,
                         minimumEdgeLength,
-                        tetrahedronQualityController.get());
+                        tetrahedronQualityController ? &tetrahedronQualityController.value() : nullptr);
     refiner.refine();
     spdlog::info("RCDTMesher::refine: done");
 }
