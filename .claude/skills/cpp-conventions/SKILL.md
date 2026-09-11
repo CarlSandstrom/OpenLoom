@@ -31,6 +31,11 @@ description: OpenLoom C++ house style - naming (camelCase_ members, I-prefixed i
 - Use `const` correctness throughout
 - Use `auto` when it improves clarity
 - Only `static_cast` and `dynamic_cast` (no C-style casts)
+- Body fits on one screen; past ~60 lines, split it or state why it must stay whole
+- Split into a file-local `static` free function in the `.cpp`, not a new private method on the class
+- More than 3 levels of nesting in a loop body is a split signal
+
+See `.claude/rules/cpp-coding-standards.md` for the full standard.
 
 ## Formatting
 - Microsoft style, 4-space indentation

@@ -39,6 +39,12 @@ paths:
 - Pass non-primitives by `const&` (e.g., `const Point3D&`)
 - One declaration per line (no `int a, b, c;`)
 - Use `auto` when it improves clarity
+- **Length**: a function body should fit on one screen. Past ~60 lines it needs either a split or a comment stating why it must stay whole (a single algorithm whose steps cannot be named independently). For calibration, the median function in `src/` is 8 lines and 90% are under 50, so 60 is already generous.
+- **How to split**: extract the step into a file-local `static` free function in the `.cpp`, or into a dedicated class if it carries state. Do **not** add a private method to the primary class just to shorten another one — that grows the class's declared job (see Single Responsibility above).
+- **Parameters**: more than 5 suggests a missing parameter struct. If several are passed together through a chain of calls, they are one concept.
+- **Nesting**: more than 3 levels inside a loop body is a split signal. Prefer early `continue`/`return` over an `else` arm.
+- **One level of abstraction**: a function should not mix orchestration with arithmetic. If it both decides what to do and computes how, the computation is the part to extract.
+- **Applies going forward**: ~46 existing functions exceed the length rule. They are a backlog, not a blocker — do not rewrite them as a batch. Apply the rule to new code and to a function you are already modifying for another reason, and split it as its own step under the Refactoring rules in `CLAUDE.md`.
 
 ## Classes & Access Control
 - No public data members (use getters/setters)
