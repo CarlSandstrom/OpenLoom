@@ -1,6 +1,8 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
+#include <vector>
 
 namespace Meshing
 {
@@ -27,13 +29,21 @@ namespace Meshing
 /// FEM-quality elements on its own (see RCDTRefiner) — this smoothing pass
 /// is the standard follow-up production meshers (Gmsh, Netgen) use to
 /// improve minimum angle without changing mesh topology.
+///
+/// When the surface bounds a volume mesh, its nodes are shared with the
+/// tetrahedra, and a move that is harmless for the surface can turn an
+/// adjacent tetrahedron inside out. Given those tetrahedra, a sweep keeps
+/// every one of them from inverting by undoing the moves that would.
 class SurfaceMeshSmoother
 {
 public:
     /// Smooths mesh in place, running the given number of Laplacian sweeps.
+    /// tetrahedra index into mesh.nodes and must not be inverted by any sweep;
+    /// empty when the surface bounds no volume mesh.
     static void smooth(const Geometry3D::GeometryCollection3D& geometry,
                        SurfaceMesh3D& mesh,
-                       std::size_t iterations);
+                       std::size_t iterations,
+                       const std::vector<std::array<std::size_t, 4>>& tetrahedra);
 };
 
 } // namespace Meshing

@@ -161,6 +161,24 @@ TEST_F(VolumeMesher3DBoxWithHoleTest, BoundaryIsWatertight)
 // 3. The volume matches the analytic value
 // ============================================================================
 
+// Surface smoothing moves boundary nodes the tetrahedra share. VolumeMatchesAnalyticValue
+// sums absolute volumes, so it cannot see a tetrahedron that smoothing turned
+// inside out -- this model had 4 such tetrahedra before the smoother learned to
+// reject inverting moves.
+TEST_F(VolumeMesher3DBoxWithHoleTest, TetrahedraAreNotInverted)
+{
+    for (const auto& tetrahedron : mesh_.tetrahedra)
+    {
+        const Point3D& a = mesh_.nodes[tetrahedron[0]];
+        const Point3D& b = mesh_.nodes[tetrahedron[1]];
+        const Point3D& c = mesh_.nodes[tetrahedron[2]];
+        const Point3D& d = mesh_.nodes[tetrahedron[3]];
+        const double signedVolume = (b - a).cross(c - a).dot(d - a) / 6.0;
+        EXPECT_GT(signedVolume, 0.0) << "Tetrahedron {" << tetrahedron[0] << ", " << tetrahedron[1] << ", "
+                                     << tetrahedron[2] << ", " << tetrahedron[3] << "} is inverted or flat";
+    }
+}
+
 TEST_F(VolumeMesher3DBoxWithHoleTest, VolumeMatchesAnalyticValue)
 {
     double meshedVolume = 0.0;

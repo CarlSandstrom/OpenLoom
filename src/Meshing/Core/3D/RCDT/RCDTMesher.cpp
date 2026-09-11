@@ -24,6 +24,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
+#include <array>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -202,7 +203,12 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     {
         spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)",
                      qualitySettings_.smoothingIterations);
-        SurfaceMeshSmoother::smooth(*geometry_, surfaceMesh, qualitySettings_.smoothingIterations);
+        // In volume mode the surface nodes are shared with the solid's
+        // tetrahedra, which smoothing must not turn inside out.
+        std::vector<std::array<size_t, 4>> tetrahedra;
+        if (meshingVolume)
+            tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
+        SurfaceMeshSmoother::smooth(*geometry_, surfaceMesh, qualitySettings_.smoothingIterations, tetrahedra);
         syncNodePositions(context, surfaceMesh);
     }
 
