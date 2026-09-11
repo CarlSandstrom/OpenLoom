@@ -83,16 +83,7 @@ VolumeMesh3D RCDTMeshExtractor::extractVolumeMesh(const MeshData3D& meshData,
 {
     VolumeMesh3D volumeMesh;
     volumeMesh.nodes = buildZeroFilledNodeList(meshData);
-
-    for (const auto& [elementId, element] : meshData.getElements())
-    {
-        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tetrahedron)
-            continue;
-
-        const auto& nodeIds = tetrahedron->getNodeIds();
-        volumeMesh.tetrahedra.push_back({nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]});
-    }
+    volumeMesh.tetrahedra = extractTetrahedra(meshData);
 
     appendRestrictedTriangles(restrictedTriangulation, volumeMesh.boundaryTriangles,
                               volumeMesh.boundaryFaceTriangleIds);
@@ -104,6 +95,21 @@ VolumeMesh3D RCDTMeshExtractor::extractVolumeMesh(const MeshData3D& meshData,
                   volumeMesh.boundaryFaceTriangleIds.size(), volumeMesh.boundaryEdgeNodeIds.size());
 
     return volumeMesh;
+}
+
+std::vector<std::array<size_t, 4>> RCDTMeshExtractor::extractTetrahedra(const MeshData3D& meshData)
+{
+    std::vector<std::array<size_t, 4>> tetrahedra;
+    for (const auto& [elementId, element] : meshData.getElements())
+    {
+        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tetrahedron)
+            continue;
+
+        const auto& nodeIds = tetrahedron->getNodeIds();
+        tetrahedra.push_back({nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]});
+    }
+    return tetrahedra;
 }
 
 } // namespace Meshing

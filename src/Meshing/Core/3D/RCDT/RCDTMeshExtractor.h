@@ -3,6 +3,9 @@
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
 
+#include <array>
+#include <vector>
+
 namespace Topology3D
 {
 class Topology3D;
@@ -31,6 +34,10 @@ public:
     static VolumeMesh3D extractVolumeMesh(const MeshData3D& meshData,
                                           const RestrictedTriangulation& restrictedTriangulation,
                                           const Topology3D::Topology3D& topology);
+
+    /// Every tetrahedron in meshData as node ID quadruplets, in the same order
+    /// extractVolumeMesh() emits them.
+    static std::vector<std::array<size_t, 4>> extractTetrahedra(const MeshData3D& meshData);
 };
 
 } // namespace Meshing
