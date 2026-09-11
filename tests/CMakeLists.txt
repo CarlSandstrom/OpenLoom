@@ -96,4 +96,27 @@ target_include_directories(runTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
-add_test(NAME AllTests COMMAND runTests)
+# Register each TEST as its own ctest case, so a refactor can verify just the
+# subset it touches (ctest -R <name>) and run the rest in parallel (ctest -j).
+include(GoogleTest)
+
+# Tests that mesh a full model take tens of seconds each and account for ~93% of
+# the suite's total cost. They carry the "slow" label so the inner development
+# loop can skip them (ctest -j$(nproc) -LE slow) and run them before a commit.
+set(SLOW_TEST_FILTER
+    "RCDTMesherTorusTest.*:RCDTMesherSphereTest.*:RCDTMesherCylinderTest.*"
+    ":VolumeMesher3DBoxWithHoleTest.*:SizingFieldBuilder3DTest.*"
+    ":SurfaceMesher3DStrategyTest.*"
+    ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
+    ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates"
+    ":RestrictedTriangulationTest.UpdateAfterInsertion_MatchesFullRebuild")
+string(JOIN "" SLOW_TEST_FILTER ${SLOW_TEST_FILTER})
+
+gtest_discover_tests(runTests
+    TEST_FILTER "${SLOW_TEST_FILTER}"
+    PROPERTIES LABELS slow
+    DISCOVERY_TIMEOUT 60)
+
+gtest_discover_tests(runTests
+    TEST_FILTER "-${SLOW_TEST_FILTER}"
+    DISCOVERY_TIMEOUT 60)

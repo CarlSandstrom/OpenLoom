@@ -13,13 +13,23 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 # Build everything
 cmake --build build -j$(nproc)
 
-# Run tests
-ctest --test-dir build/tests --output-on-failure
-# or directly:
-./build/tests/runTests
+# Run tests -- inner loop, 342 of 376 cases in ~3s
+ctest --test-dir build/tests -j$(nproc) -LE slow --output-on-failure
+
+# Run everything, including the full-model meshing tests (~85s)
+ctest --test-dir build/tests -j$(nproc) --output-on-failure
 
 # Run specific test
+ctest --test-dir build/tests -R "TestClass.TestName" --output-on-failure
+# or directly:
 ./build/tests/runTests --gtest_filter="TestClass.TestName"
+
+# Behaviour-preservation check for refactoring: meshes representative models
+# and diffs every .vtu against tests/golden/. Any difference means the change
+# is not a refactor.
+./scripts/refactor-check.sh              # fast tier, ~9s
+TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
+./scripts/refactor-check.sh --accept     # re-bless after an intended change
 ```
 
 ## Examples

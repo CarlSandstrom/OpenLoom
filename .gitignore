@@ -8,3 +8,6 @@ build-release/
 build_prof/
 build_rel/
 build_dbg/
+
+# Golden meshes for scripts/refactor-check.sh are tracked despite the *.vtu rule above
+!tests/golden/**/*.vtu
