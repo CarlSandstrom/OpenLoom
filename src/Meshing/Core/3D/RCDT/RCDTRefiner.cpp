@@ -40,6 +40,17 @@ std::unordered_map<size_t, Point3D> buildNodePositionMap(const MeshData3D& meshD
     return positionMap;
 }
 
+/// True if point lies closer than distance to any node of the mesh.
+bool isWithinDistanceOfAnyNode(const MeshData3D& meshData, const Point3D& point, double distance)
+{
+    for (const auto& [nodeId, node] : meshData.getNodes())
+    {
+        if ((point - node->getCoordinates()).norm() < distance)
+            return true;
+    }
+    return false;
+}
+
 /// True if point lies strictly inside the protecting ball of a node with a
 /// positive weight (see Node3D::getWeight() and CurveProtectionScheme,
 /// OPE-176). An insertion there would erode the crease protection the
@@ -246,16 +257,7 @@ bool RCDTRefiner::refineStep()
         // next to a vertex, including one of an unrelated triangle. Such a
         // near-duplicate corrupts the mesh locally and keeps generating new
         // bad triangles around it.
-        bool tooClose = false;
-        for (const auto& [nodeId, node] : meshData.getNodes())
-        {
-            if ((projected - node->getCoordinates()).norm() < minimumEdgeLength_)
-            {
-                tooClose = true;
-                break;
-            }
-        }
-        if (tooClose)
+        if (isWithinDistanceOfAnyNode(meshData, projected, minimumEdgeLength_))
         {
             unrefinableTriangles_.insert(bad.face);
             continue;
@@ -359,16 +361,7 @@ bool RCDTRefiner::refineBadTetrahedra()
         const Point3D& circumcenter = circumsphere->center;
 
         // Proximity guard, as in refineStep().
-        bool tooClose = false;
-        for (const auto& [nodeId, node] : meshData.getNodes())
-        {
-            if ((circumcenter - node->getCoordinates()).norm() < minimumEdgeLength_)
-            {
-                tooClose = true;
-                break;
-            }
-        }
-        if (tooClose)
+        if (isWithinDistanceOfAnyNode(meshData, circumcenter, minimumEdgeLength_))
         {
             unrefinableTetrahedra_.insert(tetId);
             continue;
@@ -464,16 +457,7 @@ bool RCDTRefiner::refineNonManifoldEdges()
         const Point3D& projected = *projectedOpt;
 
         // Proximity guard, same reasoning as the other priorities.
-        bool tooClose = false;
-        for (const auto& [nodeId, node] : meshData.getNodes())
-        {
-            if ((projected - node->getCoordinates()).norm() < minimumEdgeLength_)
-            {
-                tooClose = true;
-                break;
-            }
-        }
-        if (tooClose)
+        if (isWithinDistanceOfAnyNode(meshData, projected, minimumEdgeLength_))
         {
             unrefinableNonManifoldEdges_.insert(defect.edge);
             continue;
