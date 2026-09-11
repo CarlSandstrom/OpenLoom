@@ -91,6 +91,38 @@ void seedAmbientTriangulation(MeshingContext3D& context,
                  meshData.getCurveSegmentManager().size());
 }
 
+void logDefectiveFaceRemoval(const DefectiveFaceRemovalSummary& defectRemoval)
+{
+    if (defectRemoval.chordFacesRemoved > 0)
+        spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", defectRemoval.chordFacesRemoved);
+    if (defectRemoval.excessFacesRemoved > 0)
+        spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", defectRemoval.excessFacesRemoved);
+
+    const size_t remainingDefects = defectRemoval.remainingMissingFaceEdges + defectRemoval.remainingExcessFaceEdges +
+                                    defectRemoval.remainingSurfaceMismatchEdges;
+    if (remainingDefects > 0)
+    {
+        spdlog::info("RCDTMesher::runPipeline: {} non-manifold edges remain — {} holes, {} excess, {} surface mismatch",
+                     remainingDefects, defectRemoval.remainingMissingFaceEdges, defectRemoval.remainingExcessFaceEdges,
+                     defectRemoval.remainingSurfaceMismatchEdges);
+    }
+}
+
+// Smoothing only moves the SurfaceMesh3D copy. The same node IDs are still
+// referenced by the tetrahedra in the context's live MeshData3D
+// (extractVolumeMesh() reads those directly) — sync the smoothed positions
+// back so both stay geometrically consistent, rather than only the returned
+// copy.
+void syncNodePositions(MeshingContext3D& context, const SurfaceMesh3D& surfaceMesh)
+{
+    auto& mutator = context.getMutator();
+    for (size_t nodeId = 0; nodeId < surfaceMesh.nodes.size(); ++nodeId)
+    {
+        if (context.getMeshData().getNode(nodeId))
+            mutator.moveNode(nodeId, surfaceMesh.nodes[nodeId]);
+    }
+}
+
 } // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -110,29 +142,13 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
                                       RestrictedTriangulation& restrictedTriangulation,
                                       bool includeTetQualityRefinement) const
 {
-    size_t counter = 0;
     const double minimumEdgeLength = buildInitial(context, restrictedTriangulation);
-    Meshing::exportMesh3D(context.getMeshData(), "rcdt_initial", counter);
-    ++counter;
+    exportMesh3D(context.getMeshData(), "rcdt_initial", 0);
 
     refine(context, restrictedTriangulation, minimumEdgeLength, includeTetQualityRefinement);
-    Meshing::exportMesh3D(context.getMeshData(), "rcdt_refined", counter);
-    ++counter;
+    exportMesh3D(context.getMeshData(), "rcdt_refined", 1);
 
-    const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
-    if (defectRemoval.chordFacesRemoved > 0)
-        spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", defectRemoval.chordFacesRemoved);
-    if (defectRemoval.excessFacesRemoved > 0)
-        spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", defectRemoval.excessFacesRemoved);
-
-    const size_t remainingDefects = defectRemoval.remainingMissingFaceEdges + defectRemoval.remainingExcessFaceEdges +
-                                    defectRemoval.remainingSurfaceMismatchEdges;
-    if (remainingDefects > 0)
-    {
-        spdlog::info("RCDTMesher::runPipeline: {} non-manifold edges remain — {} holes, {} excess, {} surface mismatch",
-                     remainingDefects, defectRemoval.remainingMissingFaceEdges, defectRemoval.remainingExcessFaceEdges,
-                     defectRemoval.remainingSurfaceMismatchEdges);
-    }
+    logDefectiveFaceRemoval(restrictedTriangulation.removeDefectiveFaces(context.getMeshData()));
 
     // Strips every ambient tetrahedron -- both the seed triangulation's
     // outer shell and, for domains with holes, the tetrahedra RCDT kept
@@ -153,22 +169,10 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
         spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)",
                      qualitySettings_.smoothingIterations);
         SurfaceMeshSmoother::smooth(*geometry_, surfaceMesh, qualitySettings_.smoothingIterations);
-
-        // Smoothing only moves the SurfaceMesh3D copy above. The same node IDs
-        // are still referenced by the ambient tetrahedra in the context's
-        // live MeshData3D (extractVolumeMesh() reads those directly) — sync the
-        // smoothed positions back so both stay geometrically consistent,
-        // rather than only the returned copy.
-        auto& mutator = context.getMutator();
-        for (size_t nodeId = 0; nodeId < surfaceMesh.nodes.size(); ++nodeId)
-        {
-            if (context.getMeshData().getNode(nodeId))
-                mutator.moveNode(nodeId, surfaceMesh.nodes[nodeId]);
-        }
+        syncNodePositions(context, surfaceMesh);
     }
 
-    Meshing::exportMesh3D(context.getMeshData(), "rcdt_smoothed", counter);
-    ++counter;
+    exportMesh3D(context.getMeshData(), "rcdt_smoothed", 2);
 
     return surfaceMesh;
 }
@@ -184,7 +188,7 @@ SurfaceMesh3D RCDTMesher::meshSurface()
     // interior faces (see RestrictedTriangulation: a triangle whose corners
     // all lie on a CAD surface is not necessarily one of the faces RCDT
     // selected as the boundary there).
-    Meshing::exportSurfaceMesh3D(surfaceMesh, "rcdt_surface_mesh.vtu");
+    exportSurfaceMesh3D(surfaceMesh, "rcdt_surface_mesh.vtu");
 
     return surfaceMesh;
 }
