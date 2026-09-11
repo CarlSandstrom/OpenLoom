@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Meshing/Core/3D/RCDT/NonManifoldEdgeRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
@@ -20,15 +20,13 @@ class RCDTTetQualityController;
 /// Each refineStep() makes at most one insertion, for the first priority that
 /// has work:
 ///
-///   1. Split an encroached curve segment.
+///   1. Split an encroached curve segment (RCDTPointInserter).
 ///   2. Insert a point for a bad restricted triangle (circumradius/edge or
 ///      chord deviation).
 ///   3. Insert the circumcenter of a skinny tetrahedron -- only when a
 ///      RCDTTetQualityController was supplied, i.e. when meshing a volume.
-///   4. Repair a non-manifold edge of the restricted-face set. If the edge's
-///      endpoints are joined by a curve segment, that segment is split, which
-///      keeps the new point exactly on the crease; projecting onto one of the
-///      surfaces instead was measured to move such a defect, not resolve it.
+///   4. Repair a non-manifold edge of the restricted-face set
+///      (NonManifoldEdgeRefiner).
 ///
 /// Within a priority, candidates are taken in the order their containers yield
 /// them, not worst first, so that order shapes the output mesh.
@@ -37,7 +35,14 @@ class RCDTTetQualityController;
 /// encroach one (Shewchuk), and never insert within minimumEdgeLength_ of an
 /// existing node. No priority inserts inside a protecting ball, which would
 /// erode the crease protection it exists for (OPE-176). A candidate refused for
-/// any of these reasons is recorded as unrefinable and not tried again.
+/// any of these reasons is recorded as unrefinable and never tried again.
+///
+/// Each priority's unrefinable set is never cleared: clearing them after every
+/// segment split was measured on SaddleSurfaceMesh to rediscover the same
+/// unfixable candidates about 100 times over, with no gain. Entries are keyed
+/// by nodes or element ID, so a candidate an insertion restructures returns
+/// under a new key; one whose key survives stays blocked even if its insertion
+/// point has moved.
 ///
 /// Slivers -- tetrahedra with an acceptable circumradius/edge ratio but poor
 /// dihedral angles -- are not detected, and a near-flat tetrahedron whose
@@ -62,15 +67,9 @@ private:
     const RCDTTetQualityController* tetQualityController_;
     SurfaceProjector surfaceProjector_;
 
-    /// Candidates priorities 2-4 have given up on; never tried again, and
-    /// never cleared. Clearing them after every segment split was measured on
-    /// SaddleSurfaceMesh to rediscover the same unfixable candidates about
-    /// 100 times over, with no gain. Entries are keyed by nodes or element ID,
-    /// so a candidate an insertion restructures returns under a new key; one
-    /// whose key survives stays blocked even if its insertion point has moved.
+    /// Candidates priorities 2 and 3 have given up on (see the class doc).
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
     std::unordered_set<size_t> unrefinableTetrahedra_;
-    std::unordered_set<EdgeKey, EdgeKeyHash> unrefinableNonManifoldEdges_;
 
     /// Size floor (see MinimumEdgeLengthEstimator). Bounds how short a segment,
     /// restricted triangle or non-manifold edge may get before it is left
@@ -79,6 +78,7 @@ private:
     double minimumEdgeLength_;
 
     RCDTPointInserter pointInserter_;
+    NonManifoldEdgeRefiner nonManifoldEdgeRefiner_;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
@@ -91,13 +91,6 @@ private:
 
     /// Priority 3, then priority 4 if priority 3 found nothing to do.
     bool refineRemainingPriorities();
-
-    /// Priority 4: repairs the first refinable non-manifold restricted-face
-    /// edge (see RestrictedTriangulation::findNonManifoldEdges()) by splitting
-    /// the curve segment joining its endpoints if there is one, otherwise by
-    /// inserting its midpoint projected onto the defect's surface. Returns true
-    /// if an insertion or split was made.
-    bool refineNonManifoldEdges();
 };
 
 } // namespace Meshing
