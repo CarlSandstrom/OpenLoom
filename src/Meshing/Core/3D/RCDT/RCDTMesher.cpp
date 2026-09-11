@@ -1,6 +1,5 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
-#include "Common/Exceptions/GeometryException.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -45,8 +44,6 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
 }
 
 RCDTMesher::~RCDTMesher() = default;
-RCDTMesher::RCDTMesher(RCDTMesher&&) noexcept = default;
-RCDTMesher& RCDTMesher::operator=(RCDTMesher&&) noexcept = default;
 
 SurfaceMesh3D RCDTMesher::runPipeline(bool includeTetQualityRefinement)
 {
@@ -133,12 +130,6 @@ VolumeMesh3D RCDTMesher::meshVolume()
     return RCDTMeshExtractor::extractVolumeMesh(meshingContext_->getMeshData(), *restrictedTriangulation_, *topology_);
 }
 
-const MeshingContext3D& RCDTMesher::getMeshingContext() const
-{
-    OPENLOOM_REQUIRE_NOT_NULL(meshingContext_.get(), "meshingContext_");
-    return *meshingContext_;
-}
-
 void RCDTMesher::buildInitial()
 {
     spdlog::info("RCDTMesher::buildInitial: discretizing boundary ({} surface samples/direction)",
@@ -209,8 +200,6 @@ void RCDTMesher::buildInitial()
     spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
                  meshData.getCurveSegmentManager().size());
 
-    meshingContext_->rebuildConnectivity();
-
     restrictedTriangulation_ = std::make_unique<RestrictedTriangulation>();
     const MeshConnectivity connectivity(meshData);
     restrictedTriangulation_->buildFrom(meshData, connectivity, *geometry_, *topology_,
@@ -280,8 +269,6 @@ void RCDTMesher::removeBoundingTetrahedron()
     spdlog::info("RCDTMesher::removeBoundingTetrahedron: Removed {} ambient tetrahedra "
                  "(true exterior + holes) and 4 bounding nodes",
                  ambientTetIds.size());
-
-    meshingContext_->rebuildConnectivity();
 }
 
 } // namespace Meshing

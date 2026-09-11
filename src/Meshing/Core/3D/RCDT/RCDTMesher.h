@@ -57,13 +57,8 @@ public:
     RCDTMesher(const RCDTMesher&) = delete;
     RCDTMesher& operator=(const RCDTMesher&) = delete;
 
-    RCDTMesher(RCDTMesher&&) noexcept;
-    RCDTMesher& operator=(RCDTMesher&&) noexcept;
-
     SurfaceMesh3D meshSurface() override;
     VolumeMesh3D meshVolume() override;
-
-    const MeshingContext3D& getMeshingContext() const;
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
