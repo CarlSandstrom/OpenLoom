@@ -21,64 +21,33 @@ class RCDTTetQualityController;
 
 /// Refines a restricted Delaunay triangulation in ambient 3D space.
 ///
-/// Mirrors Shewchuk's three-priority structure, but priorities 2 and 3
-/// operate on RCDT's own restricted-triangulation and tet-quality concepts
-/// rather than his subfacet/subsegment encroachment machinery, and a fourth
-/// priority checks a global correctness property Shewchuk's local structure
-/// has no equivalent of:
+/// Each refineStep() makes at most one insertion, for the first priority that
+/// has work:
 ///
-///   Priority 1 — split encroached curve segments, unless already at the
-///                minimumEdgeLength_ size floor (see class member docs)
-///   Priority 2 — split bad restricted triangles (circumradius/edge or chord deviation)
-///   Priority 3 — split bad tetrahedra (circumradius/edge), only when a
-///                RCDTTetQualityController was supplied at construction
-///                (RCDTMesher::meshVolume() only — meshSurface() never pays
-///                for tet-quality refinement it has no use for)
-///   Priority 4 — repair non-manifold edges of the restricted-face set (an
-///                edge not shared by exactly 2 triangles): insert a point
-///                near the defect to locally densify the sampling, the same
-///                Boissonnat-Oudot-style mechanism priorities 1-3 already use
-///                for quality, applied to watertightness instead. If the
-///                defect's two endpoints are directly connected by a curve
-///                segment, that segment is split (exactly on the true curve)
-///                rather than projecting onto a candidate surface (merely
-///                *near* the curve) -- confirmed empirically that the latter
-///                doesn't reliably resolve a crease-adjacent defect, it can
-///                nudge it elsewhere instead, since creases are exactly
-///                where classifyFace's candidate-surface disambiguation is
-///                hardest. Checked last (after 1-3 exhaust their own work)
-///                purely so this doesn't disturb the well-established
-///                "priority 3 = tet quality" numbering used elsewhere
-///                (RCDTTetQualityController, RCDTMesher) — refineStep()
-///                restarts from priority 1 on every call regardless, so
-///                where this sits in the order doesn't change the eventual
-///                result, only which fix happens first when several are
-///                simultaneously outstanding.
+///   1. Split an encroached curve segment.
+///   2. Insert a point for a bad restricted triangle (circumradius/edge or
+///      chord deviation).
+///   3. Insert the circumcenter of a skinny tetrahedron -- only when a
+///      RCDTTetQualityController was supplied, i.e. when meshing a volume.
+///   4. Repair a non-manifold edge of the restricted-face set. If the edge's
+///      endpoints are joined by a curve segment, that segment is split, which
+///      keeps the new point exactly on the crease; projecting onto one of the
+///      surfaces instead was measured to move such a defect, not resolve it.
 ///
-/// The circumcenter demotion rule (Shewchuk) ensures termination: if inserting
-/// the circumcenter of a bad triangle or tetrahedron would encroach a
-/// segment, the segment is split instead. The same demotion applies to
-/// priority 4's repair point.
+/// Within a priority, candidates are taken in the order their containers yield
+/// them, not worst first, so that order shapes the output mesh.
 ///
-/// Every priority additionally never inserts a point inside an existing
-/// protecting ball (see encroachesProtectingBall(), OPE-176): once
-/// CurveProtectionScheme sizes weighted points along every crease, an
-/// insertion landing inside one would erode exactly the protection the ball
-/// exists to guarantee. This includes priority 1's segment splits (see
-/// trySplitSegment()) -- a split point lying on the protected curve itself
-/// can still fall inside an unrelated curve's ball (e.g. near a shared
-/// corner), which would otherwise orphan the mesh via the empty-conflict-set
-/// fallback in weighted Bowyer-Watson insertion.
+/// Priorities 2-4 demote to splitting a curve segment when their point would
+/// encroach one (Shewchuk), and never insert within minimumEdgeLength_ of an
+/// existing node. No priority inserts inside a protecting ball (see
+/// encroachesProtectingBall()). A candidate refused for any of these reasons
+/// is recorded as unrefinable and not tried again.
 ///
-/// Priority 3 does not detect or fix slivers (tetrahedra with an acceptable
-/// circumradius/edge ratio but poor dihedral angles, or genuinely thin/flat
-/// tets whose true circumcenter recedes far outside the mesh's extent) --
-/// same documented limitation as the legacy Shewchuk volume mesher this
-/// replaced (removed in OPE-161). Such tets are left unrefined (see the
-/// circumradius sanity guard in refineBadTetrahedra()) rather than chased
-/// with an insertion point that would corrupt the mesh; confirmed
-/// empirically they arise in small numbers (a few percent of tets) rather
-/// than dominating.
+/// Slivers -- tetrahedra with an acceptable circumradius/edge ratio but poor
+/// dihedral angles -- are not detected, and a near-flat tetrahedron whose
+/// circumcenter lies far outside the mesh is left unrefined (see the
+/// circumradius guard in refineBadTetrahedra()). Measured to affect a few
+/// percent of tetrahedra.
 class RCDTRefiner
 {
 public:
@@ -96,74 +65,60 @@ private:
     SurfaceMesh3DQualitySettings settings_;
     const RCDTTetQualityController* tetQualityController_;
     SurfaceProjector surfaceProjector_;
+
+    /// Candidates priorities 2-4 have given up on; never tried again, and
+    /// never cleared. Clearing them after every segment split was measured on
+    /// SaddleSurfaceMesh to rediscover the same unfixable candidates about
+    /// 100 times over, with no gain. Entries are keyed by nodes or element ID,
+    /// so a candidate an insertion restructures returns under a new key; one
+    /// whose key survives stays blocked even if its insertion point has moved.
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
     std::unordered_set<size_t> unrefinableTetrahedra_;
-
-    /// Non-manifold restricted-face edges (see RestrictedTriangulation::
-    /// findNonManifoldEdges()) already at or below minimumEdgeLength_ that
-    /// are still defective -- same reasoning as the other unrefinable sets:
-    /// without this, a defect whose true cause isn't under-sampling (e.g. a
-    /// genuine classification bug rather than a too-coarse initial sample)
-    /// would otherwise be retried forever.
     std::unordered_set<EdgeKey, EdgeKeyHash> unrefinableNonManifoldEdges_;
 
-    /// Curve segments (keyed by CurveSegmentManager segment ID) already at or
-    /// below minimumEdgeLength_ that are still encroached. Without this,
-    /// a segment pinned close to a genuinely sharp/small-angle feature (e.g.
-    /// a nearby vertex whose position never changes) can be bisected
-    /// forever: each split's midpoint still falls inside that vertex's
-    /// encroachment sphere, so the newly created segment is "encroached"
-    /// again on the very next iteration. Cleared in splitSegment(), same
-    /// reasoning as the other two unrefinable sets.
+    /// Curve segments that are not split again: at or below
+    /// minimumEdgeLength_, or declined by trySplitSegment(). Without the size
+    /// floor, a segment near a small input angle is bisected forever, because
+    /// each half is encroached again by the same nearby vertex.
     std::unordered_set<size_t> unrefinableSegments_;
 
-    /// Curve segments currently encroached by some node, maintained
-    /// incrementally (see updateEncroachedSegmentsForNewNode()/splitSegment())
-    /// instead of rescanned from scratch every refineStep() call: checking
-    /// every existing node against every existing segment on every iteration,
-    /// even though only one node (or two, for a split's new segments) ever
-    /// changes per iteration, was O(nodes x segments) per step and dominated
-    /// refinement time on meshes needing many iterations. Populated once
-    /// up front in refine() from the initial curve segments.
+    /// Curve segments currently encroached by some node. Seeded once in
+    /// refine(), then kept current by each insertion (see
+    /// updateEncroachedSegmentsForNewNode() and splitSegment()) rather than
+    /// rescanned every step, which cost O(nodes x segments) per step.
+    /// Priority 1 iterates it, so its iteration order shapes the output.
     std::unordered_set<size_t> encroachedSegments_;
 
-    /// Lazily built and reused across a single refineStep() call (see
-    /// getNodePositionMap()): several steps within one call -- a demotion
-    /// check, then the resulting insertion's own encroachment update -- each
-    /// used to rebuild this independently, paying for it multiple times per
-    /// iteration. Reset at the top of refineStep() so each iteration still
-    /// sees a fresh map on first use.
+    /// Node positions for the current refineStep(), built on first use by
+    /// getNodePositionMap() and reset at the start of each step. It may be
+    /// built before or after the step's one insertion: the only lookup after
+    /// an insertion skips segments ending at the new node, so both give the
+    /// same answer.
     std::optional<std::unordered_map<size_t, Point3D>> cachedNodePositionMap_;
 
-    /// Size floor (see MinimumEdgeLengthEstimator). A restricted triangle at
-    /// or below this shortest-edge length is left unrefined even if still
-    /// quality-bad.
+    /// Size floor (see MinimumEdgeLengthEstimator). Bounds how short a segment,
+    /// restricted triangle or non-manifold edge may get before it is left
+    /// unrefined, how close an insertion may land to an existing node, and how
+    /// large a tetrahedron's circumradius may be.
     double minimumEdgeLength_;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
 
-    /// Priority 3: find the worst-quality tetrahedron and insert its
-    /// circumcenter (demoting to a curve-segment split if the circumcenter
-    /// would encroach one), same shape as the restricted-triangle handling
-    /// in refineStep(). No-op (returns false immediately) if
-    /// tetQualityController_ is null. Returns true if any insertion/split
-    /// was made.
+    /// Priority 3: inserts the circumcenter of the first refinable skinny
+    /// tetrahedron, or splits the segment it would encroach. Returns false
+    /// without doing anything when no tetQualityController_ was supplied.
+    /// Returns true if an insertion or split was made.
     bool refineBadTetrahedra();
 
-    /// Priority 3 followed by priority 4 if priority 3 found nothing to do --
-    /// refineStep()'s shared fallback once priorities 1 and 2 are exhausted
-    /// (see class docs for why priority 4 is checked last).
+    /// Priority 3, then priority 4 if priority 3 found nothing to do.
     bool refineRemainingPriorities();
 
-    /// Priority 4: find a non-manifold restricted-face edge and repair it --
-    /// splitting the curve segment directly connecting its two endpoints if
-    /// one exists, otherwise inserting a point near it projected onto one of
-    /// the surfaces it touches (demoting to a curve-segment split if that
-    /// point would encroach one), same shape as the restricted-triangle
-    /// handling in refineStep(). See class docs for why this exists and
-    /// RestrictedTriangulation::findNonManifoldEdges() for the defect it
-    /// targets. Returns true if any insertion/split was made.
+    /// Priority 4: repairs the first refinable non-manifold restricted-face
+    /// edge (see RestrictedTriangulation::findNonManifoldEdges()) by splitting
+    /// the curve segment joining its endpoints if there is one, otherwise by
+    /// inserting its midpoint projected onto the defect's surface. Returns true
+    /// if an insertion or split was made.
     bool refineNonManifoldEdges();
 
     /// Inserts point into the Delaunay and updates RestrictedTriangulation.
@@ -177,26 +132,14 @@ private:
     /// Returns true on success.
     bool splitSegment(size_t segmentId);
 
-    /// Guarded entry point for every splitSegment() call site (priority 1's
-    /// direct handling and priorities 2-4's demotion-to-segment-split):
-    /// declines and marks segmentId unrefinable, rather than calling
-    /// splitSegment(), if its own split point would land inside an existing
-    /// protecting ball (see encroachesProtectingBall()'s doc) -- unlike
-    /// priorities 2-4's own direct insertion points, a segment split's
-    /// point can be "hidden" (redundant) in the weighted/regular
-    /// triangulation sense by landing inside an UNRELATED ball (e.g. a
-    /// nearby corner's), not just the same curve's own overlapping-by-
-    /// design balls. When that happens, no existing tetrahedron's
-    /// orthosphere contains it, so Bowyer-Watson's conflict search comes
-    /// back empty -- and MeshOperations3D::insertVertexBowyerWatson's only
-    /// fallback for that case is to add an isolated node with no
-    /// surrounding tetrahedra at all, corrupting the mesh (confirmed: this
-    /// is exactly what orphaned edge nodes in
-    /// RCDTMesherCylinderTest.AllEdgeNodesCovered turned out to be).
-    /// Returns true only if splitSegment() actually ran and succeeded --
-    /// every call site must treat false as "try the next candidate
-    /// instead," not "stop all of refineStep()," since segmentId is
-    /// already handled (marked unrefinable) by the time this returns false.
+    /// The only route to splitSegment(). Declines -- marking segmentId
+    /// unrefinable and returning false -- when the geometry or edge is missing
+    /// or the split point lies inside a protecting ball; callers then move on
+    /// to their next candidate. The ball check matters even though the point
+    /// is on the curve: inside an unrelated ball (e.g. a nearby corner's) the
+    /// point is hidden, Bowyer-Watson finds no conflicting tetrahedra, and the
+    /// node is added unconnected to the mesh -- the orphaned edge nodes
+    /// RCDTMesherCylinderTest.AllEdgeNodesCovered caught.
     bool trySplitSegment(size_t segmentId);
 
     /// Builds a node-ID → position lookup from the current mesh.
@@ -206,11 +149,9 @@ private:
     /// last reset (see its member doc) rather than every call.
     const std::unordered_map<size_t, Point3D>& getNodePositionMap();
 
-    /// Checks newNodeId against every current curve segment and adds any
-    /// that it encroaches to encroachedSegments_ -- the incremental
-    /// replacement for rescanning every node against every segment (see
-    /// encroachedSegments_'s member doc). Called after every new node
-    /// insertion, from whichever priority caused it.
+    /// Adds every curve segment that the new node at position encroaches to
+    /// encroachedSegments_, skipping segments that end at newNodeId. Called
+    /// after every insertion.
     void updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position);
 
     /// Checks segmentId against every current node and adds it to
@@ -220,23 +161,15 @@ private:
     /// segment's (smaller) diametral sphere.
     void checkSegmentAgainstAllNodes(size_t segmentId);
 
-    /// True if point falls strictly inside any existing node's protecting
-    /// ball (a node with nonzero regular-triangulation weight -- see
-    /// Node3D::getWeight(), RegularPredicates3D, and CurveProtectionScheme,
-    /// OPE-176). No priority may insert a point there, including priority
-    /// 1's segment splits (see trySplitSegment()): doing so would let an
-    /// unrelated quality/repair/split insertion erode the crease protection
-    /// the ball exists to guarantee, or (for a split point specifically) hit
-    /// the empty-conflict-set fallback in weighted Bowyer-Watson insertion
-    /// and orphan the mesh. Checked at each priority's plain-insertion call
-    /// site, alongside (but conceptually distinct from) the existing
-    /// minimumEdgeLength_ proximity guard -- same "mark unrefinable rather
-    /// than retry forever" treatment, since there's no meaningful way to
-    /// "split" a protecting ball the way an encroached segment splits.
+    /// True if point lies strictly inside the protecting ball of a node with a
+    /// positive weight (see Node3D::getWeight() and CurveProtectionScheme,
+    /// OPE-176). An insertion there would erode the crease protection the
+    /// ball exists for. A ball cannot be split the way an encroached segment
+    /// can, so the candidate is marked unrefinable instead.
     bool encroachesProtectingBall(const Point3D& point) const;
 
-    /// Returns the FaceKeys of faces shared by exactly two conflicting tetrahedra
-    /// (cavity interior faces that will be removed by Bowyer-Watson insertion).
+    /// Returns the FaceKeys of faces shared by exactly two of conflictingTets:
+    /// the cavity's interior faces, as the conflict set stands before insertion.
     std::vector<FaceKey> computeCavityInteriorFaces(
         const std::vector<size_t>& conflictingTets) const;
 };

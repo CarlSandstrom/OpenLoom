@@ -50,8 +50,8 @@ void RCDTRefiner::refine()
 
     spdlog::info("RCDTRefiner: minimum edge length floor = {}", minimumEdgeLength_);
 
-    // One-time full scan to seed encroachedSegments_; refineStep() keeps it
-    // current incrementally from here (see the member doc).
+    // One-time full scan to seed encroachedSegments_; each insertion keeps it
+    // current from here (see the member doc).
     {
         const auto& curveSegmentManager = meshData.getCurveSegmentManager();
         const auto nodePositionMap = buildNodePositionMap();
@@ -103,9 +103,8 @@ bool RCDTRefiner::refineStep()
         if (unrefinableSegments_.count(segmentId))
             continue;
 
-        // Size floor (same reasoning as the restricted-triangle/tetrahedron
-        // versions below): a segment already at or below the minimum useful
-        // element size is left encroached rather than bisected forever.
+        // Size floor: a segment at or below minimumEdgeLength_ is left
+        // encroached rather than bisected forever (see unrefinableSegments_).
         const CurveSegment segment = curveSegmentManager.getSegment(segmentId);
         const auto* node1 = meshData.getNode(segment.nodeId1);
         const auto* node2 = meshData.getNode(segment.nodeId2);
@@ -146,11 +145,9 @@ bool RCDTRefiner::refineStep()
         if (unrefinableTriangles_.count(bad.face))
             continue;
 
-        // Size floor (CGAL/Boissonnat-Oudot style): a triangle already at or
-        // below the minimum useful element size is left as-is even if still
-        // quality-bad, rather than trying (and failing) to fix it forever.
-        // Checked before doing any surface work since it needs nothing but
-        // the triangle's own shortest edge.
+        // Size floor (CGAL/Boissonnat-Oudot style): a triangle at or below
+        // minimumEdgeLength_ is left as-is even if still quality-bad. Checked
+        // first because it needs no surface work.
         if (bad.shortestEdge <= minimumEdgeLength_)
         {
             unrefinableTriangles_.insert(bad.face);
@@ -164,26 +161,14 @@ bool RCDTRefiner::refineStep()
             continue;
         }
 
-        // Prefer the true restricted Voronoi vertex (where the face's dual
-        // Voronoi edge crosses the surface); fall back to projecting the flat
-        // circumcenter if that couldn't be computed — most commonly because
-        // the face's classification into restrictedFaces_ has gone stale (an
-        // earlier, different pair of neighboring tetrahedra is what originally
-        // found a crossing) and its current dual edge no longer crosses the
-        // surface at all. The proximity guard below is what actually keeps
-        // this fallback safe: it rejects a fallback candidate that lands too
-        // close to an unrelated vertex, so a bad fallback point just leaves
-        // the triangle unrefined (same outcome as not attempting it), while
-        // a good one — which is the common case — still gets used. Removing
-        // the fallback entirely was tried and measured worse: many stale
-        // classifications still yield a perfectly usable fallback point, and
-        // giving up on all of them loses far more good insertions than the
-        // rare bad one the guard would have caught anyway.
-        //
-        // Insertion point is computed here (on demand for this one triangle)
-        // rather than precomputed for all bad triangles in getBadTriangles:
-        // the latter would pay 30 bisection iterations × 3 OCC calls for
-        // every bad face even though only this one gets inserted this step.
+        // Prefer the restricted Voronoi vertex, where the face's dual edge
+        // crosses the surface. When there is none -- usually because the
+        // face's classification is stale and its current dual edge no longer
+        // crosses the surface -- fall back to projecting the circumcenter; the
+        // proximity guard below rejects a fallback point that lands on an
+        // existing vertex. Dropping the fallback was measured worse: most
+        // fallback points are usable. Computed for this one triangle rather
+        // than for every bad triangle, since it bisects with OCC calls.
         std::optional<Point3D> projectedOpt =
             restrictedTriangulation_->computeInsertionPoint(bad.face, meshData, connectivity, *surface);
         if (!projectedOpt)
@@ -196,15 +181,12 @@ bool RCDTRefiner::refineStep()
 
         const Point3D& projected = *projectedOpt;
 
-        // Proximity guard: reject if the candidate would land within the size
-        // floor of any existing vertex, regardless of that vertex's history.
-        // Needed in addition to the shortestEdge check above: that check only
-        // looks at the triangle's edges *before* insertion, so it cannot
-        // catch a circumcenter that projects onto (or nearly onto) an
-        // existing vertex — including one belonging to a different, unrelated
-        // triangle. Without this, such an insertion creates a near-degenerate
-        // duplicate point that corrupts the local mesh and never stops
-        // generating new "bad" triangles around it.
+        // Proximity guard: reject a point within minimumEdgeLength_ of any
+        // existing vertex. The shortest-edge check above only sees the
+        // triangle before insertion, so it cannot catch a point landing on or
+        // next to a vertex, including one of an unrelated triangle. Such a
+        // near-duplicate corrupts the mesh locally and keeps generating new
+        // bad triangles around it.
         bool tooClose = false;
         for (const auto& [nodeId, node] : meshData.getNodes())
         {
@@ -220,11 +202,9 @@ bool RCDTRefiner::refineStep()
             continue;
         }
 
-        // Demotion: if the circumcenter would encroach a segment, split that segment instead.
-        // If trySplitSegment() declines (marking the segment unrefinable),
-        // this triangle's only resolution path is permanently blocked too
-        // -- mark it unrefinable rather than re-deriving the same doomed
-        // demotion every subsequent refineStep() call.
+        // Demotion: if the point would encroach a segment, split that segment
+        // instead. If trySplitSegment() declines, this triangle has no other
+        // way to be refined, so it is marked unrefinable rather than retried.
         const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
         if (!encroachingIds.empty())
         {
@@ -242,14 +222,6 @@ bool RCDTRefiner::refineStep()
             continue;
         }
 
-        // Insert the projected circumcenter.
-        // Do NOT clear unrefinableTriangles_ here: faces blocked by the size
-        // floor stay blocked (they can't get any smaller than they already
-        // are). Clearing was the cascade bug — it caused those faces to be
-        // retried forever after each subsequent insertion cleared the set.
-        // Clearing on segment splits (in splitSegment()) is still correct
-        // because splitting a segment changes the constraint structure and
-        // may unblock previously stuck faces.
         insertAndUpdate(projected, {bad.surfaceId});
         return true;
     }
@@ -273,19 +245,11 @@ bool RCDTRefiner::refineBadTetrahedra()
     const auto& curveSegmentManager = meshData.getCurveSegmentManager();
     const auto& nodePositionMap = getNodePositionMap();
 
-    // Priority 3 runs before AmbientTetrahedronRemover::remove() -- priorities 1/2
-    // need the supertet kept alive (see class docs) -- so at this point the
-    // mesh still contains ambient tetrahedra: the seed triangulation's
-    // artifacts touching the supertet's corners, and (for domains with
-    // holes) tets filling interior voids that RCDT also keeps triangulated
-    // throughout refinement. Neither is real output -- both are naturally
-    // "skinny" relative to the real geometry (the supertet is deliberately
-    // huge; a hole's tets span an unconstrained gap) -- so attempting to
-    // refine them wastes every iteration on circumcenters that are
-    // meaningless (or, for a hole, land in space the final mesh won't even
-    // contain). AmbientTetrahedronClassifier excludes both in one pass: see
-    // its class docs for why a hole's interior and the true exterior are
-    // indistinguishable to the ambient tetrahedralization.
+    // AmbientTetrahedronRemover only runs after refinement, so the mesh still
+    // contains ambient tetrahedra: those touching the bounding tetrahedron's
+    // corners, and those filling holes in the domain. Neither is output, and
+    // both are skinny by nature, so refining them would spend iterations on
+    // meaningless circumcenters. AmbientTetrahedronClassifier finds both.
     const auto ambientTetIds = AmbientTetrahedronClassifier::classify(meshData, *restrictedTriangulation_);
 
     const auto skinnyTetIds =
@@ -306,7 +270,7 @@ bool RCDTRefiner::refineBadTetrahedra()
         if (ambientTetIds.contains(tetId))
             continue;
 
-        // Size floor, same reasoning as the restricted-triangle version above.
+        // Size floor: a degenerate tetrahedron is left unrefined.
         if (tetQualityController_->isTetrahedronTooSmall(*tet))
         {
             unrefinableTetrahedra_.insert(tetId);
@@ -320,19 +284,12 @@ bool RCDTRefiner::refineBadTetrahedra()
             continue;
         }
 
-        // Sanity guard: computeCircumscribingSphere solves a 3x3 linear
-        // system, and a thin/near-flat tetrahedron can have a genuinely huge
-        // true circumradius (this is real math, not just numerical error —
-        // as a tet flattens, its circumcenter recedes toward infinity) — but
-        // that doesn't make inserting it a sensible refinement move: the
-        // resulting point can land far outside the region the mesh actually
-        // occupies (confirmed empirically: radius 126 for a unit-scale box),
-        // corrupting the mesh's extent and never converging. Bound against
-        // minimumEdgeLength_ (the mesh's own characteristic scale, not the
-        // individual tet's potentially-tiny diameter) rather than trying to
-        // fix the circumcenter computation itself — a genuine, hard "sliver"
-        // problem general Delaunay refinement is known not to fully solve
-        // (see the class doc comment above on slivers).
+        // As a tetrahedron flattens, its circumcenter recedes toward infinity
+        // (real geometry, not numerical error), so inserting it can land far
+        // outside the mesh -- radius 126 was measured on a unit box -- and
+        // refinement never converges. The bound uses minimumEdgeLength_, the
+        // mesh's own scale, rather than this tetrahedron's possibly tiny size.
+        // This is the sliver limitation in the class doc.
         constexpr double MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO = 100.0;
         if (circumsphere->radius > MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO * minimumEdgeLength_)
         {
@@ -342,7 +299,7 @@ bool RCDTRefiner::refineBadTetrahedra()
 
         const Point3D& circumcenter = circumsphere->center;
 
-        // Proximity guard, same reasoning as the restricted-triangle version above.
+        // Proximity guard, as in refineStep().
         bool tooClose = false;
         for (const auto& [nodeId, node] : meshData.getNodes())
         {
@@ -358,11 +315,7 @@ bool RCDTRefiner::refineBadTetrahedra()
             continue;
         }
 
-        // Demotion: if the circumcenter would encroach a segment, split that segment instead.
-        // If trySplitSegment() declines (marking the segment unrefinable),
-        // this tetrahedron's only resolution path is permanently blocked
-        // too -- mark it unrefinable rather than re-deriving the same
-        // doomed demotion every subsequent refineStep() call.
+        // Demotion, as in refineStep().
         const auto encroachingIds = curveSegmentManager.findEncroached(circumcenter, nodePositionMap);
         if (!encroachingIds.empty())
         {
@@ -421,23 +374,12 @@ bool RCDTRefiner::refineNonManifoldEdges()
             continue;
         }
 
-        // If the defect's two endpoints are directly connected by a curve
-        // segment, split that segment rather than projecting a point onto
-        // one of the surfaces it touches. Every leak traced back during
-        // OPE-170/171's investigation sat essentially exactly on a real CAD
-        // edge (a crease between two surfaces) -- classifyFace's
-        // candidate-surface disambiguation is hardest exactly there. A
-        // generic surface projection lands *near* that crease but not
-        // exactly on it, which doesn't resolve the defect so much as nudge
-        // it elsewhere -- confirmed empirically: it was tried first and the
-        // non-manifold-edge count grew instead of shrinking. Splitting the
-        // segment keeps the new point exactly on the true curve, the same
-        // arc-length-midpoint machinery priority 1 already uses.
-        // If trySplitSegment() declines (marking the segment unrefinable),
-        // this defect's preferred resolution is permanently blocked -- mark
-        // it unrefinable too rather than falling back to the surface-
-        // projection path the comment above already established doesn't
-        // reliably resolve a crease-adjacent defect.
+        // If the endpoints are joined by a curve segment, split it rather than
+        // project onto one of the surfaces: the defects traced in OPE-170/171
+        // sat on a crease, and a projected point lands near the crease but not
+        // on it, which was measured to grow the defect count. If
+        // trySplitSegment() declines, the defect is marked unrefinable rather
+        // than falling back to that projection.
         if (const auto segmentId = curveSegmentManager.findSegmentId(defect.edge.nodeIds[0], defect.edge.nodeIds[1]))
         {
             if (trySplitSegment(*segmentId))
@@ -478,11 +420,7 @@ bool RCDTRefiner::refineNonManifoldEdges()
             continue;
         }
 
-        // Demotion: if the insertion point would encroach a segment, split that segment instead.
-        // If trySplitSegment() declines (marking the segment unrefinable),
-        // this defect's only resolution path is permanently blocked too --
-        // mark it unrefinable rather than re-deriving the same doomed
-        // demotion every subsequent refineStep() call.
+        // Demotion, as in refineStep().
         const auto encroachingIds = curveSegmentManager.findEncroached(projected, nodePositionMap);
         if (!encroachingIds.empty())
         {
@@ -593,21 +531,6 @@ bool RCDTRefiner::splitSegment(size_t segmentId)
     checkSegmentAgainstAllNodes(segmentId1);
     checkSegmentAgainstAllNodes(segmentId2);
 
-    // Do NOT clear unrefinableTriangles_/unrefinableTetrahedra_/
-    // unrefinableSegments_/unrefinableNonManifoldEdges_ here: this used to
-    // clear all four unconditionally on the theory that splitting a segment
-    // changes the constraint structure and might unblock previously stuck
-    // entries elsewhere. Measured directly on the SaddleSurfaceMesh stress
-    // test: every entry's give-up reason (shortest-edge at minimumEdgeLength_,
-    // or a projected repair point too close to an existing node -- nodes are
-    // never removed, so that only gets more true over time) is a permanent
-    // fact about the entry's own geometry, unrelated to a split elsewhere in
-    // the mesh -- so the clear produced no benefit, only ~100x redundant
-    // rediscovery of the same unfixable defects every step (167k reinsertions
-    // for ~1.5k distinct ones). A genuinely resolved entry (the split's own
-    // cavity restructured it) gets a new FaceKey/EdgeKey/tet id and is picked
-    // up as a fresh entry regardless -- same reasoning already applied to
-    // unrefinableTriangles_ in the priority-2 insertion path above.
     return true;
 }
 

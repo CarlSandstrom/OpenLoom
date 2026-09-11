@@ -32,12 +32,11 @@
  * was encroached again next iteration -- producing hundreds of duplicate
  * nodes at one coordinate. See RCDTRefiner::unrefinableSegments_.
  *
- * Refinement still hits RCDTRefiner's 500-iteration safety cap here rather
- * than fully converging to the quality bound -- expected for a genuinely
- * small (20 deg) input angle, the same documented class of limitation as the
- * sliver tetrahedra RCDTRefiner's tet-quality phase doesn't fully solve
- * either (see RCDTRefiner's class doc comment). The output mesh itself is
- * valid throughout (no degenerate or duplicate-coordinate triangles).
+ * Refinement is not expected to meet the quality bound everywhere near a
+ * genuinely small (20 deg) input angle -- the same documented class of
+ * limitation as the sliver tetrahedra RCDTRefiner's tet-quality phase doesn't
+ * fully solve either (see RCDTRefiner's class doc comment). The output mesh
+ * itself is valid throughout (no degenerate or duplicate-coordinate triangles).
  *
  * Topology:
  *   - 6 faces: two DEPTH-long flange faces (the crease sides), two end caps
