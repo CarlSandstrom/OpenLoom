@@ -29,11 +29,16 @@ namespace Meshing
  *
  * Recomputed from scratch on every classify() call rather than maintained
  * incrementally -- see OPE-168: the surrounding refinement loop already pays
- * O(tet count) per iteration in several other places (MeshConnectivity
- * rebuild, RestrictedTriangulation::getBadTriangles(),
- * MeshQueries3D::findSkinnyTetrahedra()), so a full recompute here doesn't
- * change the overall complexity class -- and it's a much simpler, easier to
- * verify reference to optimize against later.
+ * O(tet count) per iteration in two other places, the MeshConnectivity rebuild
+ * (RestrictedTriangleRefiner and RCDTPointInserter each construct one per
+ * step, as does classify() itself) and MeshQueries3D::findSkinnyTetrahedra(),
+ * which rescans every element in the very function that calls classify(). So a
+ * full recompute here doesn't change the overall complexity class -- and it's
+ * a much simpler, easier to verify reference to optimize against later.
+ * (Checked OPE-201: this argument used to cite
+ * RestrictedTriangulation::getBadTriangles() as a third such place. That one
+ * has since become incrementally maintained and now costs only O(bad
+ * restricted face count), so it is no longer evidence for this.)
  */
 class AmbientTetrahedronClassifier
 {
