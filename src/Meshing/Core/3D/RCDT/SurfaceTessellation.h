@@ -1,10 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-
-#include <array>
-#include <cstddef>
-#include <vector>
+#include "Meshing/Core/3D/RCDT/TriangleSoupIndex.h"
 
 namespace Geometry3D
 {
@@ -29,9 +26,14 @@ namespace Meshing
  * of how close to degenerate the input is.
  *
  * Built entirely from the ISurface3D interface every backend already
- * implements (getPoint(), getParameterBounds(), isPointWithinTrimmedBoundary())
+ * implements (getPoint(), getParameterBounds(), isUVWithinTrimmedBoundary())
  * — no CAD-kernel-specific tessellator required, so this works identically
  * for a flat plane or a NURBS patch, and doesn't tie RCDT to OCC.
+ *
+ * This class is the UV sampling half of that job: where to place samples and
+ * which cells to emit. The triangles it produces are held in a
+ * TriangleSoupIndex, which knows nothing about surfaces and answers the
+ * crossing query.
  */
 class SurfaceTessellation
 {
@@ -51,52 +53,12 @@ public:
     /// boundary; this tessellation only needs to not have gaps.
     void build(const Geometry3D::ISurface3D& surface, double targetCellSize);
 
-    /// Whether segment (a, b) crosses this tessellation — exact, checking
-    /// RobustPredicates3D::segmentCrossesTriangle against every triangle
-    /// whose axis-aligned bounding box the segment's own bounding box
-    /// overlaps (a triangle outside that can't possibly be crossed, so the
-    /// exact -- much more expensive -- predicate only runs on candidates
-    /// that survive this cheap prefilter).
+    /// Whether segment (a, b) crosses this tessellation — exact; see
+    /// TriangleSoupIndex::isCrossedBySegment().
     bool crossesSurface(const Point3D& a, const Point3D& b) const;
 
 private:
-    struct BoundedTriangle
-    {
-        std::array<Point3D, 3> vertices;
-        Point3D boundsMin;
-        Point3D boundsMax;
-    };
-
-    // Uniform spatial grid accelerating crossesSurface(): instead of scanning
-    // every triangle for each query, the grid narrows the search to only those
-    // triangles whose grid cell(s) overlap the query segment's bounding box.
-    // Each BoundedTriangle is inserted into every grid cell whose 3D bounds
-    // overlap the triangle's own bounds; crossesSurface iterates only the
-    // cells touched by the query segment. For short dual edges (typical during
-    // RCDT refinement) only a small fraction of cells are visited, giving an
-    // O(n / cells_touched) speedup over the flat linear scan.
-    struct AccelGrid
-    {
-        Point3D gridMin;
-        Point3D gridMax;
-        Point3D cellSize;
-        size_t resolutionX = 0;
-        size_t resolutionY = 0;
-        size_t resolutionZ = 0;
-        std::vector<std::vector<size_t>> cells; // indexed by cellIndex()
-
-        bool isBuilt() const { return resolutionX > 0; }
-        size_t cellIndex(size_t x, size_t y, size_t z) const
-        {
-            return x * resolutionY * resolutionZ + y * resolutionZ + z;
-        }
-    };
-
-    void addTriangle(const Point3D& p0, const Point3D& p1, const Point3D& p2);
-    void buildAccelGrid();
-
-    std::vector<BoundedTriangle> triangles_;
-    AccelGrid accelGrid_;
+    TriangleSoupIndex triangles_;
 };
 
 } // namespace Meshing

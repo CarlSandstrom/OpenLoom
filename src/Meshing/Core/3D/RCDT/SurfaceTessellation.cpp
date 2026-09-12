@@ -1,10 +1,13 @@
 #include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 
+#include "Common/BoundingBox2D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/3D/General/RobustPredicates3D.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
+#include <vector>
 
 namespace Meshing
 {
@@ -12,25 +15,92 @@ namespace Meshing
 namespace
 {
 
-// Upper bound on samplesPerDirection, bounding worst-case tessellation
-// memory and cost for very large or very fine-resolution meshes.
-constexpr size_t MAXIMUM_SAMPLES_PER_DIRECTION = 400;
+// Fraction of a cell width to shift every sample by. A plain evenly-spaced
+// grid lands exactly on round-number coordinates -- a box face's center,
+// a hole's exact center, anything at a simple fraction of the surface's
+// extent -- and CAD geometry (and test fixtures) both favor exactly those
+// numbers. When a segment's true crossing point coincides exactly with a
+// tessellation grid vertex, segmentCrossesTriangle correctly (by design)
+// treats that as touching a vertex, not crossing the interior, and
+// rejects it -- a false negative for a case that's actually extremely
+// common, not a rare edge case (see OPE-169). Shifting the whole grid by
+// a non-simple fraction of a cell makes that coincidence very unlikely
+// without needing to special-case any particular geometry.
+//
+// U and V need *different* jitter, not just any jitter: each grid cell
+// is split into two triangles along the diagonal from its (i,j) corner
+// to its (i+1,j+1) corner, so with equal U/V jitter and equal sample
+// counts, every diagonal falls exactly on the line u_local == v_local
+// within its cell -- and a point with u == v (e.g. the circumcenter of
+// any right triangle whose legs sit on the U and V axes -- an extremely
+// ordinary case, not a contrived one) then sits exactly on that
+// diagonal edge instead of a triangle's interior. Different jitter per
+// axis breaks that alignment too.
+constexpr double GRID_JITTER_U = 0.37;
+constexpr double GRID_JITTER_V = 0.61;
 
-// Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
-// 3 axes. A necessary (not sufficient) condition for the shapes they bound to
-// actually intersect -- see crossesSurface().
-bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
+// One parameter direction of the sampling grid: the parameter interval, how
+// many sample columns it carries, and how they are spaced.
+struct SampledDirection
 {
-    return aMin.x() <= bMax.x() && bMin.x() <= aMax.x() && aMin.y() <= bMax.y() && bMin.y() <= aMax.y() &&
-           aMin.z() <= bMax.z() && bMin.z() <= aMax.z();
+    double minimum = 0.0;
+    double maximum = 0.0;
+    bool periodic = false;
+    size_t columns = 0; // distinct sample columns
+    size_t cells = 0;   // grid cells between them
+    double jitter = 0.0;
+
+    /// The parameter value sampled by the given column.
+    double parameterAt(size_t column) const
+    {
+        // Periodic: columns points spread evenly (plus jitter) around the
+        // *whole* period, never touching minimum/maximum themselves -- there's
+        // no reason to privilege the arbitrary parametric cut point.
+        // Non-periodic: columns points spanning [minimum, maximum], jittered
+        // inward.
+        const double spacings =
+            periodic ? static_cast<double>(columns) : static_cast<double>(columns - 1) + jitter;
+        return minimum + (maximum - minimum) * (static_cast<double>(column) + jitter) / spacings;
+    }
+};
+
+// A periodic direction is sampled as a closed loop (samplesPerDirection
+// distinct columns, the last cell wrapping back to the first column) rather
+// than an open strip (samplesPerDirection + 1 columns, both endpoints sampled
+// once each, so one fewer cell than columns) -- there's no real "boundary" to
+// place two separate columns on.
+SampledDirection sampledDirection(double minimum, double maximum, bool periodic, size_t samplesPerDirection,
+                                  double jitter)
+{
+    SampledDirection direction;
+    direction.minimum = minimum;
+    direction.maximum = maximum;
+    direction.periodic = periodic;
+    direction.columns = periodic ? samplesPerDirection : samplesPerDirection + 1;
+    direction.cells = periodic ? direction.columns : direction.columns - 1;
+    direction.jitter = jitter;
+    return direction;
 }
+
+// The sampled points of the whole UV grid and which of them lie within the
+// surface's trim boundary, both in row-major (u column, v column) order.
+struct SampleGrid
+{
+    SampledDirection u;
+    SampledDirection v;
+    std::vector<Point3D> points;
+    std::vector<bool> withinTrim;
+
+    size_t index(size_t uColumn, size_t vColumn) const { return uColumn * v.columns + vColumn; }
+};
 
 // Rough characteristic size of the surface's parameter-bounds footprint.
 // Reuses the same 4-corner-diameter idea as SurfaceProjector::computeSurfaceDiameter.
-double estimateDiameter(const Geometry3D::ISurface3D& surface, double uMin, double uMax, double vMin, double vMax)
+double estimateDiameter(const Geometry3D::ISurface3D& surface, const Common::BoundingBox2D& bounds)
 {
-    const std::array<Point3D, 4> corners = {surface.getPoint(uMin, vMin), surface.getPoint(uMax, vMin),
-                                            surface.getPoint(uMin, vMax), surface.getPoint(uMax, vMax)};
+    const std::array<Point3D, 4> corners = {
+        surface.getPoint(bounds.getUMin(), bounds.getVMin()), surface.getPoint(bounds.getUMax(), bounds.getVMin()),
+        surface.getPoint(bounds.getUMin(), bounds.getVMax()), surface.getPoint(bounds.getUMax(), bounds.getVMax())};
 
     double maximumDistance = 0.0;
     for (int i = 0; i < 4; ++i)
@@ -40,135 +110,105 @@ double estimateDiameter(const Geometry3D::ISurface3D& surface, double uMin, doub
     return maximumDistance > 0.0 ? maximumDistance : 1.0;
 }
 
-} // namespace
-
-void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double targetCellSize)
+// Sample columns per direction for a surface of this diameter.
+//
+// Scaled against targetCellSize regardless of whether the surface is
+// flat: a flat surface's *triangles* are exact at any resolution, but
+// the jittered grid's own edge-coverage gap (~0.6*extent/samples, see the
+// jitter comment above) is not -- it can leave a band near the surface's
+// trim boundary, exactly where a crease with a neighboring surface sits,
+// that no triangle covers. A fixed low sample count for flat surfaces
+// used to leave that gap far wider than minimumEdgeLength_ once
+// refinement pushed elements down to the floor (confirmed on the
+// SaddleSurfaceMesh stress test: ~0.10-0.14 unit gaps against a 0.052
+// floor, producing hundreds of spurious non-manifold "hole" edges right
+// along creases). Coverage, not accuracy, is what this resolution buys,
+// so it must scale the same way for every surface shape.
+size_t samplesPerDirectionFor(double diameter, double targetCellSize)
 {
-    triangles_.clear();
-    accelGrid_ = {};
-    if (targetCellSize <= 0.0)
-        return;
+    // Upper bound, bounding worst-case tessellation memory and cost for very
+    // large or very fine-resolution meshes.
+    constexpr size_t MAXIMUM_SAMPLES_PER_DIRECTION = 400;
 
-    const auto bounds = surface.getParameterBounds();
+    const size_t computed = static_cast<size_t>(std::ceil(diameter / targetCellSize));
+    return std::clamp(computed, size_t{2}, MAXIMUM_SAMPLES_PER_DIRECTION);
+}
+
+// Whether the surface wraps in each parameter direction.
+struct Periodicity
+{
+    bool inU = false;
+    bool inV = false;
+};
+
+// ISurface3D has no explicit periodicity query, so detect it numerically:
+// a periodic direction's two parameter extremes map to the same physical
+// point (probed at the other direction's midpoint, to sidestep any
+// corner/pole degeneracy). Works uniformly for any backend, not just OCC.
+// This matters because a plain non-wrapping grid leaves a real gap right
+// along the seam of a periodic surface (e.g. a torus's major-circle seam,
+// OPE-171): nothing samples exactly the boundary column *and* its twin at
+// the other end of the period, so no triangle ever covers the strip
+// between the last sampled column and the first.
+Periodicity detectPeriodicity(const Geometry3D::ISurface3D& surface, const Common::BoundingBox2D& bounds,
+                              double diameter)
+{
+    constexpr double PERIODICITY_RELATIVE_TOLERANCE = 1e-6;
+    const double periodicityTolerance = PERIODICITY_RELATIVE_TOLERANCE * diameter;
+
     const double uMin = bounds.getUMin();
     const double uMax = bounds.getUMax();
     const double vMin = bounds.getVMin();
     const double vMax = bounds.getVMax();
-
-    const double diameter = estimateDiameter(surface, uMin, uMax, vMin, vMax);
-
-    // Scaled against targetCellSize regardless of whether the surface is
-    // flat: a flat surface's *triangles* are exact at any resolution, but
-    // the jittered grid's own edge-coverage gap (~0.6*extent/samples, see the
-    // jitter comment below) is not -- it can leave a band near the surface's
-    // trim boundary, exactly where a crease with a neighboring surface sits,
-    // that no triangle covers. A fixed low sample count for flat surfaces
-    // used to leave that gap far wider than minimumEdgeLength_ once
-    // refinement pushed elements down to the floor (confirmed on the
-    // SaddleSurfaceMesh stress test: ~0.10-0.14 unit gaps against a 0.052
-    // floor, producing hundreds of spurious non-manifold "hole" edges right
-    // along creases). Coverage, not accuracy, is what this resolution buys,
-    // so it must scale the same way for every surface shape.
-    const size_t computed = static_cast<size_t>(std::ceil(diameter / targetCellSize));
-    const size_t samplesPerDirection = std::clamp(computed, size_t{2}, MAXIMUM_SAMPLES_PER_DIRECTION);
-
-    // ISurface3D has no explicit periodicity query, so detect it numerically:
-    // a periodic direction's two parameter extremes map to the same physical
-    // point (probed at the other direction's midpoint, to sidestep any
-    // corner/pole degeneracy). Works uniformly for any backend, not just OCC.
-    // This matters because a plain non-wrapping grid leaves a real gap right
-    // along the seam of a periodic surface (e.g. a torus's major-circle seam,
-    // OPE-171): nothing samples exactly the boundary column *and* its twin at
-    // the other end of the period, so no triangle ever covers the strip
-    // between the last sampled column and the first.
-    constexpr double PERIODICITY_RELATIVE_TOLERANCE = 1e-6;
-    const double periodicityTolerance = PERIODICITY_RELATIVE_TOLERANCE * diameter;
-
     const double midV = 0.5 * (vMin + vMax);
     const double midU = 0.5 * (uMin + uMax);
-    const bool periodicU = (surface.getPoint(uMin, midV) - surface.getPoint(uMax, midV)).norm() < periodicityTolerance;
-    const bool periodicV = (surface.getPoint(midU, vMin) - surface.getPoint(midU, vMax)).norm() < periodicityTolerance;
 
-    // A periodic direction is sampled as a closed loop (samplesPerDirection
-    // distinct columns, last one wrapping back to the first) rather than an
-    // open strip (samplesPerDirection + 1 columns, both endpoints sampled
-    // once each) -- there's no real "boundary" to place two separate columns
-    // on.
-    const size_t uColumns = periodicU ? samplesPerDirection : samplesPerDirection + 1;
-    const size_t vColumns = periodicV ? samplesPerDirection : samplesPerDirection + 1;
+    Periodicity periodicity;
+    periodicity.inU = (surface.getPoint(uMin, midV) - surface.getPoint(uMax, midV)).norm() < periodicityTolerance;
+    periodicity.inV = (surface.getPoint(midU, vMin) - surface.getPoint(midU, vMax)).norm() < periodicityTolerance;
+    return periodicity;
+}
 
-    const auto index = [vColumns](size_t i, size_t j)
+SampleGrid sampleSurface(const Geometry3D::ISurface3D& surface, const SampledDirection& u, const SampledDirection& v)
+{
+    SampleGrid grid;
+    grid.u = u;
+    grid.v = v;
+    grid.points.resize(u.columns * v.columns);
+    grid.withinTrim.resize(u.columns * v.columns);
+
+    for (size_t uColumn = 0; uColumn < u.columns; ++uColumn)
     {
-        return i * vColumns + j;
-    };
-
-    // Fraction of a cell width to shift every sample by. A plain evenly-spaced
-    // grid lands exactly on round-number coordinates -- a box face's center,
-    // a hole's exact center, anything at a simple fraction of the surface's
-    // extent -- and CAD geometry (and test fixtures) both favor exactly those
-    // numbers. When a segment's true crossing point coincides exactly with a
-    // tessellation grid vertex, segmentCrossesTriangle correctly (by design)
-    // treats that as touching a vertex, not crossing the interior, and
-    // rejects it -- a false negative for a case that's actually extremely
-    // common, not a rare edge case (see OPE-169). Shifting the whole grid by
-    // a non-simple fraction of a cell makes that coincidence very unlikely
-    // without needing to special-case any particular geometry.
-    //
-    // U and V need *different* jitter, not just any jitter: each grid cell
-    // is split into two triangles along the diagonal from its (i,j) corner
-    // to its (i+1,j+1) corner, so with equal U/V jitter and equal sample
-    // counts, every diagonal falls exactly on the line u_local == v_local
-    // within its cell -- and a point with u == v (e.g. the circumcenter of
-    // any right triangle whose legs sit on the U and V axes -- an extremely
-    // ordinary case, not a contrived one) then sits exactly on that
-    // diagonal edge instead of a triangle's interior. Different jitter per
-    // axis breaks that alignment too.
-    constexpr double GRID_JITTER_U = 0.37;
-    constexpr double GRID_JITTER_V = 0.61;
-
-    std::vector<Point3D> gridPoints(uColumns * vColumns);
-    std::vector<bool> withinTrim(uColumns * vColumns);
-
-    for (size_t i = 0; i < uColumns; ++i)
-    {
-        // Periodic: samplesPerDirection points spread evenly (plus jitter)
-        // around the *whole* period, never touching uMin/uMax themselves --
-        // there's no reason to privilege the arbitrary parametric cut point.
-        // Non-periodic: gridSize = samplesPerDirection + 1 points spanning
-        // [uMin, uMax], jittered inward, same as before.
-        const double u = periodicU ? uMin + (uMax - uMin) * (static_cast<double>(i) + GRID_JITTER_U) /
-                                                  static_cast<double>(samplesPerDirection)
-                                    : uMin + (uMax - uMin) * (static_cast<double>(i) + GRID_JITTER_U) /
-                                                  (static_cast<double>(uColumns - 1) + GRID_JITTER_U);
-        for (size_t j = 0; j < vColumns; ++j)
+        const double uParameter = u.parameterAt(uColumn);
+        for (size_t vColumn = 0; vColumn < v.columns; ++vColumn)
         {
-            const double v = periodicV ? vMin + (vMax - vMin) * (static_cast<double>(j) + GRID_JITTER_V) /
-                                                      static_cast<double>(samplesPerDirection)
-                                        : vMin + (vMax - vMin) * (static_cast<double>(j) + GRID_JITTER_V) /
-                                                      (static_cast<double>(vColumns - 1) + GRID_JITTER_V);
-            const Point3D point = surface.getPoint(u, v);
-            gridPoints[index(i, j)] = point;
-            withinTrim[index(i, j)] = surface.isUVWithinTrimmedBoundary(u, v);
+            const double vParameter = v.parameterAt(vColumn);
+            grid.points[grid.index(uColumn, vColumn)] = surface.getPoint(uParameter, vParameter);
+            grid.withinTrim[grid.index(uColumn, vColumn)] =
+                surface.isUVWithinTrimmedBoundary(uParameter, vParameter);
         }
     }
+    return grid;
+}
 
-    // Non-periodic: uColumns - 1 cells between uColumns distinct columns.
-    // Periodic: uColumns cells -- the last one wraps from column uColumns-1
-    // back to column 0, closing the loop with no gap.
-    const size_t uCells = periodicU ? uColumns : uColumns - 1;
-    const size_t vCells = periodicV ? vColumns : vColumns - 1;
+// Two triangles per grid cell, split along the cell's corner00--corner11
+// diagonal. A cell whose corner columns wrap (the last cell of a periodic
+// direction) closes the loop back onto column 0, leaving no gap at the seam.
+std::vector<TriangleSoupIndex::Triangle> emitTriangles(const SampleGrid& grid)
+{
+    std::vector<TriangleSoupIndex::Triangle> triangles;
 
-    for (size_t i = 0; i < uCells; ++i)
+    for (size_t uCell = 0; uCell < grid.u.cells; ++uCell)
     {
-        const size_t iNext = (i + 1) % uColumns;
-        for (size_t j = 0; j < vCells; ++j)
+        const size_t uNext = (uCell + 1) % grid.u.columns;
+        for (size_t vCell = 0; vCell < grid.v.cells; ++vCell)
         {
-            const size_t jNext = (j + 1) % vColumns;
+            const size_t vNext = (vCell + 1) % grid.v.columns;
 
-            const size_t i00 = index(i, j);
-            const size_t i10 = index(iNext, j);
-            const size_t i01 = index(i, jNext);
-            const size_t i11 = index(iNext, jNext);
+            const size_t corner00 = grid.index(uCell, vCell);
+            const size_t corner10 = grid.index(uNext, vCell);
+            const size_t corner01 = grid.index(uCell, vNext);
+            const size_t corner11 = grid.index(uNext, vNext);
 
             // Include the cell if ANY corner is within the trim, not only
             // when all 4 are: requiring all 4 shrinks the tessellation
@@ -180,158 +220,44 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double ta
             // within the true trim boundary (verticesWithinTrimmedBoundary),
             // so a tessellation triangle that pokes slightly past the real
             // edge never causes a face to be accepted that shouldn't be.
-            if (!withinTrim[i00] && !withinTrim[i10] && !withinTrim[i01] && !withinTrim[i11])
+            if (!grid.withinTrim[corner00] && !grid.withinTrim[corner10] && !grid.withinTrim[corner01] &&
+                !grid.withinTrim[corner11])
                 continue;
 
-            addTriangle(gridPoints[i00], gridPoints[i10], gridPoints[i11]);
-            addTriangle(gridPoints[i00], gridPoints[i11], gridPoints[i01]);
+            triangles.push_back({grid.points[corner00], grid.points[corner10], grid.points[corner11]});
+            triangles.push_back({grid.points[corner00], grid.points[corner11], grid.points[corner01]});
         }
     }
 
-    buildAccelGrid();
+    return triangles;
 }
 
-void SurfaceTessellation::addTriangle(const Point3D& p0, const Point3D& p1, const Point3D& p2)
-{
-    const Point3D boundsMin = p0.cwiseMin(p1).cwiseMin(p2);
-    const Point3D boundsMax = p0.cwiseMax(p1).cwiseMax(p2);
-    triangles_.push_back({{p0, p1, p2}, boundsMin, boundsMax});
-}
+} // namespace
 
-void SurfaceTessellation::buildAccelGrid()
+void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double targetCellSize)
 {
-    accelGrid_ = {};
-    if (triangles_.empty())
+    if (targetCellSize <= 0.0)
+    {
+        triangles_.build({}); // no tessellation at all, not even a previous one
         return;
-
-    // Compute the 3D bounding box of all tessellation triangles.
-    Point3D gridMin = triangles_[0].boundsMin;
-    Point3D gridMax = triangles_[0].boundsMax;
-    for (const auto& triangle : triangles_)
-    {
-        gridMin = gridMin.cwiseMin(triangle.boundsMin);
-        gridMax = gridMax.cwiseMax(triangle.boundsMax);
     }
 
-    // Expand slightly so that triangles exactly on the boundary fall inside a
-    // cell rather than rounding to an out-of-range index.
-    constexpr double GRID_EPSILON = 1e-10;
-    gridMin -= Point3D::Constant(GRID_EPSILON);
-    gridMax += Point3D::Constant(GRID_EPSILON);
+    const Common::BoundingBox2D bounds = surface.getParameterBounds();
+    const double diameter = estimateDiameter(surface, bounds);
+    const size_t samplesPerDirection = samplesPerDirectionFor(diameter, targetCellSize);
+    const Periodicity periodicity = detectPeriodicity(surface, bounds, diameter);
 
-    // Choose the grid resolution so each cell holds roughly 1–4 triangles on
-    // average. The tessellation lies on a 2D surface, not a 3D volume, so
-    // many cells are empty -- that's fine; crossesSurface only visits cells
-    // overlapping the query segment's bounding box, not all cells.
-    constexpr size_t MINIMUM_GRID_RESOLUTION = 4;
-    constexpr size_t MAXIMUM_GRID_RESOLUTION = 50;
-    const size_t resolution = std::clamp(
-        static_cast<size_t>(std::cbrt(static_cast<double>(triangles_.size()))),
-        MINIMUM_GRID_RESOLUTION, MAXIMUM_GRID_RESOLUTION);
+    const SampledDirection u =
+        sampledDirection(bounds.getUMin(), bounds.getUMax(), periodicity.inU, samplesPerDirection, GRID_JITTER_U);
+    const SampledDirection v =
+        sampledDirection(bounds.getVMin(), bounds.getVMax(), periodicity.inV, samplesPerDirection, GRID_JITTER_V);
 
-    accelGrid_.gridMin = gridMin;
-    accelGrid_.gridMax = gridMax;
-    accelGrid_.resolutionX = resolution;
-    accelGrid_.resolutionY = resolution;
-    accelGrid_.resolutionZ = resolution;
-
-    const Point3D range = gridMax - gridMin;
-    // Floor each component at a small positive value to avoid division by zero
-    // for degenerate surfaces that are flat in one coordinate direction.
-    constexpr double MINIMUM_RANGE = 1e-12;
-    accelGrid_.cellSize = Point3D(
-        std::max(range.x() / static_cast<double>(resolution), MINIMUM_RANGE),
-        std::max(range.y() / static_cast<double>(resolution), MINIMUM_RANGE),
-        std::max(range.z() / static_cast<double>(resolution), MINIMUM_RANGE));
-
-    accelGrid_.cells.resize(resolution * resolution * resolution);
-
-    // Helper: clamp a continuous coordinate to a valid grid index.
-    const auto toIndex = [&](double coordinate, double gridMinCoord, double cellSizeCoord) -> size_t
-    {
-        const double normalized = (coordinate - gridMinCoord) / cellSizeCoord;
-        const long long index = static_cast<long long>(std::floor(normalized));
-        return static_cast<size_t>(std::clamp(index, 0LL, static_cast<long long>(resolution) - 1LL));
-    };
-
-    for (size_t triangleIndex = 0; triangleIndex < triangles_.size(); ++triangleIndex)
-    {
-        const auto& triangle = triangles_[triangleIndex];
-
-        const size_t xMin = toIndex(triangle.boundsMin.x(), gridMin.x(), accelGrid_.cellSize.x());
-        const size_t yMin = toIndex(triangle.boundsMin.y(), gridMin.y(), accelGrid_.cellSize.y());
-        const size_t zMin = toIndex(triangle.boundsMin.z(), gridMin.z(), accelGrid_.cellSize.z());
-        const size_t xMax = toIndex(triangle.boundsMax.x(), gridMin.x(), accelGrid_.cellSize.x());
-        const size_t yMax = toIndex(triangle.boundsMax.y(), gridMin.y(), accelGrid_.cellSize.y());
-        const size_t zMax = toIndex(triangle.boundsMax.z(), gridMin.z(), accelGrid_.cellSize.z());
-
-        for (size_t x = xMin; x <= xMax; ++x)
-            for (size_t y = yMin; y <= yMax; ++y)
-                for (size_t z = zMin; z <= zMax; ++z)
-                    accelGrid_.cells[accelGrid_.cellIndex(x, y, z)].push_back(triangleIndex);
-    }
+    triangles_.build(emitTriangles(sampleSurface(surface, u, v)));
 }
 
 bool SurfaceTessellation::crossesSurface(const Point3D& a, const Point3D& b) const
 {
-    const Point3D segmentMin = a.cwiseMin(b);
-    const Point3D segmentMax = a.cwiseMax(b);
-
-    if (!accelGrid_.isBuilt())
-    {
-        for (const auto& triangle : triangles_)
-        {
-            if (!boundsOverlap(segmentMin, segmentMax, triangle.boundsMin, triangle.boundsMax))
-                continue;
-            if (RobustPredicates3D::segmentCrossesTriangle(a, b, triangle.vertices[0], triangle.vertices[1],
-                                                            triangle.vertices[2]))
-                return true;
-        }
-        return false;
-    }
-
-    // Spatial grid acceleration: only visit grid cells whose 3D bounds overlap
-    // the segment's bounding box, then test only the triangles in those cells.
-    // A triangle may appear in more than one cell if its bounding box spans a
-    // cell boundary; the duplicate test is harmless (at worst a redundant true
-    // return that terminates the loop early, or a redundant false that just
-    // wastes a little work).
-    const auto& grid = accelGrid_;
-    const auto toIndex = [&](double coordinate, double gridMinCoord, double cellSizeCoord,
-                             size_t maxIndex) -> size_t
-    {
-        const double normalized = (coordinate - gridMinCoord) / cellSizeCoord;
-        const long long index = static_cast<long long>(std::floor(normalized));
-        return static_cast<size_t>(
-            std::clamp(index, 0LL, static_cast<long long>(maxIndex) - 1LL));
-    };
-
-    const size_t xMin = toIndex(segmentMin.x(), grid.gridMin.x(), grid.cellSize.x(), grid.resolutionX);
-    const size_t yMin = toIndex(segmentMin.y(), grid.gridMin.y(), grid.cellSize.y(), grid.resolutionY);
-    const size_t zMin = toIndex(segmentMin.z(), grid.gridMin.z(), grid.cellSize.z(), grid.resolutionZ);
-    const size_t xMax = toIndex(segmentMax.x(), grid.gridMin.x(), grid.cellSize.x(), grid.resolutionX);
-    const size_t yMax = toIndex(segmentMax.y(), grid.gridMin.y(), grid.cellSize.y(), grid.resolutionY);
-    const size_t zMax = toIndex(segmentMax.z(), grid.gridMin.z(), grid.cellSize.z(), grid.resolutionZ);
-
-    for (size_t x = xMin; x <= xMax; ++x)
-    {
-        for (size_t y = yMin; y <= yMax; ++y)
-        {
-            for (size_t z = zMin; z <= zMax; ++z)
-            {
-                for (const size_t triangleIndex : grid.cells[grid.cellIndex(x, y, z)])
-                {
-                    const auto& triangle = triangles_[triangleIndex];
-                    if (!boundsOverlap(segmentMin, segmentMax, triangle.boundsMin, triangle.boundsMax))
-                        continue;
-                    if (RobustPredicates3D::segmentCrossesTriangle(a, b, triangle.vertices[0], triangle.vertices[1],
-                                                                    triangle.vertices[2]))
-                        return true;
-                }
-            }
-        }
-    }
-    return false;
+    return triangles_.isCrossedBySegment(a, b);
 }
 
 } // namespace Meshing
