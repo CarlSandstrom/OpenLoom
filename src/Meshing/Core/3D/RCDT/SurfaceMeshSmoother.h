@@ -30,10 +30,13 @@ namespace Meshing
 /// is the standard follow-up production meshers (Gmsh, Netgen) use to
 /// improve minimum angle without changing mesh topology.
 ///
-/// When the surface bounds a volume mesh, its nodes are shared with the
-/// tetrahedra, and a move that is harmless for the surface can turn an
-/// adjacent tetrahedron inside out. Given those tetrahedra, a sweep keeps
-/// every one of them from inverting by undoing the moves that would.
+/// Each iteration is two phases. The first proposes a new position for every
+/// movable node, all read off the positions the iteration started from. The
+/// second hands the proposal to a TetrahedronInversionGuard: when the surface
+/// bounds a volume mesh its nodes are shared with the tetrahedra, and a move
+/// that is harmless for the surface can turn an adjacent tetrahedron inside
+/// out, so the guard undoes the moves that would. With no tetrahedra to
+/// guard, the proposal is taken as it stands.
 class SurfaceMeshSmoother
 {
 public:
