@@ -3,10 +3,10 @@
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
-#include <cmath>
 #include <optional>
 
 namespace Meshing
@@ -18,7 +18,7 @@ RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          double minimumEdgeLength,
                          const RCDTTetQualityController* tetrahedronQualityController) :
     context_(&context),
-    settings_(settings),
+    maximumRefinementIterations_(settings.maxRefinementIterations),
     minimumEdgeLength_(minimumEdgeLength),
     pointInserter_(context, restrictedTriangulation, minimumEdgeLength),
     restrictedTriangleRefiner_(context, restrictedTriangulation, minimumEdgeLength),
@@ -47,16 +47,15 @@ void RCDTRefiner::refine()
     exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
     ++iteration;
 
-    const size_t maximumIterations = settings_.maxRefinementIterations;
-    while (iteration < maximumIterations)
+    while (iteration < maximumRefinementIterations_)
     {
         if (!refineStep()) break;
         exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
         ++iteration;
     }
 
-    if (iteration >= maximumIterations)
-        spdlog::warn("RCDTRefiner: reached iteration cap ({})", maximumIterations);
+    if (iteration >= maximumRefinementIterations_)
+        spdlog::warn("RCDTRefiner: reached iteration cap ({})", maximumRefinementIterations_);
 
     spdlog::info("RCDTRefiner: done after {} iterations — {} nodes",
                  iteration,

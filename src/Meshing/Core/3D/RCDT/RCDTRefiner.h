@@ -4,8 +4,8 @@
 #include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangleRefiner.h"
 #include "Meshing/Core/3D/RCDT/TetrahedronQualityRefiner.h"
-#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
+#include <cstddef>
 #include <optional>
 
 namespace Meshing
@@ -14,6 +14,7 @@ namespace Meshing
 class MeshingContext3D;
 class RestrictedTriangulation;
 class RCDTTetQualityController;
+struct SurfaceMesh3DQualitySettings;
 
 /// Refines a restricted Delaunay triangulation in ambient 3D space.
 ///
@@ -57,7 +58,9 @@ public:
 
 private:
     MeshingContext3D* context_;
-    SurfaceMesh3DQualitySettings settings_;
+
+    /// The one setting this class reads; the others belong to the priorities.
+    size_t maximumRefinementIterations_;
 
     /// Size floor (see MinimumEdgeLengthEstimator), handed to the inserter and
     /// to each priority, which document what they bound by it.
