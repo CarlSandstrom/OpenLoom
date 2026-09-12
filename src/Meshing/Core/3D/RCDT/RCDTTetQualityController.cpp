@@ -12,9 +12,8 @@ namespace Meshing
 {
 
 RCDTTetQualityController::RCDTTetQualityController(const MeshData3D& meshData,
-                                                    const SurfaceMesh3DQualitySettings& settings) :
-    geometry_(std::make_unique<ElementGeometry3D>(meshData)),
-    quality_(std::make_unique<ElementQuality3D>(meshData)),
+                                                   const SurfaceMesh3DQualitySettings& settings) :
+    meshData_(&meshData),
     settings_(settings)
 {
     if (settings_.tetCircumradiusToShortestEdgeRatio <= 2.0)
@@ -24,8 +23,6 @@ RCDTTetQualityController::RCDTTetQualityController(const MeshData3D& meshData,
                      settings_.tetCircumradiusToShortestEdgeRatio);
     }
 }
-
-RCDTTetQualityController::~RCDTTetQualityController() = default;
 
 bool RCDTTetQualityController::isMeshAcceptable(const MeshData3D& data,
                                                 const MeshConnectivity& /*connectivity*/) const
@@ -52,7 +49,8 @@ bool RCDTTetQualityController::isMeshAcceptable(const MeshData3D& data,
 
 bool RCDTTetQualityController::isTetrahedronAcceptable(const TetrahedralElement& element) const
 {
-    const double ratio = quality_->getCircumradiusToShortestEdgeRatio(element);
+    const ElementQuality3D elementQuality(*meshData_);
+    const double ratio = elementQuality.getCircumradiusToShortestEdgeRatio(element);
 
     if (ratio == 0.0)
         return false; // degenerate
@@ -75,10 +73,12 @@ std::size_t RCDTTetQualityController::getElementLimit() const
 
 bool RCDTTetQualityController::isTetrahedronTooSmall(const TetrahedralElement& element) const
 {
-    if (std::abs(geometry_->computeVolume(element)) < MIN_REFINABLE_VOLUME)
+    const ElementGeometry3D elementGeometry(*meshData_);
+    if (std::abs(elementGeometry.computeVolume(element)) < MIN_REFINABLE_VOLUME)
         return true;
 
-    if (quality_->getShortestEdgeLength(element) < MIN_REFINABLE_EDGE)
+    const ElementQuality3D elementQuality(*meshData_);
+    if (elementQuality.getShortestEdgeLength(element) < MIN_REFINABLE_EDGE)
         return true;
 
     return false;
