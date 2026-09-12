@@ -4,8 +4,10 @@
 #include "Meshing/Core/3D/RCDT/NonManifoldEdgeRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
+#include "Meshing/Core/3D/RCDT/TetrahedronQualityRefiner.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
+#include <optional>
 #include <unordered_set>
 
 namespace Meshing
@@ -24,7 +26,8 @@ class RCDTTetQualityController;
 ///   2. Insert a point for a bad restricted triangle (circumradius/edge or
 ///      chord deviation).
 ///   3. Insert the circumcenter of a skinny tetrahedron -- only when a
-///      RCDTTetQualityController was supplied, i.e. when meshing a volume.
+///      RCDTTetQualityController was supplied, i.e. when meshing a volume
+///      (TetrahedronQualityRefiner).
 ///   4. Repair a non-manifold edge of the restricted-face set
 ///      (NonManifoldEdgeRefiner).
 ///
@@ -43,12 +46,6 @@ class RCDTTetQualityController;
 /// by nodes or element ID, so a candidate an insertion restructures returns
 /// under a new key; one whose key survives stays blocked even if its insertion
 /// point has moved.
-///
-/// Slivers -- tetrahedra with an acceptable circumradius/edge ratio but poor
-/// dihedral angles -- are not detected, and a near-flat tetrahedron whose
-/// circumcenter lies far outside the mesh is left unrefined (see the
-/// circumradius guard in refineBadTetrahedra()). Measured to affect a few
-/// percent of tetrahedra.
 class RCDTRefiner
 {
 public:
@@ -64,12 +61,10 @@ private:
     MeshingContext3D* context_;
     RestrictedTriangulation* restrictedTriangulation_;
     SurfaceMesh3DQualitySettings settings_;
-    const RCDTTetQualityController* tetQualityController_;
     SurfaceProjector surfaceProjector_;
 
-    /// Candidates priorities 2 and 3 have given up on (see the class doc).
+    /// Candidates priority 2 has given up on (see the class doc).
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
-    std::unordered_set<size_t> unrefinableTetrahedra_;
 
     /// Size floor (see MinimumEdgeLengthEstimator). Bounds how short a segment,
     /// restricted triangle or non-manifold edge may get before it is left
@@ -78,18 +73,16 @@ private:
     double minimumEdgeLength_;
 
     RCDTPointInserter pointInserter_;
+
+    /// Present only when a RCDTTetQualityController was supplied.
+    std::optional<TetrahedronQualityRefiner> tetrahedronQualityRefiner_;
     NonManifoldEdgeRefiner nonManifoldEdgeRefiner_;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
 
-    /// Priority 3: inserts the circumcenter of the first refinable skinny
-    /// tetrahedron, or splits the segment it would encroach. Returns false
-    /// without doing anything when no tetQualityController_ was supplied.
-    /// Returns true if an insertion or split was made.
-    bool refineBadTetrahedra();
-
-    /// Priority 3, then priority 4 if priority 3 found nothing to do.
+    /// Priority 3 (when present), then priority 4 if priority 3 found nothing
+    /// to do.
     bool refineRemainingPriorities();
 };
 
