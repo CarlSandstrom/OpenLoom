@@ -174,12 +174,14 @@ bool RCDTPointInserter::tryInsert(const Point3D& point, const std::vector<std::s
     if (encroachesProtectingBall(meshData, point))
         return false;
 
-    insertAndUpdate(point, geometryIds);
+    const Insertion insertion = insertPoint(point, geometryIds);
+    finishInsertion(insertion, point);
     return true;
 }
 
 bool RCDTPointInserter::trySplitSegment(size_t segmentId)
 {
+    const auto& meshData = context_->getMeshData();
     const auto* geometry = context_->getGeometry();
     if (!geometry)
     {
@@ -187,7 +189,9 @@ bool RCDTPointInserter::trySplitSegment(size_t segmentId)
         return false;
     }
 
-    const CurveSegment segment = context_->getMeshData().getCurveSegmentManager().getSegment(segmentId);
+    // Copied rather than referenced: splitSegment() still reads it after
+    // splitCurveSegment() has destroyed the original.
+    const CurveSegment segment = meshData.getCurveSegmentManager().getSegment(segmentId);
     const Geometry3D::IEdge3D* edge = geometry->getEdge(segment.edgeId);
     if (!edge)
     {
@@ -195,13 +199,15 @@ bool RCDTPointInserter::trySplitSegment(size_t segmentId)
         return false;
     }
 
-    if (encroachesProtectingBall(context_->getMeshData(), CurveSegmentOperations::computeSplitPoint(segment, *geometry)))
+    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(segment, *geometry);
+    if (encroachesProtectingBall(meshData, splitPoint))
     {
         unrefinableSegments_.insert(segmentId);
         return false;
     }
 
-    return splitSegment(segmentId);
+    splitSegment(segmentId, segment, *edge, splitPoint);
+    return true;
 }
 
 const std::unordered_map<size_t, Point3D>& RCDTPointInserter::getNodePositionMap()
@@ -211,50 +217,47 @@ const std::unordered_map<size_t, Point3D>& RCDTPointInserter::getNodePositionMap
     return *cachedNodePositionMap_;
 }
 
-size_t RCDTPointInserter::insertAndUpdate(const Point3D& point,
-                                          const std::vector<std::string>& geometryIds)
+RCDTPointInserter::Insertion RCDTPointInserter::insertPoint(const Point3D& point,
+                                                            const std::vector<std::string>& geometryIds)
 {
     auto& operations = context_->getOperations();
     const auto& meshData = context_->getMeshData();
-    const auto* geometry = context_->getGeometry();
 
     auto conflictingTets = operations.getQueries().findConflictingTetrahedra(point);
-    const auto interiorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
 
-    const size_t newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTets), geometryIds);
-
-    const MeshConnectivity postConnectivity(meshData);
-    restrictedTriangulation_->updateAfterInsertion(
-        interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
-
-    updateEncroachedSegmentsForNewNode(newNodeId, point);
-
-    return newNodeId;
+    Insertion insertion;
+    insertion.cavityInteriorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
+    insertion.newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTets), geometryIds);
+    return insertion;
 }
 
-bool RCDTPointInserter::splitSegment(size_t segmentId)
+void RCDTPointInserter::finishInsertion(const Insertion& insertion, const Point3D& position)
 {
     const auto& meshData = context_->getMeshData();
-    const auto* geometry = context_->getGeometry();
-    if (!geometry)
-        return false;
 
-    const CurveSegment segment = meshData.getCurveSegmentManager().getSegment(segmentId);
-    const Geometry3D::IEdge3D* edge = geometry->getEdge(segment.edgeId);
-    if (!edge)
-        return false;
+    const MeshConnectivity postConnectivity(meshData);
+    restrictedTriangulation_->updateAfterInsertion(insertion.cavityInteriorFaces,
+                                                   insertion.newNodeId,
+                                                   meshData,
+                                                   postConnectivity,
+                                                   *context_->getGeometry());
 
-    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(segment, *geometry);
+    updateEncroachedSegmentsForNewNode(insertion.newNodeId, position);
+}
 
-    auto& operations = context_->getOperations();
-    auto conflictingTets = operations.getQueries().findConflictingTetrahedra(splitPoint);
-    const auto interiorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
+void RCDTPointInserter::splitSegment(size_t segmentId,
+                                     const CurveSegment& segment,
+                                     const Geometry3D::IEdge3D& edge,
+                                     const Point3D& splitPoint)
+{
+    const Insertion insertion = insertPoint(splitPoint, {segment.edgeId});
 
-    const size_t newNodeId = operations.insertVertexBowyerWatson(splitPoint, std::move(conflictingTets), {segment.edgeId});
-
-    const double tMid =
-        edge->getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
-    const auto [segmentId1, segmentId2] = context_->getMutator().splitCurveSegment(segmentId, newNodeId, tMid);
+    // The curve segments are updated between the insertion and
+    // finishInsertion(): classifyFace() reads them, and invalidating faces
+    // after that reclassification would drop what it had just rebuilt.
+    const double tMid = edge.getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
+    const auto [segmentId1, segmentId2] =
+        context_->getMutator().splitCurveSegment(segmentId, insertion.newNodeId, tMid);
 
     // The original segment is gone; the two it split into inherit its
     // encroachment status only insofar as they're recomputed below -- an
@@ -264,14 +267,9 @@ bool RCDTPointInserter::splitSegment(size_t segmentId)
 
     restrictedTriangulation_->invalidateFacesWithEdge(segment.nodeId1, segment.nodeId2);
 
-    const MeshConnectivity postConnectivity(meshData);
-    restrictedTriangulation_->updateAfterInsertion(interiorFaces, newNodeId, meshData, postConnectivity, *geometry);
-
-    updateEncroachedSegmentsForNewNode(newNodeId, splitPoint);
+    finishInsertion(insertion, splitPoint);
     checkSegmentAgainstAllNodes(segmentId1);
     checkSegmentAgainstAllNodes(segmentId2);
-
-    return true;
 }
 
 void RCDTPointInserter::updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position)

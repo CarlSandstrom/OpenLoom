@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include "Meshing/Connectivity/FaceKey.h"
 
 #include <optional>
 #include <string>
@@ -8,9 +9,15 @@
 #include <unordered_set>
 #include <vector>
 
+namespace Geometry3D
+{
+class IEdge3D;
+} // namespace Geometry3D
+
 namespace Meshing
 {
 
+struct CurveSegment;
 class MeshingContext3D;
 class RestrictedTriangulation;
 
@@ -89,16 +96,29 @@ private:
     /// skips segments ending at the new node, so both give the same answer.
     std::optional<std::unordered_map<size_t, Point3D>> cachedNodePositionMap_;
 
-    /// Inserts point into the Delaunay and updates RestrictedTriangulation.
-    /// Pre-computes cavity interior faces before insertion so the restricted
-    /// triangulation can remove stale faces incrementally.
-    /// Returns the new node ID.
-    size_t insertAndUpdate(const Point3D& point, const std::vector<std::string>& geometryIds);
+    /// A completed Bowyer-Watson insertion, with the cavity interior faces
+    /// captured before it removed them.
+    struct Insertion
+    {
+        size_t newNodeId = 0;
+        std::vector<FaceKey> cavityInteriorFaces;
+    };
 
-    /// Splits a curve segment at its arc-length midpoint.
-    /// Inserts the new node via Bowyer-Watson and updates RestrictedTriangulation.
-    /// Returns true on success.
-    bool splitSegment(size_t segmentId);
+    /// Inserts point into the Delaunay, collecting the cavity's interior faces
+    /// first, since the insertion is what removes them.
+    Insertion insertPoint(const Point3D& point, const std::vector<std::string>& geometryIds);
+
+    /// Reclassifies the restricted faces around the inserted node and records
+    /// the curve segments it encroaches. Kept apart from insertPoint() so
+    /// splitSegment() can update the curve segments in between.
+    void finishInsertion(const Insertion& insertion, const Point3D& position);
+
+    /// Splits segment in two at splitPoint, its arc-length midpoint, inserting
+    /// splitPoint as a node on the curve.
+    void splitSegment(size_t segmentId,
+                      const CurveSegment& segment,
+                      const Geometry3D::IEdge3D& edge,
+                      const Point3D& splitPoint);
 
     /// Adds every curve segment that the new node at position encroaches to
     /// encroachedSegments_, skipping segments that end at newNodeId. Called
