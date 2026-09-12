@@ -62,7 +62,8 @@ src/Meshing/Core/
 │       ├── RCDTTetQualityController.{h,cpp}
 │       ├── RestrictedTriangulation.{h,cpp}
 │       ├── SurfaceProjector.{h,cpp}
-│       └── CurveSegmentOperations.{h,cpp}
+│       ├── CurveSegmentBuilder.{h,cpp}
+│       └── CurveSegmentGeometry.{h,cpp}
 └── ConstraintStructures.h
 ```
 
@@ -117,7 +118,8 @@ src/Meshing/Core/
 - **RCDTTetQualityController**: Tetrahedron circumradius-to-shortest-edge quality controller (`IQualityController3D`) driving priority 3; only constructed when `meshVolume()` is called, so `meshSurface()` never pays for volume-quality refinement it doesn't need
 - **RestrictedTriangulation**: Identifies and incrementally maintains the set of Delaunay faces restricted to input surfaces; a face is restricted to surface S if all three nodes lie on S and the two adjacent tetrahedra are on opposite sides of S
 - **SurfaceProjector**: Computes signed distances and surface-crossing tests; used by `RestrictedTriangulation` to classify tetrahedral faces
-- **CurveSegmentOperations**: Populates `CurveSegmentManager` from topology edges and computes arc-length midpoints for segment splitting
+- **CurveSegmentBuilder**: Populates `CurveSegmentManager` from the topology edges
+- **CurveSegmentGeometry**: Answers where a `CurveSegment` runs on its CAD curve — currently the arc-length midpoint a split uses
 - **SurfaceMesh3DQualitySettings** (`Meshing/Data/3D/`): Unified quality settings for both surface and volume RCDT refinement (circumradius-to-shortest-edge ratios, chord deviation, element limits)
 
 ## Design Patterns

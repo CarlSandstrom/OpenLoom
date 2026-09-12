@@ -6,7 +6,7 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
-#include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
+#include "Meshing/Core/3D/RCDT/CurveSegmentGeometry.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
@@ -199,7 +199,7 @@ bool RCDTPointInserter::trySplitSegment(size_t segmentId)
         return false;
     }
 
-    const Point3D splitPoint = CurveSegmentOperations::computeSplitPoint(segment, *geometry);
+    const Point3D splitPoint = CurveSegmentGeometry::splitPoint(segment, *geometry);
     if (encroachesProtectingBall(meshData, splitPoint))
     {
         unrefinableSegments_.insert(segmentId);

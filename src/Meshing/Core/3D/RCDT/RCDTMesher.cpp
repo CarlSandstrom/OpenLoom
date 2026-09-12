@@ -10,7 +10,7 @@
 #include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronRemover.h"
 #include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
-#include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
+#include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
@@ -87,10 +87,8 @@ void seedAmbientTriangulation(MeshingContext3D& context,
                  meshData.getNodeCount(), meshData.getElementCount());
 
     context.getMutator().setCurveSegmentManager(
-        CurveSegmentOperations::buildCurveSegments(topology, geometry,
-                                                   discretizationResult.edgeIdToPointIndicesMap,
-                                                   delaunayResult.pointIndexToNodeIdMap,
-                                                   discretizationResult.edgeParameters));
+        CurveSegmentBuilder::build(topology, geometry, discretizationResult,
+                                   delaunayResult.pointIndexToNodeIdMap));
 
     spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
                  meshData.getCurveSegmentManager().size());

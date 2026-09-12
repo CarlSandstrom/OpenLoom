@@ -1,20 +1,47 @@
-#include "Meshing/Core/3D/RCDT/CurveSegmentOperations.h"
+#include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 
-#include "Common/Exceptions/GeometryException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
+#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Topology3D.h"
+
+#include <vector>
 
 namespace Meshing
 {
 
-CurveSegmentManager CurveSegmentOperations::buildCurveSegments(
-    const Topology3D::Topology3D& topology,
-    const Geometry3D::GeometryCollection3D& geometry,
-    const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
-    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-    const std::vector<std::vector<double>>& edgeParameters)
+namespace
+{
+
+// The edge parameter of each sampled point, in the order the points run along the
+// edge. The two endpoints take the edge's own parameter bounds; every interior point
+// reads the parameter the discretizer stored for it (one value per interior point).
+std::vector<double> parametersAlongEdge(const std::vector<size_t>& pointIndices,
+                                        const DiscretizationResult3D& discretization,
+                                        double tMin,
+                                        double tMax)
+{
+    std::vector<double> tValues;
+    tValues.reserve(pointIndices.size());
+    for (size_t position = 0; position < pointIndices.size(); ++position)
+    {
+        if (position == 0)
+            tValues.push_back(tMin);
+        else if (position == pointIndices.size() - 1)
+            tValues.push_back(tMax);
+        else
+            tValues.push_back(discretization.edgeParameters[pointIndices[position]][0]);
+    }
+    return tValues;
+}
+
+} // namespace
+
+CurveSegmentManager CurveSegmentBuilder::build(const Topology3D::Topology3D& topology,
+                                               const Geometry3D::GeometryCollection3D& geometry,
+                                               const DiscretizationResult3D& discretization,
+                                               const std::map<size_t, size_t>& pointIndexToNodeIdMap)
 {
     CurveSegmentManager manager;
     const auto& seams = topology.getSeamCollection();
@@ -35,8 +62,8 @@ CurveSegmentManager CurveSegmentOperations::buildCurveSegments(
         if (geometryEdge->isDegenerate())
             continue;
 
-        const auto sequenceIt = edgeIdToPointIndicesMap.find(edgeId);
-        if (sequenceIt == edgeIdToPointIndicesMap.end())
+        const auto sequenceIt = discretization.edgeIdToPointIndicesMap.find(edgeId);
+        if (sequenceIt == discretization.edgeIdToPointIndicesMap.end())
             continue;
 
         const auto& pointIndices = sequenceIt->second;
@@ -44,20 +71,7 @@ CurveSegmentManager CurveSegmentOperations::buildCurveSegments(
             continue;
 
         const auto [tMin, tMax] = geometryEdge->getParameterBounds();
-
-        // t-values: first position uses tMin, last uses tMax, interior positions
-        // read the stored edge parameter (one value per interior point).
-        std::vector<double> tValues;
-        tValues.reserve(pointIndices.size());
-        for (size_t position = 0; position < pointIndices.size(); ++position)
-        {
-            if (position == 0)
-                tValues.push_back(tMin);
-            else if (position == pointIndices.size() - 1)
-                tValues.push_back(tMax);
-            else
-                tValues.push_back(edgeParameters[pointIndices[position]][0]);
-        }
+        const std::vector<double> tValues = parametersAlongEdge(pointIndices, discretization, tMin, tMax);
 
         // One segment per consecutive node pair.
         for (size_t i = 0; i + 1 < pointIndices.size(); ++i)
@@ -77,16 +91,6 @@ CurveSegmentManager CurveSegmentOperations::buildCurveSegments(
         }
     }
     return manager;
-}
-
-Point3D CurveSegmentOperations::computeSplitPoint(const CurveSegment& segment,
-                                                  const Geometry3D::GeometryCollection3D& geometry)
-{
-    const Geometry3D::IEdge3D* edge = geometry.getEdge(segment.edgeId);
-    OPENLOOM_REQUIRE_NOT_NULL(edge, segment.edgeId);
-
-    const double tMid = edge->getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
-    return edge->getPoint(tMid);
 }
 
 } // namespace Meshing

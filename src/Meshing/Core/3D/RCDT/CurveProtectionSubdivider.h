@@ -35,7 +35,7 @@ struct DiscretizationResult3D;
  * computeWeights() and findUnresolvedSegments(), split the first violation
  * at its arc-length midpoint (via the edge's own geometry, so the new point
  * lies exactly on the true curve -- the same technique
- * CurveSegmentOperations::computeSplitPoint() uses for segment splits during
+ * CurveSegmentGeometry::splitPoint() uses for segment splits during
  * refinement), and repeat -- until nothing is left unresolved, or the next
  * split would produce a segment shorter than minimumEdgeLength. That floor
  * is the same "leave it, don't retry forever" termination guarantee

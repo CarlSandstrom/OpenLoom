@@ -385,7 +385,7 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 
 **Reference:** `doc/Flowcharts/3D surface meshing algorithm.md` and `doc/Flowcharts/3D algorithm.md`
 
-**Pipeline (surface):** `BoundaryDiscretizer3D` → `Delaunay3D` → `RestrictedTriangulation` → `CurveSegmentOperations` → `RCDTRefiner` (two-priority loop) → assemble `SurfaceMesh3D`
+**Pipeline (surface):** `BoundaryDiscretizer3D` → `Delaunay3D` → `RestrictedTriangulation` → `CurveSegmentBuilder` → `RCDTRefiner` (two-priority loop) → assemble `SurfaceMesh3D`
 
 **Pipeline (volume):** same, extended with a third priority (skinny tetrahedra) and exterior removal.
 
@@ -398,7 +398,7 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 | R1.1 | `BoundaryDiscretizer3D`: discretize all corners, edges, and surface interiors into `DiscretizationResult3D` | `3D/General/BoundaryDiscretizer3D` | Done |
 | R1.2 | Insert all boundary vertices into an unconstrained `Delaunay3D` via Bowyer-Watson | `3D/Volume/Delaunay3D` | Done |
 | R1.3 | `RestrictedTriangulation::buildFrom`: classify every tetrahedral face; a face is restricted to surface S if all three nodes touch S and adjacent tetrahedra lie on opposite sides (`SurfaceProjector::crossesSurface`) | `3D/RCDT/RestrictedTriangulation` | Done |
-| R1.4 | `CurveSegmentOperations::buildCurveSegments`: register one `CurveSegment` per consecutive node pair on each topology edge | `3D/RCDT/CurveSegmentOperations`, `Meshing/Data/CurveSegmentManager` | Done |
+| R1.4 | `CurveSegmentBuilder::build`: register one `CurveSegment` per consecutive node pair on each topology edge | `3D/RCDT/CurveSegmentBuilder`, `Meshing/Data/CurveSegmentManager` | Done |
 
 ---
 
@@ -531,7 +531,8 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 | `RCDTRefiner.h/.cpp` | Two-priority refinement loop in ambient 3D space |
 | `RestrictedTriangulation.h/.cpp` | Identifies and maintains restricted Delaunay faces |
 | `SurfaceProjector.h/.cpp` | Signed-distance and surface-crossing tests |
-| `CurveSegmentOperations.h/.cpp` | Populates `CurveSegmentManager`; computes arc-length midpoints |
+| `CurveSegmentBuilder.h/.cpp` | Populates `CurveSegmentManager` from the topology edges |
+| `CurveSegmentGeometry.h/.cpp` | Arc-length midpoint of a `CurveSegment` on its CAD curve |
 | `RCDTQualitySettings.h` | Quality criteria: circumradius/edge ratio and chord deviation |
 
 ### Topology

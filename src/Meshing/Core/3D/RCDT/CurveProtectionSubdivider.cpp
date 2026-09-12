@@ -62,7 +62,7 @@ bool trySplit(const UnresolvedProtectionSegment& violation,
         return false;
     const size_t k = static_cast<size_t>(positionIt - chain.begin());
 
-    // Same t-value convention CurveSegmentOperations::buildCurveSegments() uses: a chain's first and
+    // Same t-value convention CurveSegmentBuilder::build() uses: a chain's first and
     // last positions are the edge's own parameter bounds (its corners), any
     // interior position reads its own stored edge parameter.
     const auto [tMin, tMax] = edge->getParameterBounds();
