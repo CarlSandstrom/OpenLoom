@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 
 #include <unordered_set>
 
@@ -32,7 +31,6 @@ private:
     const MeshingContext3D* context_;
     const RestrictedTriangulation* restrictedTriangulation_;
     double minimumEdgeLength_;
-    SurfaceProjector surfaceProjector_;
 
     /// Triangles given up on (see RCDTRefiner's class doc).
     std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;

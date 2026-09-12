@@ -5,6 +5,7 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 
@@ -65,7 +66,7 @@ bool RestrictedTriangleRefiner::refineNext(RCDTPointInserter& pointInserter)
         std::optional<Point3D> candidateInsertionPoint =
             restrictedTriangulation_->computeInsertionPoint(badTriangle.face, meshData, connectivity, *surface);
         if (!candidateInsertionPoint)
-            candidateInsertionPoint = surfaceProjector_.projectToSurface(badTriangle.circumcircleCenter, *surface);
+            candidateInsertionPoint = SurfaceProjector::projectToSurface(badTriangle.circumcircleCenter, *surface);
         if (!candidateInsertionPoint)
         {
             unrefinableTriangles_.insert(badTriangle.face);

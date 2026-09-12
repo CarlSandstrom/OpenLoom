@@ -95,7 +95,7 @@ struct SampleGrid
 };
 
 // Rough characteristic size of the surface's parameter-bounds footprint.
-// Reuses the same 4-corner-diameter idea as SurfaceProjector::computeSurfaceDiameter.
+// Reuses the same 4-corner-diameter idea as computeSurfaceDiameter() in SurfaceProjector.cpp.
 double estimateDiameter(const Geometry3D::ISurface3D& surface, const Common::BoundingBox2D& bounds)
 {
     const std::array<Point3D, 4> corners = {

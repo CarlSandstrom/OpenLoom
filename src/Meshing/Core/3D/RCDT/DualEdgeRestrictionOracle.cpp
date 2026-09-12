@@ -99,8 +99,7 @@ std::optional<Point3D> DualEdgeRestrictionOracle::insertionPointFor(
     const auto endpoints = computeDualEdgeEndpoints(face, meshData, connectivity);
     if (!endpoints)
         return std::nullopt;
-    const SurfaceProjector surfaceProjector;
-    return surfaceProjector.findSurfaceCrossing(endpoints->first, endpoints->second, surface);
+    return SurfaceProjector::findSurfaceCrossing(endpoints->first, endpoints->second, surface);
 }
 
 FaceClassification DualEdgeRestrictionOracle::classify(const FaceKey& face,

@@ -92,7 +92,6 @@ protected:
     static constexpr double HEIGHT = 2.0;
 
     MockCylinderSurface cylinder{RADIUS, HEIGHT};
-    SurfaceProjector projector;
 };
 
 // ============================================================================
@@ -103,21 +102,21 @@ TEST_F(SurfaceProjectorTest, SignedDistancePositiveOutside)
 {
     // Point at r = 1.5, well outside the cylinder
     const Point3D point(1.5, 0.0, 1.0);
-    EXPECT_NEAR(projector.signedDistance(point, cylinder), 0.5, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), 0.5, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceNegativeInside)
 {
     // Point at r = 0.5, inside the cylinder
     const Point3D point(0.5, 0.0, 1.0);
-    EXPECT_NEAR(projector.signedDistance(point, cylinder), -0.5, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), -0.5, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceZeroOnSurface)
 {
     // Point on the cylinder surface
     const Point3D point(RADIUS, 0.0, 1.0);
-    EXPECT_NEAR(projector.signedDistance(point, cylinder), 0.0, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), 0.0, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
@@ -131,8 +130,8 @@ TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
     const Point3D insideNearSeam(
         0.5 * std::cos(angleNearSeam), 0.5 * std::sin(angleNearSeam), 1.0);
 
-    EXPECT_GT(projector.signedDistance(outsideNearSeam, cylinder), 0.0);
-    EXPECT_LT(projector.signedDistance(insideNearSeam, cylinder), 0.0);
+    EXPECT_GT(SurfaceProjector::signedDistance(outsideNearSeam, cylinder), 0.0);
+    EXPECT_LT(SurfaceProjector::signedDistance(insideNearSeam, cylinder), 0.0);
 }
 
 // ============================================================================
@@ -145,7 +144,7 @@ TEST_F(SurfaceProjectorTest, ProjectToSurface_RoundTrip)
     const double angle = 0.7;
     const Point3D onSurface(RADIUS * std::cos(angle), RADIUS * std::sin(angle), 1.2);
 
-    const auto result = projector.projectToSurface(onSurface, cylinder);
+    const auto result = SurfaceProjector::projectToSurface(onSurface, cylinder);
 
     ASSERT_TRUE(result.has_value());
     EXPECT_NEAR(result->x(), onSurface.x(), 1e-10);
@@ -159,7 +158,7 @@ TEST_F(SurfaceProjectorTest, ProjectToSurface_FarPoint_ProjectsCorrectly)
     // The gap guard was removed (OPE-150); projectPointToUnderlyingSurface handles
     // arbitrary distances.
     const Point3D farPoint(6.0, 0.0, 1.0);
-    const auto result = projector.projectToSurface(farPoint, cylinder);
+    const auto result = SurfaceProjector::projectToSurface(farPoint, cylinder);
 
     ASSERT_TRUE(result.has_value());
     EXPECT_NEAR(result->x(), RADIUS, 1e-10);

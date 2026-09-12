@@ -81,8 +81,7 @@ SurfaceNeighborhood buildNeighborhood(const SurfaceMesh3D& mesh)
 // claims it, or when the projection fails.
 std::vector<Point3D> proposeSmoothedPositions(const Geometry3D::GeometryCollection3D& geometry,
                                               const SurfaceMesh3D& mesh,
-                                              const SurfaceNeighborhood& neighborhood,
-                                              const SurfaceProjector& projector)
+                                              const SurfaceNeighborhood& neighborhood)
 {
     std::vector<Point3D> proposed = mesh.nodes;
 
@@ -104,7 +103,7 @@ std::vector<Point3D> proposeSmoothedPositions(const Geometry3D::GeometryCollecti
             centroid += mesh.nodes[neighborId];
         centroid /= static_cast<double>(neighbors.size());
 
-        const auto projected = projector.projectToSurface(centroid, *surface);
+        const auto projected = SurfaceProjector::projectToSurface(centroid, *surface);
         if (projected)
             proposed[nodeId] = *projected;
     }
@@ -124,14 +123,13 @@ void SurfaceMeshSmoother::smooth(const Geometry3D::GeometryCollection3D& geometr
 
     const SurfaceNeighborhood neighborhood = buildNeighborhood(mesh);
     const TetrahedronInversionGuard inversionGuard(tetrahedra);
-    const SurfaceProjector projector;
 
     // Each iteration is a proposal the guard then vetoes moves out of: the
     // surface half decides where nodes want to go, the volume half decides
     // which of those moves the tetrahedra can live with.
     for (size_t iteration = 0; iteration < iterations; ++iteration)
     {
-        std::vector<Point3D> proposed = proposeSmoothedPositions(geometry, mesh, neighborhood, projector);
+        std::vector<Point3D> proposed = proposeSmoothedPositions(geometry, mesh, neighborhood);
         inversionGuard.revertInvertingMoves(mesh.nodes, proposed);
         mesh.nodes = std::move(proposed);
     }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <cstddef>
@@ -48,7 +47,6 @@ private:
     const MeshData3D* meshData_;
     const Geometry3D::GeometryCollection3D* geometry_;
     SurfaceMesh3DQualitySettings settings_;
-    SurfaceProjector surfaceProjector_;
 };
 
 } // namespace Meshing

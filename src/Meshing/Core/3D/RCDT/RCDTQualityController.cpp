@@ -4,6 +4,7 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/ElementQuality3D.h"
+#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 
 #include <cmath>
@@ -50,7 +51,7 @@ bool RCDTQualityController::isTriangleAcceptable(const TriangleElement& triangle
     if (settings_.chordDeviationTolerance > 0.0)
     {
         const Geometry3D::ISurface3D* surface = geometry_->getSurface(surfaceId);
-        if (surface && std::abs(surfaceProjector_.signedDistance(circumcircle->center, *surface)) >
+        if (surface && std::abs(SurfaceProjector::signedDistance(circumcircle->center, *surface)) >
                            settings_.chordDeviationTolerance)
             return false;
     }

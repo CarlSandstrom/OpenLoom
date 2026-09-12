@@ -5,6 +5,7 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 
@@ -74,7 +75,7 @@ bool NonManifoldEdgeRefiner::refineNext(RCDTPointInserter& pointInserter)
         }
 
         const Point3D midpoint = 0.5 * (firstEndpoint->second + secondEndpoint->second);
-        const auto projectedMidpoint = surfaceProjector_.projectToSurface(midpoint, *surface);
+        const auto projectedMidpoint = SurfaceProjector::projectToSurface(midpoint, *surface);
         if (!projectedMidpoint)
         {
             unrefinableNonManifoldEdges_.insert(defect.edge);
