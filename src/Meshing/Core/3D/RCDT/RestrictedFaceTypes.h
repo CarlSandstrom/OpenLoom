@@ -35,6 +35,41 @@ using BadRestrictedFaceMap = std::unordered_map<FaceKey, BadRestrictedTriangle, 
 /// RestrictedFaceAudit::findNonManifoldEdges().
 using EdgeToAdjacentSurfacesMap = std::unordered_map<std::string, std::vector<std::string>>;
 
+/// What a restriction oracle concluded about one face.
+///
+/// The three states exist because "no surface" and "no answer" are different
+/// outcomes with opposite consequences, and a single optional<surfaceId>
+/// spelled them the same way: the first is correct, the second is a hole in
+/// the surface mesh. Telling them apart is what lets a classification failure
+/// be counted rather than silently becoming a missing face.
+enum class FaceRestriction
+{
+    /// No surface is shared by all three nodes. The face is interior to the
+    /// tetrahedralization and nothing is missing.
+    NotRestricted,
+
+    /// On the model boundary, and the surface it belongs to is known.
+    Restricted,
+
+    /// Candidate surfaces existed, but none could be confirmed. This is where
+    /// the residual holes come from -- a face that plausibly belongs on the
+    /// boundary and was left out of the set anyway.
+    ///
+    /// Note this is an UPPER BOUND on the real defects, not a count of them:
+    /// plenty of genuinely interior faces have three nodes sharing a surface
+    /// (see RestrictedFaceAudit's same-curve chord faces for one whole family
+    /// of them), so a face landing here is suspicious, not condemned.
+    Unconfirmed
+};
+
+struct FaceClassification
+{
+    FaceRestriction restriction = FaceRestriction::NotRestricted;
+
+    /// Set only when restriction is Restricted; empty otherwise.
+    std::string surfaceId;
+};
+
 /// How an edge's restricted-face coverage departs from what the CAD
 /// topology calls for -- see RestrictedFaceAudit::findNonManifoldEdges() for
 /// the invariant itself.
