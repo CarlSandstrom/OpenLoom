@@ -1,14 +1,12 @@
 #pragma once
 
-#include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/RCDT/NonManifoldEdgeRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
-#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
+#include "Meshing/Core/3D/RCDT/RestrictedTriangleRefiner.h"
 #include "Meshing/Core/3D/RCDT/TetrahedronQualityRefiner.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <optional>
-#include <unordered_set>
 
 namespace Meshing
 {
@@ -23,8 +21,8 @@ class RCDTTetQualityController;
 /// has work:
 ///
 ///   1. Split an encroached curve segment (RCDTPointInserter).
-///   2. Insert a point for a bad restricted triangle (circumradius/edge or
-///      chord deviation).
+///   2. Insert a point for a bad restricted triangle -- circumradius/edge or
+///      chord deviation (RestrictedTriangleRefiner).
 ///   3. Insert the circumcenter of a skinny tetrahedron -- only when a
 ///      RCDTTetQualityController was supplied, i.e. when meshing a volume
 ///      (TetrahedronQualityRefiner).
@@ -59,20 +57,14 @@ public:
 
 private:
     MeshingContext3D* context_;
-    RestrictedTriangulation* restrictedTriangulation_;
     SurfaceMesh3DQualitySettings settings_;
-    SurfaceProjector surfaceProjector_;
 
-    /// Candidates priority 2 has given up on (see the class doc).
-    std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
-
-    /// Size floor (see MinimumEdgeLengthEstimator). Bounds how short a segment,
-    /// restricted triangle or non-manifold edge may get before it is left
-    /// unrefined, how close an insertion may land to an existing node, and how
-    /// large a tetrahedron's circumradius may be.
+    /// Size floor (see MinimumEdgeLengthEstimator), handed to the inserter and
+    /// to each priority, which document what they bound by it.
     double minimumEdgeLength_;
 
     RCDTPointInserter pointInserter_;
+    RestrictedTriangleRefiner restrictedTriangleRefiner_;
 
     /// Present only when a RCDTTetQualityController was supplied.
     std::optional<TetrahedronQualityRefiner> tetrahedronQualityRefiner_;
@@ -80,10 +72,6 @@ private:
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
-
-    /// Priority 3 (when present), then priority 4 if priority 3 found nothing
-    /// to do.
-    bool refineRemainingPriorities();
 };
 
 } // namespace Meshing
