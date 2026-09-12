@@ -22,11 +22,6 @@ RCDTQualityController::RCDTQualityController(const MeshData3D& meshData,
 {
 }
 
-bool RCDTQualityController::isMeshAcceptable(std::size_t restrictedFaceCount) const
-{
-    return restrictedFaceCount >= settings_.elementLimit;
-}
-
 bool RCDTQualityController::isTriangleAcceptable(const TriangleElement& triangle,
                                                  const std::string& surfaceId) const
 {
@@ -37,16 +32,21 @@ bool RCDTQualityController::isTriangleAcceptable(const TriangleElement& triangle
     if (!circumcircle)
         return true;
 
+    // A zero-length edge means two nodes coincide. Neither shape criterion can
+    // be refined out of such a triangle, so both are skipped and it is treated
+    // as acceptable rather than perpetually bad. The chord-deviation criterion
+    // below still applies: it measures where the circumcenter sits relative to
+    // the CAD surface, not the triangle's shape.
     const double shortestEdge = elementQuality.getShortestEdgeLength(triangle);
+    if (shortestEdge > 0.0)
+    {
+        if (circumcircle->radius / shortestEdge > settings_.circumradiusToShortestEdgeRatio)
+            return false;
 
-    // A zero-length edge means two nodes coincide — refining such a triangle
-    // cannot help, so it is treated as acceptable rather than perpetually bad.
-    if (shortestEdge > 0.0 && circumcircle->radius / shortestEdge > settings_.circumradiusToShortestEdgeRatio)
-        return false;
-
-    if (shortestEdge > 0.0 &&
-        elementQuality.getMinAngle(triangle) < settings_.minAngleDegrees * (std::numbers::pi / 180.0))
-        return false;
+        const double minAngleRadians = settings_.minAngleDegrees * (std::numbers::pi / 180.0);
+        if (elementQuality.getMinAngle(triangle) < minAngleRadians)
+            return false;
+    }
 
     if (settings_.chordDeviationTolerance > 0.0)
     {
