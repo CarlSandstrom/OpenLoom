@@ -79,7 +79,8 @@ centred at the midpoint).
 - **R2.1.3** Pre-compute the cavity interior faces (faces shared by exactly two
   tetrahedra in the Bowyer-Watson cavity) before insertion, so `RestrictedTriangulation`
   can remove stale restricted faces incrementally.
-- **R2.1.4** Insert the split point via Bowyer-Watson (`RCDTRefiner::insertAndUpdate`):
+- **R2.1.4** Insert the split point via Bowyer-Watson (`RCDTPointInserter::insertPoint`,
+  then `finishInsertion`):
   - Run Bowyer-Watson; collect the new tetrahedra adjacent to the new node.
   - Remove the cavity interior faces from `RestrictedTriangulation`.
   - Re-classify all faces of the new tetrahedra: for each face adjacent to the new node,
