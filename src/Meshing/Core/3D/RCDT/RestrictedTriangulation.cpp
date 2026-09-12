@@ -7,6 +7,7 @@
 #include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceAudit.h"
+#include "Meshing/Core/3D/RCDT/SurfaceCandidates.h"
 #include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -76,18 +77,15 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
     settings_ = settings;
     restrictedFaces_.clear();
     badFaces_.clear();
-    surfaceIds_.clear();
-    edgeToAdjacentSurfaces_.clear();
     surfaceTessellations_.clear();
     volumeIds_.clear();
     periodicSurfaceIds_.clear();
 
-    for (const auto& surfaceId : topology.getAllSurfaceIds())
-        surfaceIds_.insert(surfaceId);
+    surfaceCandidates_ = SurfaceCandidates(topology);
 
     volumeIds_ = topology.getAllVolumeIds();
 
-    for (const auto& surfaceId : surfaceIds_)
+    for (const auto& surfaceId : surfaceCandidates_.getSurfaceIds())
     {
         for (const auto& edgeId : topology.getSurface(surfaceId).getBoundaryEdgeIds())
         {
@@ -99,18 +97,8 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
         }
     }
 
-    for (const auto& edgeId : topology.getAllEdgeIds())
-        edgeToAdjacentSurfaces_[edgeId] = topology.getEdge(edgeId).getAdjacentSurfaceIds();
-
-    for (const auto& cornerId : topology.getAllCornerIds())
-    {
-        const auto& connectedSurfaces = topology.getCorner(cornerId).getConnectedSurfaceIds();
-        cornerToAdjacentSurfaces_[cornerId] =
-            std::vector<std::string>(connectedSurfaces.begin(), connectedSurfaces.end());
-    }
-
     const double targetCellSize = minimumEdgeLength * TESSELLATION_CELL_SIZE_FACTOR;
-    for (const auto& surfaceId : surfaceIds_)
+    for (const auto& surfaceId : surfaceCandidates_.getSurfaceIds())
     {
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
         if (!surface)
@@ -250,7 +238,7 @@ const RestrictedFaceMap& RestrictedTriangulation::getRestrictedFaces() const
 
 DefectiveFaceRemovalSummary RestrictedTriangulation::removeDefectiveFaces(const MeshData3D& meshData)
 {
-    return RestrictedFaceAudit::removeDefectiveFaces(restrictedFaces_, badFaces_, edgeToAdjacentSurfaces_, meshData);
+    return RestrictedFaceAudit::removeDefectiveFaces(restrictedFaces_, badFaces_, surfaceCandidates_.getEdgeToAdjacentSurfaces(), meshData);
 }
 
 std::optional<Point3D> RestrictedTriangulation::computeInsertionPoint(
@@ -269,7 +257,7 @@ std::optional<Point3D> RestrictedTriangulation::computeInsertionPoint(
 std::vector<NonManifoldRestrictedEdge> RestrictedTriangulation::findNonManifoldEdges(
     const MeshData3D& meshData) const
 {
-    return RestrictedFaceAudit::findNonManifoldEdges(restrictedFaces_, edgeToAdjacentSurfaces_, meshData);
+    return RestrictedFaceAudit::findNonManifoldEdges(restrictedFaces_, surfaceCandidates_.getEdgeToAdjacentSurfaces(), meshData);
 }
 
 std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& face,
@@ -287,7 +275,7 @@ std::optional<std::string> RestrictedTriangulation::classifyFace(const FaceKey& 
         if (!meshData.getNode(nodeId))
             return std::nullopt;
 
-        const auto nodeSurfaces = effectiveSurfaceIds(meshData.getGeometryIds(nodeId));
+        const auto nodeSurfaces = surfaceCandidates_.effectiveSurfaceIds(meshData.getGeometryIds(nodeId));
         if (firstNode)
         {
             candidates = nodeSurfaces;
@@ -685,36 +673,6 @@ bool RestrictedTriangulation::nodeWithinTrimmedBoundary(const std::string& surfa
     const auto uv = surface.projectPointToUnderlyingSurface(coordinates);
     const bool within = uv.has_value() && surface.isUVWithinTrimmedBoundary(uv->x(), uv->y());
     return cacheForSurface.emplace(nodeId, within).first->second;
-}
-
-std::unordered_set<std::string> RestrictedTriangulation::effectiveSurfaceIds(
-    const std::vector<std::string>& geometryIds) const
-{
-    std::unordered_set<std::string> result;
-    for (const auto& id : geometryIds)
-    {
-        if (surfaceIds_.count(id))
-        {
-            result.insert(id);
-        }
-        else
-        {
-            const auto edgeIt = edgeToAdjacentSurfaces_.find(id);
-            if (edgeIt != edgeToAdjacentSurfaces_.end())
-            {
-                for (const auto& surfaceId : edgeIt->second)
-                    result.insert(surfaceId);
-            }
-            else
-            {
-                const auto cornerIt = cornerToAdjacentSurfaces_.find(id);
-                if (cornerIt != cornerToAdjacentSurfaces_.end())
-                    for (const auto& surfaceId : cornerIt->second)
-                        result.insert(surfaceId);
-            }
-        }
-    }
-    return result;
 }
 
 } // namespace Meshing

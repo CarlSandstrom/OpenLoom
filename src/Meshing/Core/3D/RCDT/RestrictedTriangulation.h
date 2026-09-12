@@ -4,6 +4,7 @@
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Connectivity/TetrahedronKey.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
+#include "Meshing/Core/3D/RCDT/SurfaceCandidates.h"
 #include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
@@ -157,11 +158,6 @@ private:
                                             const MeshConnectivity& connectivity,
                                             const Geometry3D::GeometryCollection3D& geometry) const;
 
-    /// Resolves a node's geometryIds to the set of surface IDs it touches:
-    /// surface IDs pass through; edge IDs expand to adjacent surface IDs;
-    /// corner IDs expand to connected surface IDs.
-    std::unordered_set<std::string> effectiveSurfaceIds(const std::vector<std::string>& geometryIds) const;
-
     /// Whether every vertex of face lies within surface's trimmed boundary.
     /// A face whose vertices sit on the crease between two surfaces can have
     /// effectiveSurfaceIds() list both as candidates, and a dual-edge
@@ -308,9 +304,7 @@ private:
     SurfaceMesh3DQualitySettings settings_;
 
     // Built from topology in buildFrom(); reused by classifyFace() thereafter.
-    std::unordered_set<std::string> surfaceIds_;
-    EdgeToAdjacentSurfacesMap edgeToAdjacentSurfaces_;
-    std::unordered_map<std::string, std::vector<std::string>> cornerToAdjacentSurfaces_;
+    SurfaceCandidates surfaceCandidates_;
     std::vector<std::string> volumeIds_;
 
     // Surfaces with a seam (periodic in at least one direction -- cylinder,
