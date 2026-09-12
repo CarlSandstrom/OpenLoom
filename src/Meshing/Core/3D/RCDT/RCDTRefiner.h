@@ -51,7 +51,7 @@ public:
                 RestrictedTriangulation& restrictedTriangulation,
                 const SurfaceMesh3DQualitySettings& settings,
                 double minimumEdgeLength,
-                const RCDTTetQualityController* tetQualityController = nullptr);
+                const RCDTTetQualityController* tetrahedronQualityController = nullptr);
 
     void refine();
 

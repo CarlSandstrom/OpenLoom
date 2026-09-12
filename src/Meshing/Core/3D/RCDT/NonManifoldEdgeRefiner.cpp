@@ -36,16 +36,16 @@ bool NonManifoldEdgeRefiner::refineNext(RCDTPointInserter& pointInserter)
         if (unrefinableNonManifoldEdges_.count(defect.edge))
             continue;
 
-        const auto it1 = nodePositionMap.find(defect.edge.nodeIds[0]);
-        const auto it2 = nodePositionMap.find(defect.edge.nodeIds[1]);
-        if (it1 == nodePositionMap.end() || it2 == nodePositionMap.end())
+        const auto firstEndpoint = nodePositionMap.find(defect.edge.nodeIds[0]);
+        const auto secondEndpoint = nodePositionMap.find(defect.edge.nodeIds[1]);
+        if (firstEndpoint == nodePositionMap.end() || secondEndpoint == nodePositionMap.end())
         {
             unrefinableNonManifoldEdges_.insert(defect.edge);
             continue;
         }
 
         // Size floor, same reasoning as the other priorities.
-        const double length = (it1->second - it2->second).norm();
+        const double length = (firstEndpoint->second - secondEndpoint->second).norm();
         if (length <= minimumEdgeLength_)
         {
             unrefinableNonManifoldEdges_.insert(defect.edge);
@@ -73,16 +73,16 @@ bool NonManifoldEdgeRefiner::refineNext(RCDTPointInserter& pointInserter)
             continue;
         }
 
-        const Point3D midpoint = 0.5 * (it1->second + it2->second);
-        const auto projectedOpt = surfaceProjector_.projectToSurface(midpoint, *surface);
-        if (!projectedOpt)
+        const Point3D midpoint = 0.5 * (firstEndpoint->second + secondEndpoint->second);
+        const auto projectedMidpoint = surfaceProjector_.projectToSurface(midpoint, *surface);
+        if (!projectedMidpoint)
         {
             unrefinableNonManifoldEdges_.insert(defect.edge);
             continue;
         }
-        const Point3D& projected = *projectedOpt;
+        const Point3D& insertionPoint = *projectedMidpoint;
 
-        if (pointInserter.tryInsert(projected, {defect.surfaceId}))
+        if (pointInserter.tryInsert(insertionPoint, {defect.surfaceId}))
             return true;
         unrefinableNonManifoldEdges_.insert(defect.edge);
     }

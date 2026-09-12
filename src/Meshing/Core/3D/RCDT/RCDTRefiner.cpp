@@ -16,7 +16,7 @@ RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
                          RestrictedTriangulation& restrictedTriangulation,
                          const SurfaceMesh3DQualitySettings& settings,
                          double minimumEdgeLength,
-                         const RCDTTetQualityController* tetQualityController) :
+                         const RCDTTetQualityController* tetrahedronQualityController) :
     context_(&context),
     settings_(settings),
     minimumEdgeLength_(minimumEdgeLength),
@@ -24,10 +24,10 @@ RCDTRefiner::RCDTRefiner(MeshingContext3D& context,
     restrictedTriangleRefiner_(context, restrictedTriangulation, minimumEdgeLength),
     nonManifoldEdgeRefiner_(context, restrictedTriangulation, minimumEdgeLength)
 {
-    if (tetQualityController)
+    if (tetrahedronQualityController)
         tetrahedronQualityRefiner_.emplace(context,
                                            restrictedTriangulation,
-                                           *tetQualityController,
+                                           *tetrahedronQualityController,
                                            settings.tetCircumradiusToShortestEdgeRatio,
                                            minimumEdgeLength);
 }
@@ -47,16 +47,16 @@ void RCDTRefiner::refine()
     exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
     ++iteration;
 
-    const size_t maxIterations = settings_.maxRefinementIterations;
-    while (iteration < maxIterations)
+    const size_t maximumIterations = settings_.maxRefinementIterations;
+    while (iteration < maximumIterations)
     {
         if (!refineStep()) break;
         exportMesh3D(context_->getMeshData(), "rcdt_refinement_step", iteration);
         ++iteration;
     }
 
-    if (iteration >= maxIterations)
-        spdlog::warn("RCDTRefiner: reached iteration cap ({})", maxIterations);
+    if (iteration >= maximumIterations)
+        spdlog::warn("RCDTRefiner: reached iteration cap ({})", maximumIterations);
 
     spdlog::info("RCDTRefiner: done after {} iterations — {} nodes",
                  iteration,

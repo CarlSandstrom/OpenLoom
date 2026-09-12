@@ -85,7 +85,7 @@ private:
 
     /// Curve segments currently encroached by some node. Seeded once by
     /// seedEncroachedSegments(), then kept current by each insertion (see
-    /// updateEncroachedSegmentsForNewNode() and splitSegment()) rather than
+    /// markSegmentsEncroachedBy() and splitSegment()) rather than
     /// rescanned every step, which cost O(nodes x segments) per step.
     /// Priority 1 iterates it, so its iteration order shapes the output.
     std::unordered_set<size_t> encroachedSegments_;
@@ -123,14 +123,14 @@ private:
     /// Adds every curve segment that the new node at position encroaches to
     /// encroachedSegments_, skipping segments that end at newNodeId. Called
     /// after every insertion.
-    void updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position);
+    void markSegmentsEncroachedBy(size_t newNodeId, const Point3D& position);
 
     /// Checks segmentId against every current node and adds it to
     /// encroachedSegments_ if any (other than its own endpoints) encroaches
     /// it. Called for each of the two new segments a split produces, since
     /// an existing, unrelated node can already sit inside a freshly-split
     /// segment's (smaller) diametral sphere.
-    void checkSegmentAgainstAllNodes(size_t segmentId);
+    void markSegmentIfEncroached(size_t segmentId);
 };
 
 } // namespace Meshing

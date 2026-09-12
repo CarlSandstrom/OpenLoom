@@ -36,37 +36,37 @@ bool TetrahedronQualityRefiner::refineNext(RCDTPointInserter& pointInserter)
     // corners, and those filling holes in the domain. Neither is output, and
     // both are skinny by nature, so refining them would spend iterations on
     // meaningless circumcenters. AmbientTetrahedronClassifier finds both.
-    const auto ambientTetIds = AmbientTetrahedronClassifier::classify(meshData, *restrictedTriangulation_);
+    const auto ambientTetrahedronIds = AmbientTetrahedronClassifier::classify(meshData, *restrictedTriangulation_);
 
-    const auto skinnyTetIds =
+    const auto skinnyTetrahedronIds =
         context_->getOperations().getQueries().findSkinnyTetrahedra(circumradiusToShortestEdgeRatio_);
 
     const ElementGeometry3D elementGeometry(meshData);
 
-    for (const size_t tetId : skinnyTetIds)
+    for (const size_t tetrahedronId : skinnyTetrahedronIds)
     {
-        if (unrefinableTetrahedra_.count(tetId))
+        if (unrefinableTetrahedra_.count(tetrahedronId))
             continue;
 
-        const auto* element = meshData.getElement(tetId);
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-        if (!tet)
+        const auto* element = meshData.getElement(tetrahedronId);
+        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element);
+        if (!tetrahedron)
             continue;
 
-        if (ambientTetIds.contains(tetId))
+        if (ambientTetrahedronIds.contains(tetrahedronId))
             continue;
 
         // Size floor: a degenerate tetrahedron is left unrefined.
-        if (tetrahedronQualityController_->isTetrahedronTooSmall(*tet))
+        if (tetrahedronQualityController_->isTetrahedronTooSmall(*tetrahedron))
         {
-            unrefinableTetrahedra_.insert(tetId);
+            unrefinableTetrahedra_.insert(tetrahedronId);
             continue;
         }
 
-        const auto circumsphere = elementGeometry.computeCircumscribingSphere(*tet);
+        const auto circumsphere = elementGeometry.computeCircumscribingSphere(*tetrahedron);
         if (!circumsphere)
         {
-            unrefinableTetrahedra_.insert(tetId);
+            unrefinableTetrahedra_.insert(tetrahedronId);
             continue;
         }
 
@@ -76,10 +76,10 @@ bool TetrahedronQualityRefiner::refineNext(RCDTPointInserter& pointInserter)
         // refinement never converges. The bound uses minimumEdgeLength_, the
         // mesh's own scale, rather than this tetrahedron's possibly tiny size.
         // This is the sliver limitation in the class doc.
-        constexpr double MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO = 100.0;
-        if (circumsphere->radius > MAX_CIRCUMRADIUS_TO_MIN_EDGE_LENGTH_RATIO * minimumEdgeLength_)
+        constexpr double MAXIMUM_CIRCUMRADIUS_TO_MINIMUM_EDGE_LENGTH_RATIO = 100.0;
+        if (circumsphere->radius > MAXIMUM_CIRCUMRADIUS_TO_MINIMUM_EDGE_LENGTH_RATIO * minimumEdgeLength_)
         {
-            unrefinableTetrahedra_.insert(tetId);
+            unrefinableTetrahedra_.insert(tetrahedronId);
             continue;
         }
 
@@ -89,7 +89,7 @@ bool TetrahedronQualityRefiner::refineNext(RCDTPointInserter& pointInserter)
         // convention for a non-boundary node.
         if (pointInserter.tryInsert(circumcenter, {}))
             return true;
-        unrefinableTetrahedra_.insert(tetId);
+        unrefinableTetrahedra_.insert(tetrahedronId);
     }
 
     return false;

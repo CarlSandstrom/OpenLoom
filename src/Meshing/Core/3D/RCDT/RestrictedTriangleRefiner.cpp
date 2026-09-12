@@ -32,24 +32,24 @@ bool RestrictedTriangleRefiner::refineNext(RCDTPointInserter& pointInserter)
     const MeshConnectivity connectivity(meshData);
     const auto badTriangles = restrictedTriangulation_->getBadTriangles();
 
-    for (const auto& bad : badTriangles)
+    for (const auto& badTriangle : badTriangles)
     {
-        if (unrefinableTriangles_.count(bad.face))
+        if (unrefinableTriangles_.count(badTriangle.face))
             continue;
 
         // Size floor (CGAL/Boissonnat-Oudot style): a triangle at or below
         // minimumEdgeLength_ is left as-is even if still quality-bad. Checked
         // first because it needs no surface work.
-        if (bad.shortestEdge <= minimumEdgeLength_)
+        if (badTriangle.shortestEdge <= minimumEdgeLength_)
         {
-            unrefinableTriangles_.insert(bad.face);
+            unrefinableTriangles_.insert(badTriangle.face);
             continue;
         }
 
-        const Geometry3D::ISurface3D* surface = geometry->getSurface(bad.surfaceId);
+        const Geometry3D::ISurface3D* surface = geometry->getSurface(badTriangle.surfaceId);
         if (!surface)
         {
-            unrefinableTriangles_.insert(bad.face);
+            unrefinableTriangles_.insert(badTriangle.face);
             continue;
         }
 
@@ -62,21 +62,21 @@ bool RestrictedTriangleRefiner::refineNext(RCDTPointInserter& pointInserter)
         // measured worse: most fallback points are usable. Computed for this
         // one triangle rather than for every bad triangle, since it bisects
         // with OCC calls.
-        std::optional<Point3D> projectedOpt =
-            restrictedTriangulation_->computeInsertionPoint(bad.face, meshData, connectivity, *surface);
-        if (!projectedOpt)
-            projectedOpt = surfaceProjector_.projectToSurface(bad.circumcircleCenter, *surface);
-        if (!projectedOpt)
+        std::optional<Point3D> candidateInsertionPoint =
+            restrictedTriangulation_->computeInsertionPoint(badTriangle.face, meshData, connectivity, *surface);
+        if (!candidateInsertionPoint)
+            candidateInsertionPoint = surfaceProjector_.projectToSurface(badTriangle.circumcircleCenter, *surface);
+        if (!candidateInsertionPoint)
         {
-            unrefinableTriangles_.insert(bad.face);
+            unrefinableTriangles_.insert(badTriangle.face);
             continue;
         }
 
-        const Point3D& projected = *projectedOpt;
+        const Point3D& insertionPoint = *candidateInsertionPoint;
 
-        if (pointInserter.tryInsert(projected, {bad.surfaceId}))
+        if (pointInserter.tryInsert(insertionPoint, {badTriangle.surfaceId}))
             return true;
-        unrefinableTriangles_.insert(bad.face);
+        unrefinableTriangles_.insert(badTriangle.face);
     }
 
     return false;

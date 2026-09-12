@@ -24,10 +24,10 @@ namespace
 /// Builds a node-ID → position lookup from the current mesh.
 std::unordered_map<size_t, Point3D> buildNodePositionMap(const MeshData3D& meshData)
 {
-    std::unordered_map<size_t, Point3D> positionMap;
+    std::unordered_map<size_t, Point3D> nodePositions;
     for (const auto& [nodeId, node] : meshData.getNodes())
-        positionMap.emplace(nodeId, node->getCoordinates());
-    return positionMap;
+        nodePositions.emplace(nodeId, node->getCoordinates());
+    return nodePositions;
 }
 
 /// True if point lies closer than distance to any node of the mesh.
@@ -59,25 +59,25 @@ bool encroachesProtectingBall(const MeshData3D& meshData, const Point3D& point)
     return false;
 }
 
-/// Returns the FaceKeys of faces shared by exactly two of conflictingTets:
+/// Returns the FaceKeys of faces shared by exactly two of conflictingTetrahedra:
 /// the cavity's interior faces, as the conflict set stands before insertion.
 std::vector<FaceKey> computeCavityInteriorFaces(const MeshData3D& meshData,
-                                                const std::vector<size_t>& conflictingTets)
+                                                const std::vector<size_t>& conflictingTetrahedra)
 {
-    std::unordered_map<FaceKey, size_t, FaceKeyHash> faceCount;
-    for (const size_t tetId : conflictingTets)
+    std::unordered_map<FaceKey, size_t, FaceKeyHash> conflictingTetrahedraPerFace;
+    for (const size_t tetrahedronId : conflictingTetrahedra)
     {
-        const auto* element = meshData.getElement(tetId);
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-        if (!tet)
+        const auto* element = meshData.getElement(tetrahedronId);
+        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element);
+        if (!tetrahedron)
             continue;
 
-        for (const auto& faceArray : tet->getFaces())
-            ++faceCount[FaceKey(faceArray)];
+        for (const auto& faceArray : tetrahedron->getFaces())
+            ++conflictingTetrahedraPerFace[FaceKey(faceArray)];
     }
 
     std::vector<FaceKey> interiorFaces;
-    for (const auto& [face, count] : faceCount)
+    for (const auto& [face, count] : conflictingTetrahedraPerFace)
     {
         if (count == 2)
             interiorFaces.push_back(face);
@@ -165,9 +165,9 @@ bool RCDTPointInserter::tryInsert(const Point3D& point, const std::vector<std::s
     // Demotion: if the point would encroach a segment, split that segment
     // instead. If trySplitSegment() declines, the candidate has no other way
     // to be refined, so the caller marks it unrefinable rather than retrying.
-    const auto encroachingIds = meshData.getCurveSegmentManager().findEncroached(point, getNodePositionMap());
-    if (!encroachingIds.empty())
-        return trySplitSegment(encroachingIds[0]);
+    const auto encroachedSegmentIds = meshData.getCurveSegmentManager().findEncroached(point, getNodePositionMap());
+    if (!encroachedSegmentIds.empty())
+        return trySplitSegment(encroachedSegmentIds[0]);
 
     // Never insert inside an existing protecting ball (OPE-176) -- see
     // encroachesProtectingBall()'s doc.
@@ -223,11 +223,11 @@ RCDTPointInserter::Insertion RCDTPointInserter::insertPoint(const Point3D& point
     auto& operations = context_->getOperations();
     const auto& meshData = context_->getMeshData();
 
-    auto conflictingTets = operations.getQueries().findConflictingTetrahedra(point);
+    auto conflictingTetrahedra = operations.getQueries().findConflictingTetrahedra(point);
 
     Insertion insertion;
-    insertion.cavityInteriorFaces = computeCavityInteriorFaces(meshData, conflictingTets);
-    insertion.newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTets), geometryIds);
+    insertion.cavityInteriorFaces = computeCavityInteriorFaces(meshData, conflictingTetrahedra);
+    insertion.newNodeId = operations.insertVertexBowyerWatson(point, std::move(conflictingTetrahedra), geometryIds);
     return insertion;
 }
 
@@ -235,14 +235,14 @@ void RCDTPointInserter::finishInsertion(const Insertion& insertion, const Point3
 {
     const auto& meshData = context_->getMeshData();
 
-    const MeshConnectivity postConnectivity(meshData);
+    const MeshConnectivity connectivityAfterInsertion(meshData);
     restrictedTriangulation_->updateAfterInsertion(insertion.cavityInteriorFaces,
                                                    insertion.newNodeId,
                                                    meshData,
-                                                   postConnectivity,
+                                                   connectivityAfterInsertion,
                                                    *context_->getGeometry());
 
-    updateEncroachedSegmentsForNewNode(insertion.newNodeId, position);
+    markSegmentsEncroachedBy(insertion.newNodeId, position);
 }
 
 void RCDTPointInserter::splitSegment(size_t segmentId,
@@ -255,9 +255,9 @@ void RCDTPointInserter::splitSegment(size_t segmentId,
     // The curve segments are updated between the insertion and
     // finishInsertion(): classifyFace() reads them, and invalidating faces
     // after that reclassification would drop what it had just rebuilt.
-    const double tMid = edge.getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
+    const double midpointParameter = edge.getParameterAtArcLengthFraction(segment.tStart, segment.tEnd, 0.5);
     const auto [segmentId1, segmentId2] =
-        context_->getMutator().splitCurveSegment(segmentId, insertion.newNodeId, tMid);
+        context_->getMutator().splitCurveSegment(segmentId, insertion.newNodeId, midpointParameter);
 
     // The original segment is gone; the two it split into inherit its
     // encroachment status only insofar as they're recomputed below -- an
@@ -268,11 +268,11 @@ void RCDTPointInserter::splitSegment(size_t segmentId,
     restrictedTriangulation_->invalidateFacesWithEdge(segment.nodeId1, segment.nodeId2);
 
     finishInsertion(insertion, splitPoint);
-    checkSegmentAgainstAllNodes(segmentId1);
-    checkSegmentAgainstAllNodes(segmentId2);
+    markSegmentIfEncroached(segmentId1);
+    markSegmentIfEncroached(segmentId2);
 }
 
-void RCDTPointInserter::updateEncroachedSegmentsForNewNode(size_t newNodeId, const Point3D& position)
+void RCDTPointInserter::markSegmentsEncroachedBy(size_t newNodeId, const Point3D& position)
 {
     const auto& meshData = context_->getMeshData();
     const auto& nodePositionMap = getNodePositionMap();
@@ -283,7 +283,7 @@ void RCDTPointInserter::updateEncroachedSegmentsForNewNode(size_t newNodeId, con
     }
 }
 
-void RCDTPointInserter::checkSegmentAgainstAllNodes(size_t segmentId)
+void RCDTPointInserter::markSegmentIfEncroached(size_t segmentId)
 {
     const auto& meshData = context_->getMeshData();
     const CurveSegment& segment = meshData.getCurveSegmentManager().getSegment(segmentId);
