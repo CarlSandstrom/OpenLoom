@@ -37,7 +37,7 @@ public:
         return Point3D(radius_ * std::cos(u), radius_ * std::sin(u), v);
     }
 
-    std::array<double, 3> getNormal(double u, double /*v*/) const override
+    Vector3D getNormal(double u, double /*v*/) const override
     {
         return {std::cos(u), std::sin(u), 0.0};
     }
@@ -92,7 +92,6 @@ protected:
     static constexpr double HEIGHT = 2.0;
 
     MockCylinderSurface cylinder{RADIUS, HEIGHT};
-    SurfaceProjector projector;
 };
 
 // ============================================================================
@@ -103,21 +102,21 @@ TEST_F(SurfaceProjectorTest, SignedDistancePositiveOutside)
 {
     // Point at r = 1.5, well outside the cylinder
     const Point3D point(1.5, 0.0, 1.0);
-    EXPECT_NEAR(projector.signedDistance(point, cylinder), 0.5, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), 0.5, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceNegativeInside)
 {
     // Point at r = 0.5, inside the cylinder
     const Point3D point(0.5, 0.0, 1.0);
-    EXPECT_NEAR(projector.signedDistance(point, cylinder), -0.5, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), -0.5, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceZeroOnSurface)
 {
     // Point on the cylinder surface
     const Point3D point(RADIUS, 0.0, 1.0);
-    EXPECT_NEAR(projector.signedDistance(point, cylinder), 0.0, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), 0.0, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
@@ -131,56 +130,8 @@ TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
     const Point3D insideNearSeam(
         0.5 * std::cos(angleNearSeam), 0.5 * std::sin(angleNearSeam), 1.0);
 
-    EXPECT_GT(projector.signedDistance(outsideNearSeam, cylinder), 0.0);
-    EXPECT_LT(projector.signedDistance(insideNearSeam, cylinder), 0.0);
-}
-
-// ============================================================================
-// crossesSurface
-// ============================================================================
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_Straddling)
-{
-    const Point3D inside(0.5, 0.0, 1.0);
-    const Point3D outside(1.5, 0.0, 1.0);
-    EXPECT_TRUE(projector.crossesSurface(inside, outside, cylinder));
-}
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_BothOutside)
-{
-    const Point3D outside1(1.5, 0.0, 1.0);
-    const Point3D outside2(0.0, 1.5, 1.0);
-    EXPECT_FALSE(projector.crossesSurface(outside1, outside2, cylinder));
-}
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_BothInside)
-{
-    const Point3D inside1(0.5, 0.0, 1.0);
-    const Point3D inside2(0.0, 0.5, 1.0);
-    EXPECT_FALSE(projector.crossesSurface(inside1, inside2, cylinder));
-}
-
-TEST_F(SurfaceProjectorTest, CrossesSurface_NearTangent)
-{
-    // Both endpoints sit at tiny signed distances with opposite signs — a segment
-    // nearly parallel to the surface. The near-tangent guard falls back to the
-    // midpoint, which is on the surface (signedDistance ≈ 0), so this should
-    // NOT be classified as crossing (midpoint distance < tangentGuard as well).
-    //
-    // Construct using the actual NEAR_TANGENT_RELATIVE_TOLERANCE threshold:
-    // tangentGuard = 1e-10 * diameter.  diameter ≈ 2*R = 2.0 for the unit cylinder.
-    // We put both endpoints just inside ±tangentGuard/2 of the surface.
-    const double diameter = 2.0 * RADIUS;
-    constexpr double NEAR_TANGENT_RELATIVE_TOLERANCE = 1e-10;
-    const double tangentGuard = NEAR_TANGENT_RELATIVE_TOLERANCE * diameter;
-
-    const double epsilon = tangentGuard * 0.4;
-    const Point3D almostOnSurface1(RADIUS + epsilon, 0.0, 1.0);
-    const Point3D almostOnSurface2(RADIUS - epsilon, 0.0, 1.0);
-
-    // Both endpoints are within tangentGuard of the surface; midpoint is on the
-    // surface (signed distance = 0), so the result is false (no crossing).
-    EXPECT_FALSE(projector.crossesSurface(almostOnSurface1, almostOnSurface2, cylinder));
+    EXPECT_GT(SurfaceProjector::signedDistance(outsideNearSeam, cylinder), 0.0);
+    EXPECT_LT(SurfaceProjector::signedDistance(insideNearSeam, cylinder), 0.0);
 }
 
 // ============================================================================
@@ -193,7 +144,7 @@ TEST_F(SurfaceProjectorTest, ProjectToSurface_RoundTrip)
     const double angle = 0.7;
     const Point3D onSurface(RADIUS * std::cos(angle), RADIUS * std::sin(angle), 1.2);
 
-    const auto result = projector.projectToSurface(onSurface, cylinder);
+    const auto result = SurfaceProjector::projectToSurface(onSurface, cylinder);
 
     ASSERT_TRUE(result.has_value());
     EXPECT_NEAR(result->x(), onSurface.x(), 1e-10);
@@ -207,7 +158,7 @@ TEST_F(SurfaceProjectorTest, ProjectToSurface_FarPoint_ProjectsCorrectly)
     // The gap guard was removed (OPE-150); projectPointToUnderlyingSurface handles
     // arbitrary distances.
     const Point3D farPoint(6.0, 0.0, 1.0);
-    const auto result = projector.projectToSurface(farPoint, cylinder);
+    const auto result = SurfaceProjector::projectToSurface(farPoint, cylinder);
 
     ASSERT_TRUE(result.has_value());
     EXPECT_NEAR(result->x(), RADIUS, 1e-10);

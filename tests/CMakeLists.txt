@@ -12,6 +12,7 @@ set(TEST_SOURCES
     Geometry/test_Corner.cpp
     Geometry/test_Edge.cpp
     Geometry/test_Surface.cpp
+    Geometry/test_OpenCascadeSurface.cpp
     
     # Meshing Data tests
     Meshing/Data/test_Node.cpp
@@ -27,22 +28,28 @@ set(TEST_SOURCES
     Meshing/Core/test_ElementGeometry3D.cpp
     Meshing/Core/test_ElementQuality3D.cpp
     Meshing/Core/test_RobustPredicates3D.cpp
+    Meshing/Core/test_RegularPredicates3D.cpp
+    Meshing/Core/test_CurveProtectionScheme.cpp
+    Meshing/Core/test_CurveProtectionSubdivider.cpp
     Meshing/Core/test_ConstraintChecker3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
     Meshing/Core/test_ShewchukRefiner2D.cpp
-    Meshing/Core/test_ShewchukRefiner3D.cpp
     Meshing/Core/test_FacetTriangulation.cpp
     Meshing/Core/test_FacetDiscretization2DBuilder.cpp
     Meshing/Core/test_FacetTriangulationManager.cpp
-    Meshing/Core/test_ConstrainedDelaunay3D.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
+    Meshing/Core/test_SizingField3D.cpp
+    Meshing/Core/test_SizingFieldBuilder3D.cpp
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
+    Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
+    Meshing/Core/test_RCDTTetQualityController.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_SurfaceMesher3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
+    Meshing/Core/test_SurfaceTessellation.cpp
     Meshing/Core/test_RestrictedTriangulation.cpp
     Meshing/Core/test_TwinManager.cpp
     Meshing/Core/test_TwinTableGenerator.cpp
@@ -89,4 +96,27 @@ target_include_directories(runTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src
 )
 
-add_test(NAME AllTests COMMAND runTests)
+# Register each TEST as its own ctest case, so a refactor can verify just the
+# subset it touches (ctest -R <name>) and run the rest in parallel (ctest -j).
+include(GoogleTest)
+
+# Tests that mesh a full model take tens of seconds each and account for ~93% of
+# the suite's total cost. They carry the "slow" label so the inner development
+# loop can skip them (ctest -j$(nproc) -LE slow) and run them before a commit.
+set(SLOW_TEST_FILTER
+    "RCDTMesherTorusTest.*:RCDTMesherSphereTest.*:RCDTMesherCylinderTest.*"
+    ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*"
+    ":SurfaceMesher3DStrategyTest.*"
+    ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
+    ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates"
+    ":RestrictedTriangulationTest.UpdateAfterInsertion_MatchesFullRebuild")
+string(JOIN "" SLOW_TEST_FILTER ${SLOW_TEST_FILTER})
+
+gtest_discover_tests(runTests
+    TEST_FILTER "${SLOW_TEST_FILTER}"
+    PROPERTIES LABELS slow
+    DISCOVERY_TIMEOUT 60)
+
+gtest_discover_tests(runTests
+    TEST_FILTER "-${SLOW_TEST_FILTER}"
+    DISCOVERY_TIMEOUT 60)

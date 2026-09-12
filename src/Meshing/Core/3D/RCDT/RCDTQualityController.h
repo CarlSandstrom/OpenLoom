@@ -1,9 +1,7 @@
 #pragma once
 
-#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
-#include <cstddef>
 #include <string>
 
 namespace Meshing
@@ -21,13 +19,32 @@ namespace Meshing
 {
 
 /**
- * @brief Decides whether a restricted surface triangle meets quality criteria.
+ * @brief Decides whether a restricted surface triangle is good enough to leave
+ * alone, or has to be refined. RestrictedTriangulation::updateBadFaceEntry()
+ * is the only caller.
  *
- * Ambient-space counterpart to SurfaceMeshQualityController: the same four
- * criteria (circumradius/shortest-edge ratio, minimum angle, chord deviation,
- * element limit), but evaluated directly on MeshData3D coordinates rather
- * than UV coordinates lifted via ISurface3D::getPoint(), and resolving the
- * CAD surface per triangle by surfaceId rather than being bound to one face.
+ * Three criteria, all measured on the ambient 3D coordinates MeshData3D holds
+ * and all bounded by SurfaceMesh3DQualitySettings: the circumradius-to-shortest-
+ * edge ratio, the minimum interior angle, and the chord deviation -- here the
+ * distance from the triangle's circumcenter to the CAD surface the triangle is
+ * restricted to, resolved per triangle by surfaceId rather than fixed for the
+ * life of the object. elementLimit is deliberately not among them: a cap on how
+ * many restricted triangles refinement may produce is a property of the set, and
+ * RestrictedTriangulation::getBadTriangles() is where it is applied.
+ *
+ * This is a view, not a computation. It stores two pointers and a copy of the
+ * settings struct, derives nothing in its constructor and caches nothing between
+ * calls, which is why the caller builds one on the stack per face rather than
+ * keeping one. Measured at -O0, where nothing is inlined: 42 instructions per
+ * construction against ~58,000 for the isTriangleAcceptable() call that follows
+ * it (callgrind on HexNutSurfaceMesh, OPE-202).
+ *
+ * The legacy UV-space pipeline's SurfaceMeshQualityController answers the same
+ * question for its own mesher, but it is not the same test and neither is a port
+ * of the other: it works in the UV coordinates of one fixed face lifted through
+ * ISurface3D::getPoint(), it measures chord deviation as the gap between the flat
+ * triangle and the surface at the centroid and the three edge midpoints, and it
+ * rejects a degenerate triangle where this class accepts one.
  */
 class RCDTQualityController
 {
@@ -36,19 +53,12 @@ public:
                           const Geometry3D::GeometryCollection3D& geometry,
                           const SurfaceMesh3DQualitySettings& settings);
 
-    /// True once the restricted-triangulation size has reached the element limit —
-    /// refinement should stop growing the mesh further at that point.
-    bool isMeshAcceptable(std::size_t restrictedFaceCount) const;
-
     bool isTriangleAcceptable(const TriangleElement& triangle, const std::string& surfaceId) const;
-
-    std::size_t getElementLimit() const { return settings_.elementLimit; }
 
 private:
     const MeshData3D* meshData_;
     const Geometry3D::GeometryCollection3D* geometry_;
     SurfaceMesh3DQualitySettings settings_;
-    SurfaceProjector surfaceProjector_;
 };
 
 } // namespace Meshing

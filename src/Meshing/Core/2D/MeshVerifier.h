@@ -26,20 +26,13 @@ public:
     };
 
     /**
-     * @brief Construct mesh verifier with mesh data
-     * @param meshData Reference to the 2D mesh data to verify
-     */
-    explicit MeshVerifier(const MeshData2D& meshData);
-
-    /**
      * @brief Verify the complete mesh
+     * @param meshData Reference to the 2D mesh data to verify
      * @return Verification result with validity status and error/warning messages
      */
-    VerificationResult verify() const;
+    static VerificationResult verify(const MeshData2D& meshData);
 
 private:
-    const MeshData2D& meshData_;
-
     /**
      * @brief Check if two triangles overlap
      * @param tri1Nodes Coordinates of first triangle's vertices

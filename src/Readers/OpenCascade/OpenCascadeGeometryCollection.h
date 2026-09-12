@@ -3,6 +3,7 @@
 #include <TopoDS_Edge.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
+#include <TopoDS_Solid.hxx>
 #include <TopoDS_Vertex.hxx>
 #include <map>
 #include <optional>
@@ -20,11 +21,13 @@ public:
     const std::map<std::string, TopoDS_Vertex>& getVertexMap() const;
     const std::map<std::string, TopoDS_Edge>& getEdgeMap() const;
     const std::map<std::string, TopoDS_Face>& getFaceMap() const;
+    const std::map<std::string, TopoDS_Solid>& getSolidMap() const;
 
     // Methods for finding IDs of objects
     std::optional<std::string> findVertexId(const TopoDS_Vertex& vertex) const;
     std::optional<std::string> findEdgeId(const TopoDS_Edge& edge) const;
     std::optional<std::string> findSurfaceId(const TopoDS_Face& face) const;
+    std::optional<std::string> findVolumeId(const TopoDS_Solid& solid) const;
 
 private:
     void buildMaps();
@@ -35,6 +38,7 @@ private:
     std::map<std::string, TopoDS_Vertex> vertexMap_;
     std::map<std::string, TopoDS_Edge> edgeMap_;
     std::map<std::string, TopoDS_Face> faceMap_;
+    std::map<std::string, TopoDS_Solid> solidMap_;
 };
 
 } // namespace Readers

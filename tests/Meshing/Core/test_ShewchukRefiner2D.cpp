@@ -38,6 +38,38 @@ using namespace Meshing;
 namespace
 {
 
+// Temporarily forces an environment variable to a value, restoring whatever
+// was previously set (or unset) on destruction. A plain setenv/unsetenv pair
+// would clobber a value the invoking shell had already set (e.g. a caller
+// running the whole suite under CHECK_MESH_EACH_ITERATION=1), silently
+// disabling that check for every test that runs afterward in the same process.
+class ScopedEnvironmentOverride
+{
+public:
+    ScopedEnvironmentOverride(const std::string& name, const std::string& value) :
+        name_(name)
+    {
+        const char* previous = std::getenv(name_.c_str());
+        hadPreviousValue_ = previous != nullptr;
+        if (hadPreviousValue_)
+            previousValue_ = previous;
+        setenv(name_.c_str(), value.c_str(), 1);
+    }
+
+    ~ScopedEnvironmentOverride()
+    {
+        if (hadPreviousValue_)
+            setenv(name_.c_str(), previousValue_.c_str(), 1);
+        else
+            unsetenv(name_.c_str());
+    }
+
+private:
+    std::string name_;
+    bool hadPreviousValue_;
+    std::string previousValue_;
+};
+
 void addSquare(Geometry2D::GeometryCollection2D& geometry,
                std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
                std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
@@ -151,14 +183,12 @@ TEST(ShewchukRefiner2D, TwoCircularHoles_CurvedConstraintSplitProducesValidMesh)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Enable per-iteration mesh checking so that a transient CW triangle
     // (which would later be cleaned up by exterior-triangle removal) is caught
     // immediately and surfaces as an exception rather than silently surviving.
-    setenv("CHECK_MESH_EACH_ITERATION", "1", 1);
-    struct Cleanup1 { ~Cleanup1() { unsetenv("CHECK_MESH_EACH_ITERATION"); } } cleanup;
+    ScopedEnvironmentOverride checkMeshEachIteration("CHECK_MESH_EACH_ITERATION", "1");
 
     ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
     ASSERT_NO_THROW(refiner.refine());
@@ -195,14 +225,12 @@ TEST(ShewchukRefiner2D, InternalCircularConstraints_CurvedConstraintSplitProduce
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Enable per-iteration mesh checking so that overlapping triangles (which
     // would otherwise cause an infinite refinement loop) are caught immediately
     // and surface as an exception rather than hanging the test.
-    setenv("CHECK_MESH_EACH_ITERATION", "1", 1);
-    struct Cleanup2 { ~Cleanup2() { unsetenv("CHECK_MESH_EACH_ITERATION"); } } cleanup;
+    ScopedEnvironmentOverride checkMeshEachIteration("CHECK_MESH_EACH_ITERATION", "1");
 
     ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
     ASSERT_NO_THROW(refiner.refine());
@@ -233,8 +261,7 @@ TEST(ShewchukRefiner2D, SquareWithInternalCirclesTerminates)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
 
@@ -273,8 +300,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Locate the four corner nodes by coordinate
     size_t c0Id = SIZE_MAX, c1Id = SIZE_MAX, c2Id = SIZE_MAX, c3Id = SIZE_MAX;

@@ -27,6 +27,11 @@ const std::map<std::string, TopoDS_Face>& OpenCascadeGeometryCollection::getFace
     return faceMap_;
 }
 
+const std::map<std::string, TopoDS_Solid>& OpenCascadeGeometryCollection::getSolidMap() const
+{
+    return solidMap_;
+}
+
 std::optional<std::string> OpenCascadeGeometryCollection::findVertexId(const TopoDS_Vertex& vertex) const
 {
     for (const auto& [id, vertexVal] : vertexMap_)
@@ -56,6 +61,18 @@ std::optional<std::string> OpenCascadeGeometryCollection::findSurfaceId(const To
     for (const auto& [id, faceVal] : faceMap_)
     {
         if (face.IsSame(faceVal))
+        {
+            return id;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> OpenCascadeGeometryCollection::findVolumeId(const TopoDS_Solid& solid) const
+{
+    for (const auto& [id, solidVal] : solidMap_)
+    {
+        if (solid.IsSame(solidVal))
         {
             return id;
         }
@@ -97,5 +114,17 @@ void OpenCascadeGeometryCollection::buildMaps()
         TopoDS_Vertex vertex = TopoDS::Vertex(vertexMap.FindKey(i));
         std::string vertexId = "vertex_" + std::to_string(i - 1);
         vertexMap_[vertexId] = vertex;
+    }
+
+    // Build solid map
+    TopExp_Explorer solidExplorer(shape_, TopAbs_SOLID);
+    size_t solidCount = 0;
+    while (solidExplorer.More())
+    {
+        TopoDS_Solid solid = TopoDS::Solid(solidExplorer.Current());
+        std::string solidId = "solid_" + std::to_string(solidCount);
+        solidMap_[solidId] = solid;
+        solidExplorer.Next();
+        solidCount++;
     }
 }

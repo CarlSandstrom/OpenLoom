@@ -79,9 +79,8 @@ int main()
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
     spdlog::info("Generating constrained Delaunay triangulation...");
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Note: Shewchuk refinement is not guaranteed to terminate for input angles
     // smaller than ~20.7°. The ~8.7° tips cause the refiner to cycle indefinitely

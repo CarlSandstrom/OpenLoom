@@ -92,9 +92,8 @@ int main()
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D mesher(context, discretization);
     spdlog::info("Generating constrained Delaunay triangulation...");
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Raise the element limit: a 200x2 domain with 30° quality requires many Steiner points.
     Meshing::Mesh2DQualitySettings qualitySettings;

@@ -81,10 +81,32 @@ public:
      *
      * @param point The 3D point to insert
      * @param geometryIds Optional geometry entity IDs this vertex belongs to
+     * @param weight The vertex's regular-triangulation weight (0 for an
+     * ordinary, unweighted vertex -- see Node3D::getWeight() and
+     * RegularPredicates3D, OPE-176)
      * @return Node ID of the inserted vertex
      */
     size_t insertVertexBowyerWatson(const Point3D& point,
-                                    const std::vector<std::string>& geometryIds = {});
+                                    const std::vector<std::string>& geometryIds = {},
+                                    double weight = 0.0);
+
+    /**
+     * @brief Insert a vertex using 3D Bowyer-Watson algorithm with pre-computed conflicting tetrahedra
+     *
+     * Overload for callers that have already computed the conflicting-tetrahedra set
+     * (e.g. to derive cavity interior faces for RestrictedTriangulation::updateAfterInsertion
+     * before calling this). Avoids a redundant findConflictingTetrahedra() scan.
+     *
+     * @param point The 3D point to insert
+     * @param conflictingTetrahedra Pre-computed result of findConflictingTetrahedra(point, weight)
+     * @param geometryIds Optional geometry entity IDs this vertex belongs to
+     * @param weight The vertex's regular-triangulation weight (see the other overload)
+     * @return Node ID of the inserted vertex
+     */
+    size_t insertVertexBowyerWatson(const Point3D& point,
+                                    std::vector<size_t> conflictingTetrahedra,
+                                    const std::vector<std::string>& geometryIds = {},
+                                    double weight = 0.0);
 
     /**
      * @brief Split a constrained segment at its parametric midpoint
@@ -124,14 +146,6 @@ public:
     bool removeTetrahedraContainingNode(size_t nodeId);
 
     /**
-     * @brief Classify tetrahedra as interior/exterior using flood fill
-     *
-     * Uses constraint faces from MeshData3D to determine which tetrahedra
-     * are inside the domain vs outside or in holes. Removes exterior tets.
-     */
-    void classifyTetrahedraInteriorExterior();
-
-    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator3D& getMutator() { return *mutator_; }
@@ -165,17 +179,58 @@ private:
      *
      * Fanning a new tetrahedron from the inserted vertex to a cavity boundary
      * face that lies in the same plane as the vertex would produce a
-     * zero-volume tetrahedron. Instead of leaving that face uncovered (which
-     * corrupts the tetrahedralization), pull the tetrahedron on the other
-     * side of the face into the cavity too, so retriangulate() can fan onto
-     * its far faces instead. Repeats until no boundary face is coplanar.
+     * zero-volume tetrahedron. Instead of leaving that face uncovered, pull
+     * the tetrahedron on the other side of the face into the cavity too, so
+     * retriangulate() can fan onto its far faces instead -- but only when
+     * doing so keeps the cavity boundary a topological sphere (see
+     * eulerCharacteristic() in the .cpp): growing indiscriminately can wrap
+     * the cavity into a non-simply-connected shape that a single-point
+     * vertex fan cannot validly cover (OPE-173). Any coplanar face this
+     * declines to grow through is left on the returned set's boundary for
+     * insertVertexBowyerWatson() to resolve via splitCoplanarBoundaryFace()
+     * instead.
      *
      * @param point The point being inserted
      * @param conflicting The initial conflicting tetrahedra (by circumsphere test)
      * @return The grown set of conflicting tetrahedra
      */
     std::vector<size_t> growCavityThroughCoplanarFaces(const Point3D& point,
-                                                        std::vector<size_t> conflicting) const;
+                                                       std::vector<size_t> conflicting) const;
+
+    /**
+     * @brief Build a single positively-oriented tetrahedron from a face and an apex
+     *
+     * Shared by retriangulate() and splitCoplanarBoundaryFace(): picks the
+     * face winding (as stored) that gives the resulting TetrahedralElement a
+     * positive signed volume under MeshVerifier3D::computeSignedVolume's
+     * convention, regardless of the face's own orientation.
+     *
+     * @param face The three face node IDs
+     * @param apexNodeId The fourth (apex) node ID
+     */
+    void addOrientedTetrahedron(const std::array<size_t, 3>& face, size_t apexNodeId);
+
+    /**
+     * @brief Resolve a coplanar cavity boundary face growCavityThroughCoplanarFaces()
+     * declined to grow through
+     *
+     * Splits the face into 3 sub-triangles around the newly inserted vertex
+     * and fans each to both of the face's original apexes (one from the
+     * removed side, one from the kept side) -- the standard pyramid
+     * subdivision of the two tetrahedra that used to share this face, now
+     * sharing the new vertex as an interior point of their common base
+     * instead of the new vertex being fanned directly onto the (coplanar,
+     * zero-volume) face.
+     *
+     * @param vertexNodeId The newly inserted vertex
+     * @param face The coplanar boundary face being split
+     * @param apexA Apex of the tetrahedron on the removed (conflicting) side
+     * @param apexB Apex of the tetrahedron on the kept (neighbor) side
+     */
+    void splitCoplanarBoundaryFace(size_t vertexNodeId,
+                                   const std::array<size_t, 3>& face,
+                                   size_t apexA,
+                                   size_t apexB);
 };
 
 } // namespace Meshing

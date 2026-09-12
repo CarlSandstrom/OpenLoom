@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
@@ -58,11 +59,16 @@ enum class SurfaceMeshingStrategy
 class SurfaceMesher3D
 {
 public:
+    /// sizingFieldSettings, when set, bounds boundary-discretization segment
+    /// length by h(x) as well as by tangent angle (see
+    /// BoundaryDiscretizer3D). Off by default, and honoured only under
+    /// AmbientRCDT -- the legacy PerFaceUV pipeline ignores it.
     SurfaceMesher3D(const Geometry3D::GeometryCollection3D& geometry,
                     const Topology3D::Topology3D& topology,
                     Geometry3D::DiscretizationSettings3D discretizationSettings = {},
                     SurfaceMesh3DQualitySettings qualitySettings = {},
-                    SurfaceMeshingStrategy strategy = SurfaceMeshingStrategy::Auto);
+                    SurfaceMeshingStrategy strategy = SurfaceMeshingStrategy::Auto,
+                    std::optional<SizingFieldSettings3D> sizingFieldSettings = std::nullopt);
 
     ~SurfaceMesher3D();
 

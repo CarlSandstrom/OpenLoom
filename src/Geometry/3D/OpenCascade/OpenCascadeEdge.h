@@ -15,7 +15,7 @@ public:
     explicit OpenCascadeEdge(const TopoDS_Edge& edge);
 
     Meshing::Point3D getPoint(double t) const override;
-    std::array<double, 3> getTangent(double t) const override;
+    Meshing::Vector3D getTangent(double t) const override;
     Meshing::Point3D getStartPoint() const override;
     Meshing::Point3D getEndPoint() const override;
     std::pair<double, double> getParameterBounds() const override;

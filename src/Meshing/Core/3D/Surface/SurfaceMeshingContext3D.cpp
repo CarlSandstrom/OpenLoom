@@ -32,9 +32,8 @@ SurfaceMeshingContext3D::SurfaceMeshingContext3D(const Geometry3D::GeometryColle
     spdlog::info("SurfaceMeshingContext3D: initializing S1 pipeline");
 
     // S1.2: Discretize boundaries
-    BoundaryDiscretizer3D boundaryDiscretizer3D(geometryCollection3D, topology3D, discretizationSettings3D);
-    boundaryDiscretizer3D.discretize();
-    discretizationResult_ = boundaryDiscretizer3D.releaseDiscretizationResult();
+    discretizationResult_ =
+        BoundaryDiscretizer3D::discretize(geometryCollection3D, topology3D, discretizationSettings3D);
 
     exportEdgeMesh3D(*discretizationResult_, "SurfaceMeshingContext3D_edges.vtu");
 

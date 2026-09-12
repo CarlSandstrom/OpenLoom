@@ -140,9 +140,8 @@ int main()
     auto discretization = discretizer.discretize();
 
     // Create constrained Delaunay triangulator
-    ConstrainedDelaunay2D mesher(context, discretization);
     spdlog::info("Generating constrained Delaunay triangulation with internal circular edges...");
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Refine mesh with ShewchukRefiner2D
     spdlog::info("Refining mesh with ShewchukRefiner2D...");

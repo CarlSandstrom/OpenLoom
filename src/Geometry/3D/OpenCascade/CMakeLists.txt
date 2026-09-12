@@ -3,6 +3,7 @@ add_library(GeometryOpenCascade STATIC
     OpenCascadeSurface.cpp
     OpenCascadeEdge.cpp
     OpenCascadeCorner.cpp
+    OpenCascadeVolume.cpp
 )
 
 # Find OpenCASCADE

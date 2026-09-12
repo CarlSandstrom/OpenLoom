@@ -14,6 +14,7 @@ class IElement;
 class DiscretizationResult3D;
 struct ConstrainedSubfacet3D;
 struct SurfaceMesh3D;
+struct VolumeMesh3D;
 } // namespace Meshing
 
 namespace Export
@@ -56,6 +57,12 @@ public:
     // Triangles are coloured by SurfaceID using the per-face groups in the struct.
     bool writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh,
                           const std::string& filePath) const;
+
+    // Export a fully assembled VolumeMesh3D (output of VolumeMesher3D).
+    // Tetrahedra are written as VTK_TETRA cells; boundary triangles are
+    // written as VTK_TRIANGLE cells coloured by SurfaceID.
+    bool writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh,
+                         const std::string& filePath) const;
 
     // Overloaded methods for 2D meshes (exported with z=0)
     bool exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const;

@@ -41,10 +41,31 @@ struct SurfaceMesh3DQualitySettings
     /// past the threshold can have its circumcenter land within roughly one
     /// edge-length of its own vertices, producing an equally-bad, slightly
     /// smaller sliver next to it every iteration — a non-terminating cascade.
-    /// If unset, RCDTRefiner derives it from the initial boundary
-    /// discretization: the median nearest-neighbor distance among the
-    /// initial nodes, divided by 10.
+    /// If unset, RCDTMesher derives it (see MinimumEdgeLengthEstimator); if
+    /// set, it must be finite and strictly positive.
     std::optional<double> minimumEdgeLength;
+
+    /// Maximum allowed tetrahedron circumradius / shortest-edge ratio
+    /// (Shewchuk's "B" bound; only guarantees refinement termination for
+    /// B > 2.0). Only consumed by RCDTMesher::meshVolume() — the surface-only
+    /// path (meshSurface()) never looks at this.
+    double tetCircumradiusToShortestEdgeRatio = 2.5;
+
+    /// Safety cap: stop volume refinement once the mesh reaches this many
+    /// tetrahedra. Separate from elementLimit (which bounds restricted
+    /// surface triangles) since the two element counts aren't comparable —
+    /// a solid's interior typically needs far more tets than it has boundary
+    /// triangles.
+    std::size_t tetElementLimit = 100000;
+
+    /// Maximum number of refinement iterations before the RCDT refiner gives
+    /// up. The default (500) is a safety cap for ordinary meshes. Geometries
+    /// with acute dihedral angles at feature corners (< 60°) drive a
+    /// segment-splitting cascade that terminates correctly via the minimum
+    /// edge length floor but requires more iterations. Increase this for
+    /// stress tests or geometries with known acute input angles. Only consumed
+    /// by RCDTMesher — the UV-space pipeline ignores it.
+    std::size_t maxRefinementIterations = 50000;
 };
 
 } // namespace Meshing

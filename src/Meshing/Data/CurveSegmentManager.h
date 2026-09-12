@@ -54,6 +54,10 @@ public:
     /// Returns all segments for a given edge ID, sorted by tStart (ascending).
     std::vector<CurveSegment> getSegmentsForEdge(const std::string& edgeId) const;
 
+    /// Returns the node chain along a given edge ID in curve order, both
+    /// endpoints included. Empty if the edge has no segments.
+    std::vector<size_t> getOrderedNodeIdsForEdge(const std::string& edgeId) const;
+
     size_t size() const;
     bool empty() const;
     void clear();

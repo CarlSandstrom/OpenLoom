@@ -18,4 +18,14 @@ void Node3D::setCoordinates(const Point3D& coords)
     coordinates_ = coords;
 }
 
+double Node3D::getWeight() const
+{
+    return weight_;
+}
+
+void Node3D::setWeight(double weight)
+{
+    weight_ = weight;
+}
+
 } // namespace Meshing

@@ -3,26 +3,35 @@
     "allow": [
       "Bash(cmake:*)",
       "Bash(cmake --build:*)",
-      "Bash(cmake --build build -j:*)",
       "Bash(ctest:*)",
-      "Bash(./build/src/Examples/*:*)",
-      "Bash(./build/src/Examples2D/*:*)",
-      "Bash(./build/src/Examples3D/*:*)",
+      "Bash(make:*)",
       "Bash(./build/tests/runTests:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
+      "Bash(./build/src/Examples/*:*)",
+      "Bash(./scripts/check-docs.sh:*)",
+      "Bash(./scripts/refactor-check.sh:*)",
+      "Bash(TIER=full ./scripts/refactor-check.sh:*)",
+      "Bash(timeout:*)",
+      "Bash(clang-format:*)",
+      "Bash(paraview:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git show:*)",
       "Bash(git branch:*)",
       "Bash(git checkout:*)",
-      "Bash(clang-format:*)",
-      "Bash(cloc:*)",
-      "Bash(paraview:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git mv:*)",
+      "Bash(git stash:*)",
       "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(echo:*)",
+      "Bash(test:*)",
       "Bash(mkdir:*)",
-      "Bash(timeout:*)",
+      "Bash(cloc:*)",
       "Read",
       "Glob",
       "Grep",
@@ -49,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "file_path=$(jq -r '.tool_input.file_path' 2>/dev/null); if echo \"$file_path\" | grep -qE '\\.(cpp|hpp|h|cc)$'; then clang-format -i \"$file_path\" 2>/dev/null || true; fi"
+            "command": "file_path=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"tool_input\",{}).get(\"file_path\",\"\"))' 2>/dev/null); if echo \"$file_path\" | grep -qE '\\.(cpp|hpp|h|cc)$'; then clang-format -i \"$file_path\" 2>/dev/null || true; fi"
           }
         ]
       },
@@ -58,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "file_path=$(jq -r '.tool_input.file_path' 2>/dev/null); if echo \"$file_path\" | grep -qE '\\.(cpp|hpp|h|cc)$'; then clang-format -i \"$file_path\" 2>/dev/null || true; fi"
+            "command": "file_path=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get(\"tool_input\",{}).get(\"file_path\",\"\"))' 2>/dev/null); if echo \"$file_path\" | grep -qE '\\.(cpp|hpp|h|cc)$'; then clang-format -i \"$file_path\" 2>/dev/null || true; fi"
           }
         ]
       }

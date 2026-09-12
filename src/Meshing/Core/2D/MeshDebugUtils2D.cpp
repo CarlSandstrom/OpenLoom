@@ -22,9 +22,7 @@ void exportAndVerifyMesh(MeshData2D& meshData,
     if (OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
     {
         spdlog::info("{}: Verifying mesh at export step {}", filenamePrefix, exportCounter);
-        MeshVerifier verifier(meshData);
-
-        auto result = verifier.verify();
+        auto result = MeshVerifier::verify(meshData);
         if (!result.isValid)
         {
             for (const auto& error : result.errors)

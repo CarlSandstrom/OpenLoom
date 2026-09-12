@@ -39,11 +39,10 @@ void FacetTriangulation::initialize(DiscretizationResult2D discretization2D,
 
     // Run constrained Delaunay: registers boundary segments, enforces them,
     // and removes exterior triangles.
-    ConstrainedDelaunay2D constrained(*context_, discretization2D, {}, surfaceId_);
-    constrained.triangulate();
+    const auto pointIndexToNode2DMap =
+        ConstrainedDelaunay2D::triangulate(*context_, discretization2D, {}, surfaceId_);
 
     // Build bidirectional 3D↔2D node mappings
-    const auto& pointIndexToNode2DMap = constrained.getPointIndexToNodeIdMap();
 
     for (size_t localIndex = 0; localIndex < localIndexToNode3DId.size(); ++localIndex)
     {

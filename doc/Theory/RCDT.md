@@ -69,7 +69,7 @@ No constraints are enforced here. The tetrahedralization is purely Delaunay.
 
 After R1.3, the restricted triangulation exists but may be coarse — areas with no interior sample points will have large triangles.
 
-**R1.4 — Build curve segment manager** (`CurveSegmentOperations::buildCurveSegments`)
+**R1.4 — Build curve segment manager** (`CurveSegmentBuilder::build`)
 - For each topology edge, read the ordered node sequence from `DiscretizationResult3D`.
 - Register one `CurveSegment` per consecutive node pair, recording the edge ID and parametric range `[tStart, tEnd]`.
 - `CurveSegmentManager` is now the authoritative list of constrained boundary segments.
@@ -91,7 +91,7 @@ Each call to `refineStep()` picks the **highest-priority action** available.
 **Steps:**
 1. Scan `CurveSegmentManager::findEncroached` — iterate all segments, check each vertex against the diametral sphere. Use `excludeNodeId` so endpoints skip their own segments.
 2. For the first encroached segment `[a, b]`:
-   - Compute the split point via `CurveSegmentOperations::computeSplitPoint` — the 3D point on the CAD curve at the arc-length midpoint of `[tStart, tEnd]`.
+   - Compute the split point via `CurveSegmentGeometry::splitPoint` — the 3D point on the CAD curve at the arc-length midpoint of `[tStart, tEnd]`.
 3. **Pre-compute cavity interior faces** — before calling Bowyer-Watson, record which faces are shared by two tets in the cavity. These will be removed from `RestrictedTriangulation` (they no longer exist after insertion).
 4. Insert the split point via Bowyer-Watson (`insertAndUpdate`):
    - Run Bowyer-Watson; collect new tetrahedra adjacent to the new node.

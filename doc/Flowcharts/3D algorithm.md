@@ -79,7 +79,7 @@ inside or on its diametral sphere.
 - **4.1.1** Scan `CurveSegmentManager` for encroached segments.
 - **4.1.2** For the first encroached segment, compute the split point at the arc-length
   midpoint of the segment's parametric range on the parent edge curve
-  (`CurveSegmentOperations::computeSplitPoint`).
+  (`CurveSegmentGeometry::splitPoint`).
 - **4.1.3** Pre-compute cavity interior faces before Bowyer-Watson insertion.
 - **4.1.4** Insert the split point via Bowyer-Watson. After insertion, remove cavity
   interior faces from `RestrictedTriangulation` and re-classify all new faces adjacent

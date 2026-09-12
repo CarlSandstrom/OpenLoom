@@ -95,11 +95,10 @@ int main()
     // Create constrained Delaunay triangulator
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
-    ConstrainedDelaunay2D mesher(context, discretization);
 
     // Generate constrained mesh with 15 samples per edge
     spdlog::info("Generating constrained Delaunay triangulation...");
-    mesher.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     return 0;
 }

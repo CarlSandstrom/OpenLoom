@@ -159,8 +159,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesSimpleSquare)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D delaunay(context, discretization);
-    delaunay.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     const auto& meshData = context.getMeshData();
 
@@ -183,8 +182,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesSquareWithInteriorPoint)
     auto discretization = discretizer.discretize();
 
     std::vector<Point2D> additionalPoints = {Point2D(0.5, 0.5)};
-    ConstrainedDelaunay2D delaunay(context, discretization, additionalPoints);
-    delaunay.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization, additionalPoints);
 
     const auto& meshData = context.getMeshData();
 
@@ -200,8 +198,7 @@ TEST(ConstrainedDelaunay2D, HandlesConcavePolygon)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D delaunay(context, discretization);
-    delaunay.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     const auto& meshData = context.getMeshData();
 
@@ -223,8 +220,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesTriangle)
     EdgeDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    ConstrainedDelaunay2D delaunay(context, discretization);
-    delaunay.triangulate();
+    ConstrainedDelaunay2D::triangulate(context, discretization);
 
     const auto& meshData = context.getMeshData();
 

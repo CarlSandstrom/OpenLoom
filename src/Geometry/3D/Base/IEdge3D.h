@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <string>
 #include <utility>
 
@@ -18,7 +17,7 @@ public:
     virtual ~IEdge3D() = default;
 
     virtual Meshing::Point3D getPoint(double t) const = 0;
-    virtual std::array<double, 3> getTangent(double t) const = 0;
+    virtual Meshing::Vector3D getTangent(double t) const = 0;
     virtual Meshing::Point3D getStartPoint() const = 0;
     virtual Meshing::Point3D getEndPoint() const = 0;
     virtual std::pair<double, double> getParameterBounds() const = 0;

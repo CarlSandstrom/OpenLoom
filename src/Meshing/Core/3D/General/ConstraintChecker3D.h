@@ -4,8 +4,6 @@
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include <array>
-#include <vector>
 
 namespace Meshing
 {
@@ -47,23 +45,6 @@ public:
      */
     bool isSubfacetEncroached(const ConstrainedSubfacet3D& subfacet,
                               const Point3D& point) const;
-
-    /**
-     * @brief Check if a triangular face matches any constraint face in a list
-     *
-     * Compares a face (given by three node IDs) against a list of constrained
-     * subfacets to see if it matches any of them (order-independent comparison).
-     *
-     * @param nodeId1 First vertex of the face
-     * @param nodeId2 Second vertex of the face
-     * @param nodeId3 Third vertex of the face
-     * @param constrainedSubfacets List of constraint faces to check against
-     * @return true if the face matches any constraint
-     */
-    static bool isConstraintFace(size_t nodeId1,
-                                 size_t nodeId2,
-                                 size_t nodeId3,
-                                 const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets);
 
 private:
     const MeshData3D& mesh_;

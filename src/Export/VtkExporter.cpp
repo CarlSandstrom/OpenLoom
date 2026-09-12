@@ -4,6 +4,7 @@
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/VolumeMesh3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -1120,6 +1121,124 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh,
     for (size_t i = 0; i < surfaceIndices.size(); ++i)
         os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
     os << "        </DataArray>\n";
+    os << "      </CellData>\n";
+    os << "    </Piece>\n";
+
+    writeFooter(os);
+    return true;
+}
+
+bool VtkExporter::writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh,
+                                  const std::string& filePath) const
+{
+    // Build a stable integer mapping: surfaceId string → 0-based index (sorted for stability).
+    std::vector<std::string> sortedSurfaceIds;
+    sortedSurfaceIds.reserve(volumeMesh.boundaryFaceTriangleIds.size());
+    for (const auto& [surfaceId, unused] : volumeMesh.boundaryFaceTriangleIds)
+        sortedSurfaceIds.push_back(surfaceId);
+    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
+
+    std::unordered_map<std::string, int> surfaceIdToIndex;
+    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
+        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
+
+    // Build per-boundary-triangle surface index array in triangle-ID order.
+    const size_t numBoundaryTriangles = volumeMesh.boundaryTriangles.size();
+    std::vector<int> surfaceIndices(numBoundaryTriangles, -1);
+    for (const auto& [surfaceId, triangleIds] : volumeMesh.boundaryFaceTriangleIds)
+    {
+        const int index = surfaceIdToIndex.at(surfaceId);
+        for (size_t triangleId : triangleIds)
+            surfaceIndices[triangleId] = index;
+    }
+
+    const size_t numPoints = volumeMesh.nodes.size();
+    const size_t numTetrahedra = volumeMesh.tetrahedra.size();
+    const size_t totalCells = numTetrahedra + numBoundaryTriangles;
+
+    std::ofstream os;
+    os.exceptions(std::ios::failbit | std::ios::badbit);
+    os.open(filePath);
+
+    writeHeader(os);
+
+    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << totalCells << "\">\n";
+
+    os << "      <Points>\n";
+    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+    for (const auto& p : volumeMesh.nodes)
+        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
+    os << "        </DataArray>\n";
+    os << "      </Points>\n";
+
+    os << "      <PointData>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numPoints; ++i)
+        os << i << (i + 1 == numPoints ? "\n" : " ");
+    os << "        </DataArray>\n";
+    os << "      </PointData>\n";
+
+    os << "      <Cells>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
+    for (const auto& tet : volumeMesh.tetrahedra)
+        os << tet[0] << ' ' << tet[1] << ' ' << tet[2] << ' ' << tet[3] << ' ';
+    for (size_t i = 0; i < numBoundaryTriangles; ++i)
+    {
+        const auto& tri = volumeMesh.boundaryTriangles[i];
+        os << tri[0] << ' ' << tri[1] << ' ' << tri[2];
+        os << (i + 1 == numBoundaryTriangles ? "\n" : " ");
+    }
+    if (numBoundaryTriangles == 0)
+        os << "\n";
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
+    unsigned int runningOffset = 0;
+    for (size_t i = 0; i < numTetrahedra; ++i)
+    {
+        runningOffset += 4;
+        os << runningOffset << " ";
+    }
+    for (size_t i = 0; i < numBoundaryTriangles; ++i)
+    {
+        runningOffset += 3;
+        os << runningOffset << (i + 1 == numBoundaryTriangles ? "\n" : " ");
+    }
+    if (numBoundaryTriangles == 0)
+        os << "\n";
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numTetrahedra; ++i)
+        os << static_cast<unsigned int>(VTK_TETRA) << " ";
+    for (size_t i = 0; i < numBoundaryTriangles; ++i)
+        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numBoundaryTriangles ? "\n" : " ");
+    if (numBoundaryTriangles == 0)
+        os << "\n";
+    os << "        </DataArray>\n";
+
+    os << "      </Cells>\n";
+
+    os << "      <CellData>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < numTetrahedra; ++i)
+        os << -1 << " ";
+    for (size_t i = 0; i < numBoundaryTriangles; ++i)
+        os << surfaceIndices[i] << (i + 1 == numBoundaryTriangles ? "\n" : " ");
+    if (numBoundaryTriangles == 0)
+        os << "\n";
+    os << "        </DataArray>\n";
+
+    os << "        <DataArray type=\"Int32\" Name=\"IsBoundaryTriangle\" format=\"ascii\">\n          ";
+    for (size_t i = 0; i < totalCells; ++i)
+    {
+        os << (i < numTetrahedra ? 0 : 1);
+        os << (i + 1 == totalCells ? "\n" : " ");
+    }
+    os << "        </DataArray>\n";
+
     os << "      </CellData>\n";
     os << "    </Piece>\n";
 

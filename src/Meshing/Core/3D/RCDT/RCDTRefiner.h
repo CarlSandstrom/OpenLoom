@@ -1,83 +1,80 @@
 #pragma once
 
-#include "Common/Types.h"
-#include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/SurfaceProjector.h"
-#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Meshing/Core/3D/RCDT/NonManifoldEdgeRefiner.h"
+#include "Meshing/Core/3D/RCDT/RCDTPointInserter.h"
+#include "Meshing/Core/3D/RCDT/RestrictedTriangleRefiner.h"
+#include "Meshing/Core/3D/RCDT/TetrahedronQualityRefiner.h"
 
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
+#include <cstddef>
+#include <optional>
 
 namespace Meshing
 {
 
 class MeshingContext3D;
 class RestrictedTriangulation;
+class RCDTTetQualityController;
+struct SurfaceMesh3DQualitySettings;
 
 /// Refines a restricted Delaunay triangulation in ambient 3D space.
 ///
-/// Mirrors the two-priority Shewchuk structure but operates on restricted
-/// surface triangles rather than volume tetrahedra:
+/// Each refineStep() makes at most one insertion, for the first priority that
+/// has work:
 ///
-///   Priority 1 — split encroached curve segments
-///   Priority 2 — split bad restricted triangles (circumradius/edge or chord deviation)
+///   1. Split an encroached curve segment (RCDTPointInserter).
+///   2. Insert a point for a bad restricted triangle -- circumradius/edge or
+///      chord deviation (RestrictedTriangleRefiner).
+///   3. Insert the circumcenter of a skinny tetrahedron -- only when a
+///      RCDTTetQualityController was supplied, i.e. when meshing a volume
+///      (TetrahedronQualityRefiner).
+///   4. Repair a non-manifold edge of the restricted-face set
+///      (NonManifoldEdgeRefiner).
 ///
-/// The circumcenter demotion rule (Shewchuk) ensures termination: if inserting
-/// the circumcenter of a bad triangle would encroach a segment, the segment is
-/// split instead.
+/// Within a priority, candidates are taken in the order their containers yield
+/// them, not worst first, so that order shapes the output mesh.
+///
+/// Priorities 2-4 demote to splitting a curve segment when their point would
+/// encroach one (Shewchuk), and never insert within minimumEdgeLength_ of an
+/// existing node. No priority inserts inside a protecting ball, which would
+/// erode the crease protection it exists for (OPE-176). A candidate refused for
+/// any of these reasons is recorded as unrefinable and never tried again.
+///
+/// Each priority's unrefinable set is never cleared: clearing them after every
+/// segment split was measured on SaddleSurfaceMesh to rediscover the same
+/// unfixable candidates about 100 times over, with no gain. Entries are keyed
+/// by nodes or element ID, so a candidate an insertion restructures returns
+/// under a new key; one whose key survives stays blocked even if its insertion
+/// point has moved.
 class RCDTRefiner
 {
 public:
     RCDTRefiner(MeshingContext3D& context,
                 RestrictedTriangulation& restrictedTriangulation,
-                const SurfaceMesh3DQualitySettings& settings);
+                const SurfaceMesh3DQualitySettings& settings,
+                double minimumEdgeLength,
+                const RCDTTetQualityController* tetrahedronQualityController = nullptr);
 
     void refine();
 
 private:
     MeshingContext3D* context_;
-    RestrictedTriangulation* restrictedTriangulation_;
-    SurfaceMesh3DQualitySettings settings_;
-    SurfaceProjector surfaceProjector_;
-    std::unordered_set<FaceKey, FaceKeyHash> unrefinableTriangles_;
 
-    /// Resolved once at the start of refine() from settings_.minimumEdgeLength
-    /// (or derived from the initial discretization if unset — see
-    /// resolveMinimumEdgeLength()). A restricted triangle at or below this
-    /// shortest-edge length is left unrefined even if still quality-bad.
-    double minimumEdgeLength_ = 0.0;
+    /// The one setting this class reads; the others belong to the priorities.
+    size_t maximumRefinementIterations_;
 
-    /// Resolves minimumEdgeLength_: settings_.minimumEdgeLength if set,
-    /// otherwise the median nearest-neighbor distance among the nodes
-    /// present before refinement starts (excluding the supertet corners),
-    /// divided by 10. Median rather than minimum because a periodic curve's
-    /// discretization can leave a short "remainder" segment near its seam
-    /// vertex that isn't representative of the intended spacing.
-    double resolveMinimumEdgeLength() const;
+    /// Size floor (see MinimumEdgeLengthEstimator), handed to the inserter and
+    /// to each priority, which document what they bound by it.
+    double minimumEdgeLength_;
+
+    RCDTPointInserter pointInserter_;
+    RestrictedTriangleRefiner restrictedTriangleRefiner_;
+
+    /// Present only when a RCDTTetQualityController was supplied.
+    std::optional<TetrahedronQualityRefiner> tetrahedronQualityRefiner_;
+    NonManifoldEdgeRefiner nonManifoldEdgeRefiner_;
 
     /// Performs one refinement step. Returns true if any insertion was made.
     bool refineStep();
-
-    /// Inserts point into the Delaunay and updates RestrictedTriangulation.
-    /// Pre-computes cavity interior faces before insertion so the restricted
-    /// triangulation can remove stale faces incrementally.
-    /// Returns the new node ID.
-    size_t insertAndUpdate(const Point3D& point, const std::vector<std::string>& geometryIds);
-
-    /// Splits a curve segment at its arc-length midpoint.
-    /// Inserts the new node via Bowyer-Watson and updates RestrictedTriangulation.
-    /// Returns true on success.
-    bool splitSegment(size_t segmentId);
-
-    /// Builds a node-ID → position lookup from the current mesh.
-    std::unordered_map<size_t, Point3D> buildNodePositionMap() const;
-
-    /// Returns the FaceKeys of faces shared by exactly two conflicting tetrahedra
-    /// (cavity interior faces that will be removed by Bowyer-Watson insertion).
-    std::vector<FaceKey> computeCavityInteriorFaces(
-        const std::vector<size_t>& conflictingTets) const;
 };
 
 } // namespace Meshing

@@ -29,13 +29,17 @@ SurfaceMesher3D::SurfaceMesher3D(const Geometry3D::GeometryCollection3D& geometr
                                  const Topology3D::Topology3D& topology,
                                  Geometry3D::DiscretizationSettings3D discretizationSettings,
                                  SurfaceMesh3DQualitySettings qualitySettings,
-                                 SurfaceMeshingStrategy strategy) :
+                                 SurfaceMeshingStrategy strategy,
+                                 std::optional<SizingFieldSettings3D> sizingFieldSettings) :
     strategy_(resolveStrategy(strategy, topology))
 {
     if (strategy_ == SurfaceMeshingStrategy::AmbientRCDT)
     {
-        rcdtMesher_ = std::make_unique<RCDTMesher>(
-            geometry, topology, std::move(discretizationSettings), std::move(qualitySettings));
+        rcdtMesher_ = std::make_unique<RCDTMesher>(geometry,
+                                                   topology,
+                                                   std::move(discretizationSettings),
+                                                   std::move(qualitySettings),
+                                                   std::move(sizingFieldSettings));
     }
     else
     {
@@ -51,7 +55,7 @@ SurfaceMesher3D& SurfaceMesher3D::operator=(SurfaceMesher3D&&) noexcept = defaul
 SurfaceMesh3D SurfaceMesher3D::mesh()
 {
     if (rcdtMesher_)
-        return rcdtMesher_->mesh();
+        return rcdtMesher_->meshSurface();
 
     uvContext_->refineSurfaces();
     return uvContext_->buildSurfaceMesh();

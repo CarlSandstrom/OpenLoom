@@ -2,9 +2,11 @@
 #include "../../Geometry/3D/Base/ICorner3D.h"
 #include "../../Geometry/3D/Base/IEdge3D.h"
 #include "../../Geometry/3D/Base/ISurface3D.h"
+#include "../../Geometry/3D/Base/IVolume3D.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeCorner.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeEdge.h"
 #include "../../Geometry/3D/OpenCascade/OpenCascadeSurface.h"
+#include "../../Geometry/3D/OpenCascade/OpenCascadeVolume.h"
 #include <BRep_Tool.hxx>
 #include <BRepTools.hxx>
 #include <BRepTools_WireExplorer.hxx>
@@ -40,11 +42,13 @@ void TopoDS_ShapeConverter::buildTopology()
     createSurfaces();
     createEdges();
     createCorners();
+    createVolumes();
 
     topology_ = std::make_unique<Topology3D::Topology3D>(std::unordered_map<std::string, Topology3D::Surface3D>(surfaces_),
                                                          std::unordered_map<std::string, Topology3D::Edge3D>(edges_),
                                                          std::unordered_map<std::string, Topology3D::Corner3D>(corners_),
-                                                         std::move(seams_));
+                                                         std::move(seams_),
+                                                         std::unordered_map<std::string, Topology3D::Volume3D>(volumes_));
 }
 
 void TopoDS_ShapeConverter::buildGeometryCollection()
@@ -52,10 +56,12 @@ void TopoDS_ShapeConverter::buildGeometryCollection()
     auto vertexMap = openCascadeGeometryCollection_->getVertexMap();
     auto edgeMap = openCascadeGeometryCollection_->getEdgeMap();
     auto faceMap = openCascadeGeometryCollection_->getFaceMap();
+    auto solidMap = openCascadeGeometryCollection_->getSolidMap();
 
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
+    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IVolume3D>> volumes;
 
     for (const auto& [id, vertex] : vertexMap)
     {
@@ -75,9 +81,16 @@ void TopoDS_ShapeConverter::buildGeometryCollection()
         surfaces.emplace(id, std::move(surface));
     }
 
+    for (const auto& [id, solid] : solidMap)
+    {
+        std::unique_ptr<Geometry3D::OpenCascadeVolume> volume = std::make_unique<Geometry3D::OpenCascadeVolume>(solid);
+        volumes.emplace(id, std::move(volume));
+    }
+
     geometryCollection_ = std::make_unique<Geometry3D::GeometryCollection3D>(std::move(surfaces),
                                                                              std::move(edges),
-                                                                             std::move(corners));
+                                                                             std::move(corners),
+                                                                             std::move(volumes));
 }
 
 void TopoDS_ShapeConverter::createSurfaces()
@@ -341,5 +354,59 @@ void TopoDS_ShapeConverter::createCorners()
         }
 
         corners_.emplace(id, Topology3D::Corner3D(id, connectedEdgeIds, connectedSurfaceIds));
+    }
+}
+
+void TopoDS_ShapeConverter::createVolumes()
+{
+    const auto& solidMap = openCascadeGeometryCollection_->getSolidMap();
+
+    // Map faces to their adjacent solids. This is used for finding adjacent
+    // volumes -- two solids sharing a boundary face are adjacent phases.
+    TopTools_IndexedDataMapOfShapeListOfShape faceToSolidsMap;
+    TopExp::MapShapesAndAncestors(shape_, TopAbs_FACE, TopAbs_SOLID, faceToSolidsMap);
+
+    for (const auto& [id, solid] : solidMap)
+    {
+        std::vector<std::string> boundarySurfaceIds;
+        std::set<std::string> adjacentVolumeIds;
+
+        TopTools_IndexedMapOfShape facesOfSolid;
+        TopExp::MapShapes(solid, TopAbs_FACE, facesOfSolid);
+
+        for (int i = 1; i <= facesOfSolid.Extent(); ++i)
+        {
+            const TopoDS_Face& face = TopoDS::Face(facesOfSolid(i));
+            auto faceIdOpt = openCascadeGeometryCollection_->findSurfaceId(face);
+            if (faceIdOpt.has_value())
+            {
+                boundarySurfaceIds.push_back(faceIdOpt.value());
+            }
+
+            if (!faceToSolidsMap.Contains(face))
+                continue;
+
+            const TopTools_ListOfShape& solidsOnFace = faceToSolidsMap.FindFromKey(face);
+            for (TopTools_ListIteratorOfListOfShape it(solidsOnFace); it.More(); it.Next())
+            {
+                const TopoDS_Solid& adjacentSolid = TopoDS::Solid(it.Value());
+
+                // Skip the current solid itself
+                if (!adjacentSolid.IsSame(solid))
+                {
+                    auto adjacentSolidId = openCascadeGeometryCollection_->findVolumeId(adjacentSolid);
+                    if (adjacentSolidId.has_value())
+                    {
+                        adjacentVolumeIds.insert(adjacentSolidId.value());
+                    }
+                }
+            }
+        }
+
+        volumes_.emplace(id,
+                         Topology3D::Volume3D(id,
+                                              boundarySurfaceIds,
+                                              std::vector<std::string>(adjacentVolumeIds.begin(),
+                                                                        adjacentVolumeIds.end())));
     }
 }

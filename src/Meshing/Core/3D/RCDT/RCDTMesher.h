@@ -1,11 +1,14 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Meshing/Data/3D/VolumeMesh3D.h"
+#include "Meshing/Interfaces/ISurfaceMesher3D.h"
+#include "Meshing/Interfaces/IVolumeMesher3D.h"
 
-#include <array>
-#include <memory>
+#include <optional>
 
 namespace Geometry3D
 {
@@ -23,44 +26,67 @@ namespace Meshing
 class MeshingContext3D;
 class RestrictedTriangulation;
 
-class RCDTMesher
+/**
+ * @brief Ambient-space RCDT mesher: implements both ISurfaceMesher3D and
+ * IVolumeMesher3D, since both share the same underlying ambient
+ * tetrahedralization + restriction + refinement pipeline — meshSurface()
+ * and meshVolume() differ only in what volume output additionally needs (see
+ * runPipeline()) and in their final extraction step.
+ *
+ * Each call builds its own mesh from scratch and releases it on return;
+ * nothing is kept between calls.
+ */
+class RCDTMesher : public ISurfaceMesher3D, public IVolumeMesher3D
 {
 public:
+    /// sizingFieldSettings, when set, bounds boundary-discretization segment
+    /// length by h(x) in addition to the tangent-angle criterion -- see
+    /// BoundaryDiscretizer3D's class comment for why the angle criterion
+    /// alone cannot bound length. Off by default.
     RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                const Topology3D::Topology3D& topology,
                Geometry3D::DiscretizationSettings3D discretizationSettings = {},
-               SurfaceMesh3DQualitySettings qualitySettings = {});
-
-    ~RCDTMesher();
+               SurfaceMesh3DQualitySettings qualitySettings = {},
+               std::optional<SizingFieldSettings3D> sizingFieldSettings = std::nullopt);
 
     RCDTMesher(const RCDTMesher&) = delete;
     RCDTMesher& operator=(const RCDTMesher&) = delete;
 
-    RCDTMesher(RCDTMesher&&) noexcept;
-    RCDTMesher& operator=(RCDTMesher&&) noexcept;
-
-    SurfaceMesh3D mesh();
-
-    const MeshingContext3D& getMeshingContext() const;
+    SurfaceMesh3D meshSurface() override;
+    VolumeMesh3D meshVolume() override;
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
     const Topology3D::Topology3D* topology_;
     Geometry3D::DiscretizationSettings3D discretizationSettings_;
     SurfaceMesh3DQualitySettings qualitySettings_;
+    std::optional<SizingFieldSettings3D> sizingFieldSettings_;
 
-    std::unique_ptr<MeshingContext3D> meshingContext_;
-    std::unique_ptr<RestrictedTriangulation> restrictedTriangulation_;
+    /// Returns the resolved minimum edge length: qualitySettings_'s if set,
+    /// otherwise derived here (see MinimumEdgeLengthEstimator).
+    double buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const;
 
-    // Node IDs of the super-tetrahedron used to seed the initial Delaunay
-    // triangulation. Kept alive through refine() -- see Delaunay3D's class
-    // documentation for why -- and removed once refinement completes.
-    std::array<size_t, 4> boundingNodeIds_{};
+    /// includeTetrahedronQualityRefinement enables RCDTRefiner's priority-3
+    /// (bad tetrahedra) refinement pass -- meshVolume() passes true,
+    /// meshSurface() passes false so it never pays for volume-quality
+    /// refinement it has no use for.
+    void refine(MeshingContext3D& context,
+                RestrictedTriangulation& restrictedTriangulation,
+                double minimumEdgeLength,
+                bool includeTetrahedronQualityRefinement) const;
 
-    void buildInitial();
-    void refine();
-    void removeBoundingTetrahedron();
-    SurfaceMesh3D buildSurfaceMesh() const;
+    /// Shared pipeline for meshSurface() and meshVolume(): build the initial
+    /// triangulation, refine, remove defective restricted faces, remove the
+    /// ambient tetrahedra (the bounding tetrahedron's included), then extract
+    /// and smooth the surface mesh. meshingVolume is true from meshVolume(): it
+    /// enables tetrahedron-quality refinement, keeps smoothing from inverting
+    /// tetrahedra, and makes a restricted boundary that still has holes an
+    /// error. Returns the (possibly smoothed) surface mesh; meshVolume() only
+    /// needs it for the smoother's triangle adjacency and discards it once
+    /// smoothing has synced back to the live mesh (see meshVolume()).
+    SurfaceMesh3D runPipeline(MeshingContext3D& context,
+                              RestrictedTriangulation& restrictedTriangulation,
+                              bool meshingVolume) const;
 };
 
 } // namespace Meshing

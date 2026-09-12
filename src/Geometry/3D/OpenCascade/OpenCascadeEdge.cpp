@@ -27,7 +27,7 @@ Meshing::Point3D OpenCascadeEdge::getPoint(double t) const
     return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
-std::array<double, 3> OpenCascadeEdge::getTangent(double t) const
+Meshing::Vector3D OpenCascadeEdge::getTangent(double t) const
 {
     BRepAdaptor_Curve curve(edge_);
     double tMin, tMax;

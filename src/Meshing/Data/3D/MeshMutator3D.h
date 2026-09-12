@@ -24,10 +24,13 @@ public:
     // Optional: Set connectivity for validation during operations
     void setConnectivity(MeshConnectivity* connectivity);
 
-    // Node operations
-    size_t addNode(const Point3D& coordinates);
+    // Node operations. weight is the node's regular-triangulation weight
+    // (0 for an ordinary, unweighted node -- see Node3D::getWeight() and
+    // RegularPredicates3D, OPE-176).
+    size_t addNode(const Point3D& coordinates, double weight = 0.0);
     size_t addBoundaryNode(const Point3D& coordinates,
-                           const std::vector<std::string>& geometryIds);
+                           const std::vector<std::string>& geometryIds,
+                           double weight = 0.0);
     void moveNode(size_t id, const Point3D& newCoords);
     void removeNode(size_t id);
 
@@ -41,6 +44,7 @@ public:
 
     // Curve segment operations
     void addCurveSegment(const CurveSegment& segment);
+    void setCurveSegmentManager(CurveSegmentManager manager);
     std::pair<size_t, size_t> splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid);
     void clearCurveSegments();
 

@@ -46,7 +46,7 @@ Classify every face of the tetrahedralization:
 After this step, `restrictedFaces_` contains the initial surface triangulation derived
 from the as-inserted vertex set. It may be coarse or miss areas with no interior points.
 
-### R1.4 Build curve segment manager (`CurveSegmentOperations::buildCurveSegments`)
+### R1.4 Build curve segment manager (`CurveSegmentBuilder::build`)
 
 Populate `CurveSegmentManager` from the topology edges:
 
@@ -74,12 +74,13 @@ centred at the midpoint).
 
 - **R2.1.1** Scan `CurveSegmentManager` for encroached segments.
 - **R2.1.2** For the first encroached segment, compute its split point via
-  `CurveSegmentOperations::computeSplitPoint` — the 3D point on the edge curve at the
+  `CurveSegmentGeometry::splitPoint` — the 3D point on the edge curve at the
   arc-length midpoint of the segment's parametric range.
 - **R2.1.3** Pre-compute the cavity interior faces (faces shared by exactly two
   tetrahedra in the Bowyer-Watson cavity) before insertion, so `RestrictedTriangulation`
   can remove stale restricted faces incrementally.
-- **R2.1.4** Insert the split point via Bowyer-Watson (`RCDTRefiner::insertAndUpdate`):
+- **R2.1.4** Insert the split point via Bowyer-Watson (`RCDTPointInserter::insertPoint`,
+  then `finishInsertion`):
   - Run Bowyer-Watson; collect the new tetrahedra adjacent to the new node.
   - Remove the cavity interior faces from `RestrictedTriangulation`.
   - Re-classify all faces of the new tetrahedra: for each face adjacent to the new node,

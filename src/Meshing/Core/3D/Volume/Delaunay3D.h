@@ -1,15 +1,23 @@
 #pragma once
 
 #include "Common/Types.h"
-#include <array>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace Meshing
 {
 
 class MeshOperations3D;
+
+/// What one triangulate() call produces, beyond the tetrahedra it writes
+/// into the MeshOperations3D it was given.
+struct Delaunay3DResult
+{
+    /// Mapping from input point index to mesh node ID.
+    std::map<size_t, size_t> pointIndexToNodeIdMap;
+};
 
 /**
  * @brief Simple Delaunay tetrahedralization in 3D
@@ -32,49 +40,28 @@ class MeshOperations3D;
  * during later refinement) that ends up on the true convex hull has cavity
  * boundary faces with no neighbor to fall back on if they turn out to be
  * coplanar with the new vertex. Keeping it in place guarantees a neighbor is
- * always reachable; the caller is responsible for removing it (via
- * getBoundingNodeIds() and MeshOperations3D::removeBoundingTetrahedron())
- * once it is safe to do so.
+ * always reachable; the caller is responsible for removing it (its node IDs
+ * are recorded in MeshData3D::getBoundingNodeIds()) once it is safe to do so.
  */
 class Delaunay3D
 {
 public:
     /**
-     * @brief Construct a Delaunay3D triangulator with input points
+     * @brief Perform the Delaunay tetrahedralization. The bounding
+     * tetrahedron is left in the mesh -- see class documentation.
      * @param operations The mesh operations to perform insertions through --
      * must be the same instance the caller uses for any later mutation of
      * the same mesh (see class documentation)
      * @param points Vector of Point3D representing the input vertices
      * @param geometryIds Geometry IDs for each point (corner/edge/surface IDs)
+     * @param pointWeights Regular-triangulation weight by point index (0 --
+     * an ordinary, unweighted point -- if index-absent; see
+     * Node3D::getWeight() and RegularPredicates3D, OPE-176)
      */
-    explicit Delaunay3D(MeshOperations3D& operations,
-                        const std::vector<Point3D>& points,
-                        const std::vector<std::vector<std::string>>& geometryIds = {});
-
-    /**
-     * @brief Perform the Delaunay tetrahedralization. The bounding
-     * tetrahedron is left in the mesh -- see class documentation.
-     */
-    void triangulate();
-
-    /**
-     * @brief Get mapping from input point index to mesh node ID
-     * @return Map from point index to node ID
-     */
-    std::map<size_t, size_t> getPointIndexToNodeIdMap() const { return pointIndexToNodeIdMap_; }
-
-    /**
-     * @brief Get the 4 node IDs of the bounding tetrahedron left in the mesh
-     * by triangulate(). The caller owns removing them when appropriate.
-     */
-    std::array<size_t, 4> getBoundingNodeIds() const { return boundingNodeIds_; }
-
-private:
-    MeshOperations3D& operations_;
-    std::vector<Point3D> points_;
-    std::vector<std::vector<std::string>> geometryIds_;
-    std::map<size_t, size_t> pointIndexToNodeIdMap_;
-    std::array<size_t, 4> boundingNodeIds_{};
+    static Delaunay3DResult triangulate(MeshOperations3D& operations,
+                                        const std::vector<Point3D>& points,
+                                        const std::vector<std::vector<std::string>>& geometryIds = {},
+                                        const std::unordered_map<size_t, double>& pointWeights = {});
 };
 
 } // namespace Meshing

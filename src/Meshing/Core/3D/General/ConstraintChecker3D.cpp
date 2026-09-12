@@ -1,6 +1,5 @@
 #include "Meshing/Core/3D/General/ConstraintChecker3D.h"
 #include "Meshing/Core/3D/General/GeometryUtilities3D.h"
-#include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Data/3D/Node3D.h"
 
 namespace Meshing
@@ -54,22 +53,6 @@ bool ConstraintChecker3D::isSubfacetEncroached(const ConstrainedSubfacet3D& subf
     // Test if point is inside the equatorial sphere
     // This automatically checks for non-coplanarity
     return GeometryUtilities3D::isPointInEquatorialSphere(sphere, point, p1, p2, p3);
-}
-
-bool ConstraintChecker3D::isConstraintFace(size_t nodeId1,
-                                           size_t nodeId2,
-                                           size_t nodeId3,
-                                           const std::vector<ConstrainedSubfacet3D>& constrainedSubfacets)
-{
-    FaceKey faceKey(nodeId1, nodeId2, nodeId3);
-    for (const auto& subfacet : constrainedSubfacets)
-    {
-        if (faceKey == FaceKey(subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3))
-        {
-            return true;
-        }
-    }
-    return false;
 }
 
 } // namespace Meshing
