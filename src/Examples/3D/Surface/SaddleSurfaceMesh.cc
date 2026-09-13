@@ -205,33 +205,28 @@ int main()
     // (encroachment/bad-triangle tracking is incremental, not an O(n)
     // rescan).
     //
-    // Known limitation (OPE-176): the finished mesh still has non-manifold
-    // "hole" edges, concentrated on the creases between the saddle top and
-    // its four side/bottom neighbors. RestrictedTriangulation::classifyFace()
-    // has to pick which of two candidate surfaces a crease-straddling face
-    // belongs to, using a discrete tessellation of each surface as an exact
-    // crossing oracle; right at a shared boundary that's an inherently
-    // ambiguous, all-or-nothing call, no matter how fine the oracle's grid
-    // is. Priority 4's repair loop narrows the failure window by densifying
-    // nearby, but can't close it -- it hits the same minimum-edge-length
-    // floor and gives up, leaving a genuine gap rather than an infinite
-    // retry. Weighted Delaunay refinement with protecting balls around every
-    // curve segment (see CurveProtectionScheme, RCDTMesher::buildInitial())
-    // keeps creases as explicit, structurally protected features instead of
-    // repairing straddling faces after the fact, and has cut this count from
-    // 863 (pre-OPE-176) to 126. classifyFace() now also leans on that
-    // guarantee directly: a face whose vertex classification narrows to
-    // exactly one surface, on a protected edge (two nodes chain-adjacent
-    // along the same curve -- see CurveSegmentManager), is trusted without
-    // the crossing oracle's confirmation PROVIDED it's the unique such
-    // candidate across the whole edge star -- verified locally by requiring
-    // any rival to pass the oracle itself, since the oracle is only
-    // unreliable in the near-degenerate case right at the true crease, not
-    // several tets away (see RestrictedTriangulation::
-    // isUniqueEdgeStarCandidate()). That closes the specific "sole candidate,
-    // oracle false negative" failure mode and has cut this count further,
-    // from 126 to 84. The remaining 84 haven't been root-caused -- not yet
-    // closed.
+    // Known limitation: the finished mesh still carries a few non-manifold
+    // edges in its restricted face set. Two of the three causes are closed:
+    //
+    //  - Crease ambiguity (OPE-176). classifyFace() has to decide which of two
+    //    candidate surfaces a crease-straddling face belongs to, using a
+    //    discrete tessellation of each surface as an exact crossing oracle;
+    //    right at a shared boundary that is an inherently all-or-nothing call
+    //    however fine the oracle's grid is. Weighted Delaunay refinement with
+    //    protecting balls around every curve segment (see
+    //    CurveProtectionScheme, RCDTMesher::buildInitial()) keeps creases as
+    //    explicit, structurally protected features instead of repairing
+    //    straddling faces after the fact, and cut the count from 863 to 17.
+    //  - Same-surface over-acceptance (OPE-184). Doubled patches of restricted
+    //    faces in the surface interior, now pruned as connected components by
+    //    RestrictedFaceAudit::removeExcessFaces(): 17 to the residual below.
+    //
+    // What remains at this discretization is 2 edges carrying the expected
+    // NUMBER of faces on the wrong surfaces -- a third defect kind, invariant
+    // to the size floor and so far uninvestigated. Boundary discretization
+    // density is the axis that still degrades: at 218 boundary points (angle
+    // threshold pi/64) the residual is 30 holes, which is OPE-187 and open.
+
     Meshing::SurfaceMesh3DQualitySettings quality;
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
@@ -247,11 +242,16 @@ int main()
     exporter.writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh.vtu");
     std::cout << "Exported refined mesh to SaddleSurfaceMesh.vtu\n";
 
-    // Non-manifold hole edge count -- the OPE-176 verification target this
-    // stress test exists to check (see the "Known limitation" note above).
-    // An edge shared by exactly 2 triangles is a normal closed-manifold
-    // interior edge; any other count is a hole (< 2) or self-intersection
-    // (> 2) in the restricted face set.
+    // Edge multiplicity across the restricted face set. An edge shared by
+    // exactly 2 triangles is a normal closed-manifold interior edge -- that
+    // includes the creases, where the two triangles come from different CAD
+    // surfaces.
+    //
+    // This sees holes and excess faces only. It is blind to the third defect
+    // kind, an edge carrying the expected NUMBER of faces but on the wrong
+    // surfaces, so it under-reports -- RCDTMesher::runPipeline's own log line,
+    // which classifies all three, is the authority for any number quoted from
+    // this model.
     std::map<std::pair<size_t, size_t>, int> edgeMultiplicity;
     for (const auto& triangle : surfaceMesh.triangles)
         for (size_t i = 0; i < 3; ++i)
@@ -262,11 +262,18 @@ int main()
                 std::swap(a, b);
             edgeMultiplicity[{a, b}]++;
         }
-    int nonManifoldEdgeCount = 0;
-    for (const auto& [edge, count] : edgeMultiplicity)
-        if (count != 2)
-            ++nonManifoldEdgeCount;
-    std::cout << "Non-manifold hole edges: " << nonManifoldEdgeCount << "\n";
+
+    int holeEdgeCount = 0;
+    int excessEdgeCount = 0;
+    for (const auto& [edge, faceCount] : edgeMultiplicity)
+    {
+        if (faceCount < 2)
+            ++holeEdgeCount;
+        else if (faceCount > 2)
+            ++excessEdgeCount;
+    }
+    std::cout << "Non-manifold edges: " << holeEdgeCount << " holes, " << excessEdgeCount
+              << " excess (surface mismatches not visible here -- see the runPipeline log)\n";
 
     return 0;
 }
