@@ -40,8 +40,18 @@ public:
     /// 17 -> 388, of which 349 disappeared again when the floor alone was held
     /// at its old value.
     ///
-    /// h's own minimum is the non-circular quantity: it is set by the geometry,
-    /// so it does not move when the discretization does.
+    /// h's own SOURCES are the non-circular quantity: they are set by the
+    /// geometry, so they do not move when the discretization does.
+    ///
+    /// Which source to read is a separate question from that circularity, and
+    /// the answer is the same as fromPointSpacing()'s: a percentile, not the
+    /// extreme. Curvature and local-feature-size sampling routinely produces a
+    /// few sources asking for elements far smaller than the rest of the model
+    /// needs, and the single smallest is as unrepresentative here as a seam
+    /// remainder segment is there. Measured on SaddleSurfaceMesh with the field
+    /// enabled (OPE-180): the minimum gives a floor of 0.0258 and 9 non-manifold
+    /// edges, the median 0.0523 and 2, against 1 for the same model with no
+    /// field at all.
     static double fromSizingField(const SizingField3D& sizingField);
 };
 

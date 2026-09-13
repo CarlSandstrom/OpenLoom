@@ -39,6 +39,7 @@ set(TEST_SOURCES
     Meshing/Core/test_FacetDiscretization2DBuilder.cpp
     Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
+    Meshing/Core/test_MinimumEdgeLengthEstimator.cpp
     Meshing/Core/test_SizingField3D.cpp
     Meshing/Core/test_SizingFieldBuilder3D.cpp
     Meshing/Core/test_RCDTMesher.cpp
