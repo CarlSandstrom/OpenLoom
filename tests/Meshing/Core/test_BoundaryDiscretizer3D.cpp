@@ -6,6 +6,7 @@
 #include "Geometry/3D/Base/IEdge3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
+#include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"
 #include "Topology/SeamCollection.h"
@@ -257,6 +258,45 @@ TEST(BoundaryDiscretizer3D, EdgePoints_TwoInteriorPoints_HaveCorrectEdgeParamete
     ASSERT_EQ(result.edgeParameters[edgePointIndices[2]].size(), 1u);
     EXPECT_DOUBLE_EQ(result.edgeParameters[edgePointIndices[1]][0], 1.0 / 3.0);
     EXPECT_DOUBLE_EQ(result.edgeParameters[edgePointIndices[2]][0], 2.0 / 3.0);
+}
+
+// The length-driven walk emits a point whenever the accumulated arc length
+// reaches the bound, and E12's length is exactly four times the bound here --
+// so the last emission lands exactly on the end vertex. That vertex is already
+// a point of the edge (it is the corner), so emitting there duplicates it, and
+// the regular triangulation can only keep one of two coincident weighted
+// nodes; the other ends up in no triangle at all. Measured on the torus with a
+// sizing field before this was guarded: one orphaned corner node, four
+// AllEdgeNodesCovered failures (OPE-207).
+TEST(BoundaryDiscretizer3D, LengthDrivenWalk_DoesNotDuplicateTheEndVertex)
+{
+    TriangleStripFixture fix;
+
+    // Size far larger than the edge, so h(x) never binds and the bound comes
+    // from the count alone: E12 has length 1, so the bound is exactly 0.25.
+    const SizingField3D sizingField({{Point3D(0.0, 0.0, 0.0), 100.0}}, 0.3);
+
+    Geometry3D::DiscretizationSettings3D settings(4, 1);
+    const auto discretizationResult =
+        BoundaryDiscretizer3D::discretize(*fix.geometry, *fix.topology, settings, &sizingField);
+    const auto& result = *discretizationResult;
+
+    ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E12"));
+    const auto& edgePointIndices = result.edgeIdToPointIndicesMap.at("E12");
+
+    const size_t endCornerIndex = result.cornerIdToPointIndexMap.at("C2");
+    const Point3D endVertex = result.points[endCornerIndex];
+
+    // The end vertex appears exactly once, as the chain's last entry.
+    EXPECT_EQ(edgePointIndices.back(), endCornerIndex);
+    for (size_t i = 0; i + 1 < edgePointIndices.size(); ++i)
+    {
+        EXPECT_GT((result.points[edgePointIndices[i]] - endVertex).norm(), 1e-9)
+            << "point " << i << " of E12 coincides with the end vertex";
+    }
+
+    // Four segments: the two corners plus three interior points.
+    EXPECT_EQ(edgePointIndices.size(), 5u);
 }
 
 TEST(BoundaryDiscretizer3D, SeamTwinEdge_SequenceIsReverseOfOriginalEdge)

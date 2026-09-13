@@ -164,7 +164,16 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
                     lengthReached = accumulatedLength >= allowedLength;
                 }
 
-                if (angleReached || lengthReached)
+                // The end vertex is already a point of this edge (it is the
+                // corner both incident edges share), so emitting here would
+                // duplicate it -- two coincident nodes, of which the regular
+                // triangulation can only keep one, leaving the other in no
+                // triangle at all (OPE-207). The angle criterion rarely lands
+                // exactly on tMax; a length criterion, which divides no closed
+                // curve evenly, routinely does.
+                const bool atEndVertex = t >= tMax;
+
+                if ((angleReached || lengthReached) && !atEndVertex)
                 {
                     size_t pointIndex = result->points.size();
                     result->points.push_back(point);
