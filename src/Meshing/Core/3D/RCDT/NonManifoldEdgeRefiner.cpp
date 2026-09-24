@@ -45,7 +45,23 @@ bool NonManifoldEdgeRefiner::refineNext(RCDTPointInserter& pointInserter)
             continue;
         }
 
-        // Size floor, same reasoning as the other priorities.
+        // Size floor -- but NOT the cutoff that actually stops this
+        // priority, despite looking like the one the other priorities use.
+        // Instrumented over OPE-184's 65-defect repro: of 107 refusals this
+        // test fired ZERO times. The operative cutoff is twice this value,
+        // enforced by RCDTPointInserter's proximity guard: the repair point
+        // is the defect edge's own midpoint, so its distance to that edge's
+        // OWN endpoints is length/2 by construction, which falls below the
+        // floor for any edge shorter than 2 * minimumEdgeLength_. 50 of the
+        // 56 proximity refusals were blocked by the defect edge's own
+        // endpoint that way.
+        //
+        // Kept rather than deleted: "never fires" was measured on one model
+        // at one pinned floor, and it is still the honest statement of this
+        // priority's own intent. Exempting the proximity guard to let repair
+        // proceed below 2x is separately DISPROVEN -- OPE-184 direction 2
+        // measured 65 -> 1242 defects -- so do not treat this comment as an
+        // invitation to lower the real cutoff.
         const double length = (firstEndpoint->second - secondEndpoint->second).norm();
         if (length <= minimumEdgeLength_)
         {

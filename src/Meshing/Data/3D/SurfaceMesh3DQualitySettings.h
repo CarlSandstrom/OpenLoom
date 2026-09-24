@@ -51,13 +51,6 @@ struct SurfaceMesh3DQualitySettings
     /// path (meshSurface()) never looks at this.
     double tetCircumradiusToShortestEdgeRatio = 2.5;
 
-    /// Safety cap: stop volume refinement once the mesh reaches this many
-    /// tetrahedra. Separate from elementLimit (which bounds restricted
-    /// surface triangles) since the two element counts aren't comparable —
-    /// a solid's interior typically needs far more tets than it has boundary
-    /// triangles.
-    std::size_t tetElementLimit = 100000;
-
     /// Maximum number of refinement iterations before the RCDT refiner gives
     /// up. The default (500) is a safety cap for ordinary meshes. Geometries
     /// with acute dihedral angles at feature corners (< 60°) drive a

@@ -24,29 +24,6 @@ RCDTTetQualityController::RCDTTetQualityController(const MeshData3D& meshData,
     }
 }
 
-bool RCDTTetQualityController::isMeshAcceptable(const MeshData3D& data,
-                                                const MeshConnectivity& /*connectivity*/) const
-{
-    if (data.getElementCount() > settings_.tetElementLimit)
-    {
-        spdlog::debug("RCDTTetQualityController: Mesh exceeds tet element limit ({} > {})",
-                      data.getElementCount(), settings_.tetElementLimit);
-        return true; // Accept mesh to prevent infinite refinement
-    }
-
-    for (const auto& [id, element] : data.getElements())
-    {
-        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tetrahedron)
-            continue;
-
-        if (!isTetrahedronAcceptable(*tetrahedron))
-            return false;
-    }
-
-    return true;
-}
-
 bool RCDTTetQualityController::isTetrahedronAcceptable(const TetrahedralElement& element) const
 {
     const ElementQuality3D elementQuality(*meshData_);
@@ -64,11 +41,6 @@ bool RCDTTetQualityController::isTetrahedronAcceptable(const TetrahedralElement&
 double RCDTTetQualityController::getTargetElementQuality() const
 {
     return settings_.tetCircumradiusToShortestEdgeRatio;
-}
-
-std::size_t RCDTTetQualityController::getElementLimit() const
-{
-    return settings_.tetElementLimit;
 }
 
 bool RCDTTetQualityController::isTetrahedronTooSmall(const TetrahedralElement& element) const

@@ -4,6 +4,7 @@
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "SurfaceMeshTopology.h"
 
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <BRepPrimAPI_MakeSphere.hxx>
@@ -38,6 +39,7 @@ using namespace Meshing;
 //   3. No duplicate triangles
 //   4. No degenerate (zero-area) triangles
 //   5. All triangle nodes lie on their respective CAD surface (gap ≤ tolerance)
+//   6. The mesh is a closed 2-manifold (OPE-208)
 // ============================================================================
 
 class RCDTMesherCylinderTest : public ::testing::Test
@@ -186,6 +188,34 @@ TEST_F(RCDTMesherCylinderTest, AllNodesOnCylinderSurface)
 }
 
 // ============================================================================
+// 6. The mesh is a closed 2-manifold
+// ============================================================================
+
+TEST_F(RCDTMesherCylinderTest, IsAClosedTwoManifold)
+{
+    // A closed cylinder is topologically a sphere. Both assertions are made
+    // because neither subsumes the other: the per-edge count localises a
+    // defect but is blind to a mesh that closes up the wrong way, while the
+    // Euler characteristic is a global sum a hole and a duplicated triangle
+    // cancel out of exactly (each shifts it by one, in opposite directions).
+    //
+    // Exactly 2 is the right expectation for this model specifically -- it
+    // has no junction where three surfaces meet. The mesher's own invariant
+    // is more general and reads the expected count off the CAD topology; see
+    // RestrictedFaceAudit::findNonManifoldEdges().
+    const auto topology = TestSupport::computeSurfaceMeshTopology(mesh_);
+
+    const auto defectiveEdges = topology.edgesNotSharedBy(2);
+    EXPECT_TRUE(defectiveEdges.empty())
+        << defectiveEdges.size() << " edge(s) not shared by exactly 2 triangles:"
+        << topology.describe(defectiveEdges);
+
+    EXPECT_EQ(topology.eulerCharacteristic(), 2)
+        << "V=" << topology.vertices.size() << " E=" << topology.trianglesPerEdge.size()
+        << " F=" << topology.triangleCount;
+}
+
+// ============================================================================
 // RCDTMesherSphereTest
 //
 // End-to-end test: mesh a closed OCC sphere (radius 3) using RCDTMesher
@@ -331,6 +361,22 @@ TEST_F(RCDTMesherSphereTest, AllNodesOnSphereSurface)
     }
 }
 
+TEST_F(RCDTMesherSphereTest, IsAClosedTwoManifold)
+{
+    // Genus-0 closed surface: chi == 2, every edge on exactly 2 triangles.
+    // See RCDTMesherCylinderTest::IsAClosedTwoManifold for why both.
+    const auto topology = TestSupport::computeSurfaceMeshTopology(mesh_);
+
+    const auto defectiveEdges = topology.edgesNotSharedBy(2);
+    EXPECT_TRUE(defectiveEdges.empty())
+        << defectiveEdges.size() << " edge(s) not shared by exactly 2 triangles:"
+        << topology.describe(defectiveEdges);
+
+    EXPECT_EQ(topology.eulerCharacteristic(), 2)
+        << "V=" << topology.vertices.size() << " E=" << topology.trianglesPerEdge.size()
+        << " F=" << topology.triangleCount;
+}
+
 // ============================================================================
 // RCDTMesherTorusTest
 //
@@ -356,7 +402,8 @@ TEST_F(RCDTMesherSphereTest, AllNodesOnSphereSurface)
 //   4. No degenerate (zero-area) triangles
 //   5. All triangle nodes lie on the torus surface (gap ≤ tolerance)
 //   6. Both seam edges are present with no duplicate (non-closure) nodes
-//   7. Euler characteristic V - E + F == 0 (genus-1 closed surface)
+//   7. A closed 2-manifold: every edge on exactly 2 triangles, and
+//      V - E + F == 0 (genus-1 closed surface)
 // ============================================================================
 
 class RCDTMesherTorusTest : public ::testing::Test
@@ -492,26 +539,18 @@ TEST_F(RCDTMesherTorusTest, BothSeamEdgesPresentWithNoDuplicateNodes)
     }
 }
 
-TEST_F(RCDTMesherTorusTest, EulerCharacteristicIsZero)
+TEST_F(RCDTMesherTorusTest, IsAClosedTwoManifold)
 {
-    // Genus-1 closed surface: V - E + F == 0.
-    std::unordered_set<size_t> vertices;
-    std::set<std::pair<size_t, size_t>> edges;
-    for (const auto& triangle : mesh_.triangles)
-    {
-        for (size_t i = 0; i < 3; ++i)
-        {
-            vertices.insert(triangle[i]);
-            size_t a = triangle[i];
-            size_t b = triangle[(i + 1) % 3];
-            if (a > b)
-                std::swap(a, b);
-            edges.insert({a, b});
-        }
-    }
+    // Genus-1 closed surface: chi == 0, every edge on exactly 2 triangles.
+    // See RCDTMesherCylinderTest::IsAClosedTwoManifold for why both.
+    const auto topology = TestSupport::computeSurfaceMeshTopology(mesh_);
 
-    const long long v = static_cast<long long>(vertices.size());
-    const long long e = static_cast<long long>(edges.size());
-    const long long f = static_cast<long long>(mesh_.triangles.size());
-    EXPECT_EQ(v - e + f, 0) << "V=" << v << " E=" << e << " F=" << f;
+    const auto defectiveEdges = topology.edgesNotSharedBy(2);
+    EXPECT_TRUE(defectiveEdges.empty())
+        << defectiveEdges.size() << " edge(s) not shared by exactly 2 triangles:"
+        << topology.describe(defectiveEdges);
+
+    EXPECT_EQ(topology.eulerCharacteristic(), 0)
+        << "V=" << topology.vertices.size() << " E=" << topology.trianglesPerEdge.size()
+        << " F=" << topology.triangleCount;
 }

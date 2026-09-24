@@ -3,8 +3,6 @@
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Interfaces/IQualityController3D.h"
 
-#include <cstddef>
-
 namespace Meshing
 {
 
@@ -25,20 +23,23 @@ class MeshData3D;
  * uses it as the floor below which a bad tetrahedron is given up on rather than
  * refined. That refiner finds its skinny tetrahedra through
  * MeshQueries3D::findSkinnyTetrahedra, not through isTetrahedronAcceptable(), so
- * the remaining four methods exist to satisfy IQualityController3D and are
- * exercised only by the unit tests. That is why tetElementLimit, which
- * SurfaceMesh3DQualitySettings documents as capping volume refinement, is in
- * fact never enforced.
+ * the remaining methods exist to satisfy IQualityController3D and are exercised
+ * only by the unit tests.
+ *
+ * isMeshAcceptable() and getElementLimit() were removed from the interface in
+ * OPE-208: they had one implementor and no production caller, and the
+ * tetElementLimit they read was documented as capping volume refinement while
+ * enforcing nothing. Volume refinement is bounded by tet quality and the size
+ * floor; the surface side has its own separate, live limit in
+ * RestrictedTriangulation::getBadTriangles().
  */
 class RCDTTetQualityController : public IQualityController3D
 {
 public:
     RCDTTetQualityController(const MeshData3D& meshData, const SurfaceMesh3DQualitySettings& settings);
 
-    bool isMeshAcceptable(const MeshData3D& data, const MeshConnectivity& connectivity) const override;
     bool isTetrahedronAcceptable(const TetrahedralElement& element) const override;
     double getTargetElementQuality() const override;
-    std::size_t getElementLimit() const override;
     bool isTetrahedronTooSmall(const TetrahedralElement& element) const override;
 
     // Size floor below which isTetrahedronTooSmall() reports a tetrahedron as

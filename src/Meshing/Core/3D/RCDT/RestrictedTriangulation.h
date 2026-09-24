@@ -76,6 +76,25 @@ public:
 
     const RestrictedFaceMap& getRestrictedFaces() const;
 
+    /// How many DISTINCT faces buildFrom()'s scan left unconfirmed: candidate
+    /// surfaces existed but none could be confirmed (see
+    /// FaceRestriction::Unconfirmed). This is where the residual holes come
+    /// from, so it is the classification's own error signal rather than a
+    /// count of symptoms downstream of it.
+    ///
+    /// An UPPER BOUND on real misses, not a count of them -- plenty of
+    /// genuinely interior faces have three nodes sharing a surface (the
+    /// same-curve chord faces RestrictedFaceAudit removes are one whole
+    /// family). Useful as a controlled figure to compare oracles against,
+    /// not as a defect count.
+    ///
+    /// Initial classification only. Refinement reclassifies continuously via
+    /// updateAfterInsertion(), and keeping a live figure would mean
+    /// maintaining a third face set in lockstep with the other two purely
+    /// for a diagnostic. The initial scan is a snapshot independent of
+    /// refinement depth, which is what makes it comparable across runs.
+    size_t getUnconfirmedFaceCount() const { return unconfirmedFaceCount_; }
+
     /// Post-hoc cleanup over the restricted-face set, meant to be called ONCE
     /// after refinement has fully converged -- see
     /// RestrictedFaceAudit::removeDefectiveFaces(), which this hands the face
@@ -114,6 +133,10 @@ private:
 
     RestrictedFaceMap restrictedFaces_;
     BadRestrictedFaceMap badFaces_;
+
+    /// See getUnconfirmedFaceCount(). Set by buildFrom(), never updated
+    /// afterwards.
+    size_t unconfirmedFaceCount_ = 0;
     SurfaceMesh3DQualitySettings settings_;
 
     /// Built from topology in buildFrom(). Shared: the oracle resolves a

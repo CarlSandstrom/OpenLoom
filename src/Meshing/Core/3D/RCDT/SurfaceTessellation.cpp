@@ -3,6 +3,8 @@
 #include "Common/BoundingBox2D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 
+#include "spdlog/spdlog.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -127,10 +129,28 @@ double estimateDiameter(const Geometry3D::ISurface3D& surface, const Common::Bou
 size_t samplesPerDirectionFor(double diameter, double targetCellSize)
 {
     // Upper bound, bounding worst-case tessellation memory and cost for very
-    // large or very fine-resolution meshes.
+    // large or very fine-resolution meshes. Cost is quadratic in this, so it
+    // cannot simply be raised.
+    //
+    // It reports when it binds (OPE-208). Everything above this point is
+    // tessellated COARSER than targetCellSize asked for, which voids the
+    // guarantee the cell size exists to provide -- see
+    // TESSELLATION_CELL_SIZE_FACTOR in DualEdgeRestrictionOracle.cpp, whose
+    // claim that cells below minimumEdgeLength / 2 can classify any face down
+    // to that floor holds only while this clamp is inactive. Clamping
+    // silently left no way to tell from the outside that it had stopped
+    // holding, which is the whole failure mode of a cost cap standing in for
+    // a correctness parameter.
     constexpr size_t MAXIMUM_SAMPLES_PER_DIRECTION = 400;
 
     const size_t computed = static_cast<size_t>(std::ceil(diameter / targetCellSize));
+    if (computed > MAXIMUM_SAMPLES_PER_DIRECTION)
+    {
+        spdlog::warn("SurfaceTessellation: sample cap reached -- {} columns wanted for a target cell size of {}, "
+                     "capped at {}, so cells are {} across and classification is no longer guaranteed at that floor",
+                     computed, targetCellSize, MAXIMUM_SAMPLES_PER_DIRECTION,
+                     diameter / static_cast<double>(MAXIMUM_SAMPLES_PER_DIRECTION));
+    }
     return std::clamp(computed, size_t{2}, MAXIMUM_SAMPLES_PER_DIRECTION);
 }
 
