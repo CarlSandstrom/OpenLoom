@@ -3,6 +3,7 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
+#include "SurfaceMeshTopology.h"
 
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -34,7 +35,9 @@ using namespace Meshing;
 //   2. The output covers all 6 faces
 //   3. Every boundary edge node participates in at least one triangle
 //   4. No duplicate triangles
-//   5. No degenerate (zero-area) triangles
+//   5. Correct triangle count per face
+//   6. No degenerate (zero-area) triangles
+//   7. The mesh is a closed 2-manifold (OPE-208)
 // ============================================================================
 
 class RCDTMesherBoxTest : public ::testing::Test
@@ -161,6 +164,33 @@ TEST_F(RCDTMesherBoxTest, NoDegenerateTriangles)
             << "Degenerate triangle: {" << triangle[0] << ", " << triangle[1]
             << ", " << triangle[2] << "} area=" << area;
     }
+}
+
+// ============================================================================
+// 7. The mesh is a closed 2-manifold
+// ============================================================================
+
+TEST_F(RCDTMesherBoxTest, IsAClosedTwoManifold)
+{
+    // A box is topologically a sphere: chi == 2, every edge on exactly 2
+    // triangles. Both are asserted because neither subsumes the other -- the
+    // per-edge count localises a defect, while the Euler characteristic is a
+    // global sum that a hole and a duplicated triangle cancel out of exactly.
+    //
+    // Exactly 2 is right for this model specifically: a box has no junction
+    // where three surfaces meet. The mesher's general invariant reads the
+    // expected count off the CAD topology -- see
+    // RestrictedFaceAudit::findNonManifoldEdges().
+    const auto topology = TestSupport::computeSurfaceMeshTopology(mesh_);
+
+    const auto defectiveEdges = topology.edgesNotSharedBy(2);
+    EXPECT_TRUE(defectiveEdges.empty())
+        << defectiveEdges.size() << " edge(s) not shared by exactly 2 triangles:"
+        << topology.describe(defectiveEdges);
+
+    EXPECT_EQ(topology.eulerCharacteristic(), 2)
+        << "V=" << topology.vertices.size() << " E=" << topology.trianglesPerEdge.size()
+        << " F=" << topology.triangleCount;
 }
 
 // ============================================================================
