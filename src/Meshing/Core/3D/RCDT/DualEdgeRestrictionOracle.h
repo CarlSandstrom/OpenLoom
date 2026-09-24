@@ -3,6 +3,7 @@
 #include "Common/Types.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Connectivity/TetrahedronKey.h"
+#include "Meshing/Core/3D/RCDT/PointPhase.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 
@@ -34,23 +35,6 @@ class Topology3D;
 
 namespace Meshing
 {
-
-/// Which side of the model a point falls on, as resolved against every
-/// IVolume3D in the geometry. Declared here rather than in the .cpp only so
-/// that the oracle can memoize it per tetrahedron -- see
-/// centroidPhaseByTetrahedron_.
-enum class PointPhaseKind
-{
-    Exterior,
-    InVolume,
-    Ambiguous
-};
-
-struct PointPhase
-{
-    PointPhaseKind kind = PointPhaseKind::Exterior;
-    std::string volumeId;
-};
 
 /**
  * @brief Decides whether a face belongs to the model boundary from its dual
