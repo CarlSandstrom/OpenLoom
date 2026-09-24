@@ -1,5 +1,6 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
+#include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -12,6 +13,7 @@
 #include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
+#include "Meshing/Core/3D/RCDT/PhaseDiagnosticsExporter.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
@@ -143,6 +145,20 @@ void requireClosedBoundary(const DefectiveFaceRemovalSummary& defectRemoval)
                             "from the ambient tetrahedra");
 }
 
+void exportPhaseDiagnostics(const MeshingContext3D& context,
+                            const RestrictedTriangulation& restrictedTriangulation,
+                            const Geometry3D::GeometryCollection3D& geometry,
+                            const Topology3D::Topology3D& topology)
+{
+    if (!OPENLOOM_DEBUG_ENABLED(EXPORT_PHASE_DIAGNOSTICS))
+        return;
+
+    const auto& meshData = context.getMeshData();
+    const MeshConnectivity connectivity(meshData);
+    PhaseDiagnosticsExporter::write(meshData, connectivity, geometry, topology,
+                                    restrictedTriangulation.getRestrictedFaces(), "rcdt");
+}
+
 } // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -178,6 +194,12 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
 
     refine(context, restrictedTriangulation, minimumEdgeLength, meshingVolume);
     exportMesh3D(context.getMeshData(), "rcdt_refined", 1);
+
+    // Before removeDefectiveFaces(), so the diff sees the classifier's own
+    // answer rather than one the post-hoc passes have already tidied -- and
+    // necessarily before AmbientTetrahedronRemover, since the phase field
+    // needs the exterior tetrahedra that pass is about to strip.
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_);
 
     const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
     logDefectiveFaceRemoval(defectRemoval);
