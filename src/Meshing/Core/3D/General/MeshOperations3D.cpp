@@ -409,9 +409,9 @@ void MeshOperations3D::addOrientedTetrahedron(const std::array<size_t, 3>& face,
     // order (by the scalar triple product's cyclic invariance, faceNormal
     // . (apex - p0) == (p1 - p0) . ((p2 - p0) x (apex - p0))). Store the node
     // IDs in that same (face..., apex) order so a >= 0 signedVolume here
-    // really does mean a positive-orientation TetrahedralElement under
-    // MeshVerifier3D::computeSignedVolume's convention -- storing the apex
-    // first instead (an odd permutation) would silently negate it.
+    // really does mean a positive-orientation TetrahedralElement under the
+    // usual (face..., apex) sign convention -- storing the apex first
+    // instead (an odd permutation) would silently negate it.
     std::array<size_t, 4> nodeIds;
     if (signedVolume >= 0.0)
     {

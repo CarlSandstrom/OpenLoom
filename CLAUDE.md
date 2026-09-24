@@ -117,7 +117,7 @@ When fixing a bug or adding a feature, make the right change — not the conveni
 - **Use the LSP for symbol work**: clangd is configured (it finds `build/compile_commands.json` automatically). Use `findReferences`, `goToDefinition`, and `incomingCalls` to trace a symbol rather than grepping for its name — grep matches text, the LSP matches symbols, and it sees overloads, templates, and aliases that a name search misses. The first query after a cold start returns nothing while it indexes; repeat it once.
 - **No temporary scaffolding**: Do not add temporary assertions, diagnostic tests, or throwaway log statements. Remove any that were added during investigation once the bug is resolved.
 - **Tests must be intentional**: Only add a test if it covers a real scenario worth keeping permanently. Do not add tests just to verify a fix during debugging. (Characterization tests written during a refactor are the one exception — see Refactoring below.)
-- **Mesh integrity checks**: When running examples or tests to investigate a bug, always set the environment variable `CHECK_MESH_EACH_ITERATION=1`. This enables per-iteration mesh consistency checks that help catch corruption early.
+- **Mesh integrity checks are 2D-only**: `CHECK_MESH_EACH_ITERATION=1` enables per-iteration mesh consistency checks in the 2D path (`ShewchukRefiner2D`). **It does nothing in 3D**, and setting it on a 3D run verifies nothing. The 3D verifier it used to drive had no callers and was removed (OPE-208); `git show ff3fec6:src/Meshing/Core/3D/General/MeshVerifier3D.cpp` has it if a checked version is ever wanted. Treat any older claim of "suite green with `CHECK_MESH_EACH_ITERATION=1`" on an RCDT model as evidence of nothing.
 
 ## Refactoring
 

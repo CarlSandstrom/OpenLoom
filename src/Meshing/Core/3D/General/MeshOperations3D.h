@@ -202,7 +202,7 @@ private:
      *
      * Shared by retriangulate() and splitCoplanarBoundaryFace(): picks the
      * face winding (as stored) that gives the resulting TetrahedralElement a
-     * positive signed volume under MeshVerifier3D::computeSignedVolume's
+     * positive signed volume under the usual (face..., apex) sign
      * convention, regardless of the face's own orientation.
      *
      * @param face The three face node IDs
