@@ -207,6 +207,22 @@ private:
                              const MeshConnectivity& connectivity,
                              const Geometry3D::GeometryCollection3D& geometry) const;
 
+    /// Whether at most ONE rival face across the edge (nodeIdA, nodeIdB)
+    /// could also be restricted to surfaceId by the phase test.
+    ///
+    /// One rival, not zero -- deliberately the opposite of
+    /// isUniqueEdgeStarCandidate()'s rule above, for a reason specific to the
+    /// edges each of them guards. A PROTECTED edge's two genuine incident
+    /// faces belong to DIFFERENT surfaces, so for any one surfaceId only one
+    /// of them is a candidate at all and a second means a spurious face. An
+    /// ORDINARY edge's two genuine incident faces belong to the SAME surface,
+    /// so a face's own legitimate partner is always exactly one rival:
+    /// barring every rival would disqualify every honest interior face.
+    /// Measured (OPE-176): the 0-rival rule gave zero improvement here.
+    ///
+    /// Tried on any edge of the face, not just a feature-anchored one --
+    /// what justifies trusting it is isPhaseBoundaryFace()'s own robustness,
+    /// not an a priori topological guarantee about the edge.
     bool isUniquePhaseBoundaryCandidate(const FaceKey& face,
                                         size_t nodeIdA,
                                         size_t nodeIdB,

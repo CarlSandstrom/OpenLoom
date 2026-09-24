@@ -278,8 +278,9 @@ double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulati
     restrictedTriangulation.buildFrom(meshData, connectivity, *geometry_, *topology_, minimumEdgeLength,
                                       qualitySettings_);
 
-    spdlog::info("RCDTMesher::buildInitial: {} restricted faces",
-                 restrictedTriangulation.getRestrictedFaces().size());
+    spdlog::info("RCDTMesher::buildInitial: {} restricted faces, {} unconfirmed",
+                 restrictedTriangulation.getRestrictedFaces().size(),
+                 restrictedTriangulation.getUnconfirmedFaceCount());
 
     return minimumEdgeLength;
 }

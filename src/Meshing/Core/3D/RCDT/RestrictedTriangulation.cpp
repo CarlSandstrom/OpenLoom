@@ -14,6 +14,8 @@
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
 
+#include <unordered_set>
+
 namespace Meshing
 {
 
@@ -27,6 +29,11 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
     settings_ = settings;
     restrictedFaces_.clear();
     badFaces_.clear();
+
+    // Collected as a set rather than counted inline: a face is reached once
+    // from each of its two adjacent tetrahedra, so incrementing per visit
+    // would double-count every interior face.
+    std::unordered_set<FaceKey, FaceKeyHash> unconfirmedFaces;
 
     surfaceCandidates_ = SurfaceCandidates(topology);
     oracle_ = DualEdgeRestrictionOracle(geometry, topology, surfaceCandidates_, minimumEdgeLength);
@@ -49,8 +56,14 @@ void RestrictedTriangulation::buildFrom(const MeshData3D& meshData,
                 updateBadFaceEntry(face, classification.surfaceId, meshData, geometry);
                 restrictedFaces_.emplace(face, std::move(classification.surfaceId));
             }
+            else if (classification.restriction == FaceRestriction::Unconfirmed)
+            {
+                unconfirmedFaces.insert(face);
+            }
         }
     }
+
+    unconfirmedFaceCount_ = unconfirmedFaces.size();
 }
 
 void RestrictedTriangulation::updateAfterInsertion(

@@ -29,6 +29,18 @@ constexpr double MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
 // 0.0841, 7; 0.50 -> 0.173, 12; the old global minimum -> 0.0258, 9. The
 // plateau spans roughly 0.05-0.10, and 0.1 sits inside it rather than on
 // either shoulder.
+//
+// EVIDENCE CAVEAT (OPE-208): that plateau was found by sweeping this constant
+// and reading off non-manifold defect counts -- the one method OPE-208 rules
+// out. The count lumps unrelated failure modes into one number, and the size
+// floor is known to HIDE defects rather than prevent them (OPE-184), so the
+// axis measures suppression as much as quality. The outlier argument in the
+// paragraph above stands on its own and does not rest on those numbers; the
+// numbers do not establish that 0.1 is right. This is a fitted constant.
+//
+// Retirement condition: re-derive the percentile from a property of the field
+// -- what fraction of its sources are sampling artifacts rather than genuine
+// geometric demands -- rather than from any defect count.
 constexpr double SOURCE_SIZE_PERCENTILE = 0.1;
 
 } // namespace
