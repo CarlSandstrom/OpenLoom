@@ -7,7 +7,6 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
-#include "Meshing/Data/Base/MeshConnectivity.h"
 
 #include <memory>
 
@@ -67,9 +66,6 @@ TEST_F(RCDTTetQualityControllerTest, AcceptsGoodQualityTetrahedron)
     ASSERT_NE(tet, nullptr);
 
     EXPECT_TRUE(controller.isTetrahedronAcceptable(*tet));
-
-    MeshConnectivity connectivity(context_->getMeshData());
-    EXPECT_TRUE(controller.isMeshAcceptable(context_->getMeshData(), connectivity));
 }
 
 TEST_F(RCDTTetQualityControllerTest, RejectsSkinnyTetrahedron)
@@ -84,23 +80,6 @@ TEST_F(RCDTTetQualityControllerTest, RejectsSkinnyTetrahedron)
     ASSERT_NE(tet, nullptr);
 
     EXPECT_FALSE(controller.isTetrahedronAcceptable(*tet));
-
-    MeshConnectivity connectivity(context_->getMeshData());
-    EXPECT_FALSE(controller.isMeshAcceptable(context_->getMeshData(), connectivity));
-}
-
-TEST_F(RCDTTetQualityControllerTest, MeshAcceptableWhenElementLimitExceeded)
-{
-    createSkinnyTetrahedron();
-
-    SurfaceMesh3DQualitySettings settings;
-    settings.tetCircumradiusToShortestEdgeRatio = 2.5;
-    settings.tetElementLimit = 0; // Already "exceeded" with a single tet present
-    RCDTTetQualityController controller(context_->getMeshData(), settings);
-
-    MeshConnectivity connectivity(context_->getMeshData());
-    EXPECT_TRUE(controller.isMeshAcceptable(context_->getMeshData(), connectivity))
-        << "Should accept mesh to prevent infinite refinement once the element limit is exceeded";
 }
 
 TEST_F(RCDTTetQualityControllerTest, TooSmallTetrahedronIsNotRefinable)
@@ -133,13 +112,11 @@ TEST_F(RCDTTetQualityControllerTest, RegularTetrahedronIsNotTooSmall)
     EXPECT_FALSE(controller.isTetrahedronTooSmall(*tet));
 }
 
-TEST_F(RCDTTetQualityControllerTest, ReportsSettingsAsTargetsAndLimits)
+TEST_F(RCDTTetQualityControllerTest, ReportsTheConfiguredQualityBoundAsItsTarget)
 {
     SurfaceMesh3DQualitySettings settings;
     settings.tetCircumradiusToShortestEdgeRatio = 3.0;
-    settings.tetElementLimit = 12345;
     RCDTTetQualityController controller(context_->getMeshData(), settings);
 
     EXPECT_DOUBLE_EQ(controller.getTargetElementQuality(), 3.0);
-    EXPECT_EQ(controller.getElementLimit(), 12345u);
 }

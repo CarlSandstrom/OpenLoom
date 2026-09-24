@@ -75,7 +75,7 @@ Class names and module paths in this table are written in backticks, and `./scri
 | `Meshing/Core/3D/Surface/` | legacy | `SurfaceMesher3D` dispatches between two pipelines. `Auto` selects `AmbientRCDT` whenever the shape has seams, which is true of anything with a cylindrical face, so the UV-space `PerFaceUV` pipeline is in practice reachable only by requesting it explicitly. No example uses it; its coverage is two unit tests on a unit box. Do not assume this module is dead — it is still the entry point every surface example goes through. |
 | `Meshing/Core/3D/Volume/` | live | Initial unconstrained Delaunay tetrahedralization: `Delaunay3D`. Top-level entry point `VolumeMesher3D` |
 | `Meshing/Data/` | live | `MeshData2D`, `MeshData3D`, `Node2D`, `Node3D`, `TriangleElement`, `TetrahedralElement`, `CurveSegmentManager` |
-| `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController` |
+| `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController2D`, `IQualityController3D` |
 | `Meshing/Connectivity/` | live | Element key types: `EdgeKey`, `FaceKey`, `TetrahedronKey` |
 | `Meshing/Operations/` | live | Transactional mutation: `MeshTransaction`, `ScopedTransaction` |
 | `Readers/` | live | OpenCASCADE CAD import |
