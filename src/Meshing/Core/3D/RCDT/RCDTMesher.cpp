@@ -148,7 +148,8 @@ void requireClosedBoundary(const DefectiveFaceRemovalSummary& defectRemoval)
 void exportPhaseDiagnostics(const MeshingContext3D& context,
                             const RestrictedTriangulation& restrictedTriangulation,
                             const Geometry3D::GeometryCollection3D& geometry,
-                            const Topology3D::Topology3D& topology)
+                            const Topology3D::Topology3D& topology,
+                            const std::string& filePrefix)
 {
     if (!OPENLOOM_DEBUG_ENABLED(EXPORT_PHASE_DIAGNOSTICS))
         return;
@@ -156,7 +157,7 @@ void exportPhaseDiagnostics(const MeshingContext3D& context,
     const auto& meshData = context.getMeshData();
     const MeshConnectivity connectivity(meshData);
     PhaseDiagnosticsExporter::write(meshData, connectivity, geometry, topology,
-                                    restrictedTriangulation.getRestrictedFaces(), "rcdt");
+                                    restrictedTriangulation.getRestrictedFaces(), filePrefix);
 }
 
 } // namespace
@@ -195,14 +196,20 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     refine(context, restrictedTriangulation, minimumEdgeLength, meshingVolume);
     exportMesh3D(context.getMeshData(), "rcdt_refined", 1);
 
-    // Before removeDefectiveFaces(), so the diff sees the classifier's own
-    // answer rather than one the post-hoc passes have already tidied -- and
-    // necessarily before AmbientTetrahedronRemover, since the phase field
+    // Exported twice, around removeDefectiveFaces(), because the two answer
+    // different questions. "raw" is what the classifier itself produced, which
+    // is what a replacement oracle has to be compared against. "pruned" is
+    // what actually ships, and is the only one whose over-covered edges are
+    // the residual defects the audit reports -- the raw set still contains
+    // every chord face and flap the post-hoc passes are about to remove.
+    //
+    // Both necessarily precede AmbientTetrahedronRemover: the phase field
     // needs the exterior tetrahedra that pass is about to strip.
-    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_);
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, "rcdt_raw");
 
     const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
     logDefectiveFaceRemoval(defectRemoval);
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, "rcdt_pruned");
     if (meshingVolume)
         requireClosedBoundary(defectRemoval);
 
