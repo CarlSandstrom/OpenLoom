@@ -13,6 +13,7 @@
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
@@ -59,10 +60,12 @@ int main()
     Export::VtkExporter exporter;
 
     exporter.writeEdgeMesh(discResult, "BoxWithHoleSurfaceEdges.vtu");
+    Export::TsvExporter::writeDiscretization(discResult, "BoxWithHoleSurfaceEdges");
     std::cout << "Exported edge mesh to BoxWithHoleSurfaceEdges.vtu (color by EdgeID)\n";
 
     const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();
     exporter.writeSurfaceMesh(discResult, subfacets, "BoxWithHoleSurface3D.vtu");
+    Export::TsvExporter::writeSurfaceMesh(discResult, subfacets, "BoxWithHoleSurface3D");
     std::cout << "Exported surface mesh to BoxWithHoleSurface3D.vtu (color by SurfaceID)\n";
 
     context.refineSurfaces();
@@ -72,6 +75,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D_Refined.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D_Refined");
     std::cout << "Exported refined surface mesh to BoxWithHoleSurface3D_Refined.vtu\n";
 
     return 0;

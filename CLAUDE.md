@@ -79,7 +79,7 @@ Class names and module paths in this table are written in backticks, and `./scri
 | `Meshing/Connectivity/` | live | Element key types: `EdgeKey`, `FaceKey`, `TetrahedronKey` |
 | `Meshing/Operations/` | live | Transactional mutation: `MeshTransaction`, `ScopedTransaction` |
 | `Readers/` | live | OpenCASCADE CAD import |
-| `Export/` | live | `VtkExporter` (VTU format) |
+| `Export/` | live | `VtkExporter` (VTU, for viewing in ParaView), `TsvExporter` (tab-separated tables, the format the goldens are diffed in) |
 | `Utils/` | live | `MeshLogger` |
 
 ### Design Patterns

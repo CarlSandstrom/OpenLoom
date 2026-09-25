@@ -1,0 +1,10 @@
+kind	id	nodes	geometry_id	role
+corner	0	1	vertex_0	-
+corner	1	0	vertex_1	-
+edge	0	1,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,1	edge_0	-
+edge	1	0,1	edge_1	-
+edge	2	1,0	edge_1_seam	-
+edge	3	0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,0	edge_2	-
+surface_points	0	34	face_0	-
+surface_points	1	33	face_1	-
+surface_points	2	32	face_2	-

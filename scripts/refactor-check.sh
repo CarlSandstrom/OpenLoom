@@ -88,10 +88,10 @@ for example in "${examples[@]}"; do
     fi
 
     shopt -s nullglob
-    outputs=("$runDirectory"/*.vtu)
+    outputs=("$runDirectory"/*.vtu "$runDirectory"/*.tsv)
     shopt -u nullglob
     if [[ ${#outputs[@]} -eq 0 ]]; then
-        echo "NO OUTPUT: $name produced no .vtu" >&2
+        echo "NO OUTPUT: $name produced no .vtu or .tsv" >&2
         exit 1
     fi
 

@@ -19,6 +19,7 @@
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
@@ -65,6 +66,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeEdgeMesh(discResult, "CylinderSurfaceMeshEdges.vtu");
+    Export::TsvExporter::writeDiscretization(discResult, "CylinderSurfaceMeshEdges");
     std::cout << "Exported edge mesh to CylinderSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
     // Run the full S1–S3 pipeline via SurfaceMesher3D and export the result.
@@ -79,6 +81,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "CylinderSurfaceMesh3D.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "CylinderSurfaceMesh3D");
     std::cout << "Exported surface mesh to CylinderSurfaceMesh3D.vtu (color by SurfaceID)\n";
 
     return 0;
