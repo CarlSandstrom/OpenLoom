@@ -3,7 +3,7 @@
 # Behaviour-preservation oracle for refactoring (OPE-188).
 #
 # A refactor changes structure, not output. This script meshes a set of
-# representative models and compares every .vtu against a committed golden
+# representative models and compares every .tsv against a committed golden
 # file. Any difference means the change is not a refactor.
 #
 #   scripts/refactor-check.sh            compare against the goldens
@@ -14,8 +14,10 @@
 # intentional behaviour change into a reviewable diff in the commit instead
 # of a silent drift.
 #
-# VtkExporter writes ASCII, so a mismatch produces a readable diff showing
-# which nodes or cells actually changed.
+# The goldens are TsvExporter output: one row per node or cell, coordinates
+# as shortest round-trip doubles, so a mismatch is a line diff naming exactly
+# which nodes or cells changed. The examples' .vtu files are deliberately not
+# compared -- VtkExporter is the ParaView view and may change freely.
 
 set -euo pipefail
 
@@ -88,10 +90,10 @@ for example in "${examples[@]}"; do
     fi
 
     shopt -s nullglob
-    outputs=("$runDirectory"/*.vtu "$runDirectory"/*.tsv)
+    outputs=("$runDirectory"/*.tsv)
     shopt -u nullglob
     if [[ ${#outputs[@]} -eq 0 ]]; then
-        echo "NO OUTPUT: $name produced no .vtu or .tsv" >&2
+        echo "NO OUTPUT: $name produced no .tsv" >&2
         exit 1
     fi
 
