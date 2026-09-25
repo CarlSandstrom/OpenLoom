@@ -33,10 +33,19 @@ namespace Meshing
  * model, and it is the only shape-independent signal in the classifier -- a
  * centroid is a convex combination of its tetrahedron's own vertices, so
  * unlike a circumcenter it cannot land far from the element it represents.
- * But it declines whenever either centroid is Ambiguous, which is OPE-187's
- * recorded root cause. Whether that band is thin isolated pockets or a
- * connected sheet decides whether a region-labelling design can work at all,
- * and nobody has looked at it.
+ * It has two failure modes, and this export exists to show where each one
+ * bites. It declines whenever either centroid is Ambiguous, which is
+ * OPE-187's recorded root cause. And where a tetrahedron is large relative to
+ * the local feature it answers confidently and WRONGLY: a centroid lies
+ * inside its own tetrahedron, but a tetrahedron spanning a thin section can
+ * have that centroid outside the solid, so both sides of a genuine boundary
+ * face read as Exterior. Measured on SaddleSurfaceMesh: 622 declines against
+ * 19 confident errors, the latter on tetrahedra 12x the median volume and
+ * clustered on the creases where OPE-187's punctures sit.
+ *
+ * The second mode matters more than its count suggests, because the answer
+ * proposed for the first -- propagate a label from confident neighbours --
+ * cannot address it: there the neighbours are confident and wrong.
  *
  * Writes two files:
  *
