@@ -1,5 +1,6 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
+#include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -12,6 +13,7 @@
 #include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
+#include "Meshing/Core/3D/RCDT/PhaseDiagnosticsExporter.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
@@ -143,6 +145,21 @@ void requireClosedBoundary(const DefectiveFaceRemovalSummary& defectRemoval)
                             "from the ambient tetrahedra");
 }
 
+void exportPhaseDiagnostics(const MeshingContext3D& context,
+                            const RestrictedTriangulation& restrictedTriangulation,
+                            const Geometry3D::GeometryCollection3D& geometry,
+                            const Topology3D::Topology3D& topology,
+                            const std::string& filePrefix)
+{
+    if (!OPENLOOM_DEBUG_ENABLED(EXPORT_PHASE_DIAGNOSTICS))
+        return;
+
+    const auto& meshData = context.getMeshData();
+    const MeshConnectivity connectivity(meshData);
+    PhaseDiagnosticsExporter::write(meshData, connectivity, geometry, topology,
+                                    restrictedTriangulation.getRestrictedFaces(), filePrefix);
+}
+
 } // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -179,8 +196,20 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     refine(context, restrictedTriangulation, minimumEdgeLength, meshingVolume);
     exportMesh3D(context.getMeshData(), "rcdt_refined", 1);
 
+    // Exported twice, around removeDefectiveFaces(), because the two answer
+    // different questions. "raw" is what the classifier itself produced, which
+    // is what a replacement oracle has to be compared against. "pruned" is
+    // what actually ships, and is the only one whose over-covered edges are
+    // the residual defects the audit reports -- the raw set still contains
+    // every chord face and flap the post-hoc passes are about to remove.
+    //
+    // Both necessarily precede AmbientTetrahedronRemover: the phase field
+    // needs the exterior tetrahedra that pass is about to strip.
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, "rcdt_raw");
+
     const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
     logDefectiveFaceRemoval(defectRemoval);
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, "rcdt_pruned");
     if (meshingVolume)
         requireClosedBoundary(defectRemoval);
 

@@ -12,6 +12,13 @@ enum class DebugFlag
 {
     CHECK_MESH_EACH_ITERATION,
     EXPORT_MESH_EACH_ITERATION,
+
+    /// Write the centroid-phase field and the restriction disagreement to
+    /// VTU after refinement -- see PhaseDiagnosticsExporter. Off by default
+    /// because it reclassifies every tetrahedron centroid and projects every
+    /// node onto every surface, which is far too expensive for a normal run.
+    EXPORT_PHASE_DIAGNOSTICS,
+
     VERBOSE_TRIANGULATION,
     LOG_CAVITY_OPERATIONS
 };
@@ -28,6 +35,9 @@ inline bool isDebugEnabled(DebugFlag flag)
         break;
     case DebugFlag::EXPORT_MESH_EACH_ITERATION:
         envName = "EXPORT_MESH_EACH_ITERATION";
+        break;
+    case DebugFlag::EXPORT_PHASE_DIAGNOSTICS:
+        envName = "EXPORT_PHASE_DIAGNOSTICS";
         break;
     case DebugFlag::VERBOSE_TRIANGULATION:
         envName = "VERBOSE_TRIANGULATION";

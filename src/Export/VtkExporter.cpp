@@ -1,23 +1,26 @@
 #include "VtkExporter.h"
 
-#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
-#include "Meshing/Data/3D/SurfaceMesh3D.h"
-#include "Meshing/Data/3D/VolumeMesh3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Meshing/Data/3D/VolumeMesh3D.h"
 #include "Meshing/Data/Base/IElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
+#include "VtkGrid.h"
 
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <map>
+#include <numeric>
 #include <queue>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace Export
@@ -25,428 +28,186 @@ namespace Export
 
 namespace
 {
-// VTK cell type codes
-constexpr int VTK_TETRA = 10;
-constexpr int VTK_HEXAHEDRON = 12; // not used yet
-constexpr int VTK_WEDGE = 13;      // prism
-constexpr int VTK_PYRAMID = 14;
-constexpr int VTK_LINE = 3;
-constexpr int VTK_TRIANGLE = 5;
-constexpr int VTK_QUAD = 9;
-} // namespace
 
-bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string& filePath) const
+const char* vtkTypeName(const std::vector<int>&) { return "Int32"; }
+const char* vtkTypeName(const std::vector<std::size_t>&) { return "UInt64"; }
+const char* vtkTypeName(const std::vector<double>&) { return "Float64"; }
+
+void writeField(std::ostream& os, const VtkField& field)
 {
-    std::ofstream os;
-    os.exceptions(std::ios::failbit | std::ios::badbit);
-    os.open(filePath);
-
-    const std::size_t totalCellCount =
-        mesh.getElements().size() + mesh.getCurveSegmentManager().size();
-
-    std::vector<std::size_t> nodeIds;
-    std::vector<std::size_t> elementIds;
-    std::vector<std::size_t> segmentIds;
-    writeHeader(os);
-    writePoints(os, mesh, nodeIds, totalCellCount);
-    writePointData(os, nodeIds);
-    writeCells(os, mesh, elementIds, segmentIds);
-    writeCellData(os, mesh, elementIds, segmentIds);
-    writeFooter(os);
-    return true;
+    std::visit(
+        [&os, &field](const auto& values)
+        {
+            os << "        <DataArray type=\"" << vtkTypeName(values) << "\" Name=\"" << field.name
+               << "\" format=\"ascii\">\n          ";
+            for (std::size_t i = 0; i < values.size(); ++i)
+                os << values[i] << (i + 1 == values.size() ? "" : " ");
+        },
+        field.values);
+    os << "\n        </DataArray>\n";
 }
 
-bool VtkExporter::exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const
+void writeGridCells(std::ostream& os, const std::vector<VtkCell>& cells)
 {
-    std::ofstream os;
-    os.exceptions(std::ios::failbit | std::ios::badbit);
-    os.open(filePath);
-
-    std::vector<std::size_t> nodeIds;
-    std::vector<std::size_t> elementIds;
-    std::size_t constraintCount = 0;
-
-    auto domainIds = computeDomainIds(mesh);
-
-    writeHeader(os);
-    writePoints2D(os, mesh, nodeIds);
-    writePointData(os, nodeIds);
-    writeCells2D(os, mesh, nodeIds, elementIds, constraintCount);
-    writeCellData2D(os, elementIds, constraintCount, domainIds);
-    writeFooter(os);
-    return true;
-}
-
-void VtkExporter::writeHeader(std::ostream& os) const
-{
-    os << "<?xml version=\"1.0\"?>\n";
-    os << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\" byte_order=\"LittleEndian\">\n";
-    os << "  <UnstructuredGrid>\n";
-}
-
-void VtkExporter::writeFooter(std::ostream& os) const
-{
-    os << "  </UnstructuredGrid>\n";
-    os << "</VTKFile>\n";
-}
-
-void VtkExporter::writePoints(std::ostream& os, const Meshing::MeshData3D& mesh,
-                              std::vector<std::size_t>& outNodeIds, std::size_t totalCellCount) const
-{
-    // For a deterministic index mapping, sort node IDs
-    outNodeIds.clear();
-    outNodeIds.reserve(mesh.getNodes().size());
-    for (const auto& kv : mesh.getNodes())
+    os << "      <Cells>\n";
+    os << "        <DataArray type=\"Int64\" Name=\"connectivity\" format=\"ascii\">\n          ";
+    for (const auto& cell : cells)
     {
-        outNodeIds.push_back(kv.first);
+        for (std::size_t index : cell.pointIndices)
+            os << index << ' ';
     }
-    std::sort(outNodeIds.begin(), outNodeIds.end());
+    os << "\n        </DataArray>\n";
 
-    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size() << "\" NumberOfCells=\"" << totalCellCount << "\">\n";
-
-    os << "      <Points>\n";
-    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-
-    for (std::size_t id : outNodeIds)
+    os << "        <DataArray type=\"Int64\" Name=\"offsets\" format=\"ascii\">\n          ";
+    std::size_t runningOffset = 0;
+    for (const auto& cell : cells)
     {
-        const auto* node = mesh.getNode(id);
-        const auto& p = node->getCoordinates();
-        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
+        runningOffset += cell.pointIndices.size();
+        os << runningOffset << ' ';
     }
+    os << "\n        </DataArray>\n";
 
-    os << "        </DataArray>\n";
-    os << "      </Points>\n";
+    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
+    for (const auto& cell : cells)
+        os << static_cast<int>(cell.type) << ' ';
+    os << "\n        </DataArray>\n";
+    os << "      </Cells>\n";
 }
 
-void VtkExporter::writePointData(std::ostream& os, const std::vector<std::size_t>& nodeIds) const
+VtkCellType cellTypeFor(Meshing::ElementType type)
 {
-    os << "      <PointData>\n";
-    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < nodeIds.size(); ++i)
+    switch (type)
     {
-        os << nodeIds[i] << (i + 1 == nodeIds.size() ? "\n" : " ");
+    case Meshing::ElementType::TETRAHEDRON:
+        return VtkCellType::Tetrahedron;
+    case Meshing::ElementType::HEXAHEDRON:
+        return VtkCellType::Hexahedron;
+    case Meshing::ElementType::PRISM:
+        return VtkCellType::Wedge;
+    case Meshing::ElementType::PYRAMID:
+        return VtkCellType::Pyramid;
+    case Meshing::ElementType::TRIANGLE:
+        return VtkCellType::Triangle;
+    case Meshing::ElementType::QUADRILATERAL:
+        return VtkCellType::Quadrilateral;
     }
-    os << "        </DataArray>\n";
-    os << "      </PointData>\n";
+    return VtkCellType::Triangle;
 }
 
-static std::vector<std::size_t> sortedElementIds(const Meshing::MeshData3D& mesh)
+Meshing::Point3D toPoint3D(const Meshing::Point3D& point)
+{
+    return point;
+}
+
+Meshing::Point3D toPoint3D(const Meshing::Point2D& point)
+{
+    return {point.x(), point.y(), 0.0};
+}
+
+std::vector<std::size_t> sequence(std::size_t count)
+{
+    std::vector<std::size_t> values(count);
+    std::iota(values.begin(), values.end(), 0);
+    return values;
+}
+
+// Points given in index order, so each point's NodeID is its index.
+VtkGrid gridFromPoints(const std::vector<Meshing::Point3D>& points)
+{
+    VtkGrid grid;
+    grid.points = points;
+    grid.nodeIds = sequence(points.size());
+    return grid;
+}
+
+template <typename Map>
+std::vector<std::size_t> sortedIds(const Map& map)
 {
     std::vector<std::size_t> ids;
-    ids.reserve(mesh.getElements().size());
-    for (const auto& kv : mesh.getElements())
-    {
-        ids.push_back(kv.first);
-    }
+    ids.reserve(map.size());
+    for (const auto& entry : map)
+        ids.push_back(entry.first);
     std::sort(ids.begin(), ids.end());
     return ids;
 }
 
-void VtkExporter::writeCells(std::ostream& os, const Meshing::MeshData3D& mesh,
-                             std::vector<std::size_t>& outElementIds,
-                             std::vector<std::size_t>& outSegmentIds) const
+// A stable 0-based index per distinct surface id, in sorted order, so a
+// SurfaceID colour means the same surface across runs.
+std::unordered_map<std::string, int> indexSurfaceIds(std::vector<std::string> surfaceIds)
 {
-    // Build node ID -> contiguous index mapping (sorted by ID to match points order)
-    std::vector<std::size_t> nodeIds;
-    nodeIds.reserve(mesh.getNodes().size());
-    for (const auto& kv : mesh.getNodes())
-        nodeIds.push_back(kv.first);
-    std::sort(nodeIds.begin(), nodeIds.end());
+    std::sort(surfaceIds.begin(), surfaceIds.end());
+    surfaceIds.erase(std::unique(surfaceIds.begin(), surfaceIds.end()), surfaceIds.end());
 
-    std::unordered_map<std::size_t, std::size_t> nodeIndex;
-    nodeIndex.reserve(nodeIds.size());
-    for (std::size_t i = 0; i < nodeIds.size(); ++i)
-        nodeIndex[nodeIds[i]] = i;
-
-    // Prepare element ids
-    const auto elemIds = sortedElementIds(mesh);
-
-    // Connectivity and offsets arrays (VTU style)
-    std::vector<unsigned int> connectivity;
-    std::vector<unsigned int> offsets;
-    std::vector<unsigned char> types;
-
-    connectivity.reserve(elemIds.size() * 4); // rough reserve for tets
-    offsets.reserve(elemIds.size());
-    types.reserve(elemIds.size());
-    outElementIds.clear();
-    outElementIds.reserve(elemIds.size());
-
-    unsigned int runningOffset = 0;
-
-    for (std::size_t eid : elemIds)
-    {
-        const auto* e = mesh.getElement(eid);
-        const int vtkType = vtkCellTypeFor(*e);
-        if (vtkType < 0)
-        {
-            // Skip unsupported element types
-            continue;
-        }
-        const auto& nodes = e->getNodeIds();
-        for (std::size_t nid : nodes)
-        {
-            connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(nid)));
-        }
-        runningOffset += static_cast<unsigned int>(nodes.size());
-        offsets.push_back(runningOffset);
-        types.push_back(static_cast<unsigned char>(vtkType));
-        outElementIds.push_back(eid);
-    }
-
-    outSegmentIds.clear();
-    for (const auto& [segId, seg] : mesh.getCurveSegmentManager().getAllSegments())
-    {
-        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId1)));
-        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId2)));
-        runningOffset += 2;
-        offsets.push_back(runningOffset);
-        types.push_back(static_cast<unsigned char>(VTK_LINE));
-        outSegmentIds.push_back(segId);
-    }
-
-    os << "      <Cells>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < connectivity.size(); ++i)
-    {
-        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < offsets.size(); ++i)
-    {
-        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < types.size(); ++i)
-    {
-        os << static_cast<unsigned int>(types[i]) << (i + 1 == types.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "      </Cells>\n";
+    std::unordered_map<std::string, int> indexBySurfaceId;
+    for (int i = 0; i < static_cast<int>(surfaceIds.size()); ++i)
+        indexBySurfaceId[surfaceIds[i]] = i;
+    return indexBySurfaceId;
 }
 
-void VtkExporter::writeCellData(std::ostream& os, const Meshing::MeshData3D& mesh,
-                                const std::vector<std::size_t>& elementIds,
-                                const std::vector<std::size_t>& segmentIds) const
+// Per-triangle SurfaceID from a per-surface grouping; -1 for a triangle no
+// surface claims.
+std::vector<int> triangleSurfaceIndices(const std::map<std::string, std::vector<std::size_t>>& groups,
+                                        std::size_t triangleCount)
 {
-    const std::size_t totalCells = elementIds.size() + segmentIds.size();
-    const auto& boundingNodeIds = mesh.getBoundingNodeIds();
+    std::vector<std::string> surfaceIds;
+    for (const auto& [surfaceId, triangleIds] : groups)
+        surfaceIds.push_back(surfaceId);
+    const auto indexBySurfaceId = indexSurfaceIds(surfaceIds);
 
-    os << "      <CellData>\n";
-
-    os << "        <DataArray type=\"Int64\" Name=\"ElementID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < totalCells; ++i)
+    std::vector<int> indices(triangleCount, -1);
+    for (const auto& [surfaceId, triangleIds] : groups)
     {
-        os << (i < elementIds.size() ? elementIds[i] : segmentIds[i - elementIds.size()]);
-        os << (i + 1 == totalCells ? "\n" : " ");
+        for (std::size_t triangleId : triangleIds)
+            indices[triangleId] = indexBySurfaceId.at(surfaceId);
     }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"EdgeRole\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < totalCells; ++i)
-    {
-        os << (i < elementIds.size() ? 0 : 1);
-        os << (i + 1 == totalCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"IsSupertet\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < totalCells; ++i)
-    {
-        int isSupertet = 0;
-        if (boundingNodeIds && i < elementIds.size())
-        {
-            const auto* element = mesh.getElement(elementIds[i]);
-            isSupertet = std::any_of(boundingNodeIds->begin(), boundingNodeIds->end(),
-                                     [element](size_t nodeId) { return element->hasNode(nodeId); });
-        }
-        os << isSupertet;
-        os << (i + 1 == totalCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "      </CellData>\n";
-
-    // Close Piece tag started in writePoints
-    os << "    </Piece>\n";
+    return indices;
 }
 
-void VtkExporter::writePoints2D(std::ostream& os, const Meshing::MeshData2D& mesh,
-                                std::vector<std::size_t>& outNodeIds) const
+/// A MeshData2D or MeshData3D laid out as a grid: nodes sorted by id, then
+/// every element sorted by id, then every constraint segment as a line.
+/// elementIds receives the element ids in cell order.
+template <typename MeshData>
+VtkGrid gridFromMeshData(const MeshData& mesh, std::vector<std::size_t>& elementIds)
 {
-    outNodeIds.clear();
-    outNodeIds.reserve(mesh.getNodes().size());
-    for (const auto& kv : mesh.getNodes())
+    VtkGrid grid;
+    grid.nodeIds = sortedIds(mesh.getNodes());
+    std::unordered_map<std::size_t, std::size_t> indexByNodeId;
+    for (std::size_t i = 0; i < grid.nodeIds.size(); ++i)
     {
-        outNodeIds.push_back(kv.first);
-    }
-    std::sort(outNodeIds.begin(), outNodeIds.end());
-
-    const std::size_t totalCells = mesh.getElements().size() + mesh.getCurveSegmentManager().size();
-    os << "    <Piece NumberOfPoints=\"" << outNodeIds.size()
-       << "\" NumberOfCells=\"" << totalCells << "\">\n";
-
-    os << "      <Points>\n";
-    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-
-    for (std::size_t id : outNodeIds)
-    {
-        const auto* node = mesh.getNode(id);
-        const auto& p = node->getCoordinates();
-        os << "          " << p[0] << ' ' << p[1] << " 0\n";
+        indexByNodeId[grid.nodeIds[i]] = i;
+        grid.points.push_back(toPoint3D(mesh.getNode(grid.nodeIds[i])->getCoordinates()));
     }
 
-    os << "        </DataArray>\n";
-    os << "      </Points>\n";
+    elementIds = sortedIds(mesh.getElements());
+    for (std::size_t elementId : elementIds)
+    {
+        const auto* element = mesh.getElement(elementId);
+        VtkCell cell{cellTypeFor(element->getType()), {}};
+        for (std::size_t nodeId : element->getNodeIds())
+            cell.pointIndices.push_back(indexByNodeId.at(nodeId));
+        grid.cells.push_back(std::move(cell));
+    }
+
+    for (const auto& [segmentId, segment] : mesh.getCurveSegmentManager().getAllSegments())
+    {
+        grid.cells.push_back(
+            {VtkCellType::Line, {indexByNodeId.at(segment.nodeId1), indexByNodeId.at(segment.nodeId2)}});
+    }
+    return grid;
 }
 
-void VtkExporter::writeCells2D(std::ostream& os, const Meshing::MeshData2D& mesh,
-                               const std::vector<std::size_t>& nodeIds,
-                               std::vector<std::size_t>& outElementIds,
-                               std::size_t& outConstraintCount) const
+// 0 for the first leadingCount cells and 1 for the rest: how EdgeRole marks
+// segments after elements, and IsBoundaryTriangle triangles after tetrahedra.
+std::vector<int> flagTrailingCells(std::size_t leadingCount, std::size_t cellCount)
 {
-    // Build node ID -> contiguous index mapping
-    std::unordered_map<std::size_t, std::size_t> nodeIndex;
-    nodeIndex.reserve(nodeIds.size());
-    for (std::size_t i = 0; i < nodeIds.size(); ++i)
-        nodeIndex[nodeIds[i]] = i;
-
-    // Sorted element IDs
-    std::vector<std::size_t> elemIds;
-    elemIds.reserve(mesh.getElements().size());
-    for (const auto& kv : mesh.getElements())
-        elemIds.push_back(kv.first);
-    std::sort(elemIds.begin(), elemIds.end());
-
-    std::vector<unsigned int> connectivity;
-    std::vector<unsigned int> offsets;
-    std::vector<unsigned char> types;
-
-    const auto& curveSegmentManager = mesh.getCurveSegmentManager();
-    const std::size_t totalCells = elemIds.size() + curveSegmentManager.size();
-    connectivity.reserve(elemIds.size() * 3 + curveSegmentManager.size() * 2);
-    offsets.reserve(totalCells);
-    types.reserve(totalCells);
-    outElementIds.clear();
-    outElementIds.reserve(elemIds.size());
-
-    unsigned int runningOffset = 0;
-
-    // Write element cells first
-    for (std::size_t eid : elemIds)
-    {
-        const auto* e = mesh.getElement(eid);
-        const int vtkType = vtkCellTypeFor(*e);
-        if (vtkType < 0)
-            continue;
-        const auto& nodes = e->getNodeIds();
-        for (std::size_t nid : nodes)
-        {
-            connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(nid)));
-        }
-        runningOffset += static_cast<unsigned int>(nodes.size());
-        offsets.push_back(runningOffset);
-        types.push_back(static_cast<unsigned char>(vtkType));
-        outElementIds.push_back(eid);
-    }
-
-    // Write constraint segments as VTK_LINE cells
-    outConstraintCount = curveSegmentManager.size();
-    for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
-    {
-        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId1)));
-        connectivity.push_back(static_cast<unsigned int>(nodeIndex.at(seg.nodeId2)));
-        runningOffset += 2;
-        offsets.push_back(runningOffset);
-        types.push_back(static_cast<unsigned char>(VTK_LINE));
-    }
-
-    os << "      <Cells>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < connectivity.size(); ++i)
-    {
-        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < offsets.size(); ++i)
-    {
-        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < types.size(); ++i)
-    {
-        os << static_cast<unsigned int>(types[i]) << (i + 1 == types.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "      </Cells>\n";
+    std::vector<int> flags(cellCount, 1);
+    std::fill(flags.begin(), flags.begin() + static_cast<std::ptrdiff_t>(leadingCount), 0);
+    return flags;
 }
 
-void VtkExporter::writeCellData2D(std::ostream& os, const std::vector<std::size_t>& elementIds,
-                                  std::size_t constraintCount,
-                                  const std::unordered_map<std::size_t, int>& domainIds) const
-{
-    const std::size_t totalCells = elementIds.size() + constraintCount;
-
-    os << "      <CellData>\n";
-
-    // ElementID array (constraints get ID = 0)
-    os << "        <DataArray type=\"Int64\" Name=\"ElementID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < totalCells; ++i)
-    {
-        if (i < elementIds.size())
-            os << elementIds[i];
-        else
-            os << 0;
-        os << (i + 1 == totalCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    // EdgeRole array: 0 = element, 1 = constraint edge
-    os << "        <DataArray type=\"Int32\" Name=\"EdgeRole\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < totalCells; ++i)
-    {
-        os << (i < elementIds.size() ? 0 : 1);
-        os << (i + 1 == totalCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    // DomainID array: only written when domain classification produced results
-    if (!domainIds.empty())
-    {
-        os << "        <DataArray type=\"Int32\" Name=\"DomainID\" format=\"ascii\">\n          ";
-        for (std::size_t i = 0; i < totalCells; ++i)
-        {
-            if (i < elementIds.size())
-            {
-                auto it = domainIds.find(elementIds[i]);
-                os << (it != domainIds.end() ? it->second : -1);
-            }
-            else
-            {
-                os << -1; // constraint edges get domain -1
-            }
-            os << (i + 1 == totalCells ? "\n" : " ");
-        }
-        os << "        </DataArray>\n";
-    }
-
-    os << "      </CellData>\n";
-    os << "    </Piece>\n";
-}
-
-std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing::MeshData2D& mesh)
+// Labels each triangle with the connected region it belongs to, flood-filling
+// between constraint edges; empty when the mesh has no constraints.
+std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D& mesh)
 {
     std::unordered_map<std::size_t, int> domainIds;
 
@@ -687,562 +448,175 @@ std::unordered_map<std::size_t, int> VtkExporter::computeDomainIds(const Meshing
     return domainIds;
 }
 
-int VtkExporter::vtkCellTypeFor(const Meshing::IElement& element)
+} // namespace
+
+bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string& filePath) const
 {
-    using Meshing::ElementType;
-    switch (element.getType())
+    std::vector<std::size_t> elementIds;
+    VtkGrid grid = gridFromMeshData(mesh, elementIds);
+
+    std::vector<std::size_t> cellIds = elementIds;
+    for (const auto& [segmentId, segment] : mesh.getCurveSegmentManager().getAllSegments())
+        cellIds.push_back(segmentId);
+
+    const auto& boundingNodeIds = mesh.getBoundingNodeIds();
+    std::vector<int> isSupertet(grid.cells.size(), 0);
+    for (std::size_t i = 0; boundingNodeIds && i < elementIds.size(); ++i)
     {
-    case ElementType::TETRAHEDRON:
-        return VTK_TETRA;
-    case ElementType::HEXAHEDRON:
-        return VTK_HEXAHEDRON;
-    case ElementType::PRISM:
-        return VTK_WEDGE;
-    case ElementType::PYRAMID:
-        return VTK_PYRAMID;
-    case ElementType::TRIANGLE:
-        return VTK_TRIANGLE;
-    case ElementType::QUADRILATERAL:
-        return VTK_QUAD;
-    default:
-        return -1;
+        const auto* element = mesh.getElement(elementIds[i]);
+        isSupertet[i] = std::any_of(boundingNodeIds->begin(), boundingNodeIds->end(),
+                                    [element](std::size_t nodeId)
+                                    { return element->hasNode(nodeId); });
     }
+
+    grid.cellFields.push_back({"ElementID", std::move(cellIds)});
+    grid.cellFields.push_back({"EdgeRole", flagTrailingCells(elementIds.size(), grid.cells.size())});
+    grid.cellFields.push_back({"IsSupertet", std::move(isSupertet)});
+    return writeGrid(grid, filePath);
 }
 
-Meshing::MeshData3D VtkExporter::convertToMeshData3D(const Meshing::MeshData2D& mesh2D)
+bool VtkExporter::exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const
 {
-    // Simply use the MeshData3D constructor that handles the conversion
-    return Meshing::MeshData3D(mesh2D);
+    std::vector<std::size_t> elementIds;
+    VtkGrid grid = gridFromMeshData(mesh, elementIds);
+
+    // Constraint segments carry ElementID 0.
+    std::vector<std::size_t> cellIds(grid.cells.size(), 0);
+    std::copy(elementIds.begin(), elementIds.end(), cellIds.begin());
+    grid.cellFields.push_back({"ElementID", std::move(cellIds)});
+    grid.cellFields.push_back({"EdgeRole", flagTrailingCells(elementIds.size(), grid.cells.size())});
+
+    const auto domainIds = computeDomainIds(mesh);
+    if (!domainIds.empty())
+    {
+        std::vector<int> domains(grid.cells.size(), -1);
+        for (std::size_t i = 0; i < elementIds.size(); ++i)
+        {
+            const auto found = domainIds.find(elementIds[i]);
+            if (found != domainIds.end())
+                domains[i] = found->second;
+        }
+        grid.cellFields.push_back({"DomainID", std::move(domains)});
+    }
+    return writeGrid(grid, filePath);
 }
 
-bool VtkExporter::writeEdgeMesh(const Meshing::DiscretizationResult3D& result,
-                                const std::string& filePath) const
+bool VtkExporter::writeEdgeMesh(const Meshing::DiscretizationResult3D& result, const std::string& filePath) const
 {
-    // Count line segments across all topology edges
-    std::size_t totalLines = 0;
-    for (const auto& [edgeId, pointIndices] : result.edgeIdToPointIndicesMap)
-    {
-        if (pointIndices.size() >= 2)
-            totalLines += pointIndices.size() - 1;
-    }
+    VtkGrid grid = gridFromPoints(result.points);
 
-    std::ofstream os;
-    os.exceptions(std::ios::failbit | std::ios::badbit);
-    os.open(filePath);
-
-    writeHeader(os);
-
-    const std::size_t numPoints = result.points.size();
-    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << totalLines << "\">\n";
-
-    // Points: all sampled points in discretization order (index == point ID)
-    os << "      <Points>\n";
-    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-    for (const auto& p : result.points)
-    {
-        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
-    }
-    os << "        </DataArray>\n";
-    os << "      </Points>\n";
-
-    // PointData: global point index as NodeID
-    os << "      <PointData>\n";
-    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numPoints; ++i)
-    {
-        os << i << (i + 1 == numPoints ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-    os << "      </PointData>\n";
-
-    // Cells: one VTK_LINE per consecutive point pair within each topology edge
-    std::vector<unsigned int> connectivity;
-    std::vector<unsigned int> offsets;
-    std::vector<int> edgeIndices; // per-cell EdgeID for coloring
-
-    connectivity.reserve(totalLines * 2);
-    offsets.reserve(totalLines);
-    edgeIndices.reserve(totalLines);
-
-    unsigned int runningOffset = 0;
+    // EdgeID indexes the topology edges in map order, counting edges too short
+    // to contribute a line so the index stays aligned with the edge list.
+    std::vector<int> edgeIndices;
     int edgeIndex = 0;
-
     for (const auto& [edgeId, pointIndices] : result.edgeIdToPointIndicesMap)
     {
         for (std::size_t i = 0; i + 1 < pointIndices.size(); ++i)
         {
-            connectivity.push_back(static_cast<unsigned int>(pointIndices[i]));
-            connectivity.push_back(static_cast<unsigned int>(pointIndices[i + 1]));
-            runningOffset += 2;
-            offsets.push_back(runningOffset);
+            grid.cells.push_back({VtkCellType::Line, {pointIndices[i], pointIndices[i + 1]}});
             edgeIndices.push_back(edgeIndex);
         }
         ++edgeIndex;
     }
 
-    os << "      <Cells>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < connectivity.size(); ++i)
-    {
-        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < offsets.size(); ++i)
-    {
-        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < offsets.size(); ++i)
-    {
-        os << static_cast<unsigned int>(VTK_LINE) << (i + 1 == offsets.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "      </Cells>\n";
-
-    // CellData: EdgeID for color-by-edge inspection in ParaView
-    os << "      <CellData>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"EdgeID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < edgeIndices.size(); ++i)
-    {
-        os << edgeIndices[i] << (i + 1 == edgeIndices.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-    os << "      </CellData>\n";
-    os << "    </Piece>\n";
-
-    writeFooter(os);
-    return true;
+    grid.cellFields.push_back({"EdgeID", std::move(edgeIndices)});
+    return writeGrid(grid, filePath);
 }
 
-bool VtkExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& disc3D,
+bool VtkExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& discretization,
                                    const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
                                    const std::string& filePath) const
 {
-    // Build a stable integer mapping: surfaceId string → 0-based index (sorted for stability)
-    std::vector<std::string> sortedSurfaceIds;
+    VtkGrid grid = gridFromPoints(discretization.points);
+
+    std::vector<std::string> surfaceIds;
     for (const auto& subfacet : subfacets)
-    {
-        sortedSurfaceIds.push_back(subfacet.geometryId);
-    }
-    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
-    sortedSurfaceIds.erase(std::unique(sortedSurfaceIds.begin(), sortedSurfaceIds.end()),
-                           sortedSurfaceIds.end());
+        surfaceIds.push_back(subfacet.geometryId);
+    const auto indexBySurfaceId = indexSurfaceIds(surfaceIds);
 
-    std::unordered_map<std::string, int> surfaceIdToIndex;
-    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
-    {
-        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
-    }
-
-    const std::size_t numPoints = disc3D.points.size();
-    const std::size_t numCells = subfacets.size();
-
-    std::ofstream os;
-    os.exceptions(std::ios::failbit | std::ios::badbit);
-    os.open(filePath);
-
-    writeHeader(os);
-
-    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << numCells << "\">\n";
-
-    // Points: all discretization points in index order (index == node ID in surface-mesher path)
-    os << "      <Points>\n";
-    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-    for (const auto& p : disc3D.points)
-    {
-        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
-    }
-    os << "        </DataArray>\n";
-    os << "      </Points>\n";
-
-    // PointData: global point index as NodeID
-    os << "      <PointData>\n";
-    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numPoints; ++i)
-    {
-        os << i << (i + 1 == numPoints ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-    os << "      </PointData>\n";
-
-    // Cells: one VTK_TRIANGLE per subfacet
-    std::vector<unsigned int> connectivity;
-    std::vector<unsigned int> offsets;
     std::vector<int> surfaceIndices;
-
-    connectivity.reserve(numCells * 3);
-    offsets.reserve(numCells);
-    surfaceIndices.reserve(numCells);
-
-    unsigned int runningOffset = 0;
+    std::vector<int> constraintRoles;
     for (const auto& subfacet : subfacets)
     {
-        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId1));
-        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId2));
-        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId3));
-        runningOffset += 3;
-        offsets.push_back(runningOffset);
-        surfaceIndices.push_back(surfaceIdToIndex.at(subfacet.geometryId));
+        grid.cells.push_back({VtkCellType::Triangle, {subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3}});
+        surfaceIndices.push_back(indexBySurfaceId.at(subfacet.geometryId));
+        constraintRoles.push_back(subfacet.role == Meshing::ConstraintRole::Boundary ? 0 : 1);
     }
 
-    os << "      <Cells>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < connectivity.size(); ++i)
-    {
-        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < offsets.size(); ++i)
-    {
-        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numCells; ++i)
-    {
-        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "      </Cells>\n";
-
-    // CellData: SurfaceID and ConstraintRole per subfacet
-    os << "      <CellData>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
-    {
-        os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"ConstraintRole\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numCells; ++i)
-    {
-        int value = subfacets[i].role == Meshing::ConstraintRole::Boundary ? 0 : 1;
-        os << value << (i + 1 == numCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-    os << "      </CellData>\n";
-    os << "    </Piece>\n";
-
-    writeFooter(os);
-    return true;
+    grid.cellFields.push_back({"SurfaceID", std::move(surfaceIndices)});
+    grid.cellFields.push_back({"ConstraintRole", std::move(constraintRoles)});
+    return writeGrid(grid, filePath);
 }
 
-bool VtkExporter::writeSurfaceMesh(const Meshing::MeshData3D& mesh,
-                                   const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
-                                   const std::string& filePath) const
+bool VtkExporter::writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh, const std::string& filePath) const
 {
-    // Build surface ID index (same as disc3D overload)
-    std::vector<std::string> sortedSurfaceIds;
-    for (const auto& subfacet : subfacets)
-        sortedSurfaceIds.push_back(subfacet.geometryId);
-    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
-    sortedSurfaceIds.erase(std::unique(sortedSurfaceIds.begin(), sortedSurfaceIds.end()),
-                           sortedSurfaceIds.end());
+    VtkGrid grid = gridFromPoints(surfaceMesh.nodes);
+    for (const auto& triangle : surfaceMesh.triangles)
+        grid.cells.push_back({VtkCellType::Triangle, {triangle[0], triangle[1], triangle[2]}});
 
-    std::unordered_map<std::string, int> surfaceIdToIndex;
-    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
-        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
+    grid.cellFields.push_back(
+        {"SurfaceID", triangleSurfaceIndices(surfaceMesh.faceTriangleIds, surfaceMesh.triangles.size())});
+    return writeGrid(grid, filePath);
+}
 
-    // Collect nodes sorted by ID so VTK point index == node ID.
-    std::vector<std::pair<size_t, const Meshing::Node3D*>> sortedNodes;
-    for (const auto& [id, node] : mesh.getNodes())
-        sortedNodes.emplace_back(id, node.get());
-    std::sort(sortedNodes.begin(), sortedNodes.end(), [](const auto& a, const auto& b) {
-        return a.first < b.first;
-    });
+bool VtkExporter::writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh, const std::string& filePath) const
+{
+    VtkGrid grid = gridFromPoints(volumeMesh.nodes);
+    for (const auto& tetrahedron : volumeMesh.tetrahedra)
+    {
+        grid.cells.push_back(
+            {VtkCellType::Tetrahedron, {tetrahedron[0], tetrahedron[1], tetrahedron[2], tetrahedron[3]}});
+    }
+    for (const auto& triangle : volumeMesh.boundaryTriangles)
+        grid.cells.push_back({VtkCellType::Triangle, {triangle[0], triangle[1], triangle[2]}});
 
-    const std::size_t numPoints = sortedNodes.size();
-    const std::size_t numCells = subfacets.size();
+    // Tetrahedra have no surface; boundary triangles follow them.
+    const std::size_t tetrahedronCount = volumeMesh.tetrahedra.size();
+    std::vector<int> surfaceIndices(tetrahedronCount, -1);
+    const auto triangleIndices =
+        triangleSurfaceIndices(volumeMesh.boundaryFaceTriangleIds, volumeMesh.boundaryTriangles.size());
+    surfaceIndices.insert(surfaceIndices.end(), triangleIndices.begin(), triangleIndices.end());
 
+    grid.cellFields.push_back({"SurfaceID", std::move(surfaceIndices)});
+    grid.cellFields.push_back({"IsBoundaryTriangle", flagTrailingCells(tetrahedronCount, grid.cells.size())});
+    return writeGrid(grid, filePath);
+}
+
+bool VtkExporter::writeGrid(const VtkGrid& grid, const std::string& filePath) const
+{
     std::ofstream os;
     os.exceptions(std::ios::failbit | std::ios::badbit);
     os.open(filePath);
 
-    writeHeader(os);
-
-    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << numCells << "\">\n";
+    os << "<?xml version=\"1.0\"?>\n";
+    os << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\" byte_order=\"LittleEndian\">\n";
+    os << "  <UnstructuredGrid>\n";
+    os << "    <Piece NumberOfPoints=\"" << grid.points.size() << "\" NumberOfCells=\"" << grid.cells.size()
+       << "\">\n";
 
     os << "      <Points>\n";
     os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-    for (const auto& [id, node] : sortedNodes)
-    {
-        const auto& p = node->getCoordinates();
-        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
-    }
+    for (const auto& point : grid.points)
+        os << "          " << point.x() << ' ' << point.y() << ' ' << point.z() << "\n";
     os << "        </DataArray>\n";
     os << "      </Points>\n";
 
     os << "      <PointData>\n";
-    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numPoints; ++i)
-        os << sortedNodes[i].first << (i + 1 == numPoints ? "\n" : " ");
-    os << "        </DataArray>\n";
+    writeField(os, VtkField{"NodeID", grid.nodeIds});
+    for (const auto& field : grid.pointFields)
+        writeField(os, field);
     os << "      </PointData>\n";
 
-    // Cells
-    std::vector<unsigned int> connectivity;
-    std::vector<unsigned int> offsets;
-    std::vector<int> surfaceIndices;
-    connectivity.reserve(numCells * 3);
-    offsets.reserve(numCells);
-    surfaceIndices.reserve(numCells);
-
-    unsigned int runningOffset = 0;
-    for (const auto& subfacet : subfacets)
-    {
-        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId1));
-        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId2));
-        connectivity.push_back(static_cast<unsigned int>(subfacet.nodeId3));
-        runningOffset += 3;
-        offsets.push_back(runningOffset);
-        surfaceIndices.push_back(surfaceIdToIndex.at(subfacet.geometryId));
-    }
-
-    os << "      <Cells>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < connectivity.size(); ++i)
-        os << connectivity[i] << (i + 1 == connectivity.size() ? "\n" : " ");
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < offsets.size(); ++i)
-        os << offsets[i] << (i + 1 == offsets.size() ? "\n" : " ");
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numCells; ++i)
-        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numCells ? "\n" : " ");
-    os << "        </DataArray>\n";
-    os << "      </Cells>\n";
+    writeGridCells(os, grid.cells);
 
     os << "      <CellData>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < surfaceIndices.size(); ++i)
-        os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
-    os << "        </DataArray>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"ConstraintRole\" format=\"ascii\">\n          ";
-    for (std::size_t i = 0; i < numCells; ++i)
-    {
-        int value = subfacets[i].role == Meshing::ConstraintRole::Boundary ? 0 : 1;
-        os << value << (i + 1 == numCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
+    for (const auto& field : grid.cellFields)
+        writeField(os, field);
     os << "      </CellData>\n";
     os << "    </Piece>\n";
 
-    writeFooter(os);
-    return true;
-}
-
-bool VtkExporter::writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh,
-                                   const std::string& filePath) const
-{
-    // Build a stable integer mapping: surfaceId string → 0-based index (sorted for stability).
-    std::vector<std::string> sortedSurfaceIds;
-    sortedSurfaceIds.reserve(surfaceMesh.faceTriangleIds.size());
-    for (const auto& [surfaceId, unused] : surfaceMesh.faceTriangleIds)
-        sortedSurfaceIds.push_back(surfaceId);
-    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
-
-    std::unordered_map<std::string, int> surfaceIdToIndex;
-    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
-        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
-
-    // Build per-triangle surface index array in triangle-ID order.
-    const size_t numTriangles = surfaceMesh.triangles.size();
-    std::vector<int> surfaceIndices(numTriangles, -1);
-    for (const auto& [surfaceId, triangleIds] : surfaceMesh.faceTriangleIds)
-    {
-        const int index = surfaceIdToIndex.at(surfaceId);
-        for (size_t triangleId : triangleIds)
-            surfaceIndices[triangleId] = index;
-    }
-
-    const size_t numPoints = surfaceMesh.nodes.size();
-
-    std::ofstream os;
-    os.exceptions(std::ios::failbit | std::ios::badbit);
-    os.open(filePath);
-
-    writeHeader(os);
-
-    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << numTriangles << "\">\n";
-
-    os << "      <Points>\n";
-    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-    for (const auto& p : surfaceMesh.nodes)
-        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
-    os << "        </DataArray>\n";
-    os << "      </Points>\n";
-
-    os << "      <PointData>\n";
-    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numPoints; ++i)
-        os << i << (i + 1 == numPoints ? "\n" : " ");
-    os << "        </DataArray>\n";
-    os << "      </PointData>\n";
-
-    os << "      <Cells>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numTriangles; ++i)
-    {
-        const auto& tri = surfaceMesh.triangles[i];
-        os << tri[0] << ' ' << tri[1] << ' ' << tri[2];
-        os << (i + 1 == numTriangles ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numTriangles; ++i)
-        os << (i + 1) * 3 << (i + 1 == numTriangles ? "\n" : " ");
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numTriangles; ++i)
-        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numTriangles ? "\n" : " ");
-    os << "        </DataArray>\n";
-
-    os << "      </Cells>\n";
-
-    os << "      <CellData>\n";
-    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < surfaceIndices.size(); ++i)
-        os << surfaceIndices[i] << (i + 1 == surfaceIndices.size() ? "\n" : " ");
-    os << "        </DataArray>\n";
-    os << "      </CellData>\n";
-    os << "    </Piece>\n";
-
-    writeFooter(os);
-    return true;
-}
-
-bool VtkExporter::writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh,
-                                  const std::string& filePath) const
-{
-    // Build a stable integer mapping: surfaceId string → 0-based index (sorted for stability).
-    std::vector<std::string> sortedSurfaceIds;
-    sortedSurfaceIds.reserve(volumeMesh.boundaryFaceTriangleIds.size());
-    for (const auto& [surfaceId, unused] : volumeMesh.boundaryFaceTriangleIds)
-        sortedSurfaceIds.push_back(surfaceId);
-    std::sort(sortedSurfaceIds.begin(), sortedSurfaceIds.end());
-
-    std::unordered_map<std::string, int> surfaceIdToIndex;
-    for (int i = 0; i < static_cast<int>(sortedSurfaceIds.size()); ++i)
-        surfaceIdToIndex[sortedSurfaceIds[i]] = i;
-
-    // Build per-boundary-triangle surface index array in triangle-ID order.
-    const size_t numBoundaryTriangles = volumeMesh.boundaryTriangles.size();
-    std::vector<int> surfaceIndices(numBoundaryTriangles, -1);
-    for (const auto& [surfaceId, triangleIds] : volumeMesh.boundaryFaceTriangleIds)
-    {
-        const int index = surfaceIdToIndex.at(surfaceId);
-        for (size_t triangleId : triangleIds)
-            surfaceIndices[triangleId] = index;
-    }
-
-    const size_t numPoints = volumeMesh.nodes.size();
-    const size_t numTetrahedra = volumeMesh.tetrahedra.size();
-    const size_t totalCells = numTetrahedra + numBoundaryTriangles;
-
-    std::ofstream os;
-    os.exceptions(std::ios::failbit | std::ios::badbit);
-    os.open(filePath);
-
-    writeHeader(os);
-
-    os << "    <Piece NumberOfPoints=\"" << numPoints << "\" NumberOfCells=\"" << totalCells << "\">\n";
-
-    os << "      <Points>\n";
-    os << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
-    for (const auto& p : volumeMesh.nodes)
-        os << "          " << p[0] << ' ' << p[1] << ' ' << p[2] << "\n";
-    os << "        </DataArray>\n";
-    os << "      </Points>\n";
-
-    os << "      <PointData>\n";
-    os << "        <DataArray type=\"Int64\" Name=\"NodeID\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numPoints; ++i)
-        os << i << (i + 1 == numPoints ? "\n" : " ");
-    os << "        </DataArray>\n";
-    os << "      </PointData>\n";
-
-    os << "      <Cells>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">\n          ";
-    for (const auto& tet : volumeMesh.tetrahedra)
-        os << tet[0] << ' ' << tet[1] << ' ' << tet[2] << ' ' << tet[3] << ' ';
-    for (size_t i = 0; i < numBoundaryTriangles; ++i)
-    {
-        const auto& tri = volumeMesh.boundaryTriangles[i];
-        os << tri[0] << ' ' << tri[1] << ' ' << tri[2];
-        os << (i + 1 == numBoundaryTriangles ? "\n" : " ");
-    }
-    if (numBoundaryTriangles == 0)
-        os << "\n";
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">\n          ";
-    unsigned int runningOffset = 0;
-    for (size_t i = 0; i < numTetrahedra; ++i)
-    {
-        runningOffset += 4;
-        os << runningOffset << " ";
-    }
-    for (size_t i = 0; i < numBoundaryTriangles; ++i)
-    {
-        runningOffset += 3;
-        os << runningOffset << (i + 1 == numBoundaryTriangles ? "\n" : " ");
-    }
-    if (numBoundaryTriangles == 0)
-        os << "\n";
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numTetrahedra; ++i)
-        os << static_cast<unsigned int>(VTK_TETRA) << " ";
-    for (size_t i = 0; i < numBoundaryTriangles; ++i)
-        os << static_cast<unsigned int>(VTK_TRIANGLE) << (i + 1 == numBoundaryTriangles ? "\n" : " ");
-    if (numBoundaryTriangles == 0)
-        os << "\n";
-    os << "        </DataArray>\n";
-
-    os << "      </Cells>\n";
-
-    os << "      <CellData>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"SurfaceID\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < numTetrahedra; ++i)
-        os << -1 << " ";
-    for (size_t i = 0; i < numBoundaryTriangles; ++i)
-        os << surfaceIndices[i] << (i + 1 == numBoundaryTriangles ? "\n" : " ");
-    if (numBoundaryTriangles == 0)
-        os << "\n";
-    os << "        </DataArray>\n";
-
-    os << "        <DataArray type=\"Int32\" Name=\"IsBoundaryTriangle\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < totalCells; ++i)
-    {
-        os << (i < numTetrahedra ? 0 : 1);
-        os << (i + 1 == totalCells ? "\n" : " ");
-    }
-    os << "        </DataArray>\n";
-
-    os << "      </CellData>\n";
-    os << "    </Piece>\n";
-
-    writeFooter(os);
+    os << "  </UnstructuredGrid>\n";
+    os << "</VTKFile>\n";
     return true;
 }
 

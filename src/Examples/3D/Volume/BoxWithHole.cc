@@ -9,6 +9,7 @@
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Volume/VolumeMesher3D.h"
@@ -62,6 +63,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeVolumeMesh(volumeMesh, "BoxWithHole_mesh.vtu");
+    Export::TsvExporter::writeVolumeMesh(volumeMesh, "BoxWithHole_mesh");
     std::cout << "Exported volume mesh to BoxWithHole_mesh.vtu\n";
 
     return 0;

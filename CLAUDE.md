@@ -25,7 +25,7 @@ ctest --test-dir build/tests -R "TestClass.TestName" --output-on-failure
 ./build/tests/runTests --gtest_filter="TestClass.TestName"
 
 # Behaviour-preservation check for refactoring: meshes representative models
-# and diffs every .vtu against tests/golden/. Any difference means the change
+# and diffs every .tsv against tests/golden/. Any difference means the change
 # is not a refactor.
 ./scripts/refactor-check.sh              # fast tier, ~9s
 TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
@@ -79,7 +79,7 @@ Class names and module paths in this table are written in backticks, and `./scri
 | `Meshing/Connectivity/` | live | Element key types: `EdgeKey`, `FaceKey`, `TetrahedronKey` |
 | `Meshing/Operations/` | live | Transactional mutation: `MeshTransaction`, `ScopedTransaction` |
 | `Readers/` | live | OpenCASCADE CAD import |
-| `Export/` | live | `VtkExporter` (VTU format) |
+| `Export/` | live | `VtkExporter` (VTU, for viewing in ParaView), `TsvExporter` (tab-separated tables, the format the goldens are diffed in). Both also write a caller-assembled `VtkGrid` -- points, cells and named fields -- which is how diagnostics such as `PhaseDiagnosticsExporter` export without writing a format themselves |
 | `Utils/` | live | `MeshLogger` |
 
 ### Design Patterns
@@ -123,7 +123,7 @@ When fixing a bug or adding a feature, make the right change — not the conveni
 
 Refactoring means changing structure while behaviour stays identical. It is a different activity from bug fixing and carries a different standard of proof: passing tests do not show that a mesh came out the same.
 
-- **Prove it, don't assert it**: run `./scripts/refactor-check.sh` before and after the change. It meshes representative models and diffs every `.vtu` against `tests/golden/`. If a golden changes, the change is not a refactor — stop and report which model moved and how.
+- **Prove it, don't assert it**: run `./scripts/refactor-check.sh` before and after the change. It meshes representative models and diffs every `.tsv` (`TsvExporter` output) against `tests/golden/`. The `.vtu` files are for viewing and are not compared, so `VtkExporter` can gain or change fields without moving a golden. If a golden changes, the change is not a refactor — stop and report which model moved and how.
 - **Re-blessing is a decision, not a step**: `--accept` overwrites the goldens and is only for a behaviour change that was discussed and intended. Never run it to make a failing check pass.
 - **No smuggling**: never fix a bug, adjust a tolerance, or change a concept's meaning in the same step as a structural move. If the refactor exposes a bug, say so and leave it — a separate change fixes it afterwards.
 - **Inventory before editing**: for any move, split, or rename, first list every call site with the LSP (`findReferences`, `incomingCalls`) rather than grep, and propose the seam. Agree on the seam before touching files.

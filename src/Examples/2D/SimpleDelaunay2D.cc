@@ -1,3 +1,4 @@
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/2D/Delaunay2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -41,6 +42,7 @@ int main()
     // Export to VTK
     Export::VtkExporter exporter;
     exporter.writeVtu(meshData2D, "simple_delaunay_2d.vtu");
+    Export::TsvExporter::writeMesh(meshData2D, "simple_delaunay_2d");
 
     spdlog::info("");
     spdlog::info("Mesh exported to simple_delaunay_2d.vtu");

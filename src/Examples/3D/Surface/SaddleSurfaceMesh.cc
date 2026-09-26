@@ -36,6 +36,7 @@
  */
 
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -188,6 +189,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeEdgeMesh(*discretizationResult, "SaddleSurfaceMeshEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "SaddleSurfaceMeshEdges");
     std::cout << "Exported edge mesh to SaddleSurfaceMeshEdges.vtu\n";
 
     // Default quality settings: circumradiusToShortestEdgeRatio = 1.0 (≡ min
@@ -240,6 +242,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh");
     std::cout << "Exported refined mesh to SaddleSurfaceMesh.vtu\n";
 
     // Edge multiplicity across the restricted face set. An edge shared by

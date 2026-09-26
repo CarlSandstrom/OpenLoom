@@ -45,7 +45,7 @@ The `retirement condition` column is the deliverable. Everywhere it says
 | 1.3 | **Convex-hull face route** (one adjacent tet → accept on vertex-in-trim alone) | Handles the half-infinite dual ray, which has no second circumcenter | none recorded | **A, precondition unchecked** | The comment asserts the ray "always crosses the surface when the circumcenter is on the interior side, which is guaranteed for Delaunay triangulations of boundary points on a closed solid". That guarantee is stated, never checked, and the ambient triangulation contains supertet nodes that are not boundary points. Retires when the replacement oracle has no circumcenter-dependent special case. **Probe: how many faces take this route on a real model?** |
 | 1.4 | **Protected-edge shortcut** (`candidates.size()==1` + a curve-chain-adjacent edge + 1.5) | Accepts a face the dual-edge test declines, when a protecting ball certifies its edge belongs to exactly one crease | `0de31c8` (OPE-176), part of 863→126→84 | **B** — compensates for 1.1's false negatives at creases | Retires when the oracle no longer returns false negatives on near-degenerate crease faces. Compensates 1.1 specifically, not the classifier generally. |
 | 1.5 | **`isUniqueEdgeStarCandidate`** — 0 rivals allowed, rivals judged by their *own* `crossesSurface()` | Narrows 1.4 to the case it was built for by requiring this face to be the only candidate across the whole edge star | Trusting a single-candidate protected face without it accepted spurious faces from elsewhere in the tet ring (tried and reverted, OPE-176) | **B** — a guard on a guard | Retires with 1.4. The "rivals judged by their own crossing test" choice is *derived*, not fitted: vertex-in-trim alone is non-local (see 1.2), so it would reject almost everything. |
-| 1.6 | **Phase-boundary test** `isPhaseBoundaryFace` (both adjacent tets' **centroids** classified against every `IVolume3D`; accept when they differ) | The interface definition: a face is boundary iff its two tets are in different regions | `63e23b4` (OPE-176), 84 → 28 | **A** — and the most important row in this table | Does **not** retire with OPE-186 — it *is* OPE-186's proposed direction (region labelling from centroids, interface = faces whose tets differ). Today it is demoted to a guarded shortcut inside a B-layer. Its precondition is checkable and it declines honestly when violated: both centroids must be definitive. OPE-187's root cause is that decline, falling through to 1.1 which answers wrongly. |
+| 1.6 | **Phase-boundary test** `isPhaseBoundaryFace` (both adjacent tets' **centroids** classified against every `IVolume3D`; accept when they differ) | The interface definition: a face is boundary iff its two tets are in different regions | `63e23b4` (OPE-176), 84 → 28 | **A** — and the most important row in this table | Does **not** retire with OPE-186 — it *is* OPE-186's proposed direction (region labelling from centroids, interface = faces whose tets differ). Today it is demoted to a guarded shortcut inside a B-layer. **CORRECTED 2026-09-25 — it has TWO failure modes, not one.** It usually declines (either centroid Ambiguous), which is OPE-187's root cause: the decline falls through to 1.1, which then answers wrongly. But where a tetrahedron is large relative to the local feature it **answers confidently and wrongly** — both centroids definitive and on the same side — because a centroid inside its own tet can still be outside the *solid* when the tet spans a thin feature. Measured on the saddle: 622 declines against 19 confident errors, the latter on tets 12x the median volume, clustered on the creases. The earlier text here claimed it "declines honestly when violated"; that was incomplete. See the closing section. |
 | 1.7 | **`isUniquePhaseBoundaryCandidate`** — **at most one** rival | Locality guard on 1.6 | `63e23b4`: barring all rivals measured zero improvement | **B, derived — CLOSED `4e494cd`** | The "why one?" **is** answered, in `63e23b4`'s commit message and nowhere in the code: an ordinary interior edge's two genuine incident faces are on the *same* surface, so a face's own genuine partner is exactly one rival. 0 rivals would disqualify every legitimate interior face. The derivation is **now in the code**. Retires when parity around the edge cycle replaces rival counting. |
 | 1.8 | **`periodicSurfaceIds_`** — skip 1.6/1.7 entirely on seam surfaces | Scoped carve-out for periodic surfaces | `63e23b4`: without it, unbounded refinement growth on `RCDTMesherCylinderTest`; attributed to a small persistent misclassification rate on seam surfaces, root cause **not found** | **B, self-confessed** ("a scoped safety net, not a fix … Root cause not yet found") | Retires when the seam misclassification stream is root-caused, **or** when 1.6 becomes primary and its seam behaviour is re-measured. Highest-value row to re-test: it was measured 2026-08-16, before OPE-184's pruning, OPE-207's fix and OPE-182's caching. |
 | 1.9 | **`TESSELLATION_CELL_SIZE_FACTOR = 0.5`** | Tessellation cell size = 0.5 × `minimumEdgeLength` | `297d244` (OPE-172) | **C — accepted as is** | The comment claims cells below `minimumEdgeLength/2` are "guaranteed fine enough to classify any face whose shortest edge is at or above that floor". That is an assertion with no derivation and no stated failure mode. Retires when the crossing test no longer needs a discrete proxy, or when the claim is turned into a checkable statement. Cost is quadratic in the factor, so this is not free. |
@@ -215,6 +215,57 @@ would also be measuring the oracle OPE-186 is replacing. The correlation is
 recorded here and on OPE-186; if it is still interesting after the oracle
 changes, it can be settled then against a dependent variable that means
 something.
+
+### CORRECTION 2026-09-25: the phase test has a second failure mode
+
+Added after the phase diagnostics (`EXPORT_PHASE_DIAGNOSTICS=1`) were built
+and a defective face was found by inspection in ParaView rather than by any
+measurement proposed here.
+
+**What this document said, and what was wrong with it.** Row 1.6 described
+`isPhaseBoundaryFace` as having a checkable precondition that it "declines
+honestly when violated". It does decline, most of the time. It also, where a
+tetrahedron is large relative to the local feature, returns a confident and
+wrong answer. That second mode was not known when the inventory was written
+and changes what the row is worth.
+
+**The mechanism.** A centroid always lies inside its own tetrahedron, which is
+what makes it shape-independent and why it beats a circumcenter. But that only
+makes it representative of the SOLID while the tetrahedron is small relative to
+the feature it sits on. At a horn tip or a thin section, a tetrahedron whose
+vertices all lie on the surface can have its centroid clear outside the
+material — so both tetrahedra across a genuine boundary face classify
+Exterior, and the face reads as interior.
+
+**Measured on SaddleSurfaceMesh**, over the 641 faces the live classifier
+accepts and the centroid rule alone does not:
+
+| phase pair | count | |
+| -- | -- | -- |
+| either Ambiguous | 622 | declines — the known mode |
+| `(Exterior, Exterior)` | 12 | **confidently wrong** |
+| `(InVolume, InVolume)` | 7 | **confidently wrong** |
+
+The 19 sit on tetrahedra of median volume 0.065 against a mesh median of
+0.0054 — **12x oversized**. Eight lie exactly on the `|x| = 2` crease plane,
+and the cluster spans |x| 1.69-2.00, z 2.6-3.8. OPE-187's five punctures sit
+at |x| in [1.938, 2.000], z in [3.42, 3.94]: **the same place**.
+
+**Two consequences.**
+
+1. **"Propagate from confident neighbours" does not address this**, and that
+   was the proposed answer for ambiguity. Here the neighbours are confident
+   and wrong, so propagation spreads the error rather than repairing it. Any
+   region-labelling design needs a separate answer for the oversized-tet case.
+2. **The precondition is still checkable, and more usefully than before.** The
+   centroid phase is trustworthy while the tetrahedron is small relative to
+   local feature size — and `LocalFeatureSize3D` (OPE-181 stage 1) is
+   committed, tested and still has no consumer. That converts "unreliable near
+   creases" into a per-tetrahedron validity test, whose failure calls for
+   REFINEMENT rather than another classification patch.
+
+Both are single-model results. The correlation is a volume ratio, not yet a
+measured size-against-lfs threshold.
 
 ### Coverage added alongside
 

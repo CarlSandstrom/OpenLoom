@@ -20,6 +20,7 @@
  */
 
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -102,6 +103,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeEdgeMesh(*discretizationResult, "HexNutEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "HexNutEdges");
     std::cout << "Exported edge mesh to HexNutEdges.vtu (color by EdgeID)\n";
 
     // Auto dispatch routes this shape through AmbientRCDT because the cylindrical
@@ -117,6 +119,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "HexNut.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "HexNut");
     std::cout << "Exported refined mesh to HexNut.vtu (color by SurfaceID)\n";
 
     return 0;
