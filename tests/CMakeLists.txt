@@ -43,6 +43,7 @@ set(TEST_SOURCES
     Meshing/Core/test_SizingField3D.cpp
     Meshing/Core/test_SizingFieldBuilder3D.cpp
     Meshing/Core/SurfaceMeshTopology.cpp
+    Meshing/Core/test_PointPhase.cpp
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
