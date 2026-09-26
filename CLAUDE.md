@@ -4,6 +4,10 @@ Constrained Delaunay triangulation library for 2D and 3D mesh generation with Op
 
 Do not commit unless I ask you to. The one exception is during a multi-step refactor: at each green step, *offer* a commit — still do not make one unsolicited. See Refactoring below.
 
+If you think creating a branch is a good idea, ask first.
+
+Do not be too verbose when communicating. Keep it brief but do not leave out important information.
+
 ## Build & Run
 
 ```bash
