@@ -7,6 +7,8 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/RCDT/PointPhase.h"
+#include "Meshing/Core/3D/RCDT/SurfaceCandidates.h"
+#include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
@@ -130,6 +132,7 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
                                      const Geometry3D::GeometryCollection3D& geometry,
                                      const Topology3D::Topology3D& topology,
                                      const RestrictedFaceMap& restrictedFaces,
+                                     double minimumEdgeLength,
                                      const std::string& filePrefix)
 {
     const std::vector<std::string> volumeIds = topology.getAllVolumeIds();
@@ -142,6 +145,7 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     // element id: nothing is mutated between here and the end of the export,
     // so ids are stable for its duration.
     std::map<size_t, PointPhase> phaseByElement;
+    std::map<size_t, Point3D> centroidByElement;
     std::vector<std::vector<size_t>> tetCells;
     std::vector<int> tetPhase;
     std::vector<int> tetIsSupertet;
@@ -154,6 +158,7 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
             continue;
 
         const Point3D centroid = elementGeometry.computeCentroid(*tet);
+        centroidByElement.emplace(elementId, centroid);
         const PointPhase phase = classifyPointPhase(centroid, volumeIds, geometry);
         phaseByElement.emplace(elementId, phase);
 
@@ -174,6 +179,75 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
         }
         tetIsSupertet.push_back(isSupertet);
     }
+
+    // The centroid-SEGMENT rule: the oracle's own exact crossing test, fed the
+    // two centroids instead of the two circumcenters. Robust endpoints (a
+    // centroid cannot leave its tetrahedron) with a robust question (a
+    // segment-vs-surface crossing never classifies a point against a solid, so
+    // no tolerance band). Built here rather than read off the oracle, which
+    // keeps its tessellations private -- same surfaces, same cell size.
+    const SurfaceCandidates surfaceCandidates(topology);
+    std::map<std::string, SurfaceTessellation> tessellations;
+    for (const auto& surfaceId : surfaceIds)
+    {
+        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
+        if (surface)
+            tessellations[surfaceId].build(*surface, minimumEdgeLength * 0.5);
+    }
+
+    // Per (surface, node) trimmed-boundary membership, so the segment rule is
+    // judged behind the same gate every route in classify() sits behind.
+    std::map<std::pair<std::string, size_t>, bool> withinTrim;
+    auto nodeWithinTrim = [&](const std::string& surfaceId, size_t nodeId) -> bool
+    {
+        const auto key = std::make_pair(surfaceId, nodeId);
+        const auto found = withinTrim.find(key);
+        if (found != withinTrim.end())
+            return found->second;
+        const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
+        bool within = false;
+        if (surface)
+        {
+            const auto uv = surface->projectPointToUnderlyingSurface(meshData.getNode(nodeId)->getCoordinates());
+            within = uv.has_value() && surface->isUVWithinTrimmedBoundary(uv->x(), uv->y());
+        }
+        return withinTrim.emplace(key, within).first->second;
+    };
+
+    // Both rules are judged behind the gate every route in classify() sits
+    // behind -- the three nodes share a candidate surface, and all three lie
+    // within its trimmed patch. Without it the phase column counts faces that
+    // could not be on any surface, which flatters it against any rule that
+    // does apply the gate.
+    auto gatedCandidates = [&](const FaceKey& face)
+    {
+        std::set<std::string> candidates;
+        bool firstNode = true;
+        for (const size_t nodeId : face.nodeIds)
+        {
+            const auto nodeSurfaces = surfaceCandidates.effectiveSurfaceIds(meshData.getGeometryIds(nodeId));
+            const std::set<std::string> asSet(nodeSurfaces.begin(), nodeSurfaces.end());
+            if (firstNode)
+            {
+                candidates = asSet;
+                firstNode = false;
+                continue;
+            }
+            std::set<std::string> kept;
+            for (const auto& id : candidates)
+                if (asSet.count(id))
+                    kept.insert(id);
+            candidates = kept;
+        }
+        std::set<std::string> gated;
+        for (const auto& surfaceId : candidates)
+        {
+            if (nodeWithinTrim(surfaceId, face.nodeIds[0]) && nodeWithinTrim(surfaceId, face.nodeIds[1]) &&
+                nodeWithinTrim(surfaceId, face.nodeIds[2]))
+                gated.insert(surfaceId);
+        }
+        return gated;
+    };
 
     std::vector<double> nodeDistance;
     nodeDistance.reserve(points.nodeIds.size());
@@ -197,9 +271,15 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     // tetrahedra definitive and on different sides -- with no uniqueness
     // guard and no fallback, so the disagreement shows precisely what the
     // compensation layer is buying.
-    std::map<FaceKey, std::pair<bool, bool>> faceVerdicts; // face -> (live, centroid)
+    struct FaceVerdict
+    {
+        bool live = false;
+        bool centroidPhase = false;
+        bool centroidSegment = false;
+    };
+    std::map<FaceKey, FaceVerdict> faceVerdicts;
     for (const auto& [face, surfaceId] : restrictedFaces)
-        faceVerdicts[face].first = true;
+        faceVerdicts[face].live = true;
 
     // A set, not a counter: every face is reached once from each of its
     // two adjacent tetrahedra, so incrementing per visit would report
@@ -234,8 +314,41 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
 
             const bool differentSides =
                 a.kind != b.kind || (a.kind == PointPhaseKind::InVolume && a.volumeId != b.volumeId);
-            if (differentSides)
-                faceVerdicts[face].second = true;
+            if (differentSides && !gatedCandidates(face).empty())
+                faceVerdicts[face].centroidPhase = true;
+        }
+    }
+
+    // The segment rule, evaluated over the same faces.
+    for (const auto& [elementId, element] : meshData.getElements())
+    {
+        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet)
+            continue;
+
+        for (const auto& faceArray : tet->getFaces())
+        {
+            const FaceKey face(faceArray);
+            const auto& [first, second] = connectivity.getFaceElements(face);
+            if (first == INVALID_ID || second == INVALID_ID)
+                continue;
+
+            const auto centroidA = centroidByElement.find(first);
+            const auto centroidB = centroidByElement.find(second);
+            if (centroidA == centroidByElement.end() || centroidB == centroidByElement.end())
+                continue;
+
+            for (const auto& surfaceId : gatedCandidates(face))
+            {
+                const auto tessellation = tessellations.find(surfaceId);
+                if (tessellation == tessellations.end())
+                    continue;
+                if (tessellation->second.crossesSurface(centroidA->second, centroidB->second))
+                {
+                    faceVerdicts[face].centroidSegment = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -245,6 +358,8 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     std::vector<int> facePhaseB;
     std::vector<int> faceTouchesSupertet;
     std::vector<double> faceMaxAdjacentVolume;
+    std::vector<int> faceSegmentRule;
+    std::vector<int> faceLiveRule;
     size_t bothCount = 0;
     size_t liveOnlyCount = 0;
     size_t centroidOnlyCount = 0;
@@ -262,8 +377,11 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
             continue;
         faceCells.push_back(std::move(cell));
 
-        const auto& [live, centroid] = verdict;
+        const bool live = verdict.live;
+        const bool centroid = verdict.centroidPhase;
         const int code = live && centroid ? 0 : (live ? 1 : 2);
+        faceSegmentRule.push_back(verdict.centroidSegment ? 1 : 0);
+        faceLiveRule.push_back(live ? 1 : 0);
         faceDiff.push_back(code);
         if (code == 0)
             ++bothCount;
@@ -312,6 +430,8 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     faceGrid.cellFields.push_back({"PhaseB", facePhaseB});
     faceGrid.cellFields.push_back({"TouchesSupertet", faceTouchesSupertet});
     faceGrid.cellFields.push_back({"MaxAdjacentTetVolume", faceMaxAdjacentVolume});
+    faceGrid.cellFields.push_back({"AcceptedByLive", faceLiveRule});
+    faceGrid.cellFields.push_back({"AcceptedBySegmentRule", faceSegmentRule});
     if (!writeGridOrWarn(faceGrid, faceStem))
         return;
 
@@ -320,6 +440,21 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     spdlog::info("PhaseDiagnosticsExporter: {} tetrahedra, {} ambiguous ({:.1f}%)",
                  tetPhase.size(), ambiguousTets,
                  tetPhase.empty() ? 0.0 : 100.0 * static_cast<double>(ambiguousTets) / static_cast<double>(tetPhase.size()));
+    size_t segmentAgreed = 0;
+    size_t segmentLiveOnly = 0;
+    size_t segmentOnly = 0;
+    for (const auto& [face, verdict] : faceVerdicts)
+    {
+        if (verdict.live && verdict.centroidSegment)
+            ++segmentAgreed;
+        else if (verdict.live)
+            ++segmentLiveOnly;
+        else if (verdict.centroidSegment)
+            ++segmentOnly;
+    }
+    spdlog::info("PhaseDiagnosticsExporter: segment rule vs live -- {} agreed, {} live only, {} segment only",
+                 segmentAgreed, segmentLiveOnly, segmentOnly);
+
     spdlog::info("PhaseDiagnosticsExporter: faces -- {} agreed, {} live only, {} centroid only; "
                  "{} live faces blocked by an ambiguous centroid",
                  bothCount, liveOnlyCount, centroidOnlyCount, ambiguousBlockedFaces.size());

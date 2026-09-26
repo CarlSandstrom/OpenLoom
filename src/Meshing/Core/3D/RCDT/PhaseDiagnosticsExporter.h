@@ -78,6 +78,7 @@ public:
                       const Geometry3D::GeometryCollection3D& geometry,
                       const Topology3D::Topology3D& topology,
                       const RestrictedFaceMap& restrictedFaces,
+                      double minimumEdgeLength,
                       const std::string& filePrefix);
 };
 

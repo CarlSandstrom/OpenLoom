@@ -149,6 +149,7 @@ void exportPhaseDiagnostics(const MeshingContext3D& context,
                             const RestrictedTriangulation& restrictedTriangulation,
                             const Geometry3D::GeometryCollection3D& geometry,
                             const Topology3D::Topology3D& topology,
+                            double minimumEdgeLength,
                             const std::string& filePrefix)
 {
     if (!OPENLOOM_DEBUG_ENABLED(EXPORT_PHASE_DIAGNOSTICS))
@@ -157,7 +158,7 @@ void exportPhaseDiagnostics(const MeshingContext3D& context,
     const auto& meshData = context.getMeshData();
     const MeshConnectivity connectivity(meshData);
     PhaseDiagnosticsExporter::write(meshData, connectivity, geometry, topology,
-                                    restrictedTriangulation.getRestrictedFaces(), filePrefix);
+                                    restrictedTriangulation.getRestrictedFaces(), minimumEdgeLength, filePrefix);
 }
 
 } // namespace
@@ -205,11 +206,11 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     //
     // Both necessarily precede AmbientTetrahedronRemover: the phase field
     // needs the exterior tetrahedra that pass is about to strip.
-    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, "rcdt_raw");
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, minimumEdgeLength, "rcdt_raw");
 
     const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
     logDefectiveFaceRemoval(defectRemoval);
-    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, "rcdt_pruned");
+    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, minimumEdgeLength, "rcdt_pruned");
     if (meshingVolume)
         requireClosedBoundary(defectRemoval);
 
