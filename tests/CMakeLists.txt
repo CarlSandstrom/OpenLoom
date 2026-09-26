@@ -44,6 +44,9 @@ set(TEST_SOURCES
     Meshing/Core/test_SizingFieldBuilder3D.cpp
     Meshing/Core/SurfaceMeshTopology.cpp
     Meshing/Core/test_PointPhase.cpp
+    Meshing/Core/test_PhaseBoundaryFace.cpp
+    Meshing/Core/SaddleShape.cpp
+    Meshing/Core/test_SaddleCreaseCoverage.cpp
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
