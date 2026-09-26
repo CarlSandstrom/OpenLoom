@@ -47,20 +47,20 @@ namespace Meshing
  * proposed for the first -- propagate a label from confident neighbours --
  * cannot address it: there the neighbours are confident and wrong.
  *
- * Writes two files:
+ * Writes two grids, each as `.vtu` for ParaView and as `.nodes.tsv` /
+ * `.cells.tsv` tables with one column per field:
  *
- *  - `<prefix>_phase_tets.vtu` -- the ambient tetrahedralization, each
+ *  - `<prefix>_phase_tets` -- the ambient tetrahedralization, each
  *    element carrying its centroid's phase and that centroid's distance to
  *    the nearest surface, each node carrying its own distance to the nearest
  *    surface.
- *  - `<prefix>_phase_faces.vtu` -- every face that EITHER the live classifier
+ *  - `<prefix>_phase_faces` -- every face that EITHER the live classifier
  *    or the centroid rule alone considers restricted, carrying which of the
  *    two accepted it and the phases of both adjacent tetrahedra.
  *
- * Deliberately writes its own VTU rather than extending VtkExporter: the
- * production exporter's output is what `scripts/refactor-check.sh` diffs
- * against `tests/golden/`, so adding fields there would move all 13 goldens
- * and make every future diagnostic field a behaviour change.
+ * Computes the fields here and hands them to VtkExporter::writeGrid and
+ * TsvExporter::writeGrid as two caller-assembled grids; the fields depend on RCDT's phase classification,
+ * so they cannot live in the Export module itself.
  *
  * Reads nothing private and classifies nothing itself -- phases come from the
  * shared classifyPointPhase(), so this cannot drift from what the mesher

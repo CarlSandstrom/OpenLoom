@@ -14,6 +14,7 @@ struct VolumeMesh3D;
 
 namespace Export
 {
+struct VtkGrid;
 
 /**
  * @brief Writes mesher output as tab-separated tables: the format
@@ -50,6 +51,11 @@ public:
     static void writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh, const std::string& stem);
 
     static void writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh, const std::string& stem);
+
+    /// The same caller-assembled grid VtkExporter::writeGrid draws, as
+    /// tables: each point and cell field becomes a column. Cells list node
+    /// ids, not point indices. For diagnostics, not goldens.
+    static void writeGrid(const VtkGrid& grid, const std::string& stem);
 };
 
 } // namespace Export

@@ -1,5 +1,8 @@
 #include "Meshing/Core/3D/RCDT/PhaseDiagnosticsExporter.h"
 
+#include "Export/TsvExporter.h"
+#include "Export/VtkExporter.h"
+#include "Export/VtkGrid.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
@@ -13,7 +16,7 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
+#include <ios>
 #include <limits>
 #include <map>
 #include <set>
@@ -80,63 +83,44 @@ PointBlock buildPointBlock(const MeshData3D& meshData)
     return block;
 }
 
-void writeHeader(std::ostream& os, size_t pointCount, size_t cellCount)
+/// The point half both files share: every node, with its distance to the
+/// nearest surface. Cells and cell fields are added by the caller.
+Export::VtkGrid buildPointGrid(const PointBlock& block, const MeshData3D& meshData, const std::vector<double>& nodeDistance)
 {
-    os << "<?xml version=\"1.0\"?>\n"
-       << "<VTKFile type=\"UnstructuredGrid\" version=\"1.0\" byte_order=\"LittleEndian\">\n"
-       << "  <UnstructuredGrid>\n"
-       << "    <Piece NumberOfPoints=\"" << pointCount << "\" NumberOfCells=\"" << cellCount << "\">\n";
-}
-
-void writeFooter(std::ostream& os)
-{
-    os << "    </Piece>\n  </UnstructuredGrid>\n</VTKFile>\n";
-}
-
-void writePoints(std::ostream& os, const PointBlock& block, const MeshData3D& meshData)
-{
-    os << "      <Points>\n"
-       << "        <DataArray type=\"Float64\" NumberOfComponents=\"3\" format=\"ascii\">\n";
+    Export::VtkGrid grid;
+    grid.nodeIds = block.nodeIds;
+    grid.points.reserve(block.nodeIds.size());
     for (const size_t nodeId : block.nodeIds)
-    {
-        const Point3D& p = meshData.getNode(nodeId)->getCoordinates();
-        os << "          " << p.x() << " " << p.y() << " " << p.z() << "\n";
-    }
-    os << "        </DataArray>\n      </Points>\n";
+        grid.points.push_back(meshData.getNode(nodeId)->getCoordinates());
+    grid.pointFields.push_back({"NodeDistanceToSurface", nodeDistance});
+    return grid;
 }
 
-template <typename T>
-void writeArray(std::ostream& os, const std::string& type, const std::string& name, const std::vector<T>& values)
+std::vector<Export::VtkCell> toCells(std::vector<std::vector<size_t>> cells, Export::VtkCellType type)
 {
-    os << "        <DataArray type=\"" << type << "\" Name=\"" << name << "\" format=\"ascii\">\n          ";
-    for (size_t i = 0; i < values.size(); ++i)
-        os << values[i] << (i + 1 == values.size() ? "\n" : " ");
-    if (values.empty())
-        os << "\n";
-    os << "        </DataArray>\n";
+    std::vector<Export::VtkCell> result;
+    result.reserve(cells.size());
+    for (auto& cell : cells)
+        result.push_back({type, std::move(cell)});
+    return result;
 }
 
-/// connectivity/offsets/types for cells of a single VTK type.
-void writeCells(std::ostream& os,
-                const std::vector<std::vector<size_t>>& cells,
-                int vtkCellType)
+/// Writes <stem>.vtu for ParaView and <stem>.nodes.tsv / <stem>.cells.tsv
+/// for querying. A diagnostic must never abort the run it is diagnosing: a
+/// file that cannot be written is reported and the export stops there.
+bool writeGridOrWarn(const Export::VtkGrid& grid, const std::string& stem)
 {
-    os << "      <Cells>\n";
-
-    std::vector<size_t> connectivity;
-    std::vector<size_t> offsets;
-    size_t running = 0;
-    for (const auto& cell : cells)
+    try
     {
-        connectivity.insert(connectivity.end(), cell.begin(), cell.end());
-        running += cell.size();
-        offsets.push_back(running);
+        Export::VtkExporter().writeGrid(grid, stem + ".vtu");
+        Export::TsvExporter::writeGrid(grid, stem);
+        return true;
     }
-    writeArray(os, "Int64", "connectivity", connectivity);
-    writeArray(os, "Int64", "offsets", offsets);
-    writeArray(os, "UInt8", "types", std::vector<int>(cells.size(), vtkCellType));
-
-    os << "      </Cells>\n";
+    catch (const std::ios_base::failure&)
+    {
+        spdlog::warn("PhaseDiagnosticsExporter: could not write {}", stem);
+        return false;
+    }
 }
 
 } // namespace
@@ -192,35 +176,21 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     }
 
     std::vector<double> nodeDistance;
-    std::vector<long long> nodeIdArray;
     nodeDistance.reserve(points.nodeIds.size());
     for (const size_t nodeId : points.nodeIds)
     {
         nodeDistance.push_back(
             distanceToNearestSurface(meshData.getNode(nodeId)->getCoordinates(), surfaceIds, geometry));
-        nodeIdArray.push_back(static_cast<long long>(nodeId));
     }
 
-    const std::string tetPath = filePrefix + "_phase_tets.vtu";
-    std::ofstream tetFile(tetPath);
-    if (!tetFile)
-    {
-        spdlog::warn("PhaseDiagnosticsExporter: could not open {}", tetPath);
+    const std::string tetStem = filePrefix + "_phase_tets";
+    Export::VtkGrid tetGrid = buildPointGrid(points, meshData, nodeDistance);
+    tetGrid.cells = toCells(std::move(tetCells), Export::VtkCellType::Tetrahedron);
+    tetGrid.cellFields.push_back({"Phase", tetPhase});
+    tetGrid.cellFields.push_back({"CentroidDistanceToSurface", tetDistance});
+    tetGrid.cellFields.push_back({"IsSupertet", tetIsSupertet});
+    if (!writeGridOrWarn(tetGrid, tetStem))
         return;
-    }
-    writeHeader(tetFile, points.nodeIds.size(), tetCells.size());
-    writePoints(tetFile, points, meshData);
-    tetFile << "      <PointData>\n";
-    writeArray(tetFile, "Float64", "NodeDistanceToSurface", nodeDistance);
-    writeArray(tetFile, "Int64", "NodeID", nodeIdArray);
-    tetFile << "      </PointData>\n";
-    writeCells(tetFile, tetCells, 10 /* VTK_TETRA */);
-    tetFile << "      <CellData>\n";
-    writeArray(tetFile, "Int32", "Phase", tetPhase);
-    writeArray(tetFile, "Float64", "CentroidDistanceToSurface", tetDistance);
-    writeArray(tetFile, "Int32", "IsSupertet", tetIsSupertet);
-    tetFile << "      </CellData>\n";
-    writeFooter(tetFile);
 
     // The face file: every face either answer calls restricted. The centroid
     // rule is exactly isPhaseBoundaryFace's condition -- both adjacent
@@ -334,28 +304,16 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
         faceMaxAdjacentVolume.push_back(maxVolume);
     }
 
-    const std::string facePath = filePrefix + "_phase_faces.vtu";
-    std::ofstream faceFile(facePath);
-    if (!faceFile)
-    {
-        spdlog::warn("PhaseDiagnosticsExporter: could not open {}", facePath);
+    const std::string faceStem = filePrefix + "_phase_faces";
+    Export::VtkGrid faceGrid = buildPointGrid(points, meshData, nodeDistance);
+    faceGrid.cells = toCells(std::move(faceCells), Export::VtkCellType::Triangle);
+    faceGrid.cellFields.push_back({"Diff", faceDiff});
+    faceGrid.cellFields.push_back({"PhaseA", facePhaseA});
+    faceGrid.cellFields.push_back({"PhaseB", facePhaseB});
+    faceGrid.cellFields.push_back({"TouchesSupertet", faceTouchesSupertet});
+    faceGrid.cellFields.push_back({"MaxAdjacentTetVolume", faceMaxAdjacentVolume});
+    if (!writeGridOrWarn(faceGrid, faceStem))
         return;
-    }
-    writeHeader(faceFile, points.nodeIds.size(), faceCells.size());
-    writePoints(faceFile, points, meshData);
-    faceFile << "      <PointData>\n";
-    writeArray(faceFile, "Float64", "NodeDistanceToSurface", nodeDistance);
-    writeArray(faceFile, "Int64", "NodeID", nodeIdArray);
-    faceFile << "      </PointData>\n";
-    writeCells(faceFile, faceCells, 5 /* VTK_TRIANGLE */);
-    faceFile << "      <CellData>\n";
-    writeArray(faceFile, "Int32", "Diff", faceDiff);
-    writeArray(faceFile, "Int32", "PhaseA", facePhaseA);
-    writeArray(faceFile, "Int32", "PhaseB", facePhaseB);
-    writeArray(faceFile, "Int32", "TouchesSupertet", faceTouchesSupertet);
-    writeArray(faceFile, "Float64", "MaxAdjacentTetVolume", faceMaxAdjacentVolume);
-    faceFile << "      </CellData>\n";
-    writeFooter(faceFile);
 
     const size_t ambiguousTets =
         static_cast<size_t>(std::count(tetPhase.begin(), tetPhase.end(), 2));
@@ -365,7 +323,7 @@ void PhaseDiagnosticsExporter::write(const MeshData3D& meshData,
     spdlog::info("PhaseDiagnosticsExporter: faces -- {} agreed, {} live only, {} centroid only; "
                  "{} live faces blocked by an ambiguous centroid",
                  bothCount, liveOnlyCount, centroidOnlyCount, ambiguousBlockedFaces.size());
-    spdlog::info("PhaseDiagnosticsExporter: wrote {} and {}", tetPath, facePath);
+    spdlog::info("PhaseDiagnosticsExporter: wrote {} and {} (.vtu, .nodes.tsv, .cells.tsv)", tetStem, faceStem);
 }
 
 } // namespace Meshing
