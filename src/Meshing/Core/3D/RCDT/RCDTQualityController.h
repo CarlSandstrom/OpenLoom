@@ -32,6 +32,12 @@ namespace Meshing
  * many restricted triangles refinement may produce is a property of the set, and
  * RestrictedTriangulation::getBadTriangles() is where it is applied.
  *
+ * A triangle touching protecting balls (weighted nodes on protected curves) is
+ * exempt from the shape criteria, and when very small from the chord criterion,
+ * following CGAL Mesh_3's Facet_criterion_visitor_with_features: protection
+ * already guarantees the mesh there, and refining such a triangle only places
+ * points inside or against the balls.
+ *
  * This is a view, not a computation. It stores two pointers and a copy of the
  * settings struct, derives nothing in its constructor and caches nothing between
  * calls, which is why the caller builds one on the stack per face rather than
