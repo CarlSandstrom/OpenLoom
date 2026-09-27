@@ -79,6 +79,10 @@ private:
 
     /// The cell containing point, clamped to the grid for a point outside it.
     CellCoordinates cellContaining(const Point3D& point) const;
+
+    /// The cells segment (a, b) passes through, in order, after clipping it to
+    /// the grid (a 3D grid walk). Empty when the segment misses the grid.
+    std::vector<size_t> cellsAlongSegment(const Point3D& a, const Point3D& b) const;
     size_t cellIndex(const CellCoordinates& cell) const;
     bool anyTriangleInCellCrosses(size_t cellIndex, const SegmentQuery& segment) const;
 

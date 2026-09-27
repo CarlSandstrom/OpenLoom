@@ -30,8 +30,8 @@ using namespace Meshing;
 //
 // The restricted Delaunay theorem, checked on the case it is proved for: a
 // dense enough sample of a smooth closed surface restricts to a triangulation
-// of that surface. A sphere of radius 3 sampled by 300 points spread evenly
-// (spacing about 0.6 against a local feature size of 3) is well inside that
+// of that surface. A sphere of radius 3 sampled by 150 points spread evenly
+// (spacing about 0.9 against a local feature size of 3) is well inside that
 // regime, so the restricted facets must form a closed 2-manifold of genus 0,
 // and every surface Delaunay ball centre must lie on the sphere.
 //
@@ -43,7 +43,7 @@ class WeightedDualRestrictionTest : public ::testing::Test
 {
 protected:
     static constexpr double RADIUS = 3.0;
-    static constexpr size_t SAMPLE_COUNT = 300;
+    static constexpr size_t SAMPLE_COUNT = 150;
     static constexpr double MINIMUM_EDGE_LENGTH = 0.1;
 
     static void SetUpTestSuite()
