@@ -45,6 +45,7 @@ set(TEST_SOURCES
     Meshing/Core/SurfaceMeshTopology.cpp
     Meshing/Core/test_PointPhase.cpp
     Meshing/Core/test_PhaseBoundaryFace.cpp
+    Meshing/Core/test_WeightedDualRestriction.cpp
     Meshing/Core/SaddleShape.cpp
     Meshing/Core/test_SaddleCreaseCoverage.cpp
     Meshing/Core/test_RCDTMesher.cpp

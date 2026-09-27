@@ -112,6 +112,44 @@ bool TriangleSoupIndex::isCrossedBySegment(const Point3D& a, const Point3D& b) c
 // A triangle registered in more than one visited cell is tested more than once;
 // the duplicate test is harmless (at worst a redundant true that terminates the
 // search anyway, or a redundant false that wastes a little work).
+std::optional<Point3D> TriangleSoupIndex::findCrossingNearest(const Point3D& a,
+                                                              const Point3D& b,
+                                                              const Point3D& target) const
+{
+    if (cells_.empty())
+        return std::nullopt;
+
+    const SegmentQuery segment = {a, b, a.cwiseMin(b), a.cwiseMax(b)};
+    const CellCoordinates minimumCell = cellContaining(segment.boundsMin);
+    const CellCoordinates maximumCell = cellContaining(segment.boundsMax);
+
+    std::optional<Point3D> nearest;
+    double nearestSquaredDistance = 0.0;
+    for (size_t x = minimumCell.x; x <= maximumCell.x; ++x)
+        for (size_t y = minimumCell.y; y <= maximumCell.y; ++y)
+            for (size_t z = minimumCell.z; z <= maximumCell.z; ++z)
+                for (const size_t triangleIndex : cells_[cellIndex({x, y, z})])
+                {
+                    const BoundedTriangle& triangle = triangles_[triangleIndex];
+                    if (!boundsOverlap(segment.boundsMin, segment.boundsMax, triangle.boundsMin, triangle.boundsMax))
+                        continue;
+                    const auto& v = triangle.vertices;
+                    if (!RobustPredicates3D::segmentCrossesTriangle(a, b, v[0], v[1], v[2]))
+                        continue;
+                    const Point3D normal = (v[1] - v[0]).cross(v[2] - v[0]);
+                    const double denominator = normal.dot(b - a);
+                    const double t = denominator == 0.0 ? 0.0 : normal.dot(v[0] - a) / denominator;
+                    const Point3D crossing = a + std::clamp(t, 0.0, 1.0) * (b - a);
+                    const double squaredDistance = (crossing - target).squaredNorm();
+                    if (!nearest || squaredDistance < nearestSquaredDistance)
+                    {
+                        nearest = crossing;
+                        nearestSquaredDistance = squaredDistance;
+                    }
+                }
+    return nearest;
+}
+
 bool TriangleSoupIndex::anyTriangleInCellCrosses(size_t cellIndex, const SegmentQuery& segment) const
 {
     for (const size_t triangleIndex : cells_[cellIndex])

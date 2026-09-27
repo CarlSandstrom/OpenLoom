@@ -3,6 +3,8 @@
 #include "Common/Types.h"
 #include "Meshing/Core/3D/RCDT/TriangleSoupIndex.h"
 
+#include <optional>
+
 namespace Geometry3D
 {
 class ISurface3D;
@@ -56,6 +58,11 @@ public:
     /// Whether segment (a, b) crosses this tessellation — exact; see
     /// TriangleSoupIndex::isCrossedBySegment().
     bool crossesSurface(const Point3D& a, const Point3D& b) const;
+
+    /// Where segment (a, b) crosses this tessellation, nearest to target; see
+    /// TriangleSoupIndex::findCrossingNearest(). The point lies on the
+    /// tessellation, not exactly on the surface.
+    std::optional<Point3D> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
 
 private:
     TriangleSoupIndex triangles_;

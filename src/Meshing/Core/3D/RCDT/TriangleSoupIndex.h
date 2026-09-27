@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 namespace Meshing
@@ -44,6 +45,12 @@ public:
     /// exact -- much more expensive -- predicate only runs on candidates that
     /// survive this cheap prefilter).
     bool isCrossedBySegment(const Point3D& a, const Point3D& b) const;
+
+    /// Where segment (a, b) crosses the soup: of every triangle it crosses
+    /// (decided by the same exact predicate as isCrossedBySegment()), the
+    /// crossing point nearest to target. The point itself is computed in
+    /// floating point from the triangle's plane. nullopt if none is crossed.
+    std::optional<Point3D> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
 
 private:
     struct BoundedTriangle

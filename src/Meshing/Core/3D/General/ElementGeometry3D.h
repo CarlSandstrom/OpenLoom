@@ -37,6 +37,19 @@ public:
     /// Returns nullopt if the tetrahedron is degenerate.
     std::optional<CircumscribedSphere> computeCircumscribingSphere(const TetrahedralElement& element) const;
 
+    /// The weighted circumcenter (orthocenter) of a tetrahedral element: the
+    /// point with equal power distance |x - p|^2 - w to all four weighted
+    /// vertices. In a regular triangulation this, not the circumcenter, is the
+    /// element's vertex of the dual power diagram. Equals the circumcenter
+    /// when every weight is 0. Returns nullopt if the tetrahedron is degenerate.
+    std::optional<Point3D> computeOrthocenter(const TetrahedralElement& element) const;
+
+    /// The weighted circumcenter of a triangle: the point in its plane with
+    /// equal power distance to all three weighted vertices. It lies on the
+    /// line carrying the triangle's dual power-diagram edge. Returns nullopt
+    /// if the triangle is degenerate.
+    std::optional<Point3D> computeOrthocenter(const TriangleElement& element) const;
+
     /// Computes the centroid (center of mass) of a tetrahedral element.
     Point3D computeCentroid(const TetrahedralElement& element) const;
 
