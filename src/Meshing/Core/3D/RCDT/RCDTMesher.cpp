@@ -18,6 +18,7 @@
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -128,6 +129,24 @@ void syncNodePositions(MeshingContext3D& context, const SurfaceMesh3D& surfaceMe
     }
 }
 
+void smoothSurfaceMesh(MeshingContext3D& context,
+                       const Geometry3D::GeometryCollection3D& geometry,
+                       SurfaceMesh3D& surfaceMesh,
+                       size_t iterations,
+                       bool meshingVolume)
+{
+    if (iterations == 0)
+        return;
+    spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)", iterations);
+    // In volume mode the surface nodes are shared with the solid's
+    // tetrahedra, which smoothing must not turn inside out.
+    std::vector<std::array<size_t, 4>> tetrahedra;
+    if (meshingVolume)
+        tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
+    SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra);
+    syncNodePositions(context, surfaceMesh);
+}
+
 // AmbientTetrahedronRemover's flood fill crosses every face that is not
 // restricted, so a hole in the restricted boundary lets it walk into the solid
 // and delete tetrahedra that belong to the model -- OPE-185's empty BoxWithHole
@@ -229,21 +248,24 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
         RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedTriangulation.getRestrictedFaces(),
                                               *topology_);
 
-    if (qualitySettings_.smoothingIterations > 0)
-    {
-        spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)",
-                     qualitySettings_.smoothingIterations);
-        // In volume mode the surface nodes are shared with the solid's
-        // tetrahedra, which smoothing must not turn inside out.
-        std::vector<std::array<size_t, 4>> tetrahedra;
-        if (meshingVolume)
-            tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
-        SurfaceMeshSmoother::smooth(*geometry_, surfaceMesh, qualitySettings_.smoothingIterations, tetrahedra);
-        syncNodePositions(context, surfaceMesh);
-    }
+    smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, meshingVolume);
 
     exportMesh3D(context.getMeshData(), "rcdt_smoothed", 2);
 
+    return surfaceMesh;
+}
+
+SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context) const
+{
+    const double minimumEdgeLength = seedTriangulation(context);
+
+    SurfaceDelaunayRefiner refiner(context, *topology_, qualitySettings_, minimumEdgeLength);
+    refiner.refine();
+    const RestrictedFaceMap restrictedFaces = refiner.getRestrictedFaces();
+
+    AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
+    SurfaceMesh3D surfaceMesh = RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_);
+    smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, false);
     return surfaceMesh;
 }
 
@@ -251,7 +273,7 @@ SurfaceMesh3D RCDTMesher::meshSurface()
 {
     MeshingContext3D context(*geometry_, *topology_);
     RestrictedTriangulation restrictedTriangulation;
-    SurfaceMesh3D surfaceMesh = runPipeline(context, restrictedTriangulation, false);
+    SurfaceMesh3D surfaceMesh = qualitySettings_.refinementMethod == RCDTRefinementMethod::SurfaceDelaunay ? runSurfaceDelaunayPipeline(context) : runPipeline(context, restrictedTriangulation, false);
 
     // Triangle-only export of the actual output — unlike the exports in
     // runPipeline(), this contains none of the ambient tetrahedralization's
@@ -278,9 +300,9 @@ VolumeMesh3D RCDTMesher::meshVolume()
                                                 *topology_);
 }
 
-double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const
+double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
 {
-    spdlog::info("RCDTMesher::buildInitial: discretizing boundary ({} surface samples/direction)",
+    spdlog::info("RCDTMesher::seedTriangulation: discretizing boundary ({} surface samples/direction)",
                  discretizationSettings_.getNumSamplesPerSurfaceDirection());
 
     // Built before discretization and kept, so the size floor below reads the
@@ -295,15 +317,22 @@ double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulati
                                           discretizationSettings_,
                                           sizingField ? &sizingField.value() : nullptr);
 
-    spdlog::info("RCDTMesher::buildInitial: {} points after discretization",
+    spdlog::info("RCDTMesher::seedTriangulation: {} points after discretization",
                  discretizationResult->points.size());
 
     const double minimumEdgeLength =
         resolveMinimumEdgeLength(qualitySettings_, sizingField ? &sizingField.value() : nullptr,
                                  discretizationResult->points);
-    spdlog::info("RCDTMesher::buildInitial: minimum edge length = {}", minimumEdgeLength);
+    spdlog::info("RCDTMesher::seedTriangulation: minimum edge length = {}", minimumEdgeLength);
 
     seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_, minimumEdgeLength);
+
+    return minimumEdgeLength;
+}
+
+double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const
+{
+    const double minimumEdgeLength = seedTriangulation(context);
 
     const auto& meshData = context.getMeshData();
     const MeshConnectivity connectivity(meshData);

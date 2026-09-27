@@ -64,6 +64,11 @@ private:
 
     /// Returns the resolved minimum edge length: qualitySettings_'s if set,
     /// otherwise derived here (see MinimumEdgeLengthEstimator).
+    /// Discretizes the boundary, resolves the size floor and seeds the weighted
+    /// ambient tetrahedralization with its curve segments -- everything both
+    /// refinement paths start from. Returns the size floor.
+    double seedTriangulation(MeshingContext3D& context) const;
+
     double buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const;
 
     /// includeTetrahedronQualityRefinement enables RCDTRefiner's priority-3
@@ -84,6 +89,10 @@ private:
     /// error. Returns the (possibly smoothed) surface mesh; meshVolume() only
     /// needs it for the smoother's triangle adjacency and discards it once
     /// smoothing has synced back to the live mesh (see meshVolume()).
+    /// Seed, then SurfaceDelaunayRefiner, then the same ambient removal,
+    /// extraction and smoothing as runPipeline(). No restricted-face audit.
+    SurfaceMesh3D runSurfaceDelaunayPipeline(MeshingContext3D& context) const;
+
     SurfaceMesh3D runPipeline(MeshingContext3D& context,
                               RestrictedTriangulation& restrictedTriangulation,
                               bool meshingVolume) const;
