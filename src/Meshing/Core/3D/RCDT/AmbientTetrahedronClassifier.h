@@ -1,12 +1,13 @@
 #pragma once
 
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
+
 #include <cstddef>
 #include <unordered_set>
 
 namespace Meshing
 {
 class MeshData3D;
-class RestrictedTriangulation;
 } // namespace Meshing
 
 namespace Meshing
@@ -46,7 +47,7 @@ public:
     /// Returns the ids of every ambient tetrahedron (true exterior and hole
     /// interiors alike); test membership with contains().
     static std::unordered_set<size_t> classify(const MeshData3D& meshData,
-                                               const RestrictedTriangulation& restrictedTriangulation);
+                                               const RestrictedFaceMap& restrictedFaces);
 };
 
 } // namespace Meshing

@@ -36,7 +36,7 @@ bool TetrahedronQualityRefiner::refineNext(RCDTPointInserter& pointInserter)
     // corners, and those filling holes in the domain. Neither is output, and
     // both are skinny by nature, so refining them would spend iterations on
     // meaningless circumcenters. AmbientTetrahedronClassifier finds both.
-    const auto ambientTetrahedronIds = AmbientTetrahedronClassifier::classify(meshData, *restrictedTriangulation_);
+    const auto ambientTetrahedronIds = AmbientTetrahedronClassifier::classify(meshData, restrictedTriangulation_->getRestrictedFaces());
 
     const auto skinnyTetrahedronIds =
         context_->getOperations().getQueries().findSkinnyTetrahedra(circumradiusToShortestEdgeRatio_);

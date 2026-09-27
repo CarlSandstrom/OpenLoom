@@ -1,7 +1,7 @@
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
 
 #include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
@@ -20,7 +20,7 @@ constexpr size_t INVALID_ID = SIZE_MAX;
 
 std::unordered_set<size_t>
 AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
-                                       const RestrictedTriangulation& restrictedTriangulation)
+                                       const RestrictedFaceMap& restrictedFaces)
 {
     std::unordered_set<size_t> ambientTetIds;
 
@@ -29,7 +29,6 @@ AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
         return ambientTetIds;
 
     const MeshConnectivity connectivity(meshData);
-    const auto& restrictedFaces = restrictedTriangulation.getRestrictedFaces();
 
     std::queue<size_t> queue;
     for (const size_t boundingNodeId : *boundingNodeIds)

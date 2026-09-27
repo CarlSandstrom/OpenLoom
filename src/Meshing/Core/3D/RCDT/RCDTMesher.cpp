@@ -223,10 +223,11 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     // it -- that snapshot is stale by the time we get here. The operations
     // mutator performs no such (now-stale) validation.
     AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(),
-                                      restrictedTriangulation);
+                                      restrictedTriangulation.getRestrictedFaces());
 
     SurfaceMesh3D surfaceMesh =
-        RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedTriangulation, *topology_);
+        RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedTriangulation.getRestrictedFaces(),
+                                              *topology_);
 
     if (qualitySettings_.smoothingIterations > 0)
     {
@@ -273,7 +274,8 @@ VolumeMesh3D RCDTMesher::meshVolume()
     // live mesh directly) sees the same, consistent positions.
     runPipeline(context, restrictedTriangulation, true);
 
-    return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedTriangulation, *topology_);
+    return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedTriangulation.getRestrictedFaces(),
+                                                *topology_);
 }
 
 double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const

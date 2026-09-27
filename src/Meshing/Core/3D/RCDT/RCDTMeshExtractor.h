@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
+
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
 
@@ -15,7 +17,6 @@ namespace Meshing
 {
 
 class MeshData3D;
-class RestrictedTriangulation;
 
 /// Assembles RCDTMesher's output meshes from the final refined state.
 ///
@@ -26,13 +27,13 @@ class RCDTMeshExtractor
 {
 public:
     static SurfaceMesh3D extractSurfaceMesh(const MeshData3D& meshData,
-                                            const RestrictedTriangulation& restrictedTriangulation,
+                                            const RestrictedFaceMap& restrictedFaces,
                                             const Topology3D::Topology3D& topology);
 
     /// Emits every tetrahedron still in meshData, so the ambient tetrahedra
     /// must already have been removed.
     static VolumeMesh3D extractVolumeMesh(const MeshData3D& meshData,
-                                          const RestrictedTriangulation& restrictedTriangulation,
+                                          const RestrictedFaceMap& restrictedFaces,
                                           const Topology3D::Topology3D& topology);
 
     /// Every tetrahedron in meshData as node ID quadruplets, in the same order
