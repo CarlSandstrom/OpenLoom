@@ -8,11 +8,15 @@ aid: the *why* of each piece, not its API. Paths are relative to `src/Meshing/`.
 
 Two things are worth holding onto while reading:
 
-- The **restriction oracle** (section 4) is the only part currently known to be
-  running outside its stated preconditions. Its acceptance hedges — the
-  protected-edge shortcut, the phase test, the periodic-surface skip — are
-  compensation for that, not part of the textbook algorithm.
-- Everything in **section 6** is post-hoc repair of what section 4 got wrong.
+- The **acceptance hedges** in the restriction oracle (section 4) — the
+  protected-edge shortcut, the phase test, the periodic-surface skip — are not
+  part of the textbook algorithm. They were long explained as compensating for
+  the dual-edge test running on badly shaped tetrahedra; a comparison with CGAL
+  Mesh_3 (2026-09-26, OPE-186) contradicts that. CGAL runs the same test on
+  tetrahedra just as bad and meshes the saddle cleanly. What differs is how the
+  two refine near protected creases (sections 3, 5).
+- Everything in **section 6** is post-hoc repair of what sections 4 and 5 left
+  wrong. CGAL has no counterpart to it.
 
 ---
 
@@ -222,16 +226,26 @@ surface is the set of faces whose dual edge crosses it. Under a dense enough
 sample that set is homeomorphic to the surface — a provably correct boundary
 extracted from a volume triangulation.
 
-**Known to run outside its validity conditions (OPE-186).** The dual edge is
-only meaningful for well-shaped tetrahedra, and the surface path never produces
-them: `meshSurface()` runs with tet-quality refinement off by design and 89.8%
-of tetrahedra exceed the bad-tet threshold. The test is therefore evaluated
-outside its preconditions on essentially every face, permanently. That is what
-the acceptance paths below compensate for, and why each is hedged with a
-uniqueness requirement rather than trusted on its own. It is also why enabling
-tet-quality refinement cuts the defect count by 77% without fixing anything: a
-radius-edge bound provably cannot eliminate slivers in 3D, and this test needs
-only one bad tetrahedron in the wrong place.
+**Valid on badly shaped tetrahedra — the earlier claim was wrong (OPE-186).**
+This test was long described as meaningful only for well-shaped tetrahedra, and
+so as running outside its preconditions here: `meshSurface()` runs without
+tet-quality refinement and ~90% of tetrahedra exceed the bad-tet threshold.
+CGAL Mesh_3 contradicts that. It uses the same test under the same regime
+(surface criteria only, no sliver removal), with a median circumradius/shortest
+edge of about 2, half its tetrahedra above 2 and flat slivers up to 1e17, and
+meshes the saddle with zero defects. The restricted Delaunay triangulation is
+*defined* by dual edges; its guarantees depend on sampling density relative to
+local feature size, not on tetrahedron shape. (Turning tet-quality refinement on
+cut the dense-saddle holes 30 → 7 but broke the default configuration 0 → 4 —
+a correlation, not the mechanism.)
+
+**Unweighted where it should be weighted.** The tetrahedralization is regular
+(weighted by the protecting balls, section 3), but the dual edge here joins the
+two tetrahedra's ordinary circumcenters. In a regular triangulation the dual
+joins their *weighted* circumcenters (orthocenters), which is what CGAL uses.
+Near weighted vertices the two differ a lot. Switching to orthocenters was
+measured worse on this pipeline, both alone and combined with other CGAL
+pieces, so it is not a standalone fix — see the ticket.
 
 ### Candidate surfaces
 `Core/3D/RCDT/SurfaceCandidates`
@@ -297,6 +311,19 @@ In order:
   refinement from ever reaching a fixed point. Root cause unknown; this is a
   scoped safety net, not a fix.
 - **The dual-edge test itself**, against the tessellation.
+
+What each path carries (ablation, 2026-09-25):
+- **The phase test** carries ordinary surfaces. Without it the saddle goes
+  from 2 to 72 defects.
+- **The protected-edge shortcut** carries seam surfaces, where the phase test is
+  skipped. Removing it breaks the torus's closed-manifold test.
+- **The dual-edge test alone** leaves 115 holes on the saddle.
+
+The paths only accept, never reject, so each added path can only increase
+acceptance. The gate in front of them — all three vertices must share a
+candidate surface — is also a CGAL difference: CGAL restricts such a face if its
+dual crosses a surface and then refines it as bad (its
+`FACET_VERTICES_ON_SAME_SURFACE_PATCH` criterion). We drop it untested.
 
 ### Three-valued classification
 `Core/3D/RCDT/RestrictedFaceTypes`
@@ -391,6 +418,12 @@ Computed on demand, not alongside classification: 30 bisection iterations x 3
 OCC calls per bad face would otherwise be paid for every face when only one is
 inserted per step.
 
+This point lies on the *unweighted* dual edge (section 4). From an identical
+starting point set, it differs from CGAL's insertion point for every initially
+bad face (median 0.22 against a mesh size of about 0.5). Computed from the
+weighted dual edge it matches CGAL's for 78 of 86 faces. The fallback projection
+fires for about 17% of our insertions; CGAL has no such fallback.
+
 ### Quality criteria
 `Data/3D/SurfaceMesh3DQualitySettings`, `Core/3D/RCDT/RCDTQualityController`
 
@@ -403,6 +436,24 @@ surface it was restricted to, and tetrahedron radius-edge for volumes (default
 Note what these cannot do: they are all **shape** bounds, scale-invariant by
 construction, so a perfectly-shaped element of any size at all satisfies them.
 Controlling size requires the sizing field of section 2.
+
+**Exemption at protecting balls** (`8a18a27`, ported from CGAL's
+`Facet_criterion_visitor_with_features`). A triangle with weighted (protected)
+vertices is exempt from the shape criteria when it is small relative to the
+balls it touches. The test is the ratio of the smallest sphere orthogonal to a
+weighted vertex and an unweighted one to that vertex's weight: the shape
+criteria are skipped below 1.0, the chord criterion below 0.04. It applies to
+one weighted vertex, or two with intersecting balls. Three weighted vertices
+with a common ball intersection skip both criteria.
+
+The reason: protection already guarantees the mesh at a crease, and refining such
+a triangle only places points inside or against the balls. That is exactly where
+the ball exclusion of section 3 refuses them. CGAL's own final saddle mesh keeps
+51 facets under 30°, all touching a protected vertex.
+
+Measured effect: saddle 1223 → 1090 nodes with defects unchanged, and
+`BoxWithHole` 864 → 730 tetrahedra, still watertight. It does not change the
+crest defect.
 
 ### Termination devices
 
@@ -522,6 +573,14 @@ tests: `./scripts/refactor-check.sh` meshes representative models and compares
 every full-precision `.tsv` against `tests/golden/`. Any difference means the
 change was not a refactor. `EXPORT_PHASE_DIAGNOSTICS=1` exports the
 classification picture for the restriction machinery.
+
+**External reference: CGAL Mesh_3.** The harness `~/tmp/cgal-saddle` (outside
+the repository) meshes the saddle with CGAL from the same OCC geometry. With
+`protected=<file>` it starts from *our* protected point set instead of CGAL's
+own protection. `max_vertices=N` stops it after N vertices, and `export=` writes
+each facet with CGAL's own quality verdict and insertion point. Together these
+compare the two refiners from identical inputs, step by step. It is the method
+that found the exemption above.
 
 ---
 
