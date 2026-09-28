@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "DiscretizationResult2D.h"
+#include "Meshing/Data/2D/DiscretizationResult2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include <map>

@@ -1,3 +1,4 @@
+#include "Common/Logging.h"
 #include "Common/TwinManager.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
@@ -8,12 +9,11 @@
 #include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
-#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
+#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Topology2D/Topology2D.h"
-#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <Geom2d_Circle.hxx>

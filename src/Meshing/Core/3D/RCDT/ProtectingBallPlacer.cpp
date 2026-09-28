@@ -2,7 +2,7 @@
 
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
-#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"

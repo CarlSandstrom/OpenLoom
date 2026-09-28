@@ -1,7 +1,7 @@
 #pragma once
 
-#include "DiscretizationResult2D.h"
 #include "Geometry/2D/Base/DiscretizationSettings2D.h"
+#include "Meshing/Data/2D/DiscretizationResult2D.h"
 
 namespace Meshing
 {

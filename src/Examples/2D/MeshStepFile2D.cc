@@ -1,12 +1,12 @@
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
+#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Readers/OpenCascade/StepReader2D.h"
-#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <cmath>

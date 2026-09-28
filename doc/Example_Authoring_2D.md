@@ -23,7 +23,7 @@ Quick reference for writing new 2D stress-test examples. Read this instead of re
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"     // curved edges
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/EdgeDiscretizer2D.h"
-#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
