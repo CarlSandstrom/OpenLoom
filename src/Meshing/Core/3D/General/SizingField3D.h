@@ -30,8 +30,8 @@ struct SizingSource
  * every one of those consumers is meant to read instead.
  *
  * Note that no quality criterion can play this role.
- * circumradiusToShortestEdgeRatio and friends are SHAPE bounds, scale-
- * invariant by construction, so a perfectly-shaped element of any size at
+ * minAngleDegrees and the circumradius / shortest-edge ratios are SHAPE
+ * bounds, scale-invariant by construction, so a perfectly-shaped element of any size at
  * all satisfies them. Controlling size requires a size field.
  *
  * ## The field is a gradient-limited envelope over point sources

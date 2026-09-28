@@ -31,15 +31,6 @@ ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
 {
 }
 
-ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
-                                     std::unique_ptr<IQualityController2D> controller,
-                                     std::string exportPrefix) :
-    context_(&context),
-    qualityController_(std::move(controller)),
-    exportPrefix_(std::move(exportPrefix))
-{
-}
-
 ShewchukRefiner2D::~ShewchukRefiner2D() = default;
 
 void ShewchukRefiner2D::setOnBoundarySplit(BoundarySplitCallback callback)

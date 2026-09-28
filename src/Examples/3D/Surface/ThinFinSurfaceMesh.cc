@@ -11,18 +11,17 @@
  *   - 12 edges, 8 corners (rectangular box)
  *
  * Exports:
- *   - ThinFinSurfaceMeshEdges.vtu   : discretized boundary edges (color by EdgeID)
- *   - ThinFinSurfaceMeshInitial.vtu : initial triangulation before refinement
- *   - ThinFinSurfaceMeshRefined.vtu : final refined surface mesh (color by SurfaceID)
+ *   - ThinFinSurfaceMeshEdges.vtu : discretized boundary edges (color by EdgeID)
+ *   - ThinFinSurfaceMesh.vtu      : surface mesh (color by SurfaceID)
  */
 
 #include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
-#include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopoDS_Shape.hxx>
@@ -44,35 +43,29 @@ int main()
     // each flat face.
     Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 4);
 
-    // S1 runs at construction.
-    Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
-                                             converter.getTopology(),
-                                             discSettings,
-                                             Meshing::SurfaceMesh3DQualitySettings{});
+    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                       converter.getTopology(),
+                                                                       discSettings);
 
-    const auto& discResult = context.getDiscretizationResult();
-    const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();
-
-    std::cout << "Points:         " << discResult.points.size() << "\n";
-    std::cout << "Topology edges: " << discResult.edgeIdToPointIndicesMap.size() << "\n";
-    std::cout << "Faces:          " << context.getFacetTriangulationManager().size() << "\n";
+    std::cout << "Points:         " << discResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(discResult, "ThinFinSurfaceMeshEdges.vtu");
+    exporter.writeEdgeMesh(*discResult, "ThinFinSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to ThinFinSurfaceMeshEdges.vtu\n";
 
-    exporter.writeSurfaceMesh(discResult, subfacets, "ThinFinSurfaceMeshInitial.vtu");
-    std::cout << "Exported initial mesh to ThinFinSurfaceMeshInitial.vtu\n";
-
-    // S2–S3 refinement.
-    context.refineSurfaces();
-    auto surfaceMesh = context.buildSurfaceMesh();
+    Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
+                                    converter.getTopology(),
+                                    discSettings,
+                                    Meshing::SurfaceMesh3DQualitySettings{});
+    auto surfaceMesh = mesher.mesh();
 
     std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";
 
-    exporter.writeSurfaceMesh(surfaceMesh, "ThinFinSurfaceMeshRefined.vtu");
-    std::cout << "Exported refined mesh to ThinFinSurfaceMeshRefined.vtu\n";
+    exporter.writeSurfaceMesh(surfaceMesh, "ThinFinSurfaceMesh.vtu");
+    std::cout << "Exported surface mesh to ThinFinSurfaceMesh.vtu\n";
 
     return 0;
 }

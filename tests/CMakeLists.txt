@@ -30,9 +30,6 @@ set(TEST_SOURCES
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
     Meshing/Core/test_ShewchukRefiner2D.cpp
-    Meshing/Core/test_FacetTriangulation.cpp
-    Meshing/Core/test_FacetDiscretization2DBuilder.cpp
-    Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
     Meshing/Core/test_MinimumEdgeLengthEstimator.cpp
     Meshing/Core/test_SizingField3D.cpp
@@ -46,13 +43,11 @@ set(TEST_SOURCES
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
-    Meshing/Core/test_SurfaceMesher3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
     Meshing/Core/test_RestrictedFaceAudit.cpp
     Meshing/Core/test_TwinManager.cpp
-    Meshing/Core/test_TwinTableGenerator.cpp
 
     # Topology tests
     Topology/test_Edge.cpp
@@ -101,7 +96,6 @@ include(GoogleTest)
 set(SLOW_TEST_FILTER
     "RCDTMesherTorusTest.*:RCDTMesherSphereTest.*:RCDTMesherCylinderTest.*"
     ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*"
-    ":SurfaceMesher3DStrategyTest.*"
     ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
     ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates")
 string(JOIN "" SLOW_TEST_FILTER ${SLOW_TEST_FILTER})

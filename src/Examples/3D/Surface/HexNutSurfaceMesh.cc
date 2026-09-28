@@ -10,9 +10,8 @@
  *   - 2 planar annular top/bottom faces (large hexagonal footprint minus bore opening)
  *   - 1 cylindrical bore face (periodic, diameter 8 mm × HEIGHT tall) -- seam surface
  *
- * The cylindrical bore is the only periodic surface, so SurfaceMesher3D's Auto
- * dispatch routes the whole shape through AmbientRCDT (not the legacy UV-space
- * path), exercising SeamCollection handling on a multi-face topology.
+ * The cylindrical bore is the only periodic surface, exercising SeamCollection
+ * handling on a multi-face topology.
  *
  * Exports:
  *   - HexNutEdges.vtu  : discretized boundary edges (color by EdgeID)
@@ -106,8 +105,6 @@ int main()
     Export::TsvExporter::writeDiscretization(*discretizationResult, "HexNutEdges");
     std::cout << "Exported edge mesh to HexNutEdges.vtu (color by EdgeID)\n";
 
-    // Auto dispatch routes this shape through AmbientRCDT because the cylindrical
-    // bore is a periodic (seam) surface — the SeamCollection is non-empty.
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
                                     discretizationSettings,

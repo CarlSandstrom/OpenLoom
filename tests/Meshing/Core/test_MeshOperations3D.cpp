@@ -6,7 +6,6 @@
 
 #include "Common/Exceptions/MeshException.h"
 #include "Common/Types.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"

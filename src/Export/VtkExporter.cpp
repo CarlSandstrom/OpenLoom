@@ -1,7 +1,6 @@
 #include "VtkExporter.h"
 
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
@@ -520,31 +519,6 @@ bool VtkExporter::writeEdgeMesh(const Meshing::DiscretizationResult3D& result, c
     }
 
     grid.cellFields.push_back({"EdgeID", std::move(edgeIndices)});
-    return writeGrid(grid, filePath);
-}
-
-bool VtkExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& discretization,
-                                   const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
-                                   const std::string& filePath) const
-{
-    VtkGrid grid = gridFromPoints(discretization.points);
-
-    std::vector<std::string> surfaceIds;
-    for (const auto& subfacet : subfacets)
-        surfaceIds.push_back(subfacet.geometryId);
-    const auto indexBySurfaceId = indexSurfaceIds(surfaceIds);
-
-    std::vector<int> surfaceIndices;
-    std::vector<int> constraintRoles;
-    for (const auto& subfacet : subfacets)
-    {
-        grid.cells.push_back({VtkCellType::Triangle, {subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3}});
-        surfaceIndices.push_back(indexBySurfaceId.at(subfacet.geometryId));
-        constraintRoles.push_back(subfacet.role == Meshing::ConstraintRole::Boundary ? 0 : 1);
-    }
-
-    grid.cellFields.push_back({"SurfaceID", std::move(surfaceIndices)});
-    grid.cellFields.push_back({"ConstraintRole", std::move(constraintRoles)});
     return writeGrid(grid, filePath);
 }
 

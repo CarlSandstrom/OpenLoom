@@ -328,8 +328,7 @@ TEST(BoundaryDiscretizer3D, SeamTwinEdge_SequenceIsReverseOfOriginalEdge)
     std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;
 
     Topology3D::SeamCollection seams;
-    seams.addPair("seam", "seam_twin", Topology3D::SeamCollection::SeamDirection::U,
-                  {0.0, 0.0}, {0.0, 0.0});
+    seams.addPair("seam", "seam_twin");
 
     auto topology = std::make_unique<Topology3D::Topology3D>(
         topoSurfaces, topoEdges, topoCorners, std::move(seams));

@@ -21,10 +21,6 @@
  * ruled side faces — each a linear-in-depth Bezier surface whose top row
  * matches the saddle's parabolic boundary arc exactly.
  *
- * Retargeted from the legacy per-face UV-space pipeline to SurfaceMesher3D's
- * AmbientRCDT strategy (OPE-122), since the UV-space path is being removed
- * (OPE-166) and curvature-adaptive sampling is mesher-agnostic.
- *
  * Topology:
  *   - 6 faces  : saddle top, flat bottom, 4 ruled sides
  *   - 12 edges : 4 parabolic top arcs, 4 vertical straight edges, 4 straight bottom edges
@@ -214,8 +210,7 @@ int main()
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
                                     discretizationSettings,
-                                    quality,
-                                    Meshing::SurfaceMeshingStrategy::AmbientRCDT);
+                                    quality);
     auto surfaceMesh = mesher.mesh();
 
     std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "

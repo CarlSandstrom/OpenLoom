@@ -9,7 +9,6 @@ A constrained Delaunay triangulation library for 2D and 3D mesh generation with 
 | Component | Status |
 |-----------|--------|
 | 2D constrained Delaunay mesher | Working |
-| 3D surface mesher — UV-space (legacy) | Complete (superseded by RCDT) |
 | 3D surface mesher — RCDT | Under development |
 | 3D volume mesher — RCDT | Under development |
 
@@ -17,7 +16,7 @@ A constrained Delaunay triangulation library for 2D and 3D mesh generation with 
 
 OpenLoom is designed with extensibility as a core principle. The architecture makes it straightforward to add new meshing algorithms, refinement strategies, and import/export formats without touching the existing pipeline. Key extension points are defined as interfaces (`IMesher`, `ICorner`, `IEdge`, `ISurface`), and the context pattern cleanly separates geometry, topology, and mesh data.
 
-The 2D mesher uses Ruppert's algorithm (implemented as `ShewchukRefiner2D`) for quality refinement — iteratively inserting Steiner points to eliminate poorly-conditioned triangles. The 3D surface and volume meshers use the **Restricted Constrained Delaunay Triangulation** (RCDT) algorithm by Khoury & Shewchuk (SoCG 2021). RCDT works in ambient 3D space: a single Delaunay tetrahedralization is built over all boundary vertices, and surface triangles emerge implicitly as faces whose adjacent tetrahedra lie on opposite sides of the CAD surface. A legacy UV-space surface mesher (`SurfaceMesher3D`) also exists but is superseded by the RCDT pipeline.
+The 2D mesher uses Ruppert's algorithm (implemented as `ShewchukRefiner2D`) for quality refinement — iteratively inserting Steiner points to eliminate poorly-conditioned triangles. The 3D surface and volume meshers use the **Restricted Constrained Delaunay Triangulation** (RCDT) algorithm by Khoury & Shewchuk (SoCG 2021). RCDT works in ambient 3D space: a single Delaunay tetrahedralization is built over all boundary vertices, and surface triangles emerge implicitly as faces whose adjacent tetrahedra lie on opposite sides of the CAD surface.
 
 ## Features
 
@@ -96,7 +95,6 @@ After building, executables are in `build/src/Examples2D/` and `build/src/Exampl
 | Executable | Description |
 |-----------|-------------|
 | `CylinderSurfaceMesh` | RCDT surface mesh of a cylinder |
-| `SurfaceMeshEdges` | Visualise edge discretization and initial surface triangulation |
 | `BoxWithHoleSurface` | RCDT surface mesh of a box with a through-hole |
 | `ThinFinSurfaceMesh` | RCDT surface mesh of a thin fin geometry |
 | `TorusSurfaceMesh` | RCDT surface mesh of a torus |

@@ -41,20 +41,6 @@ public:
                       const Mesh2DQualitySettings& qualitySettings,
                       std::string exportPrefix = "");
 
-    /**
-     * @brief Construct a Shewchuk refiner with a pre-built quality controller.
-     *
-     * Takes ownership of the controller. Intended for internal use by
-     * SurfaceMeshingContext3D, which needs to supply different controller
-     * implementations for Phase 1 and Phase 2 refinement.
-     *
-     * @param context The meshing context containing mesh data and operations
-     * @param controller Owning pointer to the quality controller
-     */
-    ShewchukRefiner2D(MeshingContext2D& context,
-                      std::unique_ptr<IQualityController2D> controller,
-                      std::string exportPrefix = "");
-
     ~ShewchukRefiner2D();
 
     /**

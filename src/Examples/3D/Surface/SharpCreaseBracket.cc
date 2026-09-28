@@ -20,10 +20,6 @@
  * BEND_ANGLE_DEGREES -- an acute feature line RCDT must discretize and refine
  * without losing conformity across the crease.
  *
- * Retargeted from the legacy per-face UV-space pipeline to SurfaceMesher3D's
- * AmbientRCDT strategy (OPE-120), since the UV-space path is being removed
- * (OPE-166) and crease handling is mesher-agnostic.
- *
  * Refinement is not expected to meet the quality bound everywhere near a
  * genuinely small (20 deg) input angle: facets touching a protecting ball are
  * exempt from the angle criterion, as in CGAL Mesh_3. The output mesh itself
@@ -159,13 +155,10 @@ int main()
     exporter.writeEdgeMesh(*discretizationResult, "SharpCreaseBracketEdges.vtu");
     std::cout << "Exported edge mesh to SharpCreaseBracketEdges.vtu (color by EdgeID)\n";
 
-    // Force AmbientRCDT: this shape has no periodic/seam surfaces, so Auto
-    // would otherwise resolve to the legacy per-face UV-space pipeline.
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
                                     discretizationSettings,
-                                    Meshing::SurfaceMesh3DQualitySettings{},
-                                    Meshing::SurfaceMeshingStrategy::AmbientRCDT);
+                                    Meshing::SurfaceMesh3DQualitySettings{});
 
     auto surfaceMesh = mesher.mesh();
 

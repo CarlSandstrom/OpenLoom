@@ -6,7 +6,6 @@
 namespace Meshing
 {
 class MeshData2D;
-struct ConstrainedSubfacet3D;
 struct DiscretizationResult3D;
 struct SurfaceMesh3D;
 struct VolumeMesh3D;
@@ -42,10 +41,6 @@ public:
 
     static void writeDiscretization(const Meshing::DiscretizationResult3D& discretization,
                                     const std::string& stem);
-
-    static void writeSurfaceMesh(const Meshing::DiscretizationResult3D& discretization,
-                                 const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
-                                 const std::string& stem);
 
     static void writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh, const std::string& stem);
 

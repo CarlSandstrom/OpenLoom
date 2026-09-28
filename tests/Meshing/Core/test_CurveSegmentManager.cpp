@@ -156,8 +156,7 @@ Topology3D::Topology3D makeTopology(
 
     Topology3D::SeamCollection seams;
     for (const auto& [originalId, twinId] : seamPairs)
-        seams.addPair(originalId, twinId, Topology3D::SeamCollection::SeamDirection::U,
-                      {0.0, 0.0}, {0.0, 0.0});
+        seams.addPair(originalId, twinId);
 
     return Topology3D::Topology3D(surfaces, edges, corners, seams);
 }
