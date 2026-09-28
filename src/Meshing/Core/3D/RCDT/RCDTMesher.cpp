@@ -14,6 +14,7 @@
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
 #include "Meshing/Core/3D/RCDT/PhaseDiagnosticsExporter.h"
+#include "Meshing/Core/3D/RCDT/ProtectingBallPlacer.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
@@ -75,10 +76,16 @@ void seedAmbientTriangulation(MeshingContext3D& context,
                               DiscretizationResult3D& discretizationResult,
                               const Geometry3D::GeometryCollection3D& geometry,
                               const Topology3D::Topology3D& topology,
-                              double minimumEdgeLength)
+                              double minimumEdgeLength,
+                              RCDTRefinementMethod refinementMethod)
 {
+    // The CGAL-style path needs protection that meets CGAL's conditions
+    // (ProtectingBallPlacer); the RestrictedTriangulation path keeps the
+    // protection its guards were tuned against.
     const auto pointWeights =
-        CurveProtectionSubdivider::subdivide(discretizationResult, topology, geometry, minimumEdgeLength);
+        refinementMethod == RCDTRefinementMethod::SurfaceDelaunay
+            ? ProtectingBallPlacer::place(discretizationResult, topology, geometry)
+            : CurveProtectionSubdivider::subdivide(discretizationResult, topology, geometry, minimumEdgeLength);
 
     const auto& meshData = context.getMeshData();
     const auto delaunayResult = Delaunay3D::triangulate(context.getOperations(),
@@ -325,7 +332,8 @@ double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
                                  discretizationResult->points);
     spdlog::info("RCDTMesher::seedTriangulation: minimum edge length = {}", minimumEdgeLength);
 
-    seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_, minimumEdgeLength);
+    seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_, minimumEdgeLength,
+                             qualitySettings_.refinementMethod);
 
     return minimumEdgeLength;
 }
