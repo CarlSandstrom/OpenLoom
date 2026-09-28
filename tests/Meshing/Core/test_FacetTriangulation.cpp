@@ -9,10 +9,12 @@
 #include "Meshing/Core/2D/DiscretizationResult2D.h"
 #include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Core/3D/General/FacetTriangulation.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 #include "Topology/Corner3D.h"
 #include "Topology/Edge3D.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
+#include <set>
 
 using namespace Meshing;
 
@@ -370,7 +372,7 @@ protected:
     std::unique_ptr<Topology3D::Topology3D> topology_;
 };
 
-TEST_F(TriangleFacetTriangulationTest, NodeMappingIsBidirectional)
+TEST_F(TriangleFacetTriangulationTest, InputPointsMapTo3DNodeIds)
 {
     auto* surface = geometry_->getSurface("s0");
     const auto& topoSurface = topology_->getSurface("s0");
@@ -382,84 +384,24 @@ TEST_F(TriangleFacetTriangulationTest, NodeMappingIsBidirectional)
 
     facetTriang.initialize(disc2D, localIdxToNode3DId);
 
-    // Check that we can map 3D -> 2D -> 3D
-    for (size_t node3D : {10, 20, 30})
+    std::set<size_t> mapped3DIds;
+    for (const auto& [node2DId, node2D] : facetTriang.getContext().getMeshData().getNodes())
     {
-        auto node2D = facetTriang.get2DNodeId(node3D);
-        ASSERT_TRUE(node2D.has_value());
-
-        auto backTo3D = facetTriang.get3DNodeId(*node2D);
-        ASSERT_TRUE(backTo3D.has_value());
-        EXPECT_EQ(*backTo3D, node3D);
+        if (auto node3DId = facetTriang.get3DNodeId(node2DId))
+        {
+            mapped3DIds.insert(*node3DId);
+        }
     }
+    EXPECT_EQ(mapped3DIds, (std::set<size_t>{10, 20, 30}));
 }
 
-TEST_F(TriangleFacetTriangulationTest, InsertVertexAddsToTriangulation)
+TEST_F(TriangleFacetTriangulationTest, Get3DNodeIdReturnsNulloptForUnknownNode)
 {
     auto* surface = geometry_->getSurface("s0");
     const auto& topoSurface = topology_->getSurface("s0");
 
     FacetTriangulation facetTriang(*surface, topoSurface, *topology_, *geometry_);
+    facetTriang.initialize(makeTriangleDisc2D(), {10, 20, 30});
 
-    auto disc2D = makeTriangleDisc2D();
-    std::vector<size_t> localIdxToNode3DId = {0, 1, 2};
-
-    facetTriang.initialize(disc2D, localIdxToNode3DId);
-
-    auto initialSubfacets = facetTriang.getSubfacets();
-    EXPECT_EQ(initialSubfacets.size(), 1u);
-
-    // Insert a vertex near the centroid
-    bool inserted = facetTriang.insertVertex(99, Point2D(0.5, 0.33));
-    EXPECT_TRUE(inserted);
-
-    // Should now have more triangles
-    auto finalSubfacets = facetTriang.getSubfacets();
-    EXPECT_GT(finalSubfacets.size(), 1u);
-
-    // The new node should be mappable
-    auto node2D = facetTriang.get2DNodeId(99);
-    EXPECT_TRUE(node2D.has_value());
-}
-
-TEST_F(TriangleFacetTriangulationTest, InsertVertexRejectsExistingNode)
-{
-    auto* surface = geometry_->getSurface("s0");
-    const auto& topoSurface = topology_->getSurface("s0");
-
-    FacetTriangulation facetTriang(*surface, topoSurface, *topology_, *geometry_);
-
-    auto disc2D = makeTriangleDisc2D();
-    std::vector<size_t> localIdxToNode3DId = {0, 1, 2};
-
-    facetTriang.initialize(disc2D, localIdxToNode3DId);
-
-    // Try to insert with an existing node ID — should succeed but not add duplicate
-    bool inserted = facetTriang.insertVertex(0, Point2D(0.5, 0.5));
-    EXPECT_TRUE(inserted);
-
-    // Subfacet count should not have changed
-    auto subfacets = facetTriang.getSubfacets();
-    EXPECT_EQ(subfacets.size(), 1u);
-}
-
-TEST_F(TriangleFacetTriangulationTest, GetNodeIdReturnsNulloptForUnknownNode)
-{
-    auto* surface = geometry_->getSurface("s0");
-    const auto& topoSurface = topology_->getSurface("s0");
-
-    FacetTriangulation facetTriang(*surface, topoSurface, *topology_, *geometry_);
-
-    auto disc2D = makeTriangleDisc2D();
-    std::vector<size_t> localIdxToNode3DId = {0, 1, 2};
-
-    facetTriang.initialize(disc2D, localIdxToNode3DId);
-
-    // Unknown 3D node ID
-    auto node2D = facetTriang.get2DNodeId(999);
-    EXPECT_FALSE(node2D.has_value());
-
-    // Unknown 2D node ID
-    auto node3D = facetTriang.get3DNodeId(999);
-    EXPECT_FALSE(node3D.has_value());
+    EXPECT_FALSE(facetTriang.get3DNodeId(999).has_value());
 }

@@ -33,7 +33,6 @@ FacetTriangulation& FacetTriangulation::operator=(FacetTriangulation&&) noexcept
 void FacetTriangulation::initialize(DiscretizationResult2D discretization2D,
                                     std::vector<size_t> localIndexToNode3DId)
 {
-    node3DTo2DMap_.clear();
     node2DTo3DMap_.clear();
     edgeIdToNode2DSeq_.clear();
 
@@ -51,7 +50,6 @@ void FacetTriangulation::initialize(DiscretizationResult2D discretization2D,
         if (it != pointIndexToNode2DMap.end())
         {
             size_t node2DId = it->second;
-            node3DTo2DMap_[node3DId] = node2DId;
             node2DTo3DMap_[node2DId] = node3DId;
         }
     }
@@ -74,7 +72,7 @@ void FacetTriangulation::initialize(DiscretizationResult2D discretization2D,
 
     spdlog::debug("FacetTriangulation for surface {}: {} points, {} triangles, {} node mappings",
                   surfaceId_, discretization2D.points.size(),
-                  context_->getMeshData().getElementCount(), node3DTo2DMap_.size());
+                  context_->getMeshData().getElementCount(), node2DTo3DMap_.size());
 }
 
 std::vector<Point3D> FacetTriangulation::resolveRefinementNodes(size_t& nextNode3DId)
@@ -89,7 +87,6 @@ std::vector<Point3D> FacetTriangulation::resolveRefinementNodes(size_t& nextNode
             Point3D pt3D = surface_->getPoint(uv.x(), uv.y());
             size_t node3DId = nextNode3DId++;
             node2DTo3DMap_[node2DId] = node3DId;
-            node3DTo2DMap_[node3DId] = node2DId;
             newPoints.push_back(pt3D);
         }
     }
@@ -133,39 +130,6 @@ std::vector<ConstrainedSubfacet3D> FacetTriangulation::getSubfacets() const
     }
 
     return subfacets;
-}
-
-bool FacetTriangulation::insertVertex(size_t node3DId, const Point2D& uvCoords)
-{
-    // Check if node already exists
-    if (node3DTo2DMap_.contains(node3DId))
-    {
-        spdlog::debug("FacetTriangulation {}: Node {} already exists", surfaceId_, node3DId);
-        return true;
-    }
-
-    // Insert vertex using Bowyer-Watson
-    auto& operations = context_->getOperations();
-    size_t node2DId = operations.insertVertexBowyerWatson(uvCoords);
-
-    // Update mappings
-    node3DTo2DMap_[node3DId] = node2DId;
-    node2DTo3DMap_[node2DId] = node3DId;
-
-    spdlog::debug("FacetTriangulation {}: Inserted vertex {} (3D) -> {} (2D) at ({}, {})",
-                  surfaceId_, node3DId, node2DId, uvCoords.x(), uvCoords.y());
-
-    return true;
-}
-
-std::optional<size_t> FacetTriangulation::get2DNodeId(size_t node3DId) const
-{
-    auto it = node3DTo2DMap_.find(node3DId);
-    if (it != node3DTo2DMap_.end())
-    {
-        return it->second;
-    }
-    return std::nullopt;
 }
 
 std::optional<size_t> FacetTriangulation::get3DNodeId(size_t node2DId) const
@@ -216,7 +180,6 @@ std::map<std::string, std::vector<size_t>> FacetTriangulation::getAllEdge3DNodeI
 void FacetTriangulation::registerNode(size_t node2DId, size_t node3DId)
 {
     node2DTo3DMap_[node2DId] = node3DId;
-    node3DTo2DMap_[node3DId] = node2DId;
 }
 
 void FacetTriangulation::updateEdgeNodeAfterSplit(size_t nodeId1, size_t nodeId2, size_t midNodeId)
