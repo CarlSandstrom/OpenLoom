@@ -13,8 +13,8 @@ enum class RCDTRefinementMethod
     /// RestrictedTriangulation + RCDTRefiner + RestrictedFaceAudit.
     RestrictedTriangulation,
 
-    /// SurfaceDelaunayRefiner: CGAL Mesh_3's facet refinement as a whole.
-    /// Surface meshing only; meshVolume() ignores it.
+    /// SurfaceDelaunayRefiner: CGAL Mesh_3's facet refinement as a whole,
+    /// followed by TetrahedronDelaunayRefiner when meshing a volume.
     SurfaceDelaunay
 };
 
@@ -72,7 +72,7 @@ struct SurfaceMesh3DQualitySettings
     /// by RCDTMesher — the UV-space pipeline ignores it.
     std::size_t maxRefinementIterations = 50000;
 
-    /// Only consumed by RCDTMesher::meshSurface().
+    /// Consumed by RCDTMesher::meshSurface() and meshVolume().
     RCDTRefinementMethod refinementMethod = RCDTRefinementMethod::SurfaceDelaunay;
 };
 

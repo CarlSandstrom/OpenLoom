@@ -2,6 +2,7 @@
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
@@ -91,9 +92,14 @@ private:
     /// error. Returns the (possibly smoothed) surface mesh; meshVolume() only
     /// needs it for the smoother's triangle adjacency and discards it once
     /// smoothing has synced back to the live mesh (see meshVolume()).
-    /// Seed, then SurfaceDelaunayRefiner, then the same ambient removal,
-    /// extraction and smoothing as runPipeline(). No restricted-face audit.
-    SurfaceMesh3D runSurfaceDelaunayPipeline(MeshingContext3D& context) const;
+    /// Seed, then SurfaceDelaunayRefiner -- and TetrahedronDelaunayRefiner
+    /// when meshingVolume -- then the same ambient removal, extraction and
+    /// smoothing as runPipeline(). No restricted-face audit; a volume run
+    /// still throws on a boundary with holes. restrictedFaces receives the
+    /// restricted facets for volume extraction.
+    SurfaceMesh3D runSurfaceDelaunayPipeline(MeshingContext3D& context,
+                                             RestrictedFaceMap& restrictedFaces,
+                                             bool meshingVolume) const;
 
     SurfaceMesh3D runPipeline(MeshingContext3D& context,
                               RestrictedTriangulation& restrictedTriangulation,

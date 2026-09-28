@@ -18,9 +18,12 @@
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
 #include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
+#include "Meshing/Core/3D/RCDT/RestrictedFaceAudit.h"
 #include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/SurfaceCandidates.h"
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
+#include "Meshing/Core/3D/RCDT/TetrahedronDelaunayRefiner.h"
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
@@ -28,6 +31,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <optional>
@@ -159,16 +163,31 @@ void smoothSurfaceMesh(MeshingContext3D& context,
 // and delete tetrahedra that belong to the model -- OPE-185's empty BoxWithHole
 // mesh. A surface mesh with a hole is still a usable result that reports its
 // own defects; a volume mesh missing part of its interior is not.
-void requireClosedBoundary(const DefectiveFaceRemovalSummary& defectRemoval)
+void requireClosedBoundary(size_t missingFaceEdges)
 {
-    if (defectRemoval.remainingMissingFaceEdges == 0)
+    if (missingFaceEdges == 0)
         return;
 
     OPENLOOM_THROW_MESH(GENERATION_FAILED,
                         "RCDTMesher::meshVolume: the restricted boundary still has holes (" +
-                            std::to_string(defectRemoval.remainingMissingFaceEdges) +
+                            std::to_string(missingFaceEdges) +
                             " edges missing a face), so the solid's interior cannot be separated "
                             "from the ambient tetrahedra");
+}
+
+// The edges of the restricted boundary missing a face, read against the
+// coverage the CAD topology calls for (RestrictedFaceAudit) rather than
+// "every edge has two faces". Read-only: the CGAL-style path removes nothing.
+size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
+                             const Topology3D::Topology3D& topology,
+                             const MeshData3D& meshData)
+{
+    const SurfaceCandidates surfaceCandidates(topology);
+    const auto defects =
+        RestrictedFaceAudit::findNonManifoldEdges(restrictedFaces, surfaceCandidates.getEdgeToAdjacentSurfaces(), meshData);
+    return static_cast<size_t>(std::count_if(defects.begin(), defects.end(),
+                                             [](const NonManifoldRestrictedEdge& defect)
+                                             { return defect.defect == RestrictedEdgeDefect::MissingFace; }));
 }
 
 void exportPhaseDiagnostics(const MeshingContext3D& context,
@@ -238,7 +257,7 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     logDefectiveFaceRemoval(defectRemoval);
     exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, minimumEdgeLength, "rcdt_pruned");
     if (meshingVolume)
-        requireClosedBoundary(defectRemoval);
+        requireClosedBoundary(defectRemoval.remainingMissingFaceEdges);
 
     // Strips every ambient tetrahedron -- both the seed triangulation's
     // outer shell and, for domains with holes, the tetrahedra RCDT kept
@@ -262,17 +281,25 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     return surfaceMesh;
 }
 
-SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context) const
+SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context,
+                                                     RestrictedFaceMap& restrictedFaces,
+                                                     bool meshingVolume) const
 {
     const double minimumEdgeLength = seedTriangulation(context, RCDTRefinementMethod::SurfaceDelaunay);
 
-    SurfaceDelaunayRefiner refiner(context, *topology_, qualitySettings_, minimumEdgeLength);
-    refiner.refine();
-    const RestrictedFaceMap restrictedFaces = refiner.getRestrictedFaces();
+    SurfaceDelaunayRefiner surfaceRefiner(context, *topology_, qualitySettings_, minimumEdgeLength);
+    if (meshingVolume)
+        TetrahedronDelaunayRefiner(context, surfaceRefiner, qualitySettings_).refine();
+    else
+        surfaceRefiner.refine();
+    restrictedFaces = surfaceRefiner.getRestrictedFaces();
+
+    if (meshingVolume)
+        requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
 
     AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
     SurfaceMesh3D surfaceMesh = RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_);
-    smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, false);
+    smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, meshingVolume);
     return surfaceMesh;
 }
 
@@ -280,7 +307,8 @@ SurfaceMesh3D RCDTMesher::meshSurface()
 {
     MeshingContext3D context(*geometry_, *topology_);
     RestrictedTriangulation restrictedTriangulation;
-    SurfaceMesh3D surfaceMesh = qualitySettings_.refinementMethod == RCDTRefinementMethod::SurfaceDelaunay ? runSurfaceDelaunayPipeline(context) : runPipeline(context, restrictedTriangulation, false);
+    RestrictedFaceMap restrictedFaces;
+    SurfaceMesh3D surfaceMesh = qualitySettings_.refinementMethod == RCDTRefinementMethod::SurfaceDelaunay ? runSurfaceDelaunayPipeline(context, restrictedFaces, false) : runPipeline(context, restrictedTriangulation, false);
 
     // Triangle-only export of the actual output — unlike the exports in
     // runPipeline(), this contains none of the ambient tetrahedralization's
@@ -295,14 +323,20 @@ SurfaceMesh3D RCDTMesher::meshSurface()
 VolumeMesh3D RCDTMesher::meshVolume()
 {
     MeshingContext3D context(*geometry_, *topology_);
-    RestrictedTriangulation restrictedTriangulation;
 
     // The returned SurfaceMesh3D is only needed for the smoother's triangle
-    // adjacency inside runPipeline() — smoothing already synced the resulting
+    // adjacency inside the pipeline — smoothing already synced the resulting
     // positions back into the live mesh, so extractVolumeMesh() (reading that
     // live mesh directly) sees the same, consistent positions.
-    runPipeline(context, restrictedTriangulation, true);
+    if (qualitySettings_.refinementMethod == RCDTRefinementMethod::SurfaceDelaunay)
+    {
+        RestrictedFaceMap restrictedFaces;
+        runSurfaceDelaunayPipeline(context, restrictedFaces, true);
+        return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_);
+    }
 
+    RestrictedTriangulation restrictedTriangulation;
+    runPipeline(context, restrictedTriangulation, true);
     return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedTriangulation.getRestrictedFaces(),
                                                 *topology_);
 }

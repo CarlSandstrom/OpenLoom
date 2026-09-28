@@ -325,9 +325,12 @@ TEST(RCDTMesherVolumeWithHoleInBoundaryTest, Throws)
     const TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 10.0).Shape();
     const Readers::TopoDS_ShapeConverter converter(BRepAlgoAPI_Cut(box, cylinder).Shape());
 
+    SurfaceMesh3DQualitySettings qualitySettings;
+    qualitySettings.maxRefinementIterations = 0;
     RCDTMesher mesher(converter.getGeometryCollection(),
                       converter.getTopology(),
-                      Geometry3D::DiscretizationSettings3D(3, 2));
+                      Geometry3D::DiscretizationSettings3D(3, 2),
+                      qualitySettings);
 
     EXPECT_THROW(mesher.meshVolume(), OpenLoom::MeshException);
 }
