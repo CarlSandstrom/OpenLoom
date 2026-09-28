@@ -66,6 +66,7 @@ fi
 
 changed=0
 missing=0
+orphaned=0
 compared=0
 
 for example in "${examples[@]}"; do
@@ -117,6 +118,24 @@ for example in "${examples[@]}"; do
             changed=$((changed + 1))
         fi
     done
+
+    # A golden no output matches means the example stopped writing that
+    # table; iterating over the outputs alone never looks at it.
+    shopt -s nullglob
+    goldens=("$GOLDEN_DIR/$name"/*.tsv)
+    shopt -u nullglob
+    for golden in "${goldens[@]}"; do
+        if [[ -f "$runDirectory/$(basename "$golden")" ]]; then
+            continue
+        fi
+        if $accept; then
+            rm "$golden"
+            echo "removed  $name/$(basename "$golden") (no longer produced)"
+        else
+            echo "ORPHANED GOLDEN: $name/$(basename "$golden") -- no output produces it"
+            orphaned=$((orphaned + 1))
+        fi
+    done
 done
 
 if $accept; then
@@ -126,9 +145,9 @@ if $accept; then
 fi
 
 echo
-if [[ $changed -eq 0 && $missing -eq 0 ]]; then
+if [[ $changed -eq 0 && $missing -eq 0 && $orphaned -eq 0 ]]; then
     echo "OK: $compared outputs unchanged (tier=${TIER:-fast})."
     exit 0
 fi
-echo "FAIL: $changed changed, $missing missing, out of $compared outputs."
+echo "FAIL: $changed changed, $missing missing, $orphaned orphaned, out of $compared outputs."
 exit 1
