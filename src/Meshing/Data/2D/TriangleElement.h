@@ -16,7 +16,6 @@ public:
     bool hasNode(size_t nodeId) const override;
 
     const std::array<size_t, 3>& getNodeIdArray() const { return nodeIds_; }
-    std::array<size_t, 3> getSortedNodeIds() const;
 
     std::unique_ptr<IElement> clone() const override;
 

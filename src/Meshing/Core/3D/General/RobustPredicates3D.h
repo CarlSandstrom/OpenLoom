@@ -8,24 +8,14 @@ namespace Meshing
 /**
  * @brief Robust (exact) geometric predicates.
  *
- * Originally added for 3D Delaunay operations (insidePointCircumsphere(),
- * orientationSign() — see OPE-159 below); segmentCrossesTriangle() extends
- * the same technique to surface-crossing classification (OPE-169). All three
- * share the same building block: computing the exact sign of a quantity that
- * plain IEEE double arithmetic cannot reliably distinguish from zero near a
- * degenerate configuration, rather than comparing against an epsilon.
- *
- * ElementGeometry3D::computeCircumscribingSphere() solves a 3x3 linear system for the
- * circumcenter, then callers compare distances against the resulting radius. For a
- * near-degenerate (nearly coplanar/flat) tetrahedron that system is nearly singular:
- * the solved center can be wrong by orders of magnitude — radii in the thousands for
- * a mesh a few units across are not unusual — which corrupts every conflict test that
- * relies on it (see OPE-159).
- *
- * insidePointCircumsphere() avoids that instability entirely: it never forms an
- * explicit center or radius. It evaluates the sign of the standard 4x4 in-sphere
- * determinant directly, using Shewchuk-style exact expansion arithmetic (see .cpp)
- * for every intermediate sum and product instead of plain IEEE double.
+ * Originally added for 3D Delaunay operations (orientationSign(), OPE-159);
+ * segmentCrossesTriangle() extends the same technique to surface-crossing
+ * classification (OPE-169). Both share the same building block: computing the
+ * exact sign of a quantity that plain IEEE double arithmetic cannot reliably
+ * distinguish from zero near a degenerate configuration, rather than comparing
+ * against an epsilon. They use Shewchuk-style exact expansion arithmetic (see
+ * .cpp) for every intermediate sum and product instead of plain IEEE double.
+ * RegularPredicates3D's in-orthosphere test is built the same way.
  *
  * Exact, not merely higher-precision, matters here: this codebase's boundary
  * discretization of circles (cylinder caps, sphere/torus seams) produces points
@@ -34,7 +24,7 @@ namespace Meshing
  * approximation carries. A first attempt at this class used double-double
  * (~32 decimal digits) precision instead of true exact arithmetic; it resolved
  * those exact ties inconsistently (~23% disagreement with the old approach in a
- * targeted fuzz test) because the true mathematical answer is zero, and no
+ * targeted fuzz test of the in-sphere test) because the true mathematical answer is zero, and no
  * fixed-width approximation is guaranteed to compute zero for a case that isn't
  * actually zero-width in its own representation. Exact expansion arithmetic
  * computes precisely zero for those cases, every time.

@@ -20,14 +20,13 @@ constexpr double SAFETY_FACTOR = 1e-8;
 // with a trailing all-ones column (one row per weighted point: the tet's 4
 // vertices plus the query, each [x, y, z, x^2+y^2+z^2-w, 1]). Rather than
 // compute that 5x5 directly (which forces every term to use each point's
-// ABSOLUTE coordinates, defeating the conditioning RobustPredicates3D's
-// query-relative reduction relies on -- confirmed empirically: it roughly
-// doubled the exact-arithmetic fallback rate, which is why this doesn't
-// build that way), this reduces the 5x5 to the SAME 4x4-relative-to-query
-// form RobustPredicates3D::insidePointCircumsphere() uses (small,
-// geometrically local magnitudes -- the actual source of that fast path's
-// low fallback rate), plus one extra correction term for the query's own
-// weight.
+// ABSOLUTE coordinates, defeating the conditioning a query-relative
+// reduction gives -- confirmed empirically: it roughly doubled the
+// exact-arithmetic fallback rate, which is why this doesn't build that way),
+// this reduces the 5x5 to the classic 4x4 in-sphere determinant relative to
+// the query (small, geometrically local magnitudes -- the actual source of
+// the fast path's low fallback rate), plus one extra correction term for the
+// query's own weight.
 //
 // Translating all 5 points by -queryPoint doesn't change the determinant
 // (adding a linear combination of the x/y/z/"1" columns to the height
@@ -47,15 +46,15 @@ constexpr double SAFETY_FACTOR = 1e-8;
 //    small local helper since that class only exposes the sign, not the
 //    value this needs to combine with queryWeight).
 //  - M4 is the 4x4 determinant of the tet's 4 points' [dx,dy,dz,dx^2+dy^2+dz^2-w]
-//    rows relative to queryPoint -- EXACTLY RobustPredicates3D::
-//    insidePointCircumsphere()'s own `determinant` quantity, generalized by
-//    subtracting each point's weight from its height term.
+//    rows relative to queryPoint -- exactly the unweighted in-sphere
+//    determinant, generalized by subtracting each point's weight from its
+//    height term.
 //
 // Both terms use small, query-relative magnitudes, so this has the same
 // fast-path conditioning as the unweighted predicate; when queryWeight == 0
 // (refinement's ordinary, unweighted Steiner points -- the overwhelmingly
 // common case) the orientDet term is skipped entirely, leaving M4 alone,
-// identical in cost to RobustPredicates3D's own insphere test.
+// identical in cost to an unweighted in-sphere test.
 // ---------------------------------------------------------------------------
 
 struct FastResult

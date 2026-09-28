@@ -24,9 +24,7 @@ set(TEST_SOURCES
     Meshing/Core/test_ElementGeometry2D.cpp
     Meshing/Core/test_ElementQuality2D.cpp
     Meshing/Core/test_ConstraintChecker2D.cpp
-    Meshing/Core/test_GeometryUtilities3D.cpp
     Meshing/Core/test_ElementGeometry3D.cpp
-    Meshing/Core/test_ElementQuality3D.cpp
     Meshing/Core/test_RobustPredicates3D.cpp
     Meshing/Core/test_RegularPredicates3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp

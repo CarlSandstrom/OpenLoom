@@ -35,8 +35,6 @@ src/Meshing/Core/
 │   │   ├── MeshQueries3D.{h,cpp}
 │   │   ├── MeshVerifier3D.{h,cpp}
 │   │   ├── ElementGeometry3D.{h,cpp}
-│   │   ├── ElementQuality3D.{h,cpp}
-│   │   ├── GeometryUtilities3D.{h,cpp}
 │   │   ├── GeometryStructures3D.h
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
 │   │   ├── DiscretizationResult3D.h
@@ -92,9 +90,7 @@ src/Meshing/Core/
 ### 3D General (shared infrastructure)
 - **MeshOperations3D**: High-level operations (Bowyer-Watson insertion, cavity finding)
 - **MeshQueries3D**: Spatial queries on 3D meshes
-- **ElementGeometry3D**: Geometric computations for tetrahedral elements (circumspheres, volumes)
-- **ElementQuality3D**: Quality metrics for tetrahedral elements
-- **GeometryUtilities3D**: Pure geometric utilities (sphere tests, edge length, etc.)
+- **ElementGeometry3D**: Weighted circumcenters (orthocenters) of tetrahedra and triangles
 - **BoundaryDiscretizer3D**: Samples boundary geometry into discrete points
 - **MeshVerifier3D**: Validates mesh integrity (degenerate elements, orphan nodes)
 - **FacetDiscretization2DBuilder**: Builds UV-space discretizations of CAD facets; used by the legacy UV-space surface mesher

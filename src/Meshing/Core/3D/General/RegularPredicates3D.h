@@ -28,8 +28,14 @@ namespace Meshing
  * the tetrahedron's four lifted points the query's lifted point falls on.
  * Setting every weight (including the query's) to 0 makes this identical,
  * term for term, to the unweighted in-sphere determinant, so this predicate
- * reduces exactly to RobustPredicates3D::insidePointCircumsphere() in that
- * case -- confirmed by test (see test_RegularPredicates3D.cpp).
+ * reduces exactly to the ordinary circumsphere test in that case (see
+ * test_RegularPredicates3D.cpp).
+ *
+ * It evaluates the determinant's sign directly and never forms an explicit
+ * center or radius. Solving the 3x3 linear system for a circumcenter instead
+ * is nearly singular for a near-flat tetrahedron: the solved center can be
+ * wrong by orders of magnitude, which corrupts every conflict test that
+ * relies on it (OPE-159).
  *
  * Same exact-expansion-arithmetic technique as RobustPredicates3D (see its
  * class comment for why exactness, not just extra precision, matters here),
@@ -40,10 +46,9 @@ class RegularPredicates3D
 public:
     /// True if queryPoint (with weight queryWeight) lies inside or exactly on
     /// the orthogonal sphere of the weighted tetrahedron (p0,w0)..(p3,w3) --
-    /// inclusive on ties, same rationale as
-    /// RobustPredicates3D::insidePointCircumsphere() (boundary-discretized
-    /// points routinely land exactly cospherical/co-orthospherical by
-    /// construction). Returns false if (p0,p1,p2,p3) is degenerate
+    /// inclusive on ties, because boundary-discretized points routinely land
+    /// exactly cospherical/co-orthospherical by construction, and treating
+    /// such a tie as outside leaves them out of the Bowyer-Watson cavity. Returns false if (p0,p1,p2,p3) is degenerate
     /// (zero-volume): a degenerate tetrahedron has no valid orthosphere,
     /// regardless of weights.
     static bool insidePointOrthosphere(const Point3D& p0, double w0,

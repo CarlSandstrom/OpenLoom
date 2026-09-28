@@ -23,11 +23,8 @@ where our RCDT refiner did not (OPE-186)", and section 9 lists what was retired.
 
 Shewchuk-style adaptive expansion arithmetic: a plain-double fast path with a
 conservative error bound, falling back to exact expansions only when the sign
-is not comfortably determined. Three predicates:
+is not comfortably determined. Two predicates here, and the weighted one below:
 
-- `insidePointCircumsphere` — evaluates the 4x4 in-sphere determinant directly
-  and never forms an explicit circumcenter or radius, so a near-flat tetrahedron
-  cannot corrupt it through a nearly-singular linear solve.
 - `orientationSign` — sign of the signed volume.
 - `segmentCrossesTriangle` — built entirely from `orientationSign`.
 
@@ -46,7 +43,9 @@ quadratic term reduced by that point's weight. Equivalent to lifting to the 4D
 paraboloid at `(x, y, z, x²+y²+z²−w)`. Reduces term for term to the unweighted
 test when every weight is zero. Needed because protecting balls (section 3) make
 the curve-network points weighted. Orientation is unaffected by weights, so
-callers reuse `RobustPredicates3D::orientationSign` directly.
+callers reuse `RobustPredicates3D::orientationSign` directly. It evaluates the
+determinant's sign and never forms an explicit centre or radius, so a near-flat
+tetrahedron cannot corrupt it through a nearly-singular linear solve.
 
 ### Orthocentres
 `Core/3D/General/ElementGeometry3D::computeOrthocenter`

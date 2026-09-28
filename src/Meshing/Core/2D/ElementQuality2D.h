@@ -19,9 +19,6 @@ public:
     /// Computes the shortest edge length of a triangle element.
     double computeShortestEdgeLength(const TriangleElement& element) const;
 
-    /// Computes the longest edge length of a triangle element.
-    double computeLongestEdgeLength(const TriangleElement& element) const;
-
     /// Computes the ratio of circumradius to shortest edge length.
     /// Returns nullopt if the triangle is degenerate or has zero-length edges.
     std::optional<double> computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const;
