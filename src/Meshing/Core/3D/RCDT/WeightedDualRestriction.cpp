@@ -11,6 +11,7 @@
 #include "Topology/Topology3D.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 namespace Meshing
@@ -24,6 +25,10 @@ constexpr size_t INVALID_ID = SIZE_MAX;
 // Same resolution rule as DualEdgeRestrictionOracle: cells of half the
 // minimum edge length resolve any face at or above that floor.
 constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;
+
+// Half-width, in tessellation cells, of the bracket along the dual segment
+// in which the exact crossing is sought around the tessellation's.
+constexpr double BRACKET_CELLS = 2.0;
 
 bool touchesBoundingTetrahedron(const FaceKey& face, const MeshData3D& meshData)
 {
@@ -41,9 +46,10 @@ bool touchesBoundingTetrahedron(const FaceKey& face, const MeshData3D& meshData)
 WeightedDualRestriction::WeightedDualRestriction(const Geometry3D::GeometryCollection3D& geometry,
                                                  const Topology3D::Topology3D& topology,
                                                  double minimumEdgeLength) :
-    geometry_(&geometry)
+    geometry_(&geometry),
+    cellSize_(minimumEdgeLength * TESSELLATION_CELL_SIZE_FACTOR)
 {
-    const double targetCellSize = minimumEdgeLength * TESSELLATION_CELL_SIZE_FACTOR;
+    const double targetCellSize = cellSize_;
     for (const auto& surfaceId : topology.getAllSurfaceIds())
     {
         const Geometry3D::ISurface3D* surface = geometry.getSurface(surfaceId);
@@ -91,11 +97,24 @@ std::optional<RestrictedFacet> WeightedDualRestriction::restrict(const FaceKey& 
     if (!nearest)
         return std::nullopt;
 
-    // The tessellation approximates the surface; the centre is used as an
-    // insertion point, so it belongs on the surface itself.
-    if (const auto onSurface =
-            SurfaceProjector::projectToSurface(nearest->surfaceCenter, *geometry_->getSurface(nearest->surfaceId)))
-        nearest->surfaceCenter = *onSurface;
+    // The tessellation only approximates the surface. Refine the crossing onto
+    // the exact surface by bisecting along the dual segment itself, in a
+    // bracket of a few tessellation cells around the hit: the centre must stay
+    // on the dual line. Projecting it onto the surface instead moved it
+    // sideways, far enough to land inside a protecting ball (HexNutChamfered,
+    // 0.035 off the line), which broke the triangulation.
+    const Point3D direction = *dualEnd - *dualStart;
+    const double squaredLength = direction.squaredNorm();
+    if (squaredLength > 0.0)
+    {
+        const double hit = (nearest->surfaceCenter - *dualStart).dot(direction) / squaredLength;
+        const double halfWidth = BRACKET_CELLS * cellSize_ / std::sqrt(squaredLength);
+        const Point3D bracketStart = *dualStart + std::max(0.0, hit - halfWidth) * direction;
+        const Point3D bracketEnd = *dualStart + std::min(1.0, hit + halfWidth) * direction;
+        if (const auto exact = SurfaceProjector::findSurfaceCrossing(bracketStart, bracketEnd,
+                                                                     *geometry_->getSurface(nearest->surfaceId)))
+            nearest->surfaceCenter = *exact;
+    }
     return nearest;
 }
 

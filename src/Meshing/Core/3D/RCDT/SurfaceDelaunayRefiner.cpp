@@ -86,6 +86,26 @@ std::vector<size_t> conflictRegion(const std::array<size_t, 2>& seeds,
     return region;
 }
 
+/// Whether point would be hidden by, or coincide with, a vertex of the
+/// tetrahedra it conflicts with: power distance |point - v|^2 - w_v <= 0. A
+/// hidden point is not a vertex of the regular triangulation, so inserting it
+/// breaks the triangulation; a coincident one duplicates a node. CGAL's
+/// insert refuses both.
+bool isHiddenOrDuplicate(const Point3D& point, const std::vector<size_t>& region, const MeshData3D& meshData)
+{
+    for (const size_t elementId : region)
+    {
+        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        for (const size_t nodeId : tetrahedron->getNodeIds())
+        {
+            const Node3D* node = meshData.getNode(nodeId);
+            if ((node->getCoordinates() - point).squaredNorm() <= node->getWeight())
+                return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 SurfaceDelaunayRefiner::SurfaceDelaunayRefiner(MeshingContext3D& context,
@@ -175,12 +195,12 @@ bool SurfaceDelaunayRefiner::refineWorst()
         const FaceKey face = queue_.begin()->second;
         const RestrictedFacet facet = facets_.at(face);
 
-        // CGAL's only refusal: the point must conflict with a tetrahedron
-        // beside the facet, or inserting it would not remove the facet. A
-        // point hidden inside a protecting ball conflicts with nothing.
+        // CGAL's refusals: the point must conflict with a tetrahedron beside
+        // the facet, or inserting it would not remove the facet; and it must
+        // not be hidden by, or coincide with, an existing vertex.
         const auto& [elementId1, elementId2] = connectivity_->getFaceElements(face);
         auto conflicting = conflictRegion({elementId1, elementId2}, facet.surfaceCenter, meshData, *connectivity_);
-        if (conflicting.empty())
+        if (conflicting.empty() || isHiddenOrDuplicate(facet.surfaceCenter, conflicting, meshData))
         {
             const auto badness = badness_.find(face);
             queue_.erase({badness->second, face});

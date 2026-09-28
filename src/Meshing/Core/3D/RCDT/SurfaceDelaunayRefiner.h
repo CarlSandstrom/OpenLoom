@@ -41,10 +41,11 @@ namespace Meshing
  *  - Worst facet first: ordered by the first criterion that fails, then by
  *    how badly.
  *  - The refinement point is the facet's surface Delaunay ball centre.
- *  - The only refusal is CGAL's: a point is not inserted when neither
- *    tetrahedron beside the facet conflicts with it. No size floor, proximity
- *    guard or protecting-ball check; protection is fixed after seeding and
- *    curves are never split.
+ *  - CGAL's refusals only: a point is not inserted when neither tetrahedron
+ *    beside the facet conflicts with it, or when an existing vertex hides it
+ *    (it lies in that vertex's protecting ball) or coincides with it. No size
+ *    floor or proximity guard; protection is fixed after seeding and curves
+ *    are never split.
  *  - No post-processing: the restricted facets are the surface.
  *
  * Terminates on an empty queue or after maxRefinementIterations insertions,
