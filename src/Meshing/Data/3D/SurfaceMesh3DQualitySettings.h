@@ -73,7 +73,7 @@ struct SurfaceMesh3DQualitySettings
     std::size_t maxRefinementIterations = 50000;
 
     /// Only consumed by RCDTMesher::meshSurface().
-    RCDTRefinementMethod refinementMethod = RCDTRefinementMethod::RestrictedTriangulation;
+    RCDTRefinementMethod refinementMethod = RCDTRefinementMethod::SurfaceDelaunay;
 };
 
 } // namespace Meshing

@@ -66,8 +66,10 @@ private:
     /// otherwise derived here (see MinimumEdgeLengthEstimator).
     /// Discretizes the boundary, resolves the size floor and seeds the weighted
     /// ambient tetrahedralization with its curve segments -- everything both
-    /// refinement paths start from. Returns the size floor.
-    double seedTriangulation(MeshingContext3D& context) const;
+    /// refinement paths start from. Returns the size floor. The protection
+    /// is the one refinementMethod -- the path that will actually run -- was
+    /// built against.
+    double seedTriangulation(MeshingContext3D& context, RCDTRefinementMethod refinementMethod) const;
 
     double buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const;
 

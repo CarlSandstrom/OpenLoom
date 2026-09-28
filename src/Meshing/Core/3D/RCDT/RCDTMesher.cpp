@@ -264,7 +264,7 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
 
 SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context) const
 {
-    const double minimumEdgeLength = seedTriangulation(context);
+    const double minimumEdgeLength = seedTriangulation(context, RCDTRefinementMethod::SurfaceDelaunay);
 
     SurfaceDelaunayRefiner refiner(context, *topology_, qualitySettings_, minimumEdgeLength);
     refiner.refine();
@@ -307,7 +307,7 @@ VolumeMesh3D RCDTMesher::meshVolume()
                                                 *topology_);
 }
 
-double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
+double RCDTMesher::seedTriangulation(MeshingContext3D& context, RCDTRefinementMethod refinementMethod) const
 {
     spdlog::info("RCDTMesher::seedTriangulation: discretizing boundary ({} surface samples/direction)",
                  discretizationSettings_.getNumSamplesPerSurfaceDirection());
@@ -333,14 +333,14 @@ double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
     spdlog::info("RCDTMesher::seedTriangulation: minimum edge length = {}", minimumEdgeLength);
 
     seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_, minimumEdgeLength,
-                             qualitySettings_.refinementMethod);
+                             refinementMethod);
 
     return minimumEdgeLength;
 }
 
 double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const
 {
-    const double minimumEdgeLength = seedTriangulation(context);
+    const double minimumEdgeLength = seedTriangulation(context, RCDTRefinementMethod::RestrictedTriangulation);
 
     const auto& meshData = context.getMeshData();
     const MeshConnectivity connectivity(meshData);
