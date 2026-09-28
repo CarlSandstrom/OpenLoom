@@ -90,9 +90,8 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
         // the count's uniform segment length as a maximum that h(x) may
         // shorten but never lengthen. The field only ever ADDS points --
         // a count is a coarseness request, not a protection guarantee, and
-        // CurveProtectionSubdivider already densifies past it wherever the
-        // protection properties demand (so the count was never authoritative
-        // to begin with).
+        // ProtectingBallPlacer replaces the curve points anyway (so the count
+        // was never authoritative to begin with).
         else if (maxAngle.has_value() || sizingField != nullptr)
         {
             // In fixed-count mode the count contributes its uniform segment

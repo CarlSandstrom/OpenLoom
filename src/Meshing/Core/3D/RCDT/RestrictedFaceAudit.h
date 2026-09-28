@@ -14,18 +14,16 @@ namespace Meshing
 
 /**
  * @brief Checks the restricted-face set against the coverage the CAD topology
- * calls for, and removes the two defect shapes that can be repaired after the
- * fact.
+ * calls for. RCDTMesher::meshVolume() refuses a boundary with a face missing.
  *
  * Free functions rather than a class: everything here is a pure function of
  * the restricted-face set plus the topology lookup, so there is no state worth
- * owning, and the read-only checks stay usable from a const
- * RestrictedTriangulation without a second type existing to hold them.
+ * owning.
  *
- * This whole file is downstream of classification and never performs any: it
- * reads the face set, it never asks whether a face should have been in it.
- * That independence is deliberate -- OPE-186 replaces the restriction oracle,
- * and nothing here has to change when it does.
+ * Read-only and downstream of restriction: it reads the face set, it never
+ * asks whether a face should have been in it, and it removes nothing -- the
+ * old post-hoc chord and flap removal went with the RestrictedTriangulation
+ * path (OPE-186), whose defects it repaired.
  */
 namespace RestrictedFaceAudit
 {
@@ -65,20 +63,6 @@ namespace RestrictedFaceAudit
 /// rest" shape built on it would silently destroy triple lines. See OPE-184.
 std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(
     const RestrictedFaceMap& restrictedFaces,
-    const EdgeToAdjacentSurfacesMap& edgeToAdjacentSurfaces,
-    const MeshData3D& meshData);
-
-/// Removes the same-curve chord faces, then the over-acceptance flaps, then
-/// reports whatever non-manifold edges remain.
-///
-/// Meant to be called ONCE, after refinement has fully converged: both passes
-/// judge faces by counts the other changes, and both assume the mesh will not
-/// be refined again afterwards. Faces removed here leave badFaces as well as
-/// restrictedFaces, so the quality bookkeeping does not retain entries for
-/// faces that no longer exist.
-DefectiveFaceRemovalSummary removeDefectiveFaces(
-    RestrictedFaceMap& restrictedFaces,
-    BadRestrictedFaceMap& badFaces,
     const EdgeToAdjacentSurfacesMap& edgeToAdjacentSurfaces,
     const MeshData3D& meshData);
 

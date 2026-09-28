@@ -39,14 +39,13 @@ namespace Meshing
  *    between; repeated until nothing changes, at most 29 rounds.
  *
  * The size function is the spacing of the existing boundary discretization
- * along each curve -- the same density the current protection starts from, so
- * the two can be compared on protection alone.
+ * along each curve.
  *
  * Rewrites discretization in place, replacing every protected curve's
  * interior points (corners and surface points are kept), and returns the
  * weight (squared radius) of every protected point by index. Seam twins get
  * their original edge's points in reverse; degenerate edges are left as they
- * are, as CurveProtectionSubdivider leaves them.
+ * are.
  */
 class ProtectingBallPlacer
 {
