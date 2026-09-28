@@ -95,12 +95,22 @@ std::vector<Ball> insertBalls(const Curve& curve, const Ball& a, const Ball& b, 
     const double estimate = std::floor(2.0 * (d - sq) / (sp + sq) + 0.5);
     std::size_t n = estimate > 0.0 ? static_cast<std::size_t>(estimate) : 0;
 
-    // A long run: place a ball at the midpoint with the local size first, so
-    // the size function is followed instead of interpolated between the ends.
-    if (n >= REEVALUATE_SIZE_ABOVE)
+    // Place a ball at the midpoint with the local size first, so the size
+    // function is followed instead of interpolated between the ends: CGAL
+    // does so for a long run; it must also happen wherever interpolation
+    // would oversize the middle. CGAL's sizing fields vary slowly, but a
+    // spacing read off an angle-based discretization does not -- on the dense
+    // saddle's end parabolas it falls from 1.33 at the corners to 0.028 at
+    // the apex, and interpolating between the corners put balls of radius
+    // 0.8 there (OPE-186). The midpoint must lie outside both end balls, or
+    // its ball would be hidden.
+    const double middleArc = a.arc + d / 2.0;
+    const Ball middle{middleArc, pointAt(curve, middleArc), sizeAt(curve, middleArc), {}};
+    const bool oversizedMiddle = n >= 1 && middle.radius < (sp + sq) / 2.0 &&
+                                 (middle.point - a.point).norm() > a.radius &&
+                                 (middle.point - b.point).norm() > b.radius;
+    if (n >= REEVALUATE_SIZE_ABOVE || oversizedMiddle)
     {
-        const double middleArc = a.arc + d / 2.0;
-        const Ball middle{middleArc, pointAt(curve, middleArc), sizeAt(curve, middleArc), {}};
         auto balls = insertBalls(curve, a, middle, false);
         balls.push_back(middle);
         const auto second = insertBalls(curve, middle, b, false);
@@ -248,9 +258,24 @@ int repairBalls(std::vector<Curve>& curves, const std::vector<CurveEnds>& ends, 
                 const Ball& a = *balls[i].second;
                 const Ball& b = *balls[j].second;
                 const double distance = (a.point - b.point).norm();
-                if (distance >= a.radius + b.radius ||
-                    neighbours.count(std::minmax(key(balls[i].first), key(balls[j].first))))
+                if (distance >= a.radius + b.radius)
                     continue;
+                if (neighbours.count(std::minmax(key(balls[i].first), key(balls[j].first))))
+                {
+                    // Beyond CGAL: a neighbour inside the other's ball is
+                    // hidden. CGAL's slowly varying sizing never makes one;
+                    // following a size function that varies fiftyfold along
+                    // a curve can, next to a large corner ball. Shrinking the
+                    // larger ball to their distance unhides the smaller and
+                    // keeps the two overlapping.
+                    const std::size_t larger = a.radius >= b.radius ? i : j;
+                    if (distance < std::max(a.radius, b.radius))
+                    {
+                        newRadius[larger] = std::min(newRadius[larger], distance);
+                        shrunk = true;
+                    }
+                    continue;
+                }
                 newRadius[i] = std::min(newRadius[i], distance / DISTANCE_DIVISOR);
                 newRadius[j] = std::min(newRadius[j], distance / DISTANCE_DIVISOR);
                 shrunk = true;

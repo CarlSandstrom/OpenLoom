@@ -14,6 +14,7 @@
 #include <TopoDS_Shape.hxx>
 
 #include <algorithm>
+#include <limits>
 #include <numbers>
 #include <set>
 #include <string>
@@ -133,5 +134,49 @@ TEST(ProtectingBallPlacerTest, SeamTwinReusesItsOriginalsPointsReversed)
         auto twin = discretization->edgeIdToPointIndicesMap.at(twinId);
         std::reverse(twin.begin(), twin.end());
         EXPECT_EQ(twin, discretization->edgeIdToPointIndicesMap.at(seams.getOriginalEdgeId(twinId)));
+    }
+}
+
+// The size function varies fiftyfold along the dense saddle's end parabolas:
+// 1.33 at the corners, 0.028 at the apex. Interpolating between the corners
+// ignored the apex and put balls of radius 0.8 there, too coarse for the
+// surface to be recovered around them (OPE-186).
+TEST(ProtectingBallPlacerTest, DenseSaddleBallsFollowTheSizeFunction)
+{
+    const Readers::TopoDS_ShapeConverter converter(TestSupport::buildSaddleSolid());
+    const auto original = BoundaryDiscretizer3D::discretize(
+        converter.getGeometryCollection(), converter.getTopology(),
+        Geometry3D::DiscretizationSettings3D(std::nullopt, std::numbers::pi / 64.0, 2));
+    auto protection = *original;
+    // Measured at most 1.14 once the placer follows the size function; ~28
+    // at the apex before it did.
+    constexpr double MAXIMUM_RADIUS_TO_SPACING = 1.5;
+    const auto weights =
+        ProtectingBallPlacer::place(protection, converter.getTopology(), converter.getGeometryCollection());
+
+    for (const auto& [edgeId, chain] : protection.edgeIdToPointIndicesMap)
+    {
+        const auto& originalChain = original->edgeIdToPointIndicesMap.at(edgeId);
+        for (const size_t index : chain)
+        {
+            if (!weights.count(index))
+                continue;
+            const Point3D& point = protection.points[index];
+            double spacing = std::numeric_limits<double>::max();
+            double nearest = std::numeric_limits<double>::max();
+            for (size_t i = 0; i + 1 < originalChain.size(); ++i)
+            {
+                const Point3D& a = original->points[originalChain[i]];
+                const Point3D& b = original->points[originalChain[i + 1]];
+                const double distance = std::min((point - a).norm(), (point - b).norm());
+                if (distance < nearest)
+                {
+                    nearest = distance;
+                    spacing = (b - a).norm();
+                }
+            }
+            EXPECT_LE(std::sqrt(weights.at(index)), MAXIMUM_RADIUS_TO_SPACING * spacing)
+                << "ball at " << point.transpose() << " on " << edgeId;
+        }
     }
 }
