@@ -381,54 +381,22 @@ Interior-only quality refinement. New nodes are inserted only inside the domain.
 
 # Part IV — RCDT Mesher (current 3D approach)
 
-Replaces Parts II and III. A single ambient-space pipeline produces both the surface mesh and the volume mesh using the Restricted Constrained Delaunay Triangulation algorithm (Khoury & Shewchuk, SoCG 2021).
+Replaces Parts II and III. A single ambient-space pipeline produces both the surface mesh and the volume mesh. Since OPE-186 (2026-09-28) it follows CGAL Mesh_3's design as a whole; `doc/RCDT_Techniques.md` explains each piece.
 
-**Reference:** `doc/Flowcharts/3D surface meshing algorithm.md` and `doc/Flowcharts/3D algorithm.md`
+**Pipeline:** `BoundaryDiscretizer3D` → `ProtectingBallPlacer` → weighted `Delaunay3D` + `CurveSegmentBuilder` → `SurfaceDelaunayRefiner` (driven by `TetrahedronDelaunayRefiner` for a volume) → closed-boundary check (volume) → `AmbientTetrahedronRemover` → `RCDTMeshExtractor` → `SurfaceMeshSmoother`
 
-**Pipeline (surface):** `BoundaryDiscretizer3D` → `Delaunay3D` → `RestrictedTriangulation` → `CurveSegmentBuilder` → `RCDTRefiner` (two-priority loop) → assemble `SurfaceMesh3D`
+| Step | Description | File(s) | Status |
+|------|-------------|---------|--------|
+| R1 | Boundary discretization of corners and curves | `3D/General/BoundaryDiscretizer3D` | Done |
+| R2 | Protecting balls meeting CGAL's conditions (`Protect_edges_sizing_field`) | `3D/RCDT/ProtectingBallPlacer` | Done |
+| R3 | Weighted (regular) seed tetrahedralization, curve chains recorded | `3D/Volume/Delaunay3D`, `3D/RCDT/CurveSegmentBuilder` | Done |
+| R4 | Restriction by the weighted dual edge | `3D/RCDT/WeightedDualRestriction`, `SurfaceTessellation`, `TriangleSoupIndex` | Done |
+| R5 | Facet refinement with CGAL's criteria, worst first (`Refine_facets_3`) | `3D/RCDT/SurfaceDelaunayRefiner`, `SurfaceFacetCriteria`, `ProtectionExemption` | Done |
+| R6 | Tetrahedron refinement for volumes, with encroachment (`Refine_cells_3`) | `3D/RCDT/TetrahedronDelaunayRefiner` | Done |
+| R7 | Closed-boundary check, ambient removal, extraction, smoothing | `3D/RCDT/RestrictedFaceAudit`, `AmbientTetrahedronRemover`, `RCDTMeshExtractor`, `SurfaceMeshSmoother` | Done |
+| R8 | Sliver perturbation / exudation (flat cap tetrahedra remain) | — | TODO |
 
-**Pipeline (volume):** same, extended with a third priority (skinny tetrahedra) and exterior removal.
-
----
-
-## RCDT Phase 1 — Build Initial (`RCDTContext::buildInitial`)
-
-| Sub-step | Description | File(s) | Status |
-|----------|-------------|---------|--------|
-| R1.1 | `BoundaryDiscretizer3D`: discretize all corners, edges, and surface interiors into `DiscretizationResult3D` | `3D/General/BoundaryDiscretizer3D` | Done |
-| R1.2 | Insert all boundary vertices into an unconstrained `Delaunay3D` via Bowyer-Watson | `3D/Volume/Delaunay3D` | Done |
-| R1.3 | `RestrictedTriangulation::buildFrom`: classify every tetrahedral face; a face is restricted to surface S if all three nodes touch S and adjacent tetrahedra lie on opposite sides (`SurfaceProjector::crossesSurface`) | `3D/RCDT/RestrictedTriangulation` | Done |
-| R1.4 | `CurveSegmentBuilder::build`: register one `CurveSegment` per consecutive node pair on each topology edge | `3D/RCDT/CurveSegmentBuilder`, `Meshing/Data/CurveSegmentManager` | Done |
-
----
-
-## RCDT Phase 2 — Refine (`RCDTRefiner::refine`)
-
-| Sub-step | Description | File(s) | Status |
-|----------|-------------|---------|--------|
-| R2.1 | Priority 1: split encroached `CurveSegment`s at arc-length midpoint; update `RestrictedTriangulation` incrementally | `3D/RCDT/RCDTRefiner` | In Progress |
-| R2.2 | Priority 2: split bad restricted triangles (circumradius/edge ratio or chord deviation); apply circumcenter demotion rule | `3D/RCDT/RCDTRefiner`, `3D/RCDT/RestrictedTriangulation` | In Progress |
-| R2.3 | (Volume only) Priority 3: split skinny tetrahedra with cascade demotion to Priorities 1/2 | `3D/RCDT/RCDTRefiner` | TODO |
-
----
-
-## RCDT Phase 3 — Build Surface Mesh (`RCDTContext::buildSurfaceMesh`)
-
-| Sub-step | Description | File(s) | Status |
-|----------|-------------|---------|--------|
-| R3.1 | Collect all restricted faces from `RestrictedTriangulation::getRestrictedFaces()` | `3D/RCDT/RCDTContext` | Done |
-| R3.2 | Assemble `SurfaceMesh3D`: one `Node3D` per unique node, one `TriangleElement` per restricted face | `3D/RCDT/RCDTContext` | Done |
-
----
-
-## RCDT Phase 4 — Exterior Removal (Volume only)
-
-| Sub-step | Description | File(s) | Status |
-|----------|-------------|---------|--------|
-| R4.1 | Flood-fill to classify interior vs exterior tetrahedra using the restricted surface as the boundary | `3D/General/MeshOperations3D` | TODO |
-| R4.2 | Remove exterior tetrahedra | `3D/General/MeshOperations3D` | TODO |
-
----
+**History.** The earlier RCDT refiner (`RestrictedTriangulation`, `DualEdgeRestrictionOracle`, `RCDTRefiner` and its priorities, `CurveProtectionScheme`, post-hoc face removal) left crease defects the CGAL comparison traced to invalid protection and to guards that stopped refinement near creases. It was retired in OPE-186; its code is in git history up to `873c9bf`.
 
 ---
 
@@ -446,16 +414,8 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 
 ### In Progress / Next Steps
 
-#### RCDT Phase 2: Refinement loop (R2.1–R2.2)
-7. Complete Priority 1: split encroached curve segments and update `RestrictedTriangulation` (`RCDTRefiner`)
-8. Complete Priority 2: split bad restricted triangles with circumcenter demotion (`RCDTRefiner`)
-9. Wire Phase 2 tests in `test_RCDTRefiner.cpp`
-
-#### RCDT Volume (R2.3, R4)
-10. Priority 3: split skinny tetrahedra with cascade demotion
-11. Exterior removal via flood-fill after refinement (R4.1–R4.2)
-
----
+- Sliver perturbation / exudation for volume meshes (R8)
+- The explicit sizing field h(x) (OPE-181) as the protection's size function, instead of the discretization's spacing
 
 ---
 
@@ -526,14 +486,18 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 ### 3D/RCDT (current 3D mesher)
 | File | Role |
 |------|------|
-| `RCDTMesher.h/.cpp` | Top-level API; runs all three phases and returns `SurfaceMesh3D` |
-| `RCDTContext.h/.cpp` | Orchestrates `buildInitial` / `refine` / `buildSurfaceMesh` |
-| `RCDTRefiner.h/.cpp` | Two-priority refinement loop in ambient 3D space |
-| `RestrictedTriangulation.h/.cpp` | Identifies and maintains restricted Delaunay faces |
-| `SurfaceProjector.h/.cpp` | Signed-distance and surface-crossing tests |
-| `CurveSegmentBuilder.h/.cpp` | Populates `CurveSegmentManager` from the topology edges |
-| `CurveSegmentGeometry.h/.cpp` | Arc-length midpoint of a `CurveSegment` on its CAD curve |
-| `RCDTQualitySettings.h` | Quality criteria: circumradius/edge ratio and chord deviation |
+| `RCDTMesher.h/.cpp` | Top-level API; the one pipeline behind `meshSurface()` and `meshVolume()` |
+| `ProtectingBallPlacer.h/.cpp` | Protecting balls on corners and curves |
+| `SurfaceDelaunayRefiner.h/.cpp` | Facet refinement |
+| `TetrahedronDelaunayRefiner.h/.cpp` | Tetrahedron refinement (volume) |
+| `WeightedDualRestriction.h/.cpp` | The restriction test |
+| `SurfaceFacetCriteria.h/.cpp`, `ProtectionExemption.h/.cpp` | CGAL's facet criteria and their exemption at protecting balls |
+| `RegularConflictRegion.h/.cpp` | Conflict region and hidden-point refusal |
+| `SurfaceTessellation.h/.cpp`, `TriangleSoupIndex.h/.cpp`, `SurfaceProjector.h/.cpp` | Exact surface-crossing queries |
+| `RestrictedFaceAudit.h/.cpp` | Edge coverage against the CAD topology |
+| `AmbientTetrahedronClassifier.h/.cpp`, `AmbientTetrahedronRemover.h/.cpp` | Inside/outside flood fill, removal |
+| `RCDTMeshExtractor.h/.cpp`, `SurfaceMeshSmoother.h/.cpp`, `TetrahedronInversionGuard.h/.cpp` | Output assembly and smoothing |
+| `CurveSegmentBuilder.h/.cpp`, `MinimumEdgeLengthEstimator.h/.cpp` | Curve chains; tessellation cell size |
 
 ### Topology
 | File | Role |

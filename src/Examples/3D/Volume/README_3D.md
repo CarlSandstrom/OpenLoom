@@ -1,5 +1,7 @@
 # 3D Mesh Refinement Examples
 
+> **Out of date.** This README describes `ShewchukRefiner3D` and `IQualityController3D`, both since removed. Volume meshing now runs through `RCDTMesher::meshVolume()` (`VolumeMesher3D`); see `doc/RCDT_Techniques.md`.
+
 This directory contains examples demonstrating the implementation of 3D Delaunay refinement components based on Shewchuk's algorithm.
 
 ## Examples

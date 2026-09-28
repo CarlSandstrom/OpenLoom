@@ -1,5 +1,7 @@
 # RCDT restriction/repair audit (OPE-208)
 
+> **Historical (2026-09-28).** This describes the RestrictedTriangulation path that OPE-186 retired; the mesher now follows CGAL Mesh_3's design. The current techniques are in `doc/RCDT_Techniques.md`; the retired code is in git history up to `873c9bf`.
+
 Status: **inventory complete; the ablation was deliberately not run.** See
 [What was decided, and what was done](#what-was-decided-and-what-was-done) at
 the end for why, and for the state of every row that changed.

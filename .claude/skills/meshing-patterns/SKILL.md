@@ -72,8 +72,9 @@ All low-level insertion/deletion goes through the mutator. `MeshMutator3D`
 hands out element ids from a monotonic `nextElementId_++`; ids are **not**
 reused after deletion, and `restoreElement()` puts back the identical element.
 Node coordinates are fixed for the whole of refinement (`moveNode` is only
-called during post-refinement smoothing). Caches in `RestrictedTriangulation`
-depend on both facts.
+called during post-refinement smoothing). `SurfaceDelaunayRefiner`'s restricted-facet
+map, keyed by node sets and reclassified only around each insertion, depends on
+the second.
 
 ## Connectivity rebuilding
 

@@ -1,5 +1,7 @@
 # 3D Tetrahedral Mesh Generation by RCDT Refinement
 
+> **Historical (2026-09-28).** This describes the RestrictedTriangulation path that OPE-186 retired; the mesher now follows CGAL Mesh_3's design. The current techniques are in `doc/RCDT_Techniques.md`; the retired code is in git history up to `873c9bf`.
+
 Based on the algorithm in "Restricted Constrained Delaunay Triangulations".
 
 ## Key Difference from the Shewchuk Approach

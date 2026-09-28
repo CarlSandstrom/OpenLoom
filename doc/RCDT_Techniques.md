@@ -1,22 +1,18 @@
 # Meshing Techniques Inventory
 
-**Last updated:** 2026-09-27
+**Last updated:** 2026-09-28
 
 Every technique the mesh generator relies on, grouped by the job it does, with
 the class that implements it and the reason it is there. Written as a reading
 aid: the *why* of each piece, not its API. Paths are relative to `src/Meshing/`.
 
-Two things are worth holding onto while reading:
-
-- The **acceptance hedges** in the restriction oracle (section 4) — the
-  protected-edge shortcut, the phase test, the periodic-surface skip — are not
-  part of the textbook algorithm. They were long explained as compensating for
-  the dual-edge test running on badly shaped tetrahedra; a comparison with CGAL
-  Mesh_3 (2026-09-26, OPE-186) contradicts that. CGAL runs the same test on
-  tetrahedra just as bad and meshes the saddle cleanly. What differs is how the
-  two refine near protected creases (sections 3, 5).
-- Everything in **section 6** is post-hoc repair of what sections 4 and 5 left
-  wrong. CGAL has no counterpart to it.
+The 3D mesher follows CGAL Mesh_3's design as a whole (OPE-186): protecting
+balls that satisfy CGAL's conditions, restriction by the weighted dual edge
+alone, and refinement that keeps inserting points until the restricted surface
+is right, with no post-hoc repair. It replaced a path that decided restriction
+with extra acceptance rules and repaired its output afterwards; why that path
+fell short of CGAL is written up in the Linear document "Why CGAL succeeded
+where our RCDT refiner did not (OPE-186)", and section 9 lists what was retired.
 
 ---
 
@@ -52,13 +48,29 @@ test when every weight is zero. Needed because protecting balls (section 3) make
 the curve-network points weighted. Orientation is unaffected by weights, so
 callers reuse `RobustPredicates3D::orientationSign` directly.
 
-### Bowyer-Watson incremental insertion
-`Core/3D/General/MeshOperations3D`, `Core/3D/Volume/Delaunay3D`, `Core/2D/MeshOperations2D`
+### Orthocentres
+`Core/3D/General/ElementGeometry3D::computeOrthocenter`
 
-Locate the seed element containing the point, BFS flood-fill the conflict set
-(elements whose circumsphere/orthosphere contains it), extract the cavity
-boundary (faces appearing in exactly one conflicting element), remove the
-conflicting elements, connect the new point to each cavity boundary face.
+The weighted circumcentre: the point at equal power distance `|x − p|² − w` to
+every weighted vertex. In a regular triangulation this, not the ordinary
+circumcentre, is an element's vertex of the dual power diagram. For a
+tetrahedron flat to rounding — four points of a cyclic quad, such as matching
+samples on the two circles bounding a cone — every point on the line normal to
+its plane has equal power, and the minimum-norm solution picks the one in the
+plane. Returning none instead left the faces around such a tetrahedron without
+a dual edge: all 38 of HexNutChamfered's holes (OPE-186).
+
+### Bowyer-Watson incremental insertion
+`Core/3D/General/MeshOperations3D`, `Core/3D/Volume/Delaunay3D`, `Core/3D/RCDT/RegularConflictRegion`
+
+Find the conflict region (elements whose orthosphere contains the point),
+extract its boundary (faces appearing in exactly one conflicting element),
+remove the conflicting elements, connect the new point to each boundary face.
+The refiners grow the region locally from the tetrahedra next to the facet or
+tetrahedron being refined, which in a regular triangulation finds the same
+connected set as a full scan. A point **hidden** by an existing vertex
+(`|p − v|² ≤ w_v`, inside its protecting ball) or coincident with one is
+refused: it would not be a vertex of the regular triangulation.
 
 ### The bounding super-tetrahedron is deliberately kept
 `Core/3D/Volume/Delaunay3D`
@@ -66,7 +78,7 @@ conflicting elements, connect the new point to each cavity boundary face.
 It stays in the mesh through all of refinement rather than being removed after
 the initial build, for two reasons: every convex-hull face keeps a neighbour to
 fall back on when a newly inserted vertex turns out coplanar with it, and every
-restricted face keeps tetrahedra on *both* sides, so the dual Voronoi edge the
+restricted face keeps tetrahedra on *both* sides, so the dual edge the
 restriction test needs is always defined. It is removed at the end, by
 `AmbientTetrahedronRemover`.
 
@@ -77,11 +89,11 @@ restriction test needs is always defined. It is removed at the end, by
 ### Boundary discretization
 `Core/3D/General/BoundaryDiscretizer3D`
 
-Samples corners and curves only — **no surface-interior points are pre-seeded**.
-Surface interiors are populated entirely by the refinement loop. The default
-criterion is a tangent-angle bound, which is scale-free: it bounds how far a
-segment may *turn*, never how long it may be. On the saddle's parabolic top arc
-that permits chords of 3.79 next to chords of 0.20 on one curve.
+Samples corners and curves; surface interiors are populated by refinement. The
+default criterion is a tangent-angle bound, which is scale-free: it bounds how
+far a segment may *turn*, never how long it may be. On the saddle's parabolic
+top arc that permits chords of 3.79 next to chords of 0.20 on one curve. This
+spacing is the size function the protecting balls follow (section 3).
 
 ### Sizing field h(x)  *(opt-in, largely unwired — see OPE-181)*
 `Core/3D/General/SizingField3D`, `Core/3D/General/SizingFieldBuilder3D`
@@ -133,129 +145,97 @@ route about `2L` against the fin thickness and passes easily.
 
 Median nearest-neighbour spacing divided by 10 — median rather than minimum
 because a periodic curve's discretization leaves an unrepresentative short
-"remainder" segment near its seam vertex.
-
-This one number is the refinement size floor, the floor
-`CurveProtectionSubdivider` subdivides against, and the cell size the
-tessellation oracle is scaled by. It is a **sliver guard, not a size target**:
-refinement must stay free to reach the size actually being asked for, so the
-floor has to sit well below it. Setting it *at* the target disables refinement
-wherever the mesh has arrived and collapses the torus to degenerate triangles.
-
-Deriving it from a sizing-field-driven discretization is circular (finer
-boundary lowers the floor, which lets refinement chase deeper and rebuilds the
-oracle finer at the same time), so the sizing-field variant reads a percentile
-of the field's own sources instead.
+"remainder" segment near its seam vertex. It sets the cell size of the surface
+tessellations the restriction test uses (section 4). Deriving it from a
+sizing-field-driven discretization is circular (a finer boundary lowers it and
+rebuilds the tessellations finer at the same time), so the sizing-field variant
+reads a percentile of the field's own sources instead.
 
 ---
 
 ## 3. Protecting the creases
 
-### Protecting balls / weighted points  *(OPE-176)*
-`Core/3D/RCDT/CurveProtectionScheme`
+### Protecting balls / weighted points
+`Core/3D/RCDT/ProtectingBallPlacer`
 
-Boissonnat-Oudot curve protection. Every curve and corner sample is inserted as
-a **weighted** point, its weight the squared protecting-ball radius, making the
-triangulation a regular rather than an ordinary Delaunay one. Every radius
-satisfies two properties:
+Boissonnat-Oudot curve protection, placed as CGAL Mesh_3's
+`Protect_edges_sizing_field` does. Every corner and curve point is inserted as a
+**weighted** point, its weight the squared ball radius, making the
+triangulation a regular rather than an ordinary Delaunay one. The balls satisfy
+CGAL's three conditions, pinned by tests:
 
-1. **Chain connectivity** — consecutive balls along the *same* curve overlap,
-   regardless of how non-uniform that curve's sampling is. A radius is based on
-   the *longer* of a point's two adjacent segments, never the shorter, so both
-   endpoints of any interior segment are bounded below by a fixed fraction of
-   that segment's own length. A segment with a corner at one end compensates the
-   interior endpoint against the corner's smaller radius to force the same
-   overlap in one jump.
-2. **Disjointness** — balls of unrelated features (a different curve, a
-   non-adjacent corner, a non-consecutive point on the same curve) never
-   overlap, and no ball swallows a point outside the curve network at all.
+1. no protected point is hidden by another ball;
+2. balls that are not neighbours on a curve are disjoint;
+3. neighbours along a curve overlap, so the whole curve is covered.
 
-The effect: every crease appears as an exact edge chain in the resulting regular
-triangulation. The classification ambiguity is designed out structurally rather
-than repaired after the fact.
+These are the preconditions of the restricted-Delaunay guarantees near
+features. The old protection broke them on every model measured, and that —
+not the restriction test — is what the old path's crease defects came from:
+CGAL's own protection injected into the new path meshed the bracket cleanly at
+once.
 
-### Protection subdivider
-`Core/3D/RCDT/CurveProtectionSubdivider`
+Placement:
 
-When no sizing of the *existing* points can satisfy both properties — a genuine
-local-feature-size conflict, confirmed on the torus's periodic seam — the
-standard answer is to insert more points into the gap rather than resize two
-points to do an impossible job. Repeatedly recompute weights, find the first
-unresolved segment, split it at its arc-length midpoint on the true curve, and
-repeat, until nothing is unresolved or the next split would fall below
-`minimumEdgeLength`. A genuinely unfixable defect is left as a logged permanent
-gap rather than chased forever.
+- **Corners**: radius from the size function, capped at a third of the
+  distance to the nearest other corner.
+- **Curves** (`insert_balls`): between balls of radii `sp ≤ sq` a curve distance
+  `d` apart, `n = round(2(d − sq)/(sp + sq))` balls with radii growing linearly
+  from `sp` to `sq`, each spaced from the last by its own radius. The size is
+  re-read at the midpoint for long runs, as CGAL does, **and wherever
+  interpolation would oversize the middle**. CGAL's sizing fields vary slowly;
+  ours, read off an angle-based discretization, falls fiftyfold along the dense
+  saddle's end parabolas (1.33 → 0.028), and interpolating between the corners
+  put balls of radius 0.8 at the apex.
+- **Repair** (`refine_balls`): two balls that intersect without being
+  neighbours are shrunk to at most their distance / 2.1, gaps between
+  neighbours are repopulated, repeated to a fixed point (at most 29 rounds).
+  Beyond CGAL, a neighbour hidden inside a larger ball shrinks the larger one
+  to their distance — possible next to a large corner ball once the size
+  function varies fast.
 
-### Ball exclusion at insertion
-`Core/3D/RCDT/RCDTPointInserter`
+The protection is fixed after seeding: refinement never splits a curve, and
+the points it inserts can never enter a ball (they would be hidden and are
+refused, section 1).
 
-No refinement point is ever inserted strictly inside a positive-weight ball, and
-this is not merely a quality rule: a point hidden inside a ball finds no
-conflicting tetrahedra, so Bowyer-Watson adds the node **unconnected** to the
-mesh. The check applies even to split points that lie exactly on their own
-curve, because the ball they fall inside may be an unrelated one.
+### Curve segments
+`Data/CurveSegmentManager`, `Core/3D/RCDT/CurveSegmentBuilder`
 
-### Curve segments and diametral-sphere encroachment
-`Data/CurveSegmentManager`
-
-A `CurveSegment [a, b]` is a straight mesh edge between consecutive samples
-along one CAD curve. A vertex encroaches it if it lies inside the sphere with
-diameter `|b − a|`. Endpoints are excluded explicitly (`excludeNodeId`): an
-endpoint lies exactly *on* that sphere, and rounding can report it as inside,
-which would trigger an unbounded self-encroachment cascade.
-
-Splits place the new point at the **arc-length midpoint on the true CAD curve**,
-not at the chord midpoint, so refinement converges onto the geometry rather than
-onto its current polyline approximation.
+The chain of protected points along each CAD curve, recorded once at seeding.
+The restricted-face audit (section 6) reads it to tell an edge on a curve from
+one across a surface.
 
 ---
 
-## 4. Extracting the boundary from the volume — the restriction machinery
+## 4. Restriction: extracting the boundary from the volume
 
 Surface constraints are never explicitly recovered. They *emerge*: the set of
 restricted faces for a surface is its triangulation, automatically conforming
 and automatically shared with adjacent surfaces, because all of them are faces
 of one shared tetrahedralization.
 
-### The dual-edge restriction test
-`Core/3D/RCDT/DualEdgeRestrictionOracle`
+### The weighted dual-edge test
+`Core/3D/RCDT/WeightedDualRestriction`
 
-The textbook definition: a face is dual to the segment joining the circumcenters
-of the two tetrahedra sharing it, and the restricted Delaunay triangulation of a
-surface is the set of faces whose dual edge crosses it. Under a dense enough
-sample that set is homeomorphic to the surface — a provably correct boundary
-extracted from a volume triangulation.
+A face is restricted iff its dual edge in the power diagram — the segment
+between the orthocentres of its two tetrahedra — crosses a surface, and it
+belongs to the surface crossed. Nothing else: no gate on which surfaces its
+vertices share, no shortcut routes, no inside/outside test. Where the answer is
+locally wrong, refinement is expected to fix it (section 5).
 
-**Valid on badly shaped tetrahedra — the earlier claim was wrong (OPE-186).**
-This test was long described as meaningful only for well-shaped tetrahedra, and
-so as running outside its preconditions here: `meshSurface()` runs without
-tet-quality refinement and ~90% of tetrahedra exceed the bad-tet threshold.
-CGAL Mesh_3 contradicts that. It uses the same test under the same regime
-(surface criteria only, no sliver removal), with a median circumradius/shortest
-edge of about 2, half its tetrahedra above 2 and flat slivers up to 1e17, and
-meshes the saddle with zero defects. The restricted Delaunay triangulation is
-*defined* by dual edges; its guarantees depend on sampling density relative to
-local feature size, not on tetrahedron shape. (Turning tet-quality refinement on
-cut the dense-saddle holes 30 → 7 but broke the default configuration 0 → 4 —
-a correlation, not the mechanism.)
+This test is valid on badly shaped tetrahedra. CGAL uses it on tetrahedra with
+a median circumradius/shortest edge of about 2 and flat slivers up to 1e17 and
+meshes the saddle cleanly: the restricted Delaunay guarantees depend on
+sampling relative to local feature size, not on tetrahedron shape.
 
-**Unweighted where it should be weighted.** The tetrahedralization is regular
-(weighted by the protecting balls, section 3), but the dual edge here joins the
-two tetrahedra's ordinary circumcenters. In a regular triangulation the dual
-joins their *weighted* circumcenters (orthocenters), which is what CGAL uses.
-Near weighted vertices the two differ a lot. Switching to orthocenters was
-measured worse on this pipeline, both alone and combined with other CGAL
-pieces, so it is not a standalone fix — see the ticket.
-
-### Candidate surfaces
-`Core/3D/RCDT/SurfaceCandidates`
-
-A node's geometry id names whichever CAD entity it was sampled from, which is
-often not a surface — a crease node carries a curve id, a junction node a corner
-id. Each resolves to the surfaces it belongs to (a curve to the surfaces it
-bounds, a corner to the surfaces meeting there), and intersecting across the
-face's three nodes narrows it to the surfaces all three could lie on. An empty
-intersection means the face is interior and nothing has been missed.
+When the dual edge crosses more than once, the crossing nearest the face's own
+orthocentre wins: that point lies on the dual line, so the nearest crossing is
+the one belonging to this face. The crossing is refined onto the exact CAD
+surface by bisection **along the dual segment**, so it stays on the dual line;
+projecting it onto the surface instead moved it sideways into a protecting ball.
+It is accepted only within the surface's trimmed patch — the tessellation and
+the bisection both work on the untrimmed surface, and on the bracket two flange
+planes extended past their faces intersect. The accepted crossing is the centre
+of the facet's **surface Delaunay ball**, the refinement point.
 
 ### Surface tessellation as an exact oracle
 `Core/3D/RCDT/SurfaceTessellation`
@@ -269,218 +249,89 @@ is exact at any degeneracy.
 
 Built entirely from the `ISurface3D` interface every backend already implements,
 so it works identically for a plane and a NURBS patch and does not tie RCDT to
-OpenCASCADE. Built once per surface at a resolution derived from
-`minimumEdgeLength` and never rebuilt during refinement. Cells are not clipped
-to the exact trim curve, so the tessellation may overshoot by up to one cell —
-harmless, because callers separately check trimmed-boundary membership; this
-only needs to have no gaps.
+OpenCASCADE. Built once per surface at cells of half the minimum edge length and
+never rebuilt. Cells are not clipped to the exact trim curve, so the
+tessellation may overshoot by up to one cell — harmless, because the crossing
+is checked against the true trim. What it must not have is a **gap**: the grid
+used to start a fraction of a cell inside the minimum parameter edge, leaving an
+uncovered band exactly where creases are, and every crossing the dense saddle
+missed lay in it. The grid now starts before the minimum and ends past the
+maximum.
 
 ### Triangle soup index
 `Core/3D/RCDT/TriangleSoupIndex`
 
 A uniform 3D grid over an unstructured set of triangles, answering the exact
 segment-crossing query. Each triangle is registered in every cell its bounding
-box overlaps; a query visits only the cells the segment's own bounding box
-overlaps and runs the expensive exact predicate only on candidates surviving
-that cheap prefilter. For the short dual edges that dominate refinement that is
-a handful of triangles instead of the whole soup. Knows nothing about surfaces.
-
-### The acceptance paths in `classify()`  *(the fragile part)*
-
-In order:
-
-- **Convex-hull face** (one adjacent tetrahedron): the dual edge is a
-  half-infinite ray from the single circumcenter outward, which necessarily
-  crosses the surface when that circumcenter is on the interior side. Candidate
-  membership alone suffices.
-- **Trimmed-boundary membership**: all three vertices must lie within the
-  surface's true trimmed boundary, since the tessellation overshoots.
-- **Protected-edge shortcut**: a face with two chain-adjacent nodes carries an
-  edge that overlapping protecting balls certify belongs to exactly one crease.
-  But that certifies the *edge*, not this *face* — an edge is shared by the whole
-  ring of tetrahedra around it. Trusting any single-candidate face touching a
-  protected edge was tried and reverted (it accepted spurious faces from
-  elsewhere in the ring). The shortcut therefore requires this face to be the
-  **unique** candidate across the entire edge star.
-- **Phase-boundary test**: accept if the two adjacent tetrahedra's centroids
-  fall on different sides of the model — one inside a volume, one outside, or
-  inside two different volumes — resolved by the CAD solid classifier through
-  `PointPhase`. Gated on a uniqueness rule of its own, and **skipped entirely for
-  periodic (seam) surfaces**: unlike an ordinary crease, a seam surface shows a
-  small but persistent stream of misclassifications through this path that keeps
-  refinement from ever reaching a fixed point. Root cause unknown; this is a
-  scoped safety net, not a fix.
-- **The dual-edge test itself**, against the tessellation.
-
-What each path carries (ablation, 2026-09-25):
-- **The phase test** carries ordinary surfaces. Without it the saddle goes
-  from 2 to 72 defects.
-- **The protected-edge shortcut** carries seam surfaces, where the phase test is
-  skipped. Removing it breaks the torus's closed-manifold test.
-- **The dual-edge test alone** leaves 115 holes on the saddle.
-
-The paths only accept, never reject, so each added path can only increase
-acceptance. The gate in front of them — all three vertices must share a
-candidate surface — is also a CGAL difference: CGAL restricts such a face if its
-dual crosses a surface and then refines it as bad (its
-`FACET_VERTICES_ON_SAME_SURFACE_PATCH` criterion). We drop it untested.
-
-### Three-valued classification
-`Core/3D/RCDT/RestrictedFaceTypes`
-
-`NotRestricted` / `Restricted` / `Unconfirmed`. "No surface shares all three
-nodes" and "candidates existed but none could be confirmed" are different
-outcomes with opposite consequences — the first is correct, the second is a hole
-in the surface mesh — and a single `optional<surfaceId>` spelled them the same
-way. `Unconfirmed` is where residual holes come from and is the classification's
-own error signal, but it is an **upper bound** on real defects, not a count:
-plenty of genuinely interior faces have three nodes sharing a surface.
-
-### Point phase
-`Core/3D/RCDT/PointPhase`
-
-Resolves a point against every volume: `Exterior`, `InVolume`, or `Ambiguous`.
-`Ambiguous` is a refusal, not a third side — reached when the CAD kernel reports
-the point as on a boundary within its classification tolerance band
-(`max(Precision::Confusion(), 1e-4 * diameter)`, about 1e-3 on a unit model), or
-cannot decide, or when the point classifies inside two volumes at once. It is
-load-bearing and must not be collapsed into a guess: the band is real geometry
-at that scale, and confidently-wrong answers were measured to be more damaging
-than honest refusals. Shared between the oracle and the diagnostics so a
-diagnostic cannot quietly drift from what the mesher does.
-
-### Memoization
-`Core/3D/RCDT/DualEdgeRestrictionOracle`
-
-Centroid phase is cached per tetrahedron — `classifyPointPhase` was 85% of total
-runtime on the saddle, each call running `BRepClass3d_SolidClassifier::Perform`,
-which on Bezier faces drops into OCC's global-optimisation machinery. The
-redundancy is structural: one tetrahedron's centroid is asked for about four
-times per pass, and reclassification after an insertion pulls in old,
-unmodified tetrahedra on the far side of each new face.
-
-The cache is keyed by the tetrahedron's **node set**, not its element id. An id
-is only a handle and says nothing about which tetrahedron it currently names, so
-a cache keyed by one needs an invalidation hook; the node set is what the
-centroid is a function of, so an entry cannot go stale. Per-node
-trimmed-boundary membership is cached on the same basis. Both depend on the
-invariant that **node coordinates are fixed for the whole of refinement** — the
-mesher only moves nodes during post-refinement smoothing.
-
-### Incremental maintenance
-`Core/3D/RCDT/RestrictedTriangulation`
-
-After each Bowyer-Watson insertion: drop the cavity's interior faces — captured
-*before* the insertion, since the insertion is what destroys them — then
-reclassify every face of every new tetrahedron. The bad-face set and the
-encroached-segment set are maintained the same way rather than rescanned;
-rescanning encroachment cost O(nodes x segments) per step. Faces spanning a
-just-split curve edge are invalidated explicitly so no stale entry survives.
+box overlaps; a query walks only the cells the segment passes through and runs
+the exact predicate only on the triangles registered there. Knows nothing about
+surfaces.
 
 ---
 
-## 5. The refinement loop
+## 5. Refinement
 
-### Four priorities, one insertion per step
-`Core/3D/RCDT/RCDTRefiner`
+Two levels, CGAL Mesh_3's `Refine_facets_3` and `Refine_cells_3`. The facet
+level always comes first.
 
-Each step takes the first priority that has work:
+### Facet refinement
+`Core/3D/RCDT/SurfaceDelaunayRefiner`, `Core/3D/RCDT/SurfaceFacetCriteria`
 
-1. Split an encroached curve segment — `RCDTPointInserter`
-2. Fix a bad restricted triangle — `RestrictedTriangleRefiner`
-3. Split a skinny tetrahedron (volume meshing only) — `TetrahedronQualityRefiner`
-4. Repair a non-manifold edge of the restricted set — `NonManifoldEdgeRefiner`
+Every face is classified once after seeding; after each insertion, only the
+faces the insertion created or destroyed are reclassified. A restricted facet is
+**bad** by CGAL's criteria, in CGAL's order:
 
-Within a priority, candidates are taken in the order their containers yield
-them, not worst-first, so that iteration order shapes the output mesh.
+0. **shape** — sin² of its smallest angle below sin²(`minAngleDegrees`);
+1. **distance** — its orthocentre further than `chordDeviationTolerance` from
+   its surface Delaunay ball centre;
+2. **same patch** — two surface-interior vertices on different surfaces. This
+   is how CGAL handles a facet straddling a crease: it refines it rather than
+   refusing to restrict it.
 
-### Circumcenter demotion (Shewchuk)
+Bad facets are refined **worst first** — ordered by the first failing
+criterion, then by how badly — by inserting the surface Delaunay ball centre.
+CGAL's refusals only: a point that no tetrahedron beside the facet conflicts
+with (inserting it would not remove the facet), or one that is hidden or
+coincident. No size floor, no proximity guard, no curve splits. Terminates on
+an empty queue or at `maxRefinementIterations`, CGAL's
+`maximal_number_of_vertices`.
 
-Priorities 2-4 never insert a point that would encroach a curve segment; they
-split that segment instead. This is the termination argument. Without it, a
-circumcenter inserted near a curve creates a tiny new segment whose encroachment
-forces another insertion, indefinitely. Demotion guarantees that insertions near
-a feature are always preceded by enough segment refinement to break the
-size-reduction cycle.
+**Exemption at protecting balls** (`Core/3D/RCDT/ProtectionExemption`, CGAL's
+`Facet_criterion_visitor_with_features`). A facet with weighted vertices is
+exempt from the shape criterion when it is small relative to the balls it
+touches, and from the distance criterion when much smaller still: the ratio of
+the smallest sphere orthogonal to a weighted and an unweighted vertex to the
+weight, below 1.0 and 0.04. It applies to one weighted vertex, or two or three
+with intersecting balls. Protection already guarantees the mesh at a crease,
+and refining there only places points into the balls, where they are refused.
+CGAL's own final saddle mesh keeps 51 facets under 30°, all touching a protected
+vertex; ours keeps its bad triangles there too.
 
-### Insertion point: the restricted Voronoi vertex
-`Core/3D/RCDT/SurfaceProjector`
+### Tetrahedron refinement  *(volume meshing only)*
+`Core/3D/RCDT/TetrahedronDelaunayRefiner`
 
-Where the face's dual edge actually crosses the surface, found by bisection on
-signed distance, so it works regardless of curvature between the endpoints. When
-that bisection finds no crossing — a legitimate outcome, since restriction was
-decided by the independent tessellation test on a possibly older snapshot — the
-refiner falls back to projecting the circumcenter onto the surface. There is
-deliberately no maximum-gap guard on that projection: early refinement's large
-triangles have circumcenters legitimately far from their surface.
+A tetrahedron inside the domain whose weighted circumradius / shortest edge
+exceeds `tetCircumradiusToShortestEdgeRatio` (default 2.5; Shewchuk's bound only
+guarantees termination above 2.0) is refined at its orthocentre, worst first.
 
-Computed on demand, not alongside classification: 30 bisection iterations x 3
-OCC calls per bad face would otherwise be paid for every face when only one is
-inserted per step.
+- **Inside** comes from the ambient flood fill (section 6) from the restricted
+  facets, recomputed once per round. CGAL asks the domain oracle at the
+  orthocentre instead; for us that is OCC's point classification, whose
+  tolerance band was the source of the retired phase test's failures.
+- **The surface comes first**: after every insertion the facet level refines
+  until no facet is bad, and a point whose conflict region holds a restricted
+  facet whose surface Delaunay ball contains it — CGAL's **encroachment** —
+  refines that facet instead. Every restricted facet an insertion would destroy
+  is encroached, so the surface is never broken from below.
 
-This point lies on the *unweighted* dual edge (section 4). From an identical
-starting point set, it differs from CGAL's insertion point for every initially
-bad face (median 0.22 against a mesh size of about 0.5). Computed from the
-weighted dual edge it matches CGAL's for 78 of 86 faces. The fallback projection
-fires for about 17% of our insertions; CGAL has no such fallback.
-
-### Quality criteria
-`Data/3D/SurfaceMesh3DQualitySettings`, `Core/3D/RCDT/RCDTQualityController`
-
-Triangle circumradius / shortest edge (default 1.0 — the value RCDT's
-termination behaviour was tuned against, not the usual 2.0), minimum interior
-angle, chord deviation measured at the triangle's circumcenter against the
-surface it was restricted to, and tetrahedron radius-edge for volumes (default
-2.5; Shewchuk's bound only guarantees termination above 2.0).
-
-Note what these cannot do: they are all **shape** bounds, scale-invariant by
-construction, so a perfectly-shaped element of any size at all satisfies them.
-Controlling size requires the sizing field of section 2.
-
-**Exemption at protecting balls** (`8a18a27`, ported from CGAL's
-`Facet_criterion_visitor_with_features`). A triangle with weighted (protected)
-vertices is exempt from the shape criteria when it is small relative to the
-balls it touches. The test is the ratio of the smallest sphere orthogonal to a
-weighted vertex and an unweighted one to that vertex's weight: the shape
-criteria are skipped below 1.0, the chord criterion below 0.04. It applies to
-one weighted vertex, or two with intersecting balls. Three weighted vertices
-with a common ball intersection skip both criteria.
-
-The reason: protection already guarantees the mesh at a crease, and refining such
-a triangle only places points inside or against the balls. That is exactly where
-the ball exclusion of section 3 refuses them. CGAL's own final saddle mesh keeps
-51 facets under 30°, all touching a protected vertex.
-
-Measured effect: saddle 1223 → 1090 nodes with defects unchanged, and
-`BoxWithHole` 864 → 730 tetrahedra, still watertight. It does not change the
-crest defect.
-
-### Termination devices
-
-The `minimumEdgeLength` floor, plus a per-priority **unrefinable set**: a
-candidate refused for the floor, for ball exclusion, or for a failed geometry
-lookup is recorded and never retried. Without the floor, a segment near a small
-input angle is bisected forever because each half is re-encroached by the same
-nearby vertex, and a triangle just past the ratio threshold spawns an equally
-bad, slightly smaller sliver beside it every iteration.
-
-The unrefinable sets are never cleared. Clearing them after every segment split
-was measured on the saddle to rediscover the same unfixable candidates about 100
-times over, with no gain. Entries are keyed by nodes or element id, so a
-candidate an insertion restructures returns under a new key.
-
-### Non-manifold repair
-`Core/3D/RCDT/NonManifoldEdgeRefiner`
-
-Splits the curve segment joining the defect's endpoints when there is one, which
-keeps the new point exactly on the crease. Projecting onto one of the surfaces
-instead was measured to *move* such a defect, not resolve it.
+No sliver perturbation or exudation: flat "cap" tetrahedra with all four
+vertices on the boundary can remain.
 
 ---
 
-## 6. Post-processing
+## 6. After refinement
 
-### Restricted-face audit  *(OPE-208, OPE-184)*
+### Closed-boundary check
 `Core/3D/RCDT/RestrictedFaceAudit`
 
 A per-edge coverage invariant read **off the CAD topology**, not the flat "every
@@ -489,24 +340,13 @@ edge has exactly two faces" rule:
 - An edge **on a curve** (its two nodes chain-adjacent along one): exactly one
   incident face per surface that curve bounds — one for a free boundary, two for
   an ordinary crease, three or more at a junction.
-- An edge **not on a curve** (surface interior, or a chord skipping a curve's
-  own sample points): exactly two faces, both on the same surface.
+- An edge **not on a curve**: exactly two faces, both on the same surface.
 
 The flat count test states a closed-2-manifold requirement the target models do
 not all satisfy: in a conformal multi-material model, grain boundaries meet along
-triple lines where three patches share one edge. Reading the expected count off
-the topology is what lets a legitimate junction and an over-acceptance flap be
-told apart — and what keeps a "keep the best two, drop the rest" repair from
-silently destroying triple lines.
-
-Runs once, after refinement has converged, because both of its passes judge
-faces by counts the other changes. It removes same-curve chord faces, then
-over-acceptance flaps as connected components (17 defects to 1 on the saddle),
-then reports whatever remains. It performs no classification at all, so it is
-unaffected by replacing the restriction oracle.
-
-The count is **not** a quality gate: it lumps holes, duplicates and junctions
-into one number, and the size floor is known to hide defects behind it.
+triple lines where three patches share one edge. `meshVolume()` counts the edges
+missing a face and throws if there are any — the ambient flood fill below would
+otherwise walk through a hole into the solid. Read-only: nothing is removed.
 
 ### Ambient classification and removal
 `Core/3D/RCDT/AmbientTetrahedronClassifier`, `Core/3D/RCDT/AmbientTetrahedronRemover`
@@ -517,20 +357,15 @@ once, and deliberately does not distinguish them — a through-hole connects the
 two without crossing a restricted face. Everything reached is stripped, along
 with the bounding tetrahedron's four nodes.
 
-Recomputed from scratch per call rather than maintained incrementally: the
-surrounding loop already pays O(tet count) elsewhere in the same iteration, so
-this does not change the complexity class and stays a simple reference to
-optimize against later.
-
 ### Laplacian smoothing with re-projection
 `Core/3D/RCDT/SurfaceMeshSmoother`
 
 Each interior vertex moves toward the centroid of its mesh neighbours and is
 re-projected onto its owning CAD surface, for a fixed number of sweeps. Vertices
-on a CAD edge or corner never move — their position is fixed by the curve they
-belong to. Delaunay refinement on a curved surface does not reliably converge to
-FEM-quality elements on its own; this is the standard follow-up Gmsh and Netgen
-use, and it changes no mesh topology.
+on a CAD edge or corner never move. Measured on the new pipeline: without it,
+every triangle under 30° touches a crease (the exemption zone); with it, many of
+those improve and a few interior ones appear. Removing it was worse on every
+model.
 
 ### Tetrahedron inversion guard
 `Core/3D/RCDT/TetrahedronInversionGuard`
@@ -540,8 +375,7 @@ a tetrahedron they share. Each tetrahedron is judged with **all four** of its
 nodes at their proposed positions, and one that would invert has all of its
 nodes put back. A node put back never moves again in that call, so the process
 terminates and a fully-reverted tetrahedron has exactly its original
-orientation. Only relevant when the surface bounds a volume mesh and shares its
-nodes with tetrahedra.
+orientation. Only relevant when the surface bounds a volume mesh.
 
 ---
 
@@ -552,8 +386,9 @@ nodes with tetrahedra.
   opposite of the 3D approach, where constraints emerge from restriction and are
   never recovered.
 - **Ruppert/Shewchuk refinement** (`Core/2D/ShewchukRefiner2D`): encroached
-  segments first, then circumcenters of poor-quality triangles, with the same
-  demotion rule as 3D.
+  segments first, then circumcenters of poor-quality triangles; a circumcentre
+  that would encroach a segment splits the segment instead (demotion), which is
+  the termination argument.
 - **Diametral-circle encroachment with a periodic frame shift**
   (`Core/2D/ConstraintChecker2D`): the candidate point is shifted into the
   segment's own periodic frame before the test, so a point near the opposite
@@ -571,23 +406,42 @@ nodes with tetrahedra.
 Behaviour preservation is proven by **diffing the meshes**, not by passing
 tests: `./scripts/refactor-check.sh` meshes representative models and compares
 every full-precision `.tsv` against `tests/golden/`. Any difference means the
-change was not a refactor. `EXPORT_PHASE_DIAGNOSTICS=1` exports the
-classification picture for the restriction machinery.
+change was not a refactor.
 
 **External reference: CGAL Mesh_3.** The harness `~/tmp/cgal-saddle` (outside
 the repository) meshes the saddle with CGAL from the same OCC geometry. With
 `protected=<file>` it starts from *our* protected point set instead of CGAL's
-own protection. `max_vertices=N` stops it after N vertices, and `export=` writes
+own protection; `max_vertices=N` stops it after N vertices; `export=` writes
 each facet with CGAL's own quality verdict and insertion point. Together these
-compare the two refiners from identical inputs, step by step. It is the method
-that found the exemption above.
+compare the two refiners from identical inputs, step by step.
+
+---
+
+## 9. Retired (OPE-186)
+
+The path `meshSurface()` and `meshVolume()` ran before 2026-09-28. Its code is in
+git history up to `873c9bf`; `doc/RCDT_Restriction_Audit.md` inventories its
+restriction decisions.
+
+- **`CurveProtectionScheme` / `CurveProtectionSubdivider`** — protection sized
+  from the longer adjacent segment, subdivided where it could not satisfy its
+  own properties. Broke CGAL's conditions on every model.
+- **`RestrictedTriangulation` / `DualEdgeRestrictionOracle`** — the unweighted
+  dual-edge test behind a vertex-surface gate, plus accept-only shortcut routes
+  (a protected-edge uniqueness rule, a centroid phase test through OCC's solid
+  classifier, `PointPhase`) and a seam-surface carve-out.
+- **`RCDTRefiner`** and its priorities — curve-segment encroachment splits,
+  bad-triangle refinement with Shewchuk demotion, skinny-tetrahedron refinement,
+  non-manifold-edge repair — with a size floor, proximity guard, protecting-ball
+  refusals and permanently unrefinable sets.
+- **`RestrictedFaceAudit`'s removal passes** — same-curve chord faces and
+  over-acceptance flaps removed after refinement.
 
 ---
 
 ## See also
 
-- `doc/Theory/RCDT.md` — the algorithm as a walkthrough, phase by phase
-- `doc/RCDT_Restriction_Audit.md` — the 43-row inventory of what restriction
-  currently decides and where
 - `doc/Meshing_Core_Overview.md` — module layout and ownership
 - `doc/Terminology.md` — CAD and mesh glossary
+- `doc/Theory/RCDT.md`, `doc/Flowcharts/` — the paper's algorithm and the
+  retired implementation of it
