@@ -139,7 +139,7 @@ size_t samplesPerDirectionFor(double diameter, double targetCellSize)
     // It reports when it binds (OPE-208). Everything above this point is
     // tessellated COARSER than targetCellSize asked for, which voids the
     // guarantee the cell size exists to provide -- see
-    // TESSELLATION_CELL_SIZE_FACTOR in DualEdgeRestrictionOracle.cpp, whose
+    // TESSELLATION_CELL_SIZE_FACTOR in WeightedDualRestriction.cpp, whose
     // claim that cells below minimumEdgeLength / 2 can classify any face down
     // to that floor holds only while this clamp is inactive. Clamping
     // silently left no way to tell from the outside that it had stopped
@@ -239,11 +239,11 @@ std::vector<TriangleSoupIndex::Triangle> emitTriangles(const SampleGrid& grid)
             // inward from the true trim boundary by up to one grid cell
             // width, which is large enough (at this resolution) to open
             // gaps near ordinary edges, not just the ones this class exists
-            // to handle. Over-including here is safe -- classifyFace()
-            // separately gates on the face's own vertices actually lying
-            // within the true trim boundary (verticesWithinTrimmedBoundary),
-            // so a tessellation triangle that pokes slightly past the real
-            // edge never causes a face to be accepted that shouldn't be.
+            // to handle. Over-including here is safe --
+            // WeightedDualRestriction accepts a crossing only within the true
+            // trimmed patch, so a tessellation triangle that pokes slightly
+            // past the real edge never causes a face to be accepted that
+            // shouldn't be.
             if (!grid.withinTrim[corner00] && !grid.withinTrim[corner10] && !grid.withinTrim[corner01] &&
                 !grid.withinTrim[corner11])
                 continue;

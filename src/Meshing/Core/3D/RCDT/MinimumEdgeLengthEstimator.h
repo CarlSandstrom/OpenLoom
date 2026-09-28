@@ -9,10 +9,8 @@ namespace Meshing
 
 class SizingField3D;
 
-/// Derives RCDT's minimum edge length when the caller does not set one: the
-/// size floor RCDTRefiner stops refining at, CurveProtectionSubdivider
-/// subdivides against, and RestrictedTriangulation scales its tessellation
-/// oracle's cell size by.
+/// Derives RCDT's minimum edge length when the caller does not set one: what
+/// WeightedDualRestriction scales its tessellations' cell size by.
 ///
 /// The floor is a SLIVER GUARD, not a size target: refinement must be free to
 /// reach the size actually being asked for, so the floor has to sit well below
@@ -33,9 +31,8 @@ public:
     /// Deriving it from the discretization's own spacing, as fromPointSpacing()
     /// does, is CIRCULAR once that spacing comes from h(x): making the boundary
     /// finer lowers the floor, which lets refinement chase proportionally
-    /// deeper, and -- because RestrictedTriangulation scales its tessellation
-    /// oracle's cell size by this same value -- rebuilds the oracle finer at the
-    /// same time. Measured on SaddleSurfaceMesh: bounding segment length by h(x)
+    /// deeper, and -- because the restriction test scales its tessellations'
+    /// cell size by this same value -- rebuilds them finer at the same time. Measured on SaddleSurfaceMesh: bounding segment length by h(x)
     /// moved the derived floor 0.0523 -> 0.0212 and the non-manifold count
     /// 17 -> 388, of which 349 disappeared again when the floor alone was held
     /// at its old value.

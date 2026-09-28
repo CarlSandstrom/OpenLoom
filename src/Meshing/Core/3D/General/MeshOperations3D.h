@@ -94,7 +94,7 @@ public:
      * @brief Insert a vertex using 3D Bowyer-Watson algorithm with pre-computed conflicting tetrahedra
      *
      * Overload for callers that have already computed the conflicting-tetrahedra set
-     * (e.g. to derive cavity interior faces for RestrictedTriangulation::updateAfterInsertion
+     * (e.g. SurfaceDelaunayRefiner, which grows it locally and reads the cavity's faces
      * before calling this). Avoids a redundant findConflictingTetrahedra() scan.
      *
      * @param point The 3D point to insert

@@ -52,12 +52,10 @@ std::optional<Point3D> projectToSurface(const Point3D& point,
 ///
 /// Returns nullopt when the two endpoints are on the same side and so there is
 /// no crossing to bisect on. That is an ordinary outcome, not a caller error:
-/// the restricted-face classification that asks for an insertion point is
-/// decided by an independent tessellation crossing test
-/// (DualEdgeRestrictionOracle), and can be a stale snapshot besides, so a face
-/// may legitimately be restricted while this signed-distance test sees no
-/// crossing. RestrictedTriangleRefiner handles that by falling back to
-/// projecting the circumcenter.
+/// restriction is decided by an independent tessellation crossing test, so a
+/// face may be restricted while this signed-distance test sees no sign change
+/// in the bracket it is given. WeightedDualRestriction then keeps the
+/// tessellation's own crossing.
 std::optional<Point3D> findSurfaceCrossing(const Point3D& segmentStart,
                                            const Point3D& segmentEnd,
                                            const Geometry3D::ISurface3D& surface);

@@ -227,8 +227,8 @@ TEST(RobustPredicates3DTest, SegmentCrossesTriangle_TouchesVertex_ReturnsFalse)
 
 TEST(RobustPredicates3DTest, SegmentCrossesTriangle_ExtremelyLongSegment_StillExact)
 {
-    // The dual-edge substitution in RestrictedTriangulation can produce a
-    // segment endpoint hundreds of units away from the triangle (OPE-169) --
+    // A dual edge can end at the orthocentre of a nearly flat tetrahedron,
+    // hundreds of units away from the triangle (OPE-169) --
     // the predicate must still resolve the crossing exactly rather than
     // drift with the endpoint's magnitude.
     const Point3D a(0.0, 0.0, 0.0);

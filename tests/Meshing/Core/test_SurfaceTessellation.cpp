@@ -202,9 +202,9 @@ TEST(SurfaceTessellationTest, CrossesSurface_OutsideParameterBounds_ReturnsFalse
 
 TEST(SurfaceTessellationTest, CrossesSurface_ExtremelyLongSegment_StillDetectsCrossing)
 {
-    // Mirrors the dual-edge substitution in RestrictedTriangulation, where
-    // one endpoint can be a bounding-supertet node hundreds of units away
-    // (OPE-169) -- the crossing must still be found.
+    // Mirrors a dual edge whose endpoint is the orthocentre of a nearly flat
+    // tetrahedron, hundreds of units away (OPE-169) -- the crossing must
+    // still be found.
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
     tessellation.build(surface, 1.0);

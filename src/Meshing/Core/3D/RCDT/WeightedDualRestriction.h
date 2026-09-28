@@ -48,8 +48,8 @@ struct RestrictedFacet
  * Deliberately nothing else: no gate on which surfaces the vertices share, no
  * shortcut routes, no inside/outside test. Where the answer is locally wrong
  * the refiner that uses this is expected to refine it away, as CGAL does. This
- * is the restriction half of the CGAL-style refinement path (OPE-186); the
- * existing DualEdgeRestrictionOracle is untouched by it.
+ * replaced the old DualEdgeRestrictionOracle, which added all of those
+ * (OPE-186).
  *
  * Crossings are found on each surface's SurfaceTessellation, then refined onto
  * the exact CAD surface by bisection along the dual segment, so the centre
@@ -61,8 +61,8 @@ struct RestrictedFacet
 class WeightedDualRestriction
 {
 public:
-    /// minimumEdgeLength sizes each surface's tessellation, the same way
-    /// DualEdgeRestrictionOracle sizes its own.
+    /// minimumEdgeLength sizes each surface's tessellation: cells of half of
+    /// it.
     WeightedDualRestriction(const Geometry3D::GeometryCollection3D& geometry,
                             const Topology3D::Topology3D& topology,
                             double minimumEdgeLength);

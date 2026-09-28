@@ -225,8 +225,8 @@ TEST_F(RCDTMesherCylinderTest, IsAClosedTwoManifold)
 // one real (meridian) edge plus its seam twin, and two degenerate polar
 // edges collapsed to a point at each pole. This is a harder seed case than
 // the cylinder: with edge-only discretization the only 3D-spanning boundary
-// data is a single meridian arc, which is not enough for RCDTMesher::mesh()
-// to find any restricted faces at all (buildInitial reports 0), so this test
+// data is a single meridian arc, which is not enough for the seed
+// triangulation to have any restricted faces at all, so this test
 // requires surface interior samples (DiscretizationSettings3D's third
 // argument) to seed the ambient Delaunay with genuine 3D coverage.
 //

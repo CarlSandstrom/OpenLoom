@@ -24,8 +24,8 @@ namespace
 
 constexpr size_t INVALID_ID = SIZE_MAX;
 
-// Same resolution rule as DualEdgeRestrictionOracle: cells of half the
-// minimum edge length resolve any face at or above that floor.
+// Cells of half the minimum edge length resolve any face at or above that
+// floor.
 constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;
 
 // Half-width, in tessellation cells, of the bracket along the dual segment

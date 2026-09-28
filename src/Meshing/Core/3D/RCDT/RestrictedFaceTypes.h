@@ -30,7 +30,7 @@ struct BadRestrictedTriangle
 using BadRestrictedFaceMap = std::unordered_map<FaceKey, BadRestrictedTriangle, FaceKeyHash>;
 
 /// CAD curve id -> the surfaces that curve bounds, read from the topology once
-/// in RestrictedTriangulation::buildFrom(). A seam curve appears twice against
+/// by SurfaceCandidates. A seam curve appears twice against
 /// its own surface, which is load-bearing -- see
 /// RestrictedFaceAudit::findNonManifoldEdges().
 using EdgeToAdjacentSurfacesMap = std::unordered_map<std::string, std::vector<std::string>>;

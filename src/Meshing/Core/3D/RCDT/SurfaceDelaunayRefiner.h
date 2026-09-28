@@ -33,7 +33,7 @@ namespace Meshing
 
 /**
  * @brief Surface refinement as CGAL Mesh_3 does it (Refine_facets_3), on the
- * weighted tetrahedralization RCDTMesher seeds; the default in place of the
+ * weighted tetrahedralization RCDTMesher seeds; it replaced the
  * RestrictedTriangulation + RCDTRefiner path (OPE-186). When meshing a volume,
  * TetrahedronDelaunayRefiner drives it as the level above its own.
  *

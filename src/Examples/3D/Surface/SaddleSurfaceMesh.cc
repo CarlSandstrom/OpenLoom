@@ -192,42 +192,22 @@ int main()
     Export::TsvExporter::writeDiscretization(*discretizationResult, "SaddleSurfaceMeshEdges");
     std::cout << "Exported edge mesh to SaddleSurfaceMeshEdges.vtu\n";
 
-    // Default quality settings: circumradiusToShortestEdgeRatio = 1.0 (≡ min
-    // angle ≥ 30°), chordDeviationTolerance = 0.1.
+    // Default quality settings: minAngleDegrees = 30, chordDeviationTolerance
+    // = 0.1.
     //
-    // The chord-deviation pass is the mechanism under test: triangles too far
-    // from the CAD surface are split, producing locally finer meshes where |K|
-    // is large (near origin) and coarser where |K| is small (near corners).
+    // The chord-deviation criterion is the mechanism under test: facets too
+    // far from the CAD surface are refined, producing locally finer meshes
+    // where |K| is large (near origin) and coarser where |K| is small (near
+    // corners).
     //
     // The saddle solid's four top corners have a ~20° interior angle between
-    // the two parabolic boundary arcs that meet there. Ruppert's termination
-    // proof requires input angles ≥ 60°; at 20° the algorithm still
-    // terminates correctly (the minimum edge length floor cuts off the
-    // corner cascade) and now fully converges well within the iteration cap
-    // (encroachment/bad-triangle tracking is incremental, not an O(n)
-    // rescan).
+    // the two parabolic boundary arcs that meet there. The protecting balls
+    // (ProtectingBallPlacer) keep refinement out of those corners, and the
+    // criteria are waived for facets touching a ball, as in CGAL Mesh_3.
     //
-    // Known limitation: the finished mesh still carries a few non-manifold
-    // edges in its restricted face set. Two of the three causes are closed:
-    //
-    //  - Crease ambiguity (OPE-176). classifyFace() has to decide which of two
-    //    candidate surfaces a crease-straddling face belongs to, using a
-    //    discrete tessellation of each surface as an exact crossing oracle;
-    //    right at a shared boundary that is an inherently all-or-nothing call
-    //    however fine the oracle's grid is. Weighted Delaunay refinement with
-    //    protecting balls around every curve segment (see
-    //    CurveProtectionScheme, RCDTMesher::buildInitial()) keeps creases as
-    //    explicit, structurally protected features instead of repairing
-    //    straddling faces after the fact, and cut the count from 863 to 17.
-    //  - Same-surface over-acceptance (OPE-184). Doubled patches of restricted
-    //    faces in the surface interior, now pruned as connected components by
-    //    RestrictedFaceAudit::removeExcessFaces(): 17 to the residual below.
-    //
-    // What remains at this discretization is 2 edges carrying the expected
-    // NUMBER of faces on the wrong surfaces -- a third defect kind, invariant
-    // to the size floor and so far uninvestigated. Boundary discretization
-    // density is the axis that still degrades: at 218 boundary points (angle
-    // threshold pi/64) the residual is 30 holes, which is OPE-187 and open.
+    // The restricted surface is closed with no excess faces, here and at 218
+    // boundary points (angle threshold pi/64) -- the densities at which the
+    // replaced RestrictedTriangulation path left holes (OPE-186, OPE-187).
 
     Meshing::SurfaceMesh3DQualitySettings quality;
 

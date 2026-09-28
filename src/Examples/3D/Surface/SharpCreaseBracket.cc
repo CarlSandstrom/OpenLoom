@@ -24,19 +24,10 @@
  * AmbientRCDT strategy (OPE-120), since the UV-space path is being removed
  * (OPE-166) and crease handling is mesher-agnostic.
  *
- * This example is what surfaced a real RCDTRefiner bug (fixed alongside it):
- * priority-1 (encroached curve segment splitting) had no minimum-size floor,
- * unlike priorities 2 and 3. Near the acute pocket between the two flanges, a
- * segment could get bisected forever -- each split's midpoint still fell
- * inside the same nearby vertex's encroachment sphere, so the "new" segment
- * was encroached again next iteration -- producing hundreds of duplicate
- * nodes at one coordinate. See RCDTRefiner::unrefinableSegments_.
- *
  * Refinement is not expected to meet the quality bound everywhere near a
- * genuinely small (20 deg) input angle -- the same documented class of
- * limitation as the sliver tetrahedra RCDTRefiner's tet-quality phase doesn't
- * fully solve either (see RCDTRefiner's class doc comment). The output mesh
- * itself is valid throughout (no degenerate or duplicate-coordinate triangles).
+ * genuinely small (20 deg) input angle: facets touching a protecting ball are
+ * exempt from the angle criterion, as in CGAL Mesh_3. The output mesh itself
+ * is a closed surface with no degenerate or duplicate-coordinate triangles.
  *
  * Topology:
  *   - 8 faces: the two flanges' outer faces (the crease sides), their two

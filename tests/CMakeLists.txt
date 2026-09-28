@@ -43,23 +43,19 @@ set(TEST_SOURCES
     Meshing/Core/test_SizingField3D.cpp
     Meshing/Core/test_SizingFieldBuilder3D.cpp
     Meshing/Core/SurfaceMeshTopology.cpp
-    Meshing/Core/test_PointPhase.cpp
-    Meshing/Core/test_PhaseBoundaryFace.cpp
     Meshing/Core/test_WeightedDualRestriction.cpp
     Meshing/Core/test_SurfaceDelaunayRefiner.cpp
     Meshing/Core/test_ProtectingBallPlacer.cpp
     Meshing/Core/SaddleShape.cpp
-    Meshing/Core/test_SaddleCreaseCoverage.cpp
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
-    Meshing/Core/test_RCDTTetQualityController.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_SurfaceMesher3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
-    Meshing/Core/test_RestrictedTriangulation.cpp
+    Meshing/Core/test_RestrictedFaceAudit.cpp
     Meshing/Core/test_TwinManager.cpp
     Meshing/Core/test_TwinTableGenerator.cpp
 
@@ -117,8 +113,7 @@ set(SLOW_TEST_FILTER
     ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*"
     ":SurfaceMesher3DStrategyTest.*"
     ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
-    ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates"
-    ":RestrictedTriangulationTest.UpdateAfterInsertion_MatchesFullRebuild")
+    ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates")
 string(JOIN "" SLOW_TEST_FILTER ${SLOW_TEST_FILTER})
 
 gtest_discover_tests(runTests
