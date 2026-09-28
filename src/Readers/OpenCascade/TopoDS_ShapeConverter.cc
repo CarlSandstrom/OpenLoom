@@ -67,8 +67,8 @@ void TopoDS_ShapeConverter::buildGeometryCollection()
 
     for (const auto& [id, edge] : edgeMap)
     {
-        std::unique_ptr<Geometry3D::OpenCascadeEdge> edgePtr = std::make_unique<Geometry3D::OpenCascadeEdge>(edge);
-        edges.emplace(id, std::move(edgePtr));
+        std::unique_ptr<Geometry3D::OpenCascadeEdge> edgePointer = std::make_unique<Geometry3D::OpenCascadeEdge>(edge);
+        edges.emplace(id, std::move(edgePointer));
     }
 
     for (const auto& [id, face] : faceMap)
@@ -107,17 +107,17 @@ void TopoDS_ShapeConverter::createSurfaces()
         // BRepTools_WireExplorer visits seam edges twice (once in each direction),
         // which is required to correctly close the UV domain of cylindrical/toroidal faces.
         std::set<std::string> seenEdgeIds;
-        for (TopExp_Explorer wireExp(face, TopAbs_WIRE); wireExp.More(); wireExp.Next())
+        for (TopExp_Explorer wireExplorer(face, TopAbs_WIRE); wireExplorer.More(); wireExplorer.Next())
         {
-            const TopoDS_Wire& wire = TopoDS::Wire(wireExp.Current());
-            BRepTools_WireExplorer edgeExp(wire, face);
-            for (; edgeExp.More(); edgeExp.Next())
+            const TopoDS_Wire& wire = TopoDS::Wire(wireExplorer.Current());
+            BRepTools_WireExplorer edgeExplorer(wire, face);
+            for (; edgeExplorer.More(); edgeExplorer.Next())
             {
-                const TopoDS_Edge& edge = edgeExp.Current();
-                auto edgeIdOpt = openCascadeGeometryCollection_->findEdgeId(edge);
-                if (!edgeIdOpt.has_value())
+                const TopoDS_Edge& edge = edgeExplorer.Current();
+                auto optionalEdgeId = openCascadeGeometryCollection_->findEdgeId(edge);
+                if (!optionalEdgeId.has_value())
                     continue;
-                const std::string& edgeId = edgeIdOpt.value();
+                const std::string& edgeId = optionalEdgeId.value();
                 if (seenEdgeIds.count(edgeId) == 0)
                 {
                     boundaryEdgeIds.push_back(edgeId);
@@ -186,11 +186,11 @@ void TopoDS_ShapeConverter::createEdges()
         TopoDS_Vertex startVertex, endVertex;
         TopExp::Vertices(edge, startVertex, endVertex);
 
-        auto startCornerIdOpt = openCascadeGeometryCollection_->findVertexId(startVertex);
-        auto endCornerIdOpt = openCascadeGeometryCollection_->findVertexId(endVertex);
+        auto optionalStartCornerId = openCascadeGeometryCollection_->findVertexId(startVertex);
+        auto optionalEndCornerId = openCascadeGeometryCollection_->findVertexId(endVertex);
 
-        std::string startCornerId = startCornerIdOpt.has_value() ? startCornerIdOpt.value() : "";
-        std::string endCornerId = endCornerIdOpt.has_value() ? endCornerIdOpt.value() : "";
+        std::string startCornerId = optionalStartCornerId.has_value() ? optionalStartCornerId.value() : "";
+        std::string endCornerId = optionalEndCornerId.has_value() ? optionalEndCornerId.value() : "";
 
         // Find adjacent surfaces
         std::vector<std::string> adjacentSurfaceIds;
@@ -203,10 +203,10 @@ void TopoDS_ShapeConverter::createEdges()
             for (TopTools_ListIteratorOfListOfShape it(facesOnEdge); it.More(); it.Next())
             {
                 const TopoDS_Face& face = TopoDS::Face(it.Value());
-                auto faceIdOpt = openCascadeGeometryCollection_->findSurfaceId(face);
-                if (faceIdOpt.has_value())
+                auto optionalFaceId = openCascadeGeometryCollection_->findSurfaceId(face);
+                if (optionalFaceId.has_value())
                 {
-                    adjacentSurfaceIds.push_back(faceIdOpt.value());
+                    adjacentSurfaceIds.push_back(optionalFaceId.value());
                 }
             }
         }
@@ -219,9 +219,9 @@ void TopoDS_ShapeConverter::createEdges()
     // Each twin uses edge-specific corner IDs ("<twinId>_start" / "<twinId>_end") so that
     // doubly-periodic surfaces (torus) — where multiple twins share the same 3D vertex —
     // get distinct corners.
-    for (const auto& [surfId, surf] : surfaces_)
+    for (const auto& [surfaceId, surface] : surfaces_)
     {
-        for (const auto& edgeId : surf.getBoundaryEdgeIds())
+        for (const auto& edgeId : surface.getBoundaryEdgeIds())
         {
             if (!edgeId.ends_with("_seam"))
                 continue;
@@ -229,11 +229,11 @@ void TopoDS_ShapeConverter::createEdges()
                 continue;
 
             std::string originalId = edgeId.substr(0, edgeId.size() - 5);
-            auto origIt = edges_.find(originalId);
-            if (origIt == edges_.end())
+            auto originalIterator = edges_.find(originalId);
+            if (originalIterator == edges_.end())
                 continue;
 
-            const auto& orig = origIt->second;
+            const auto& original = originalIterator->second;
 
             // Each twin gets unique corner IDs so that doubly-periodic surfaces with a
             // single shared 3D vertex (torus) produce distinct UV corners per twin.
@@ -241,7 +241,7 @@ void TopoDS_ShapeConverter::createEdges()
                            Topology3D::Edge3D(edgeId,
                                               edgeId + "_start",
                                               edgeId + "_end",
-                                              orig.getAdjacentSurfaceIds()));
+                                              original.getAdjacentSurfaceIds()));
             seams_.addPair(originalId, edgeId);
         }
     }
@@ -262,10 +262,10 @@ void TopoDS_ShapeConverter::createCorners()
             for (TopTools_ListIteratorOfListOfShape it(edgesOnVertex); it.More(); it.Next())
             {
                 const TopoDS_Edge& edge = TopoDS::Edge(it.Value());
-                auto edgeIdOpt = openCascadeGeometryCollection_->findEdgeId(edge);
-                if (edgeIdOpt.has_value())
+                auto optionalEdgeId = openCascadeGeometryCollection_->findEdgeId(edge);
+                if (optionalEdgeId.has_value())
                 {
-                    connectedEdgeIds.insert(edgeIdOpt.value());
+                    connectedEdgeIds.insert(optionalEdgeId.value());
                 }
             }
         }
@@ -281,10 +281,10 @@ void TopoDS_ShapeConverter::createCorners()
             for (TopTools_ListIteratorOfListOfShape it(facesOnVertex); it.More(); it.Next())
             {
                 const TopoDS_Face& face = TopoDS::Face(it.Value());
-                auto faceIdOpt = openCascadeGeometryCollection_->findSurfaceId(face);
-                if (faceIdOpt.has_value())
+                auto optionalFaceId = openCascadeGeometryCollection_->findSurfaceId(face);
+                if (optionalFaceId.has_value())
                 {
-                    connectedSurfaceIds.insert(faceIdOpt.value());
+                    connectedSurfaceIds.insert(optionalFaceId.value());
                 }
             }
         }
@@ -313,10 +313,10 @@ void TopoDS_ShapeConverter::createVolumes()
         for (int i = 1; i <= facesOfSolid.Extent(); ++i)
         {
             const TopoDS_Face& face = TopoDS::Face(facesOfSolid(i));
-            auto faceIdOpt = openCascadeGeometryCollection_->findSurfaceId(face);
-            if (faceIdOpt.has_value())
+            auto optionalFaceId = openCascadeGeometryCollection_->findSurfaceId(face);
+            if (optionalFaceId.has_value())
             {
-                boundarySurfaceIds.push_back(faceIdOpt.value());
+                boundarySurfaceIds.push_back(optionalFaceId.value());
             }
 
             if (!faceToSolidsMap.Contains(face))

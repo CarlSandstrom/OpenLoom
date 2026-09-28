@@ -26,8 +26,8 @@ bool GeometryUtilities2D::isPointInsideCircle(const Circle2D& circle, const Poin
 {
     const double dx = point.x() - circle.center.x();
     const double dy = point.y() - circle.center.y();
-    const double distSquared = dx * dx + dy * dy;
-    return distSquared < circle.radius * circle.radius - 1e-10;
+    const double distanceSquared = dx * dx + dy * dy;
+    return distanceSquared < circle.radius * circle.radius - 1e-10;
 }
 
 std::array<Point2D, 3> GeometryUtilities2D::createSuperTriangle(const std::vector<Point2D>& points)
@@ -38,24 +38,24 @@ std::array<Point2D, 3> GeometryUtilities2D::createSuperTriangle(const std::vecto
     double maxX = -std::numeric_limits<double>::max();
     double maxY = -std::numeric_limits<double>::max();
 
-    for (const auto& coord : points)
+    for (const auto& coordinate : points)
     {
-        minX = std::min(minX, coord.x());
-        minY = std::min(minY, coord.y());
-        maxX = std::max(maxX, coord.x());
-        maxY = std::max(maxY, coord.y());
+        minX = std::min(minX, coordinate.x());
+        minY = std::min(minY, coordinate.y());
+        maxX = std::max(maxX, coordinate.x());
+        maxY = std::max(maxY, coordinate.y());
     }
 
     const double dx = maxX - minX;
     const double dy = maxY - minY;
-    const double dmax = std::max(dx, dy);
+    const double maxExtent = std::max(dx, dy);
     const double midX = (minX + maxX) * 0.5;
     const double midY = (minY + maxY) * 0.5;
 
     // Create node points describing a large triangle that contains all points
     // Use a large scale factor to ensure all points are well within the super triangle
     // and to avoid numerical precision issues
-    const double scale = 100.0 * dmax;
+    const double scale = 100.0 * maxExtent;
 
     Point2D p0(midX - scale, midY - scale);
     Point2D p1(midX + scale, midY - scale);
@@ -76,11 +76,11 @@ double GeometryUtilities2D::computeOrientation(const Point2D& p, const Point2D& 
 int GeometryUtilities2D::computeOrientationSign(const Point2D& p, const Point2D& q, const Point2D& r,
                                                 double tolerance)
 {
-    double val = computeOrientation(p, q, r);
+    double value = computeOrientation(p, q, r);
 
-    if (std::abs(val) < tolerance) return 0;
+    if (std::abs(value) < tolerance) return 0;
     // Consistent with computeOrientation: positive = CCW (2), negative = CW (1)
-    return (val > 0) ? 2 : 1;
+    return (value > 0) ? 2 : 1;
 }
 
 bool GeometryUtilities2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
@@ -183,9 +183,9 @@ bool GeometryUtilities2D::isPointStrictlyInsideTriangle(
     double dot11 = e1x * e1x + e1y * e1y;
     double dot12 = e1x * dx + e1y * dy;
 
-    double invDenom = 1.0 / (dot00 * dot11 - dot01 * dot01);
-    double u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-    double v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+    double inverseDenominator = 1.0 / (dot00 * dot11 - dot01 * dot01);
+    double u = (dot11 * dot02 - dot01 * dot12) * inverseDenominator;
+    double v = (dot00 * dot12 - dot01 * dot02) * inverseDenominator;
 
     return (u > tolerance) && (v > tolerance) && (u + v < 1.0 - tolerance);
 }
@@ -197,9 +197,9 @@ bool GeometryUtilities2D::isPointInsideOrOnTriangle(
     double d1 = computeOrientation(v0, v1, point);
     double d2 = computeOrientation(v1, v2, point);
     double d3 = computeOrientation(v2, v0, point);
-    bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
-    return !(hasNeg && hasPos);
+    bool hasNegative = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    bool hasPositive = (d1 > 0) || (d2 > 0) || (d3 > 0);
+    return !(hasNegative && hasPositive);
 }
 
 } // namespace Meshing

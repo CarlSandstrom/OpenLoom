@@ -35,12 +35,12 @@ public:
 private:
     /**
      * @brief Check if two triangles overlap
-     * @param tri1Nodes Coordinates of first triangle's vertices
-     * @param tri2Nodes Coordinates of second triangle's vertices
+     * @param triangle1Nodes Coordinates of first triangle's vertices
+     * @param triangle2Nodes Coordinates of second triangle's vertices
      * @return True if triangles overlap
      */
-    static bool trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
-                                 const std::array<Point2D, 3>& tri2Nodes);
+    static bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes,
+                                 const std::array<Point2D, 3>& triangle2Nodes);
 
 };
 

@@ -31,7 +31,7 @@
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // Major radius R1 = 5.0 (distance from torus centre to pipe centre)
     // Minor radius R2 = 1.5 (radius of the pipe / tube)
@@ -45,17 +45,17 @@ int main()
     Meshing::SurfaceMesh3DQualitySettings quality;
     quality.chordDeviationTolerance = 0.15;
 
-    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                       converter.getTopology(),
-                                                                       settings);
+    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                                 converter.getTopology(),
+                                                                                 settings);
 
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
 
-    exporter.writeEdgeMesh(*discResult, "TorusSurfaceMeshEdges.vtu");
+    exporter.writeEdgeMesh(*discretizationResult, "TorusSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to TorusSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(), converter.getTopology(), settings, quality);

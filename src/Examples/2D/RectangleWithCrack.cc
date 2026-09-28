@@ -23,7 +23,7 @@ using namespace Meshing;
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     spdlog::info("Creating 2D rectangle with crack example");
 
@@ -57,30 +57,30 @@ int main()
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e4", crackEnd, bottomLeft));
 
     // Create topology
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    topoCorners.emplace("c0", Topology2D::Corner2D("c0", {"e0", "e4"}));
-    topoCorners.emplace("c1", Topology2D::Corner2D("c1", {"e0", "e1"}));
-    topoCorners.emplace("c2", Topology2D::Corner2D("c2", {"e1", "e2"}));
-    topoCorners.emplace("c3", Topology2D::Corner2D("c3", {"e2", "e3"}));
-    topoCorners.emplace("crack_start", Topology2D::Corner2D("crack_start", {"e3", "crack_edge1"}));
-    topoCorners.emplace("crack_tip", Topology2D::Corner2D("crack_tip", {"crack_edge1", "crack_edge2"}));
-    topoCorners.emplace("crack_end", Topology2D::Corner2D("crack_end", {"crack_edge2", "e4"}));
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    topologyCorners.emplace("c0", Topology2D::Corner2D("c0", {"e0", "e4"}));
+    topologyCorners.emplace("c1", Topology2D::Corner2D("c1", {"e0", "e1"}));
+    topologyCorners.emplace("c2", Topology2D::Corner2D("c2", {"e1", "e2"}));
+    topologyCorners.emplace("c3", Topology2D::Corner2D("c3", {"e2", "e3"}));
+    topologyCorners.emplace("crack_start", Topology2D::Corner2D("crack_start", {"e3", "crack_edge1"}));
+    topologyCorners.emplace("crack_tip", Topology2D::Corner2D("crack_tip", {"crack_edge1", "crack_edge2"}));
+    topologyCorners.emplace("crack_end", Topology2D::Corner2D("crack_end", {"crack_edge2", "e4"}));
 
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
     // Outer edges (counter-clockwise)
-    topoEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
-    topoEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
-    topoEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c3"));
-    topoEdges.emplace("e3", Topology2D::Edge2D("e3", "c3", "crack_start"));
-    topoEdges.emplace("crack_edge1", Topology2D::Edge2D("crack_edge1", "crack_start", "crack_tip"));
-    topoEdges.emplace("crack_edge2", Topology2D::Edge2D("crack_edge2", "crack_tip", "crack_end"));
-    topoEdges.emplace("e4", Topology2D::Edge2D("e4", "crack_end", "c0"));
+    topologyEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
+    topologyEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
+    topologyEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c3"));
+    topologyEdges.emplace("e3", Topology2D::Edge2D("e3", "c3", "crack_start"));
+    topologyEdges.emplace("crack_edge1", Topology2D::Edge2D("crack_edge1", "crack_start", "crack_tip"));
+    topologyEdges.emplace("crack_edge2", Topology2D::Edge2D("crack_edge2", "crack_tip", "crack_end"));
+    topologyEdges.emplace("e4", Topology2D::Edge2D("e4", "crack_end", "c0"));
 
     // Boundary edge loop: outer boundary followed by inner boundary (hole)
     std::vector<std::string> boundaryEdgeLoop = {
         "e0", "e1", "e2", "e3", "crack_edge1", "crack_edge2", "e4"};
 
-    auto topology = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, boundaryEdgeLoop);
+    auto topology = std::make_unique<Topology2D::Topology2D>(topologyCorners, topologyEdges, boundaryEdgeLoop);
 
     // Create meshing context
     MeshingContext2D context(std::move(geometry), std::move(topology));

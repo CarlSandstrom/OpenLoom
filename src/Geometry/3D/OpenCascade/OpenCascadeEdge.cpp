@@ -31,17 +31,17 @@ Meshing::Vector3D OpenCascadeEdge::getTangent(double t) const
 {
     BRepAdaptor_Curve curve(edge_);
     double tMin, tMax;
-    Handle(Geom_Curve) geomCurve = BRep_Tool::Curve(edge_, tMin, tMax);
+    Handle(Geom_Curve) geometricCurve = BRep_Tool::Curve(edge_, tMin, tMax);
 
-    if (!geomCurve.IsNull())
+    if (!geometricCurve.IsNull())
     {
-        GeomLProp_CLProps props(geomCurve, t, 1, Precision::Confusion());
+        GeomLProp_CLProps properties(geometricCurve, t, 1, Precision::Confusion());
 
-        if (props.IsTangentDefined())
+        if (properties.IsTangentDefined())
         {
-            gp_Dir tangentDir;
-            props.Tangent(tangentDir);
-            return {tangentDir.X(), tangentDir.Y(), tangentDir.Z()};
+            gp_Dir tangentDirection;
+            properties.Tangent(tangentDirection);
+            return {tangentDirection.X(), tangentDirection.Y(), tangentDirection.Z()};
         }
     }
 
@@ -105,15 +105,15 @@ double OpenCascadeEdge::getCurvature(double t) const
 {
     BRepAdaptor_Curve curve(edge_);
     double tMin, tMax;
-    Handle(Geom_Curve) geomCurve = BRep_Tool::Curve(edge_, tMin, tMax);
+    Handle(Geom_Curve) geometricCurve = BRep_Tool::Curve(edge_, tMin, tMax);
 
-    if (!geomCurve.IsNull())
+    if (!geometricCurve.IsNull())
     {
-        GeomLProp_CLProps props(geomCurve, t, 2, Precision::Confusion());
+        GeomLProp_CLProps properties(geometricCurve, t, 2, Precision::Confusion());
 
-        if (props.IsTangentDefined())
+        if (properties.IsTangentDefined())
         {
-            return props.Curvature();
+            return properties.Curvature();
         }
     }
 

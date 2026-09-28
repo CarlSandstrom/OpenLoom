@@ -64,7 +64,7 @@ A standalone 2D constrained Delaunay mesher with Shewchuk refinement.
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
 | E1 | `MeshVerifier`: CCW orientation check, no-overlap check; returns `VerificationResult` | `2D/MeshVerifier.h/.cpp` | Done |
-| E2 | `MeshDebugUtils2D`: compile-flag-gated conditional export + verify at each iteration | `2D/MeshDebugUtils2D.h/.cpp` | Done |
+| E2 | `MeshDebugUtilities2D`: compile-flag-gated conditional export + verify at each iteration | `2D/MeshDebugUtilities2D.h/.cpp` | Done |
 
 ---
 
@@ -100,10 +100,10 @@ Produces a quality triangle mesh of all CAD surfaces by meshing each face indepe
 
 ## Prerequisites
 
-- [x] **`MeshDebugUtils3D`** — Phase-aware export + verify utility (modeled on `MeshDebugUtils2D`)
+- [x] **`MeshDebugUtilities3D`** — Phase-aware export + verify utility (modeled on `MeshDebugUtilities2D`)
   - Accepts a `MeshingPhase3D` enum to select which invariants to check
   - Each phase accumulates checks from all previous phases
-  - Files: `src/Meshing/Core/3D/General/MeshDebugUtils3D.h/.cpp`
+  - Files: `src/Meshing/Core/3D/General/MeshDebugUtilities3D.h/.cpp`
   - Status: **Done**
 
 ---
@@ -115,7 +115,7 @@ Before surface mesher work begins, the existing flat `3D/` folder is split into 
 | Task | Description | Status |
 |------|-------------|--------|
 | 0.1 | Create `3D/General/`, `3D/Surface/`, `3D/Volume/` | Done |
-| 0.2 | Move general 3D infrastructure to `3D/General/`: `GeometryStructures3D`, `GeometryUtilities3D`, `DiscretizationResult3D`, `BoundaryDiscretizer3D`, `ConstraintRegistrar3D`, `ConstraintChecker3D`, `MeshingContext3D`, `MeshOperations3D`, `MeshQueries3D`, `MeshVerifier3D`, `ElementGeometry3D`, `ElementQuality3D`, `MeshDebugUtils3D` | Done |
+| 0.2 | Move general 3D infrastructure to `3D/General/`: `GeometryStructures3D`, `GeometryUtilities3D`, `DiscretizationResult3D`, `BoundaryDiscretizer3D`, `ConstraintRegistrar3D`, `ConstraintChecker3D`, `MeshingContext3D`, `MeshOperations3D`, `MeshQueries3D`, `MeshVerifier3D`, `ElementGeometry3D`, `ElementQuality3D`, `MeshDebugUtilities3D` | Done |
 | 0.3 | Decouple `BoundaryDiscretizer3D` from `MeshingContext3D` (currently depends on volume context; should work without tet data) | Done |
 | 0.4 | Extend `ElementGeometry3D` to cover triangle-in-3D operations (area, normal, circumcircle in plane) — needed by surface mesher | Done |
 | 0.5 | Move `FacetTriangulation`, `FacetTriangulationManager` to `3D/Surface/` | Done |
@@ -441,7 +441,7 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 | `2D/ShewchukRefiner2D.h/.cpp` | Refinement loop: encroachment splits + circumcenter insertion |
 | `2D/BoundarySplitSynchronizer.h/.cpp` | `BoundarySplitCallback` for twin-edge synchronization |
 | `2D/MeshVerifier.h/.cpp` | CCW orientation + overlap checks |
-| `2D/MeshDebugUtils2D.h/.cpp` | Flag-gated conditional export + verify |
+| `2D/MeshDebugUtilities2D.h/.cpp` | Flag-gated conditional export + verify |
 | `Meshing/Data/MeshData2D.h/.cpp` | Node + triangle storage |
 | `Meshing/Data/MeshMutator2D.h/.cpp` | Controlled mesh mutation |
 
@@ -465,7 +465,7 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 | `MeshVerifier3D.h/.cpp` | Mesh integrity checks |
 | `ElementGeometry3D.h/.cpp` | Circumsphere, tet volume, triangle area/normal in 3D, circumcircle in plane |
 | `ElementQuality3D.h/.cpp` | Quality metrics for tetrahedra and triangles in 3D |
-| `MeshDebugUtils3D.h/.cpp` | Phase-aware debug export + verification |
+| `MeshDebugUtilities3D.h/.cpp` | Phase-aware debug export + verification |
 
 ### 3D/Surface (surface mesher)
 | File | Role |
@@ -523,4 +523,4 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 - [ ] **Metric adaptation in surface mesher (S2.2)** — For highly curved CAD surfaces, use the OCC pull-back metric (`GeomLProp_SLProps`) in the UV-space quality criterion to avoid angle distortion. Defer until basic surface mesher works.
 - [ ] **`TwinSurfaces` — periodic 3D surface mesh (FEM sense)** — Extend `TwinTableGenerator` to accept user-declared surface pairs (S1 ↔ S2 with a UV→UV mapping). Declaring twin surfaces implies that all corresponding boundary edges are also twin edges. Interior refinement propagation requires facet-level twinning in `TwinManager` (complement to the current segment-level twinning). Use case: inlet/outlet faces of a periodic pipe mesh.
 - [ ] **`TwinEdges` for 2D periodic meshes (FEM sense)** — `TwinTableGenerator2D` accepts user-declared boundary edge pairs. `TwinManager` already handles segment-level splits. Enables generating periodic FEM meshes where two boundary edges are discretized identically.
-- [ ] **Parallelize verification loops in `MeshDebugUtils3D`** — The subsegment and subfacet presence checks iterate over all constraints sequentially. For large meshes these are embarrassingly parallel. Add optional OpenMP as done in `MeshVerifier` (2D overlap checks).
+- [ ] **Parallelize verification loops in `MeshDebugUtilities3D`** — The subsegment and subfacet presence checks iterate over all constraints sequentially. For large meshes these are embarrassingly parallel. Add optional OpenMP as done in `MeshVerifier` (2D overlap checks).

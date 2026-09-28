@@ -33,7 +33,7 @@ class ISurfaceMesher3D;
  *
  * Usage:
  * @code
- *   SurfaceMesher3D mesher(geometry, topology, discSettings, qualitySettings);
+ *   SurfaceMesher3D mesher(geometry, topology, discretizationSettings, qualitySettings);
  *   SurfaceMesh3D result = mesher.mesh();
  * @endcode
  */
@@ -63,7 +63,7 @@ public:
     SurfaceMesh3D mesh();
 
 private:
-    std::unique_ptr<ISurfaceMesher3D> impl_;
+    std::unique_ptr<ISurfaceMesher3D> implementation_;
 };
 
 } // namespace Meshing

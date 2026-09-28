@@ -31,7 +31,7 @@
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
 
@@ -45,18 +45,18 @@ int main()
 
     Geometry3D::DiscretizationSettings3D settings(std::nullopt, std::numbers::pi / 8.0, 2);
 
-    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                       converter.getTopology(),
-                                                                       settings);
+    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                                 converter.getTopology(),
+                                                                                 settings);
 
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
 
-    exporter.writeEdgeMesh(*discResult, "BoxWithHoleSurfaceEdges.vtu");
-    Export::TsvExporter::writeDiscretization(*discResult, "BoxWithHoleSurfaceEdges");
+    exporter.writeEdgeMesh(*discretizationResult, "BoxWithHoleSurfaceEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "BoxWithHoleSurfaceEdges");
     std::cout << "Exported edge mesh to BoxWithHoleSurfaceEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),

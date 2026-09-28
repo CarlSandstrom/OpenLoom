@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
+#include "Meshing/Core/3D/General/MeshDebugUtilities3D.h"
 #include "Common/DebugFlags.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
@@ -24,7 +24,7 @@ void exportEdgeMesh3D(const DiscretizationResult3D& result, const std::string& f
     {
         Export::VtkExporter exporter;
         exporter.writeEdgeMesh(result, filename);
-        spdlog::info("MeshDebugUtils3D: exported edge mesh to {}", filename);
+        spdlog::info("MeshDebugUtilities3D: exported edge mesh to {}", filename);
     }
 }
 
@@ -34,7 +34,7 @@ void exportSurfaceMesh3D(const SurfaceMesh3D& surfaceMesh, const std::string& fi
     {
         Export::VtkExporter exporter;
         exporter.writeSurfaceMesh(surfaceMesh, filename);
-        spdlog::info("MeshDebugUtils3D: exported surface mesh to {}", filename);
+        spdlog::info("MeshDebugUtilities3D: exported surface mesh to {}", filename);
     }
 }
 

@@ -26,7 +26,7 @@
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
 

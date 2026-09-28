@@ -26,7 +26,7 @@ src/Meshing/Core/
 │   ├── BoundarySplitSynchronizer.{h,cpp}
 │   ├── ShewchukRefiner2D.{h,cpp}
 │   ├── Shewchuk2DQualityController.{h,cpp}
-│   └── MeshDebugUtils2D.{h,cpp}
+│   └── MeshDebugUtilities2D.{h,cpp}
 ├── 3D/
 │   ├── General/                         # Shared 3D context, operations, geometry
 │   │   ├── MeshingContext3D.{h,cpp}
@@ -34,7 +34,7 @@ src/Meshing/Core/
 │   │   ├── MeshQueries3D.{h,cpp}
 │   │   ├── ElementGeometry3D.{h,cpp}
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
-│   │   └── MeshDebugUtils3D.{h,cpp}
+│   │   └── MeshDebugUtilities3D.{h,cpp}
 │   ├── Surface/                         # Top-level surface mesher
 │   │   └── SurfaceMesher3D.{h,cpp}
 │   ├── Volume/                          # Top-level volume mesher + initial tetrahedralization

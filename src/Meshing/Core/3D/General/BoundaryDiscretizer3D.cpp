@@ -47,7 +47,7 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
 
     // Step 2: Sample edge interior points (excluding endpoints)
     const auto maxAngle = settings.getMaxAngleBetweenSegments();
-    const auto numSegments = settings.getNumSegmentsPerEdge();
+    const auto numberOfSegments = settings.getNumberOfSegmentsPerEdge();
 
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
@@ -55,7 +55,7 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
         if (topology.getSeamCollection().isSeamTwin(edgeId))
             continue;
 
-        const auto& topoEdge = topology.getEdge(edgeId);
+        const auto& topologyEdge = topology.getEdge(edgeId);
         const auto* edge = geometry.getEdge(edgeId);
 
         if (!edge)
@@ -63,16 +63,16 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
 
         auto [tMin, tMax] = edge->getParameterBounds();
 
-        size_t startIdx = result->cornerIdToPointIndexMap.at(topoEdge.getStartCornerId());
-        size_t endIdx = result->cornerIdToPointIndexMap.at(topoEdge.getEndCornerId());
+        size_t startIndex = result->cornerIdToPointIndexMap.at(topologyEdge.getStartCornerId());
+        size_t endIndex = result->cornerIdToPointIndexMap.at(topologyEdge.getEndCornerId());
 
-        result->edgeParameters[startIdx].push_back(tMin);
-        result->geometryIds[startIdx].push_back(edgeId);
-        result->edgeParameters[endIdx].push_back(tMax);
-        result->geometryIds[endIdx].push_back(edgeId);
+        result->edgeParameters[startIndex].push_back(tMin);
+        result->geometryIds[startIndex].push_back(edgeId);
+        result->edgeParameters[endIndex].push_back(tMax);
+        result->geometryIds[endIndex].push_back(edgeId);
 
         std::vector<size_t> edgePointIndices;
-        edgePointIndices.push_back(startIdx);
+        edgePointIndices.push_back(startIndex);
 
         // A degenerate edge (e.g. a sphere's polar edge) has no real 3D curve —
         // getPoint()/getTangent() are not meaningful along it, and walking it
@@ -99,20 +99,20 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
             // length is not available analytically, so accumulate it with the
             // same chord stepping the walk itself uses.
             std::optional<double> uniformSegmentLength;
-            if (!maxAngle.has_value() && numSegments.has_value() && numSegments.value() > 0)
+            if (!maxAngle.has_value() && numberOfSegments.has_value() && numberOfSegments.value() > 0)
             {
-                constexpr size_t NUM_LENGTH_STEPS = 1000;
+                constexpr size_t NUMBER_OF_LENGTH_STEPS = 1000;
                 double totalLength = 0.0;
                 Point3D previous = edge->getPoint(tMin);
-                for (size_t i = 1; i <= NUM_LENGTH_STEPS; ++i)
+                for (size_t i = 1; i <= NUMBER_OF_LENGTH_STEPS; ++i)
                 {
                     const double t = tMin + static_cast<double>(i) * (tMax - tMin) /
-                                                static_cast<double>(NUM_LENGTH_STEPS);
+                                                static_cast<double>(NUMBER_OF_LENGTH_STEPS);
                     const Point3D current = edge->getPoint(t);
                     totalLength += (current - previous).norm();
                     previous = current;
                 }
-                uniformSegmentLength = totalLength / static_cast<double>(numSegments.value());
+                uniformSegmentLength = totalLength / static_cast<double>(numberOfSegments.value());
             }
             // Angle-based: walk 1000 uniform steps; insert a point whenever the
             // accumulated tangent-angle change since the last inserted point
@@ -127,24 +127,24 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
             // term does subdivide it -- which is the point: a long straight
             // crease needs interior points for its protecting balls to stay
             // proportionate to the local mesh size.
-            constexpr size_t NUM_STEPS = 1000;
-            auto prevTangent = edge->getTangent(tMin);
+            constexpr size_t NUMBER_OF_STEPS = 1000;
+            auto previousTangent = edge->getTangent(tMin);
             double accumulated = 0.0;
 
-            Point3D prevPoint = edge->getPoint(tMin);
-            Point3D segmentStartPoint = prevPoint;
+            Point3D previousPoint = edge->getPoint(tMin);
+            Point3D segmentStartPoint = previousPoint;
             double accumulatedLength = 0.0;
 
-            for (size_t i = 1; i <= NUM_STEPS; ++i)
+            for (size_t i = 1; i <= NUMBER_OF_STEPS; ++i)
             {
-                double t = tMin + static_cast<double>(i) * (tMax - tMin) / static_cast<double>(NUM_STEPS);
+                double t = tMin + static_cast<double>(i) * (tMax - tMin) / static_cast<double>(NUMBER_OF_STEPS);
                 auto nextTangent = edge->getTangent(t);
-                accumulated += angleBetweenTangents(prevTangent, nextTangent);
-                prevTangent = nextTangent;
+                accumulated += angleBetweenTangents(previousTangent, nextTangent);
+                previousTangent = nextTangent;
 
                 const Point3D point = edge->getPoint(t);
-                accumulatedLength += (point - prevPoint).norm();
-                prevPoint = point;
+                accumulatedLength += (point - previousPoint).norm();
+                previousPoint = point;
 
                 const bool angleReached = maxAngle.has_value() && accumulated >= maxAngle.value();
 
@@ -188,11 +188,11 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
                     break;
             }
         }
-        else if (numSegments.has_value() && numSegments.value() > 1)
+        else if (numberOfSegments.has_value() && numberOfSegments.value() > 1)
         {
             // Fixed-count without a sizing field: divide the edge into
-            // numSegments uniform segments in parameter space.
-            const size_t n = numSegments.value();
+            // numberOfSegments uniform segments in parameter space.
+            const size_t n = numberOfSegments.value();
             for (size_t i = 1; i < n; ++i)
             {
                 double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(n);
@@ -207,7 +207,7 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
         }
         // else: no interior points — edge represented by endpoints only.
 
-        edgePointIndices.push_back(endIdx);
+        edgePointIndices.push_back(endIndex);
         result->edgeIdToPointIndicesMap[edgeId] = edgePointIndices;
     }
 
@@ -218,17 +218,17 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
     for (const auto& twinId : seams.getSeamTwinEdgeIds())
     {
         const std::string& originalId = seams.getOriginalEdgeId(twinId);
-        auto origIt = result->edgeIdToPointIndicesMap.find(originalId);
-        if (origIt == result->edgeIdToPointIndicesMap.end())
+        auto originalIterator = result->edgeIdToPointIndicesMap.find(originalId);
+        if (originalIterator == result->edgeIdToPointIndicesMap.end())
             continue;
 
-        auto reversed = origIt->second;
+        auto reversed = originalIterator->second;
         std::reverse(reversed.begin(), reversed.end());
         result->edgeIdToPointIndicesMap[twinId] = std::move(reversed);
     }
 
     // Step 3: Sample surface interior points
-    size_t surfaceSamples = settings.getNumSamplesPerSurfaceDirection();
+    size_t surfaceSamples = settings.getNumberOfSamplesPerSurfaceDirection();
 
     for (const auto& surfaceId : topology.getAllSurfaceIds())
     {

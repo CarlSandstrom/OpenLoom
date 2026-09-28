@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
 
     std::string stepFile = argv[1];
 
-    Common::initLogging();
+    Common::initializeLogging();
 
     spdlog::info("Loading 2D STEP file: {}", stepFile);
 

@@ -84,7 +84,7 @@ TopoDS_Shape buildHexNut()
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     const TopoDS_Shape shape = buildHexNut();
     Readers::TopoDS_ShapeConverter converter(shape);

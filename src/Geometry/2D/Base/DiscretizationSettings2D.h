@@ -22,23 +22,23 @@ public:
      * Initializes with 1 segment per edge and max angle of π/4 radians (45°)
      */
     DiscretizationSettings2D() :
-        numSegmentsPerEdge_(1),
+        numberOfSegmentsPerEdge_(1),
         maxAngleBetweenSegments_(std::numbers::pi / 4.0)
     {
     }
 
-    explicit DiscretizationSettings2D(std::optional<size_t> numSegmentsPerEdge,
+    explicit DiscretizationSettings2D(std::optional<size_t> numberOfSegmentsPerEdge,
                                       std::optional<double> maxAngleBetweenSegments) :
-        numSegmentsPerEdge_(numSegmentsPerEdge),
+        numberOfSegmentsPerEdge_(numberOfSegmentsPerEdge),
         maxAngleBetweenSegments_(maxAngleBetweenSegments)
     {
     }
 
-    std::optional<size_t> getNumSegmentsPerEdge() const { return numSegmentsPerEdge_; }
+    std::optional<size_t> getNumberOfSegmentsPerEdge() const { return numberOfSegmentsPerEdge_; }
     std::optional<double> getMaxAngleBetweenSegments() const { return maxAngleBetweenSegments_; }
 
 private:
-    std::optional<size_t> numSegmentsPerEdge_;
+    std::optional<size_t> numberOfSegmentsPerEdge_;
     std::optional<double> maxAngleBetweenSegments_;
 };
 

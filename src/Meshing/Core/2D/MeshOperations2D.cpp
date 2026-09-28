@@ -44,8 +44,8 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         SPDLOG_DEBUG("MeshOperations2D: No conflicting triangles found for point ({}, {}) — blocked by constraints",
                      point.x(), point.y());
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                         "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
     }
 
     std::vector<std::array<size_t, 2>> boundary = queries_.findCavityBoundary(conflicting);
@@ -66,20 +66,24 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
             if (!offsetTable.hasOffsets(conflictId))
                 continue;
 
-            const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(conflictId));
-            if (!tri)
+            const auto* triangle = dynamic_cast<const TriangleElement*>(meshData_.getElement(conflictId));
+            if (!triangle)
                 continue;
 
-            const auto& triOffsets = offsetTable.getOffsets(conflictId);
-            const auto& nodeIds = tri->getNodeIdArray();
+            const auto& triangleOffsets = offsetTable.getOffsets(conflictId);
+            const auto& nodeIds = triangle->getNodeIdArray();
 
             for (int i = 0; i < 3; ++i)
             {
                 int j = (i + 1) % 3;
                 int oi = i, oj = j;
                 size_t ni = nodeIds[i], nj = nodeIds[j];
-                if (ni > nj) { std::swap(ni, nj); std::swap(oi, oj); }
-                boundaryEdgeOffsets[{ni, nj}] = {triOffsets[oi], triOffsets[oj]};
+                if (ni > nj)
+                {
+                    std::swap(ni, nj);
+                    std::swap(oi, oj);
+                }
+                boundaryEdgeOffsets[{ni, nj}] = {triangleOffsets[oi], triangleOffsets[oj]};
             }
         }
 
@@ -118,8 +122,16 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
             if (it != boundaryEdgeOffsets.end())
             {
                 // stored as {offset_for_min_node, offset_for_max_node}
-                if (edge[0] <= edge[1]) { off0 = it->second[0]; off1 = it->second[1]; }
-                else                    { off0 = it->second[1]; off1 = it->second[0]; }
+                if (edge[0] <= edge[1])
+                {
+                    off0 = it->second[0];
+                    off1 = it->second[1];
+                }
+                else
+                {
+                    off0 = it->second[1];
+                    off1 = it->second[0];
+                }
             }
             pE0 = periodicData_->applyOffset(meshData_.getNode(edge[0])->getCoordinates(), off0);
             pE1 = periodicData_->applyOffset(meshData_.getNode(edge[1])->getCoordinates(), off1);
@@ -139,14 +151,14 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
             continue;
         }
 
-        size_t newTriId = mutator_->addElement(
+        size_t newTriangleId = mutator_->addElement(
             std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]}));
 
         // Register offsets for the new triangle: newVertex has offset {0,0};
         // the two boundary vertices inherit their offsets from the removed triangle.
         if (periodicData_)
         {
-            periodicData_->getOffsetTable().setOffsets(newTriId, {PeriodicOffset{}, off0, off1});
+            periodicData_->getOffsetTable().setOffsets(newTriangleId, {PeriodicOffset{}, off0, off1});
         }
     }
 
@@ -209,7 +221,6 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     // Remove intersecting triangles
     for (auto index : intersectingTriangles)
     {
-        const auto& tri = *meshData_.getElement(index);
         mutator_->removeElement(index);
     }
 
@@ -259,15 +270,15 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     if (it == fullBoundary.end())
     {
         spdlog::warn("enforceEdge: nodeId2 ({}) not found in traced boundary for edge ({}, {})",
-                      nodeId2, nodeId1, nodeId2);
+                     nodeId2, nodeId1, nodeId2);
         return false;
     }
-    size_t splitIdx = std::distance(fullBoundary.begin(), it);
+    size_t splitIndex = std::distance(fullBoundary.begin(), it);
 
     // Left sub-polygon: nodeId1 → ... → nodeId2
-    std::vector<size_t> leftPolygon(fullBoundary.begin(), fullBoundary.begin() + splitIdx + 1);
+    std::vector<size_t> leftPolygon(fullBoundary.begin(), fullBoundary.begin() + splitIndex + 1);
     // Right sub-polygon: nodeId2 → ... → nodeId1
-    std::vector<size_t> rightPolygon(fullBoundary.begin() + splitIdx, fullBoundary.end());
+    std::vector<size_t> rightPolygon(fullBoundary.begin() + splitIndex, fullBoundary.end());
     rightPolygon.push_back(nodeId1);
 
     // Triangulate each sub-polygon using ear clipping
@@ -294,14 +305,14 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
             bool earFound = false;
             for (size_t i = 0; i < polygon.size(); ++i)
             {
-                size_t prev = (i + polygon.size() - 1) % polygon.size();
+                size_t previous = (i + polygon.size() - 1) % polygon.size();
                 size_t next = (i + 1) % polygon.size();
 
-                const Point2D& pPrev = meshData_.getNode(polygon[prev])->getCoordinates();
-                const Point2D& pCurr = meshData_.getNode(polygon[i])->getCoordinates();
-                const Point2D& pNext = meshData_.getNode(polygon[next])->getCoordinates();
+                const Point2D& previousPoint = meshData_.getNode(polygon[previous])->getCoordinates();
+                const Point2D& currentPoint = meshData_.getNode(polygon[i])->getCoordinates();
+                const Point2D& nextPoint = meshData_.getNode(polygon[next])->getCoordinates();
 
-                double area = GeometryUtilities2D::computeSignedArea(pPrev, pCurr, pNext);
+                double area = GeometryUtilities2D::computeSignedArea(previousPoint, currentPoint, nextPoint);
                 if (area <= MIN_TRIANGLE_AREA)
                     continue; // Not a convex vertex (or degenerate)
 
@@ -309,10 +320,10 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
                 bool isEar = true;
                 for (size_t j = 0; j < polygon.size(); ++j)
                 {
-                    if (j == prev || j == i || j == next)
+                    if (j == previous || j == i || j == next)
                         continue;
-                    const Point2D& pTest = meshData_.getNode(polygon[j])->getCoordinates();
-                    if (GeometryUtilities2D::isPointInsideOrOnTriangle(pTest, pPrev, pCurr, pNext))
+                    const Point2D& testPoint = meshData_.getNode(polygon[j])->getCoordinates();
+                    if (GeometryUtilities2D::isPointInsideOrOnTriangle(testPoint, previousPoint, currentPoint, nextPoint))
                     {
                         isEar = false;
                         break;
@@ -322,7 +333,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
                 if (isEar)
                 {
                     mutator_->addElement(std::make_unique<TriangleElement>(
-                        std::array<size_t, 3>{polygon[prev], polygon[i], polygon[next]}));
+                        std::array<size_t, 3>{polygon[previous], polygon[i], polygon[next]}));
                     polygon.erase(polygon.begin() + i);
                     earFound = true;
                     break;
@@ -370,9 +381,9 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
     auto adjacentTriangles = queries_.findTrianglesAdjacentToEdge(edgeNode1, edgeNode2);
     std::vector<size_t> newTriangleIds;
 
-    for (size_t triId : adjacentTriangles)
+    for (size_t triangleId : adjacentTriangles)
     {
-        const auto* element = meshData_.getElement(triId);
+        const auto* element = meshData_.getElement(triangleId);
         const auto* triangle = dynamic_cast<const TriangleElement*>(element);
         if (!triangle)
             continue;
@@ -408,7 +419,7 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
             }
         }
 
-        mutator_->removeElement(triId);
+        mutator_->removeElement(triangleId);
 
         size_t t1 = mutator_->addElement(
             std::make_unique<TriangleElement>(std::array<size_t, 3>{first, midNodeId, opposite}));
@@ -429,9 +440,9 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
     using EdgeKeyHash = MeshQueries2D::EdgeKeyHash;
 
     std::unordered_set<EdgeKey, EdgeKeyHash> constrainedEdgeKeys;
-    for (const auto& [id, seg] : meshData_.getCurveSegmentManager().getAllSegments())
+    for (const auto& [id, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(seg.nodeId1, seg.nodeId2));
+        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(segment.nodeId1, segment.nodeId2));
     }
 
     auto isConstrained = [&](size_t a, size_t b) -> bool
@@ -442,9 +453,9 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
     // Collect initial edges to check from new triangles
     std::vector<EdgeKey> edgeStack;
 
-    for (size_t triId : newTriangleIds)
+    for (size_t triangleId : newTriangleIds)
     {
-        const auto* element = meshData_.getElement(triId);
+        const auto* element = meshData_.getElement(triangleId);
         const auto* triangle = dynamic_cast<const TriangleElement*>(element);
         if (!triangle)
             continue;
@@ -459,7 +470,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         }
     }
 
-    ElementGeometry2D geom(meshData_);
+    ElementGeometry2D elementGeometry(meshData_);
 
     while (!edgeStack.empty())
     {
@@ -471,14 +482,14 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         if (adjacent.size() != 2)
             continue;
 
-        const auto* elem1 = dynamic_cast<const TriangleElement*>(meshData_.getElement(adjacent[0]));
-        const auto* elem2 = dynamic_cast<const TriangleElement*>(meshData_.getElement(adjacent[1]));
-        if (!elem1 || !elem2)
+        const auto* element1 = dynamic_cast<const TriangleElement*>(meshData_.getElement(adjacent[0]));
+        const auto* element2 = dynamic_cast<const TriangleElement*>(meshData_.getElement(adjacent[1]));
+        if (!element1 || !element2)
             continue;
 
         // Find opposite vertices
-        size_t c = elem1->getOppositeNode(a, b);
-        size_t d = elem2->getOppositeNode(a, b);
+        size_t c = element1->getOppositeNode(a, b);
+        size_t d = element2->getOppositeNode(a, b);
 
         // Get coordinates of the quad vertices
         const Node2D* nodeA = meshData_.getNode(a);
@@ -500,7 +511,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
             continue;
 
         // Check Delaunay criterion: is d inside circumcircle of (a, b, c)?
-        auto circle = geom.computeCircumcircle(adjacent[0]);
+        auto circle = elementGeometry.computeCircumcircle(adjacent[0]);
         if (!circle.has_value())
             continue;
 
@@ -530,16 +541,16 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         mutator_->removeElement(adjacent[0]);
         mutator_->removeElement(adjacent[1]);
 
-        std::array<size_t, 3> tri1 = {a, c, d};
+        std::array<size_t, 3> triangle1 = {a, c, d};
         if (GeometryUtilities2D::computeSignedArea(pA, pC, pD) < 0)
-            std::swap(tri1[1], tri1[2]);
+            std::swap(triangle1[1], triangle1[2]);
 
-        std::array<size_t, 3> tri2 = {b, d, c};
+        std::array<size_t, 3> triangle2 = {b, d, c};
         if (GeometryUtilities2D::computeSignedArea(pB, pD, pC) < 0)
-            std::swap(tri2[1], tri2[2]);
+            std::swap(triangle2[1], triangle2[2]);
 
-        size_t id1 = mutator_->addElement(std::make_unique<TriangleElement>(tri1));
-        size_t id2 = mutator_->addElement(std::make_unique<TriangleElement>(tri2));
+        size_t id1 = mutator_->addElement(std::make_unique<TriangleElement>(triangle1));
+        size_t id2 = mutator_->addElement(std::make_unique<TriangleElement>(triangle2));
 
         // Register zero offsets for the flipped triangles so they use canonical
         // coordinates until a proper offset propagation pass is done in Phase 3.
@@ -608,11 +619,11 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     const Point2D& pN1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
     const Point2D& pN2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
     Point2D chord = pN2 - pN1;
-    double chordLenSq = chord.squaredNorm();
+    double chordLengthSquared = chord.squaredNorm();
     bool midOnChord = true;
-    if (chordLenSq > 1e-20)
+    if (chordLengthSquared > 1e-20)
     {
-        Point2D projected = pN1 + chord.dot(midPoint - pN1) / chordLenSq * chord;
+        Point2D projected = pN1 + chord.dot(midPoint - pN1) / chordLengthSquared * chord;
         midOnChord = (midPoint - projected).squaredNorm() < 1e-12;
     }
 
@@ -667,20 +678,20 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
 std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles)
 {
     std::vector<size_t> trianglesToRemove;
-    for (const auto& [elemId, element] : meshData_.getElements())
+    for (const auto& [elementId, element] : meshData_.getElements())
     {
-        if (!interiorTriangles.contains(elemId))
+        if (!interiorTriangles.contains(elementId))
         {
-            trianglesToRemove.push_back(elemId);
+            trianglesToRemove.push_back(elementId);
         }
     }
 
     spdlog::debug("removeExteriorTriangles: Removing {} triangles (outside or in holes)",
                   trianglesToRemove.size());
 
-    for (size_t elemId : trianglesToRemove)
+    for (size_t elementId : trianglesToRemove)
     {
-        mutator_->removeElement(elemId);
+        mutator_->removeElement(elementId);
     }
 
     spdlog::debug("removeExteriorTriangles: Complete - {} triangles remaining",

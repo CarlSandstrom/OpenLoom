@@ -76,8 +76,8 @@ Point2D leftNormal(const Point2D& d) { return {-d[1], d[0]}; }
 // Intersection of line (p1 + t*d1) with line (p2 + s*d2).
 Point2D intersectLines(const Point2D& p1, const Point2D& d1, const Point2D& p2, const Point2D& d2)
 {
-    const double denom = d1[0] * d2[1] - d1[1] * d2[0];
-    const double t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / denom;
+    const double denominator = d1[0] * d2[1] - d1[1] * d2[0];
+    const double t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / denominator;
     return p1 + d1 * t;
 }
 
@@ -90,8 +90,8 @@ std::array<Point2D, 6> buildCrossSection()
     const double halfAngle = (BEND_ANGLE_DEGREES / 2.0) * std::numbers::pi / 180.0;
     const double halfThickness = FLANGE_THICKNESS / 2.0;
 
-    const Point2D dir1{std::cos(-halfAngle), std::sin(-halfAngle)};
-    const Point2D dir2{std::cos(halfAngle), std::sin(halfAngle)};
+    const Point2D direction1{std::cos(-halfAngle), std::sin(-halfAngle)};
+    const Point2D direction2{std::cos(halfAngle), std::sin(halfAngle)};
     // Each normal points into the concave (inner) side, toward the other
     // flange: left of flange 1 (running at -halfAngle), right of flange 2
     // (running at +halfAngle). Using leftNormal for both put the two "inner"
@@ -99,21 +99,21 @@ std::array<Point2D, 6> buildCrossSection()
     // (signed area 0), so the extruded solid passed through itself along
     // x = 5.76, y = 0 -- invalid for BRepCheck_Analyzer, its end caps
     // untriangulable by BRepMesh.
-    const Point2D n1 = leftNormal(dir1);
-    const Point2D n2 = leftNormal(dir2) * -1.0;
+    const Point2D n1 = leftNormal(direction1);
+    const Point2D n2 = leftNormal(direction2) * -1.0;
 
     // Concave miter: where the two flanges' inner (facing each other) edges cross.
-    const Point2D innerApex = intersectLines(n1 * halfThickness, dir1, n2 * halfThickness, dir2);
+    const Point2D innerApex = intersectLines(n1 * halfThickness, direction1, n2 * halfThickness, direction2);
     // Convex miter: where the two flanges' outer edges cross (behind the origin).
-    const Point2D outerApex = intersectLines(n1 * -halfThickness, dir1, n2 * -halfThickness, dir2);
+    const Point2D outerApex = intersectLines(n1 * -halfThickness, direction1, n2 * -halfThickness, direction2);
 
     return {
         outerApex,
-        dir1 * FLANGE_LENGTH + n1 * -halfThickness, // flange 1, outer, far end
-        dir1 * FLANGE_LENGTH + n1 * halfThickness,  // flange 1, inner, far end
+        direction1 * FLANGE_LENGTH + n1 * -halfThickness, // flange 1, outer, far end
+        direction1 * FLANGE_LENGTH + n1 * halfThickness,  // flange 1, inner, far end
         innerApex,
-        dir2 * FLANGE_LENGTH + n2 * halfThickness,  // flange 2, inner, far end
-        dir2 * FLANGE_LENGTH + n2 * -halfThickness, // flange 2, outer, far end
+        direction2 * FLANGE_LENGTH + n2 * halfThickness,  // flange 2, inner, far end
+        direction2 * FLANGE_LENGTH + n2 * -halfThickness, // flange 2, outer, far end
     };
 }
 
@@ -134,7 +134,7 @@ TopoDS_Shape buildSharpCreaseBracket()
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     TopoDS_Shape shape = buildSharpCreaseBracket();
     Readers::TopoDS_ShapeConverter converter(shape);

@@ -26,12 +26,12 @@ Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
     // Insert each point using Bowyer-Watson
     for (size_t i = 0; i < points.size(); ++i)
     {
-        bool hasGeomIds = i < geometryIds.size() && !geometryIds[i].empty();
+        bool hasGeometryIds = i < geometryIds.size() && !geometryIds[i].empty();
         const auto weightIt = pointWeights.find(i);
         const double weight = weightIt != pointWeights.end() ? weightIt->second : 0.0;
 
         size_t nodeId;
-        if (hasGeomIds)
+        if (hasGeometryIds)
         {
             nodeId = operations.insertVertexBowyerWatson(points[i], geometryIds[i], weight);
         }

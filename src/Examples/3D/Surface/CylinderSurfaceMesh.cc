@@ -36,7 +36,7 @@
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // Plain cylinder: radius 3, height 8, centred at the origin along Z
     gp_Pnt origin(0.0, 0.0, 0.0);
@@ -49,24 +49,24 @@ int main()
 
     // Angle-based discretization: insert edge points wherever the tangent
     // direction changes by more than π/8 (22.5°).
-    Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 2);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
     // Export the discretized boundary edges on their own, before meshing.
-    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                       converter.getTopology(),
-                                                                       discSettings);
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                                 converter.getTopology(),
+                                                                                 discretizationSettings);
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(*discResult, "CylinderSurfaceMeshEdges.vtu");
-    Export::TsvExporter::writeDiscretization(*discResult, "CylinderSurfaceMeshEdges");
+    exporter.writeEdgeMesh(*discretizationResult, "CylinderSurfaceMeshEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "CylinderSurfaceMeshEdges");
     std::cout << "Exported edge mesh to CylinderSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
-                                    discSettings,
+                                    discretizationSettings,
                                     Meshing::SurfaceMesh3DQualitySettings{});
 
     auto surfaceMesh = mesher.mesh();

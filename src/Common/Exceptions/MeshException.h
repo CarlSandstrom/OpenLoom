@@ -154,6 +154,6 @@ private:
     throw OpenLoom::MeshVerificationException(message, errors, \
                                            std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-#define OPENLOOM_THROW_MAX_ITERATIONS(operation, maxIter)      \
-    throw OpenLoom::MaxIterationsException(operation, maxIter, \
+#define OPENLOOM_THROW_MAX_ITERATIONS(operation, maxIterations)      \
+    throw OpenLoom::MaxIterationsException(operation, maxIterations, \
                                         std::string(__FILE__) + ":" + std::to_string(__LINE__))

@@ -13,9 +13,9 @@ const Point3D& Node3D::getCoordinates() const
     return coordinates_;
 }
 
-void Node3D::setCoordinates(const Point3D& coords)
+void Node3D::setCoordinates(const Point3D& coordinates)
 {
-    coordinates_ = coords;
+    coordinates_ = coordinates;
 }
 
 double Node3D::getWeight() const

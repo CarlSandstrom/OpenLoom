@@ -10,11 +10,11 @@ VolumeMesher3D::VolumeMesher3D(const Geometry3D::GeometryCollection3D& geometry,
                                Geometry3D::DiscretizationSettings3D discretizationSettings,
                                SurfaceMesh3DQualitySettings qualitySettings,
                                std::optional<SizingFieldSettings3D> sizingFieldSettings) :
-    impl_(std::make_unique<RCDTMesher>(geometry,
-                                       topology,
-                                       std::move(discretizationSettings),
-                                       std::move(qualitySettings),
-                                       std::move(sizingFieldSettings)))
+    implementation_(std::make_unique<RCDTMesher>(geometry,
+                                                 topology,
+                                                 std::move(discretizationSettings),
+                                                 std::move(qualitySettings),
+                                                 std::move(sizingFieldSettings)))
 {
 }
 
@@ -25,7 +25,7 @@ VolumeMesher3D& VolumeMesher3D::operator=(VolumeMesher3D&&) noexcept = default;
 
 VolumeMesh3D VolumeMesher3D::mesh()
 {
-    return impl_->meshVolume();
+    return implementation_->meshVolume();
 }
 
 } // namespace Meshing

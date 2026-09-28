@@ -58,7 +58,7 @@ DiscretizationResult2D BoundaryDiscretizer2D::discretize() const
     }
 
     // Add intermediate points along edges based on discretization settings
-    auto numSegments = settings_.getNumSegmentsPerEdge();
+    auto numberOfSegments = settings_.getNumberOfSegmentsPerEdge();
     auto largestAngle = settings_.getMaxAngleBetweenSegments();
 
     for (const auto& edgeId : topology.getAllEdgeIds())
@@ -68,32 +68,32 @@ DiscretizationResult2D BoundaryDiscretizer2D::discretize() const
         auto parameterBounds = edgeGeometry->getParameterBounds();
 
         // Get start and end corner point indices
-        size_t startCornerIdx = result.cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
-        size_t endCornerIdx = result.cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
+        size_t startCornerIndex = result.cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
+        size_t endCornerIndex = result.cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
 
         // Add t values and geometry IDs for corners on this edge
-        result.tParameters[startCornerIdx].push_back(parameterBounds.first);
-        result.geometryIds[startCornerIdx].push_back(edgeId);
-        result.tParameters[endCornerIdx].push_back(parameterBounds.second);
-        result.geometryIds[endCornerIdx].push_back(edgeId);
+        result.tParameters[startCornerIndex].push_back(parameterBounds.first);
+        result.geometryIds[startCornerIndex].push_back(edgeId);
+        result.tParameters[endCornerIndex].push_back(parameterBounds.second);
+        result.geometryIds[endCornerIndex].push_back(edgeId);
 
         // Initialize the edge point indices list with the start corner
         std::vector<size_t> edgePointIndices;
-        edgePointIndices.push_back(startCornerIdx);
+        edgePointIndices.push_back(startCornerIndex);
 
         // Add intermediate points if discretization is enabled
         if (largestAngle.has_value())
         {
-            Eigen::Vector2d prevTangent = computeEdgeTangentAtParameter(*edgeGeometry, parameterBounds.first);
-            Point2D startCornerPoint = result.points[startCornerIdx];
-            Point2D endCornerPoint = result.points[endCornerIdx];
+            Eigen::Vector2d previousTangent = computeEdgeTangentAtParameter(*edgeGeometry, parameterBounds.first);
+            Point2D startCornerPoint = result.points[startCornerIndex];
+            Point2D endCornerPoint = result.points[endCornerIndex];
 
             for (size_t i = 1; i <= 1000; ++i) // Limit to 1000 segments to avoid infinite loops
             {
                 double t = parameterBounds.first + i * (parameterBounds.second - parameterBounds.first) / 1000.0;
                 auto nextTangent = computeEdgeTangentAtParameter(*edgeGeometry, t);
 
-                double angle = std::atan2(nextTangent.y(), nextTangent.x()) - std::atan2(prevTangent.y(), prevTangent.x());
+                double angle = std::atan2(nextTangent.y(), nextTangent.x()) - std::atan2(previousTangent.y(), previousTangent.x());
                 angle = std::fabs(angle);
                 if (angle > pi)
                     angle = 2 * pi - angle;
@@ -103,13 +103,13 @@ DiscretizationResult2D BoundaryDiscretizer2D::discretize() const
                     Point2D point = edgeGeometry->getPoint(t);
 
                     // Skip if too close to start or end corners to avoid duplicate points
-                    double distToStart = std::sqrt(std::pow(point.x() - startCornerPoint.x(), 2) +
-                                                   std::pow(point.y() - startCornerPoint.y(), 2));
-                    double distToEnd = std::sqrt(std::pow(point.x() - endCornerPoint.x(), 2) +
-                                                 std::pow(point.y() - endCornerPoint.y(), 2));
-                    if (distToStart < 1e-6 || distToEnd < 1e-6)
+                    double distanceToStart = std::sqrt(std::pow(point.x() - startCornerPoint.x(), 2) +
+                                                       std::pow(point.y() - startCornerPoint.y(), 2));
+                    double distanceToEnd = std::sqrt(std::pow(point.x() - endCornerPoint.x(), 2) +
+                                                     std::pow(point.y() - endCornerPoint.y(), 2));
+                    if (distanceToStart < 1e-6 || distanceToEnd < 1e-6)
                     {
-                        prevTangent = nextTangent;
+                        previousTangent = nextTangent;
                         continue;
                     }
 
@@ -118,18 +118,18 @@ DiscretizationResult2D BoundaryDiscretizer2D::discretize() const
                     result.tParameters.push_back({t});
                     result.geometryIds.push_back({edgeId});
                     edgePointIndices.push_back(pointIndex);
-                    prevTangent = nextTangent;
+                    previousTangent = nextTangent;
                 }
 
                 if (t >= parameterBounds.second - epsilon)
                     break;
             }
         }
-        else if (numSegments.has_value() && numSegments.value() > 1)
+        else if (numberOfSegments.has_value() && numberOfSegments.value() > 1)
         {
-            for (size_t i = 1; i < numSegments.value(); ++i)
+            for (size_t i = 1; i < numberOfSegments.value(); ++i)
             {
-                double t = parameterBounds.first + i * (parameterBounds.second - parameterBounds.first) / numSegments.value();
+                double t = parameterBounds.first + i * (parameterBounds.second - parameterBounds.first) / numberOfSegments.value();
                 Point2D point = edgeGeometry->getPoint(t);
 
                 size_t pointIndex = result.points.size();
@@ -141,7 +141,7 @@ DiscretizationResult2D BoundaryDiscretizer2D::discretize() const
         }
 
         // Add the end corner
-        edgePointIndices.push_back(endCornerIdx);
+        edgePointIndices.push_back(endCornerIndex);
 
         // Store the edge point indices
         result.edgeIdToPointIndicesMap[edgeId] = edgePointIndices;

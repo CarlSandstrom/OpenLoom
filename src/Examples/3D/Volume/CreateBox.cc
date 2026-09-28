@@ -21,7 +21,7 @@
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
     Readers::TopoDS_ShapeConverter converter(cube);

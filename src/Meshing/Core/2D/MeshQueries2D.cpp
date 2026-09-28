@@ -65,7 +65,7 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 
             bool visible = true;
             const auto& nodeIds = triangle->getNodeIdArray();
-            for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
+            for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
             {
                 // Skip segments that share a node with this triangle
                 if (segment.nodeId1 == nodeIds[0] || segment.nodeId1 == nodeIds[1] ||
@@ -118,10 +118,10 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
 
         for (size_t id : conflicting)
         {
-            const auto* tri = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
+            const auto* triangle = dynamic_cast<const TriangleElement*>(meshData_.getElement(id));
             for (size_t i = 0; i < 3; ++i)
             {
-                auto edge = tri->getEdge(i);
+                auto edge = triangle->getEdge(i);
                 EdgeKey key = makeEdgeKey(edge[0], edge[1]);
                 edgeCount[key]++;
                 edgeOriginal[key] = edge;
@@ -157,12 +157,12 @@ std::vector<std::array<size_t, 2>> MeshQueries2D::findCavityBoundary(const std::
     std::map<std::pair<size_t, size_t>, int> edgeCount;
     std::map<std::pair<size_t, size_t>, std::array<size_t, 2>> edgeLookup;
 
-    for (size_t idx : conflictingIndices)
+    for (size_t index : conflictingIndices)
     {
-        auto tri = dynamic_cast<const TriangleElement&>(*meshData_.getElement(idx));
+        auto triangle = dynamic_cast<const TriangleElement&>(*meshData_.getElement(index));
         for (size_t i = 0; i < 3; ++i)
         {
-            auto edge = tri.getEdge(i);
+            auto edge = triangle.getEdge(i);
             auto key = makeEdgeKey(edge[0], edge[1]);
             edgeCount[key]++;
             edgeLookup[key] = edge; // Store original order
@@ -246,16 +246,16 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
 {
     CurveSegmentManager manager;
 
-    auto findT = [&](size_t pointIdx, const std::string& edgeId) -> double
+    auto findT = [&](size_t pointIndex, const std::string& edgeId) -> double
     {
-        if (pointIdx >= tParameters.size() || pointIdx >= geometryIds.size())
+        if (pointIndex >= tParameters.size() || pointIndex >= geometryIds.size())
             return 0.0;
-        const auto& gIds = geometryIds[pointIdx];
-        const auto& tParams = tParameters[pointIdx];
-        for (size_t k = 0; k < gIds.size(); ++k)
+        const auto& pointGeometryIds = geometryIds[pointIndex];
+        const auto& pointTParameters = tParameters[pointIndex];
+        for (size_t k = 0; k < pointGeometryIds.size(); ++k)
         {
-            if (gIds[k] == edgeId)
-                return tParams[k];
+            if (pointGeometryIds[k] == edgeId)
+                return pointTParameters[k];
         }
         return 0.0;
     };
@@ -286,13 +286,13 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
 
             for (size_t i = 0; i < pointIndices.size() - 1; ++i)
             {
-                size_t startPointIdx = pointIndices[i];
-                size_t endPointIdx = pointIndices[i + 1];
+                size_t startPointIndex = pointIndices[i];
+                size_t endPointIndex = pointIndices[i + 1];
 
-                size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
-                size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
-                double tStart = findT(startPointIdx, edgeId);
-                double tEnd = findT(endPointIdx, edgeId);
+                size_t startNodeId = pointIndexToNodeIdMap.at(startPointIndex);
+                size_t endNodeId = pointIndexToNodeIdMap.at(endPointIndex);
+                double tStart = findT(startPointIndex, edgeId);
+                double tEnd = findT(endPointIndex, edgeId);
 
                 manager.addSegment(CurveSegment{startNodeId, endNodeId, edgeId, tStart, tEnd, role});
 
@@ -305,13 +305,13 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
         {
             const auto edgeTopology = topology.getEdge(edgeId);
 
-            size_t startPointIdx = cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
-            size_t endPointIdx = cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
+            size_t startPointIndex = cornerIdToPointIndexMap.at(edgeTopology.getStartCornerId());
+            size_t endPointIndex = cornerIdToPointIndexMap.at(edgeTopology.getEndCornerId());
 
-            size_t startNodeId = pointIndexToNodeIdMap.at(startPointIdx);
-            size_t endNodeId = pointIndexToNodeIdMap.at(endPointIdx);
-            double tStart = findT(startPointIdx, edgeId);
-            double tEnd = findT(endPointIdx, edgeId);
+            size_t startNodeId = pointIndexToNodeIdMap.at(startPointIndex);
+            size_t endNodeId = pointIndexToNodeIdMap.at(endPointIndex);
+            double tStart = findT(startPointIndex, edgeId);
+            double tEnd = findT(endPointIndex, edgeId);
 
             manager.addSegment(CurveSegment{startNodeId, endNodeId, edgeId, tStart, tEnd, role});
 
@@ -330,7 +330,7 @@ std::vector<CurveSegment> MeshQueries2D::findEncroachedSegments() const
 
     ConstraintChecker2D checker(meshData_, periodicData_);
 
-    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
+    for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         for (const auto& [nodeId, node] : meshData_.getNodes())
         {
@@ -362,7 +362,7 @@ std::vector<CurveSegment> MeshQueries2D::findSegmentsEncroachedByPoint(
 
     ConstraintChecker2D checker(meshData_, periodicData_);
 
-    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
+    for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         if (checker.isSegmentEncroached(segment, point))
         {
@@ -423,7 +423,7 @@ std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, s
     std::vector<size_t> adjacent;
     auto edgeKey = makeEdgeKey(nodeId1, nodeId2);
 
-    for (const auto& [elemId, element] : meshData_.getElements())
+    for (const auto& [elementId, element] : meshData_.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
@@ -434,7 +434,7 @@ std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, s
             auto edge = triangle->getEdge(i);
             if (makeEdgeKey(edge[0], edge[1]) == edgeKey)
             {
-                adjacent.push_back(elemId);
+                adjacent.push_back(elementId);
                 break;
             }
         }
@@ -449,7 +449,7 @@ bool MeshQueries2D::isPointInsideDomain(const Point2D& point) const
     double px = point.x();
     double py = point.y();
 
-    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
+    for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         if (segment.role != ConstraintRole::Boundary)
             continue;
@@ -501,7 +501,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
     ElementGeometry2D geometry(meshData_, periodicData_);
     size_t seedTriangleId = SIZE_MAX;
 
-    for (const auto& [elemId, element] : meshData_.getElements())
+    for (const auto& [elementId, element] : meshData_.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
@@ -510,7 +510,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
         Point2D centroid = geometry.computeCentroid(*triangle);
         if (isPointInsideDomain(centroid))
         {
-            seedTriangleId = elemId;
+            seedTriangleId = elementId;
             break;
         }
     }
@@ -533,14 +533,14 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
 
     while (!queue.empty())
     {
-        size_t currentTriId = queue.front();
+        size_t currentTriangleId = queue.front();
         queue.pop();
 
-        const IElement* elem = meshData_.getElement(currentTriId);
-        if (!elem)
+        const IElement* element = meshData_.getElement(currentTriangleId);
+        if (!element)
             continue;
 
-        const auto* triangle = dynamic_cast<const TriangleElement*>(elem);
+        const auto* triangle = dynamic_cast<const TriangleElement*>(element);
         if (!triangle)
             continue;
 
@@ -557,7 +557,7 @@ std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() co
 
             for (size_t neighborId : it->second)
             {
-                if (neighborId != currentTriId &&
+                if (neighborId != currentTriangleId &&
                     !insideTriangles.contains(neighborId))
                 {
                     insideTriangles.insert(neighborId);
@@ -576,7 +576,7 @@ MeshQueries2D::EdgeToTrianglesMap MeshQueries2D::buildEdgeToTrianglesMap() const
 {
     EdgeToTrianglesMap edgeToTriangles;
 
-    for (const auto& [elemId, element] : meshData_.getElements())
+    for (const auto& [elementId, element] : meshData_.getElements())
     {
         const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
@@ -588,7 +588,7 @@ MeshQueries2D::EdgeToTrianglesMap MeshQueries2D::buildEdgeToTrianglesMap() const
         {
             auto edge = triangle->getEdge(i);
             EdgeKey key = makeEdgeKey(edge[0], edge[1]);
-            edgeToTriangles[key].push_back(elemId);
+            edgeToTriangles[key].push_back(elementId);
         }
     }
 
@@ -597,7 +597,7 @@ MeshQueries2D::EdgeToTrianglesMap MeshQueries2D::buildEdgeToTrianglesMap() const
 
 bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId) const
 {
-    for (const auto& [segId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
+    for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
         if (segment.role != ConstraintRole::Boundary)
             continue;

@@ -56,7 +56,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
 
     // Check for overlaps
     std::vector<size_t> elementIds;
-    std::vector<std::array<Point2D, 3>> triangleCoords;
+    std::vector<std::array<Point2D, 3>> triangleCoordinates;
 
     for (const auto& [id, element] : meshData.getElements())
     {
@@ -67,13 +67,13 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
         }
 
         const auto& nodeIds = triangle->getNodeIdArray();
-        std::array<Point2D, 3> coords = {
+        std::array<Point2D, 3> coordinates = {
             meshData.getNode(nodeIds[0])->getCoordinates(),
             meshData.getNode(nodeIds[1])->getCoordinates(),
             meshData.getNode(nodeIds[2])->getCoordinates()};
 
         elementIds.push_back(id);
-        triangleCoords.push_back(coords);
+        triangleCoordinates.push_back(coordinates);
     }
 
     // Check all pairs of triangles for overlap
@@ -83,11 +83,11 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
         std::vector<std::string> localErrors;
 
         #pragma omp for schedule(dynamic)
-        for (size_t i = 0; i < triangleCoords.size(); ++i)
+        for (size_t i = 0; i < triangleCoordinates.size(); ++i)
         {
-            for (size_t j = i + 1; j < triangleCoords.size(); ++j)
+            for (size_t j = i + 1; j < triangleCoordinates.size(); ++j)
             {
-                if (trianglesOverlap(triangleCoords[i], triangleCoords[j]))
+                if (trianglesOverlap(triangleCoordinates[i], triangleCoordinates[j]))
                 {
                     localErrors.push_back("Elements " + std::to_string(elementIds[i]) +
                                           " and " + std::to_string(elementIds[j]) +
@@ -106,11 +106,11 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
         }
     }
 #else
-    for (size_t i = 0; i < triangleCoords.size(); ++i)
+    for (size_t i = 0; i < triangleCoordinates.size(); ++i)
     {
-        for (size_t j = i + 1; j < triangleCoords.size(); ++j)
+        for (size_t j = i + 1; j < triangleCoordinates.size(); ++j)
         {
-            if (trianglesOverlap(triangleCoords[i], triangleCoords[j]))
+            if (trianglesOverlap(triangleCoordinates[i], triangleCoordinates[j]))
             {
                 result.isValid = false;
                 result.errors.push_back("Elements " + std::to_string(elementIds[i]) +
@@ -133,28 +133,28 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
     return result;
 }
 
-bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
-                                    const std::array<Point2D, 3>& tri2Nodes)
+bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes,
+                                    const std::array<Point2D, 3>& triangle2Nodes)
 {
     // Two triangles overlap if:
     // 1. Any vertex of one triangle is inside the other triangle
     // 2. Any edges of the triangles intersect (excluding shared edges/vertices)
 
-    // Check if any vertex of tri1 is strictly inside tri2
+    // Check if any vertex of triangle1 is strictly inside triangle2
     for (size_t i = 0; i < 3; ++i)
     {
         if (GeometryUtilities2D::isPointStrictlyInsideTriangle(
-                tri1Nodes[i], tri2Nodes[0], tri2Nodes[1], tri2Nodes[2]))
+                triangle1Nodes[i], triangle2Nodes[0], triangle2Nodes[1], triangle2Nodes[2]))
         {
             return true;
         }
     }
 
-    // Check if any vertex of tri2 is strictly inside tri1
+    // Check if any vertex of triangle2 is strictly inside triangle1
     for (size_t i = 0; i < 3; ++i)
     {
         if (GeometryUtilities2D::isPointStrictlyInsideTriangle(
-                tri2Nodes[i], tri1Nodes[0], tri1Nodes[1], tri1Nodes[2]))
+                triangle2Nodes[i], triangle1Nodes[0], triangle1Nodes[1], triangle1Nodes[2]))
         {
             return true;
         }
@@ -163,13 +163,13 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& tri1Nodes,
     // Check if any edges intersect (excluding shared endpoints)
     for (size_t i = 0; i < 3; ++i)
     {
-        const Point2D& a1 = tri1Nodes[i];
-        const Point2D& a2 = tri1Nodes[(i + 1) % 3];
+        const Point2D& a1 = triangle1Nodes[i];
+        const Point2D& a2 = triangle1Nodes[(i + 1) % 3];
 
         for (size_t j = 0; j < 3; ++j)
         {
-            const Point2D& b1 = tri2Nodes[j];
-            const Point2D& b2 = tri2Nodes[(j + 1) % 3];
+            const Point2D& b1 = triangle2Nodes[j];
+            const Point2D& b2 = triangle2Nodes[(j + 1) % 3];
 
             if (GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(a1, a2, b1, b2))
             {

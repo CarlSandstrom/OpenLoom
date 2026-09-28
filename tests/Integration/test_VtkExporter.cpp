@@ -113,10 +113,10 @@ TEST_F(VtkExporter2DDomainTest, AutoClassifiesDomainIDs)
 
     // Should have two distinct domain values (0 and 1)
     // The exact assignment order depends on iteration, but both should appear
-    auto domainArrayPos = content.find("Name=\"DomainID\"");
-    ASSERT_NE(domainArrayPos, std::string::npos);
-    auto dataStart = content.find(">", domainArrayPos);
-    auto dataEnd = content.find("</DataArray>", domainArrayPos);
+    auto domainArrayPosition = content.find("Name=\"DomainID\"");
+    ASSERT_NE(domainArrayPosition, std::string::npos);
+    auto dataStart = content.find(">", domainArrayPosition);
+    auto dataEnd = content.find("</DataArray>", domainArrayPosition);
     std::string domainData = content.substr(dataStart + 1, dataEnd - dataStart - 1);
 
     // Both domain 0 and domain 1 should be present

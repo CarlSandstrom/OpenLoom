@@ -55,11 +55,11 @@ using namespace Meshing;
 ```cpp
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
 
     // 1. Build geometry + topology (see helpers below)
     std::vector<std::string> outerEdgeLoop;
@@ -67,7 +67,7 @@ int main()
 
     // 2. Create topology
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop, holeEdgeLoops);
+        topologyCorners, topologyEdges, outerEdgeLoop, holeEdgeLoops);
 
     // 3. Create context
     MeshingContext2D context(std::move(geometry), std::move(topology));
@@ -102,8 +102,8 @@ Both helpers below are copy-pasted verbatim across all examples (no shared libra
 
 ```cpp
 void addSquare(Geometry2D::GeometryCollection2D& geometry,
-               std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-               std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+               std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+               std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                std::vector<std::string>& edgeLoop,
                const std::string& prefix,
                double size,
@@ -119,14 +119,14 @@ void addSquare(Geometry2D::GeometryCollection2D& geometry,
     {
         std::string cornerId = prefix + "_c" + std::to_string(i);
         std::string edgeId = prefix + "_e" + std::to_string(i);
-        std::string prevEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
+        std::string previousEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
 
         geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[i]));
         geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
             edgeId, corners[i], corners[(i + 1) % 4]));
 
-        topoCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, prevEdgeId}));
-        topoEdges.emplace(edgeId, Topology2D::Edge2D(
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(
             edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
         edgeLoop.push_back(edgeId);
     }
@@ -137,47 +137,47 @@ void addSquare(Geometry2D::GeometryCollection2D& geometry,
 
 ```cpp
 void addCircularConstraint(Geometry2D::GeometryCollection2D& geometry,
-                           std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-                           std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+                           std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+                           std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                            const std::string& prefix,
                            double centerX,
                            double centerY,
                            double radius,
-                           size_t numSegments)
+                           size_t numberOfSegments)
 {
     gp_Pnt2d center(centerX, centerY);
     gp_Ax2d axis(center, gp_Dir2d(1.0, 0.0));
     gp_Circ2d circle(axis, radius);
 
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
-        double angle = 2.0 * M_PI * i / numSegments;
+        double angle = 2.0 * M_PI * i / numberOfSegments;
         double x = centerX + radius * std::cos(angle);
         double y = centerY + radius * std::sin(angle);
 
         std::string cornerId = prefix + "_c" + std::to_string(i);
         std::string edgeId   = prefix + "_e" + std::to_string(i);
-        std::string prevEdgeId = prefix + "_e" + std::to_string((i + numSegments - 1) % numSegments);
+        std::string previousEdgeId = prefix + "_e" + std::to_string((i + numberOfSegments - 1) % numberOfSegments);
 
         geometry.addCorner(
             std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
-        topoCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, prevEdgeId}));
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
     }
 
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
-        double startAngle = 2.0 * M_PI * i / numSegments;
-        double endAngle   = 2.0 * M_PI * (i + 1) / numSegments;
+        double startAngle = 2.0 * M_PI * i / numberOfSegments;
+        double endAngle   = 2.0 * M_PI * (i + 1) / numberOfSegments;
 
         Handle(Geom2d_Circle) circleGeom = new Geom2d_Circle(circle);
         Handle(Geom2d_TrimmedCurve) arc  = new Geom2d_TrimmedCurve(circleGeom, startAngle, endAngle);
 
         std::string edgeId      = prefix + "_e" + std::to_string(i);
         std::string startCornerId = prefix + "_c" + std::to_string(i);
-        std::string endCornerId   = prefix + "_c" + std::to_string((i + 1) % numSegments);
+        std::string endCornerId   = prefix + "_c" + std::to_string((i + 1) % numberOfSegments);
 
         geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
-        topoEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
     }
 }
 ```
@@ -194,14 +194,14 @@ void addCircularConstraint(Geometry2D::GeometryCollection2D& geometry,
 **Collecting a hole loop** (one loop per circle):
 ```cpp
 std::vector<std::string> holeLoop;
-for (size_t i = 0; i < numSegments; ++i)
+for (size_t i = 0; i < numberOfSegments; ++i)
     holeLoop.push_back(prefix + "_e" + std::to_string(i));
 holeEdgeLoops.push_back(std::move(holeLoop));
 ```
 
 ---
 
-## numSegments Guidelines
+## numberOfSegments Guidelines
 
 | Value | Chord length (r=5) | When to use |
 |-------|--------------------|-------------|

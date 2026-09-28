@@ -47,7 +47,7 @@ public:
     Point2D nearestCopy(const Point2D& point, const Point2D& referencePoint) const;
 
     /// Applies the given offset shift to a canonical coordinate.
-    Point2D applyOffset(const Point2D& canonicalCoord, const PeriodicOffset& offset) const;
+    Point2D applyOffset(const Point2D& canonicalCoordinate, const PeriodicOffset& offset) const;
 
 private:
     const MeshData2D& meshData_;

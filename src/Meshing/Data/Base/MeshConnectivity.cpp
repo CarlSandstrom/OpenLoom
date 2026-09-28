@@ -97,10 +97,10 @@ void MeshConnectivity::buildFaceToElementsMap()
 
 void MeshConnectivity::addElementToConnectivity(size_t elementId)
 {
-    const IElement* elem = geometry_.getElement(elementId);
-    if (!elem) return;
+    const IElement* element = geometry_.getElement(elementId);
+    if (!element) return;
 
-    const auto& nodeIds = elem->getNodeIds();
+    const auto& nodeIds = element->getNodeIds();
 
     // Update node-to-element connectivity
     for (size_t nodeId : nodeIds)

@@ -71,8 +71,8 @@ private:
 };
 
 void addSquare(Geometry2D::GeometryCollection2D& geometry,
-               std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-               std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+               std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+               std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                std::vector<std::string>& edgeLoop,
                const std::string& prefix,
                double size,
@@ -86,62 +86,62 @@ void addSquare(Geometry2D::GeometryCollection2D& geometry,
 
     for (size_t i = 0; i < 4; ++i)
     {
-        std::string cId = prefix + "_c" + std::to_string(i);
-        std::string eId = prefix + "_e" + std::to_string(i);
-        std::string prevE = prefix + "_e" + std::to_string((i + 3) % 4);
+        std::string cornerId = prefix + "_c" + std::to_string(i);
+        std::string edgeId = prefix + "_e" + std::to_string(i);
+        std::string previousEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
 
-        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cId, corners[i]));
+        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[i]));
         geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
-            eId, corners[i], corners[(i + 1) % 4]));
+            edgeId, corners[i], corners[(i + 1) % 4]));
 
-        topoCorners.emplace(cId, Topology2D::Corner2D(cId, {eId, prevE}));
-        topoEdges.emplace(eId, Topology2D::Edge2D(
-                                   eId, cId, prefix + "_c" + std::to_string((i + 1) % 4)));
-        edgeLoop.push_back(eId);
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(
+                                   edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
+        edgeLoop.push_back(edgeId);
     }
 }
 
 void addCircularEdge(Geometry2D::GeometryCollection2D& geometry,
-                     std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-                     std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+                     std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+                     std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                      const std::string& prefix,
                      double centerX,
                      double centerY,
                      double radius,
-                     size_t numSegments = 8)
+                     size_t numberOfSegments = 8)
 {
     gp_Pnt2d center(centerX, centerY);
     gp_Ax2d axis(center, gp_Dir2d(1.0, 0.0));
     gp_Circ2d circle(axis, radius);
 
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
-        double angle = 2.0 * M_PI * i / numSegments;
+        double angle = 2.0 * M_PI * i / numberOfSegments;
         double x = centerX + radius * std::cos(angle);
         double y = centerY + radius * std::sin(angle);
 
-        std::string cId = prefix + "_c" + std::to_string(i);
-        std::string eId = prefix + "_e" + std::to_string(i);
-        std::string prevE = prefix + "_e" + std::to_string((i + numSegments - 1) % numSegments);
+        std::string cornerId = prefix + "_c" + std::to_string(i);
+        std::string edgeId = prefix + "_e" + std::to_string(i);
+        std::string previousEdgeId = prefix + "_e" + std::to_string((i + numberOfSegments - 1) % numberOfSegments);
 
-        geometry.addCorner(std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cId));
-        topoCorners.emplace(cId, Topology2D::Corner2D(cId, {eId, prevE}));
+        geometry.addCorner(std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
     }
 
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
-        double startAngle = 2.0 * M_PI * i / numSegments;
-        double endAngle = 2.0 * M_PI * (i + 1) / numSegments;
+        double startAngle = 2.0 * M_PI * i / numberOfSegments;
+        double endAngle = 2.0 * M_PI * (i + 1) / numberOfSegments;
 
-        Handle(Geom2d_Circle) circleGeom = new Geom2d_Circle(circle);
-        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeom, startAngle, endAngle);
+        Handle(Geom2d_Circle) circleGeometry = new Geom2d_Circle(circle);
+        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
 
-        std::string eId = prefix + "_e" + std::to_string(i);
-        std::string startC = prefix + "_c" + std::to_string(i);
-        std::string endC = prefix + "_c" + std::to_string((i + 1) % numSegments);
+        std::string edgeId = prefix + "_e" + std::to_string(i);
+        std::string startCornerId = prefix + "_c" + std::to_string(i);
+        std::string endCornerId = prefix + "_c" + std::to_string((i + 1) % numberOfSegments);
 
-        geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, eId));
-        topoEdges.emplace(eId, Topology2D::Edge2D(eId, startC, endC));
+        geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
     }
 }
 
@@ -157,25 +157,25 @@ void addCircularEdge(Geometry2D::GeometryCollection2D& geometry,
 TEST(ShewchukRefiner2D, TwoCircularHoles_CurvedConstraintSplitProducesValidMesh)
 {
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
 
     std::vector<std::string> outerEdgeLoop;
-    addSquare(*geometry, topoCorners, topoEdges, outerEdgeLoop, "outer", 10.0);
+    addSquare(*geometry, topologyCorners, topologyEdges, outerEdgeLoop, "outer", 10.0);
 
-    const size_t numSegments = 8;
-    addCircularEdge(*geometry, topoCorners, topoEdges, "hole1", 4.0, 5.0, 0.95, numSegments);
-    addCircularEdge(*geometry, topoCorners, topoEdges, "hole2", 6.0, 5.0, 1.0, numSegments);
+    const size_t numberOfSegments = 8;
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "hole1", 4.0, 5.0, 0.95, numberOfSegments);
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "hole2", 6.0, 5.0, 1.0, numberOfSegments);
 
     std::vector<std::string> hole1Loop, hole2Loop;
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
         hole1Loop.push_back("hole1_e" + std::to_string(i));
         hole2Loop.push_back("hole2_e" + std::to_string(i));
     }
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop,
+        topologyCorners, topologyEdges, outerEdgeLoop,
         std::vector<std::vector<std::string>>{hole1Loop, hole2Loop});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
@@ -206,18 +206,18 @@ TEST(ShewchukRefiner2D, TwoCircularHoles_CurvedConstraintSplitProducesValidMesh)
 TEST(ShewchukRefiner2D, InternalCircularConstraints_CurvedConstraintSplitProducesValidMesh)
 {
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
 
     std::vector<std::string> outerEdgeLoop;
-    addSquare(*geometry, topoCorners, topoEdges, outerEdgeLoop, "outer", 10.0);
+    addSquare(*geometry, topologyCorners, topologyEdges, outerEdgeLoop, "outer", 10.0);
 
-    addCircularEdge(*geometry, topoCorners, topoEdges, "circle1", 4.0, 5.0, 0.95, 8);
-    addCircularEdge(*geometry, topoCorners, topoEdges, "circle2", 6.0, 5.0, 1.0, 8);
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "circle1", 4.0, 5.0, 0.95, 8);
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "circle2", 6.0, 5.0, 1.0, 8);
 
     // Circles are internal constraints, not holes — empty hole loop list
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop,
+        topologyCorners, topologyEdges, outerEdgeLoop,
         std::vector<std::vector<std::string>>{});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
@@ -243,17 +243,17 @@ TEST(ShewchukRefiner2D, InternalCircularConstraints_CurvedConstraintSplitProduce
 TEST(ShewchukRefiner2D, SquareWithInternalCirclesTerminates)
 {
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
 
     std::vector<std::string> outerEdgeLoop;
-    addSquare(*geometry, topoCorners, topoEdges, outerEdgeLoop, "outer", 10.0);
+    addSquare(*geometry, topologyCorners, topologyEdges, outerEdgeLoop, "outer", 10.0);
 
-    addCircularEdge(*geometry, topoCorners, topoEdges, "circle1", 4.0, 5.0, 0.95, 8);
-    addCircularEdge(*geometry, topoCorners, topoEdges, "circle2", 6.0, 5.0, 1.0, 8);
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "circle1", 4.0, 5.0, 0.95, 8);
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "circle2", 6.0, 5.0, 1.0, 8);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop,
+        topologyCorners, topologyEdges, outerEdgeLoop,
         std::vector<std::vector<std::string>>{});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
@@ -286,13 +286,13 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     //   sq_e2: c2(1,1) → c3(0,1)  top
     //   sq_e3: c3(0,1) → c0(0,0)  left   (top-to-bottom)
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
     std::vector<std::string> edgeLoop;
-    addSquare(*geometry, topoCorners, topoEdges, edgeLoop, "sq", 1.0);
+    addSquare(*geometry, topologyCorners, topologyEdges, edgeLoop, "sq", 1.0);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, edgeLoop,
+        topologyCorners, topologyEdges, edgeLoop,
         std::vector<std::vector<std::string>>{});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
@@ -303,23 +303,23 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Locate the four corner nodes by coordinate
-    size_t c0Id = SIZE_MAX, c1Id = SIZE_MAX, c2Id = SIZE_MAX, c3Id = SIZE_MAX;
+    size_t corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
-        const Point2D& pt = node->getCoordinates();
-        if (std::abs(pt.x()) < 1e-10 && std::abs(pt.y()) < 1e-10)
-            c0Id = nodeId; // (0,0) bottom-left
-        else if (std::abs(pt.x() - 1.0) < 1e-10 && std::abs(pt.y()) < 1e-10)
-            c1Id = nodeId; // (1,0) bottom-right
-        else if (std::abs(pt.x() - 1.0) < 1e-10 && std::abs(pt.y() - 1.0) < 1e-10)
-            c2Id = nodeId; // (1,1) top-right
-        else if (std::abs(pt.x()) < 1e-10 && std::abs(pt.y() - 1.0) < 1e-10)
-            c3Id = nodeId; // (0,1) top-left
+        const Point2D& point = node->getCoordinates();
+        if (std::abs(point.x()) < 1e-10 && std::abs(point.y()) < 1e-10)
+            corner0Id = nodeId; // (0,0) bottom-left
+        else if (std::abs(point.x() - 1.0) < 1e-10 && std::abs(point.y()) < 1e-10)
+            corner1Id = nodeId; // (1,0) bottom-right
+        else if (std::abs(point.x() - 1.0) < 1e-10 && std::abs(point.y() - 1.0) < 1e-10)
+            corner2Id = nodeId; // (1,1) top-right
+        else if (std::abs(point.x()) < 1e-10 && std::abs(point.y() - 1.0) < 1e-10)
+            corner3Id = nodeId; // (0,1) top-left
     }
-    ASSERT_NE(c0Id, SIZE_MAX) << "Corner c0 (0,0) not found";
-    ASSERT_NE(c1Id, SIZE_MAX) << "Corner c1 (1,0) not found";
-    ASSERT_NE(c2Id, SIZE_MAX) << "Corner c2 (1,1) not found";
-    ASSERT_NE(c3Id, SIZE_MAX) << "Corner c3 (0,1) not found";
+    ASSERT_NE(corner0Id, SIZE_MAX) << "Corner c0 (0,0) not found";
+    ASSERT_NE(corner1Id, SIZE_MAX) << "Corner c1 (1,0) not found";
+    ASSERT_NE(corner2Id, SIZE_MAX) << "Corner c2 (1,1) not found";
+    ASSERT_NE(corner3Id, SIZE_MAX) << "Corner c3 (0,1) not found";
 
     // Insert an interior node very close to the left edge to guarantee two things:
     //  1. The left edge is encroached (distance 0.1 from diametral-circle centre
@@ -333,7 +333,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     // Right edge (sq_e1) goes c1→c2 (bottom-to-top).
     // Correspondence: c3(y=1)↔c2(y=1)  and  c0(y=0)↔c1(y=0).
     TwinManager twinManager;
-    twinManager.registerTwin(TwinManager::NO_SURFACE, c3Id, c0Id, TwinManager::NO_SURFACE, c2Id, c1Id);
+    twinManager.registerTwin(TwinManager::NO_SURFACE, corner3Id, corner0Id, TwinManager::NO_SURFACE, corner2Id, corner1Id);
 
     ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
     refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
@@ -344,11 +344,11 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     std::vector<double> leftY, rightY;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
-        const Point2D& pt = node->getCoordinates();
-        if (std::abs(pt.x()) < 1e-10)
-            leftY.push_back(pt.y());
-        else if (std::abs(pt.x() - 1.0) < 1e-10)
-            rightY.push_back(pt.y());
+        const Point2D& point = node->getCoordinates();
+        if (std::abs(point.x()) < 1e-10)
+            leftY.push_back(point.y());
+        else if (std::abs(point.x() - 1.0) < 1e-10)
+            rightY.push_back(point.y());
     }
     std::sort(leftY.begin(), leftY.end());
     std::sort(rightY.begin(), rightY.end());

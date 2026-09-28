@@ -12,8 +12,8 @@ OpenCascade2DEdge::OpenCascade2DEdge(const Handle(Geom2d_Curve) & curve,
                                      const std::string& id) :
     curve_(curve),
     id_(id),
-    firstParam_(curve->FirstParameter()),
-    lastParam_(curve->LastParameter())
+    firstParameter_(curve->FirstParameter()),
+    lastParameter_(curve->LastParameter())
 {
     if (id_.empty())
     {
@@ -32,17 +32,17 @@ Meshing::Point2D OpenCascade2DEdge::getPoint(double t) const
 
 Meshing::Point2D OpenCascade2DEdge::getStartPoint() const
 {
-    return getPoint(firstParam_);
+    return getPoint(firstParameter_);
 }
 
 Meshing::Point2D OpenCascade2DEdge::getEndPoint() const
 {
-    return getPoint(lastParam_);
+    return getPoint(lastParameter_);
 }
 
 std::pair<double, double> OpenCascade2DEdge::getParameterBounds() const
 {
-    return {firstParam_, lastParam_};
+    return {firstParameter_, lastParameter_};
 }
 
 double OpenCascade2DEdge::getLength() const
@@ -50,7 +50,7 @@ double OpenCascade2DEdge::getLength() const
     Geom2dAdaptor_Curve adaptor(curve_);
 
     // Use GCPnts_AbscissaPoint to compute the actual arc length
-    double length = GCPnts_AbscissaPoint::Length(adaptor, firstParam_, lastParam_);
+    double length = GCPnts_AbscissaPoint::Length(adaptor, firstParameter_, lastParameter_);
 
     if (length > Precision::Confusion())
     {
@@ -58,7 +58,7 @@ double OpenCascade2DEdge::getLength() const
     }
 
     // Fallback: return parameter range (not ideal but better than 0)
-    return lastParam_ - firstParam_;
+    return lastParameter_ - firstParameter_;
 }
 
 std::string OpenCascade2DEdge::getId() const

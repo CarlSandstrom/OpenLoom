@@ -232,24 +232,24 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     std::unordered_set<EdgeKey, EdgeKeyHash> boundaryEdges;
     std::unordered_set<EdgeKey, EdgeKeyHash> allConstraintEdges;
 
-    for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
+    for (const auto& [segmentId, segment] : curveSegmentManager.getAllSegments())
     {
-        auto key = makeEdgeKey(seg.nodeId1, seg.nodeId2);
+        auto key = makeEdgeKey(segment.nodeId1, segment.nodeId2);
         allConstraintEdges.insert(key);
-        if (seg.role == Meshing::ConstraintRole::Boundary)
+        if (segment.role == Meshing::ConstraintRole::Boundary)
             boundaryEdges.insert(key);
     }
 
     // Build edge-to-triangles adjacency map
     std::unordered_map<EdgeKey, std::vector<std::size_t>, EdgeKeyHash> edgeToTriangles;
-    for (const auto& [elemId, element] : mesh.getElements())
+    for (const auto& [elementId, element] : mesh.getElements())
     {
         const auto& nodeIds = element->getNodeIds();
         for (std::size_t i = 0; i < nodeIds.size(); ++i)
         {
             std::size_t a = nodeIds[i];
             std::size_t b = nodeIds[(i + 1) % nodeIds.size()];
-            edgeToTriangles[makeEdgeKey(a, b)].push_back(elemId);
+            edgeToTriangles[makeEdgeKey(a, b)].push_back(elementId);
         }
     }
 
@@ -257,19 +257,19 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     auto isInsideDomain = [&](const Meshing::Point2D& point) -> bool
     {
         int crossings = 0;
-        for (const auto& [segId, seg] : curveSegmentManager.getAllSegments())
+        for (const auto& [segmentId, segment] : curveSegmentManager.getAllSegments())
         {
-            if (seg.role != Meshing::ConstraintRole::Boundary)
+            if (segment.role != Meshing::ConstraintRole::Boundary)
                 continue;
 
-            const auto& p1 = mesh.getNode(seg.nodeId1)->getCoordinates();
-            const auto& p2 = mesh.getNode(seg.nodeId2)->getCoordinates();
+            const auto& p1 = mesh.getNode(segment.nodeId1)->getCoordinates();
+            const auto& p2 = mesh.getNode(segment.nodeId2)->getCoordinates();
 
             if ((p1.y() > point.y()) == (p2.y() > point.y()))
                 continue;
 
-            double xIntersect = p1.x() + (point.y() - p1.y()) / (p2.y() - p1.y()) * (p2.x() - p1.x());
-            if (point.x() < xIntersect)
+            double xIntersection = p1.x() + (point.y() - p1.y()) / (p2.y() - p1.y()) * (p2.x() - p1.x());
+            if (point.x() < xIntersection)
                 crossings++;
         }
         return (crossings % 2) == 1;
@@ -278,19 +278,19 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     // Find a seed triangle whose centroid is inside the boundary
     std::size_t seedTriangle = 0;
     bool foundSeed = false;
-    for (const auto& [elemId, element] : mesh.getElements())
+    for (const auto& [elementId, element] : mesh.getElements())
     {
         const auto& nodeIds = element->getNodeIds();
         Meshing::Point2D centroid = Meshing::Point2D::Zero();
-        for (std::size_t nid : nodeIds)
+        for (std::size_t nodeId : nodeIds)
         {
-            centroid += mesh.getNode(nid)->getCoordinates();
+            centroid += mesh.getNode(nodeId)->getCoordinates();
         }
         centroid /= static_cast<double>(nodeIds.size());
 
         if (isInsideDomain(centroid))
         {
-            seedTriangle = elemId;
+            seedTriangle = elementId;
             foundSeed = true;
             break;
         }
@@ -337,14 +337,14 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
 
     // Phase 2: BFS flood fill on interior triangles, stopping at ALL constraints → domain IDs
     std::unordered_map<EdgeKey, std::vector<std::size_t>, EdgeKeyHash> interiorEdgeToTriangles;
-    for (std::size_t elemId : interiorTriangles)
+    for (std::size_t elementId : interiorTriangles)
     {
-        const auto& nodeIds = mesh.getElement(elemId)->getNodeIds();
+        const auto& nodeIds = mesh.getElement(elementId)->getNodeIds();
         for (std::size_t i = 0; i < nodeIds.size(); ++i)
         {
             std::size_t a = nodeIds[i];
             std::size_t b = nodeIds[(i + 1) % nodeIds.size()];
-            interiorEdgeToTriangles[makeEdgeKey(a, b)].push_back(elemId);
+            interiorEdgeToTriangles[makeEdgeKey(a, b)].push_back(elementId);
         }
     }
 
@@ -352,16 +352,16 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     std::unordered_set<std::size_t> assigned;
 
     // Temporary domain ID assignment (order-dependent, will be remapped below)
-    for (std::size_t elemId : interiorTriangles)
+    for (std::size_t elementId : interiorTriangles)
     {
-        if (assigned.count(elemId))
+        if (assigned.count(elementId))
             continue;
 
         int currentDomain = nextDomainId++;
         std::queue<std::size_t> queue;
-        queue.push(elemId);
-        assigned.insert(elemId);
-        domainIds[elemId] = currentDomain;
+        queue.push(elementId);
+        assigned.insert(elementId);
+        domainIds[elementId] = currentDomain;
 
         while (!queue.empty())
         {
@@ -395,7 +395,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
 
     // Remap domain IDs by centroid position so they are stable across mesh changes.
     // Compute the centroid of each domain, sort by (x, y), and reassign IDs.
-    struct DomainInfo
+    struct DomainInformation
     {
         int originalId;
         double centroidX = 0.0;
@@ -403,33 +403,33 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
         std::size_t count = 0;
     };
 
-    std::unordered_map<int, DomainInfo> domainInfos;
-    for (const auto& [elemId, domain] : domainIds)
+    std::unordered_map<int, DomainInformation> domainInformation;
+    for (const auto& [elementId, domain] : domainIds)
     {
-        auto& info = domainInfos[domain];
-        info.originalId = domain;
+        auto& information = domainInformation[domain];
+        information.originalId = domain;
 
-        const auto& nodeIds = mesh.getElement(elemId)->getNodeIds();
+        const auto& nodeIds = mesh.getElement(elementId)->getNodeIds();
         Meshing::Point2D centroid = Meshing::Point2D::Zero();
-        for (std::size_t nid : nodeIds)
-            centroid += mesh.getNode(nid)->getCoordinates();
+        for (std::size_t nodeId : nodeIds)
+            centroid += mesh.getNode(nodeId)->getCoordinates();
         centroid /= static_cast<double>(nodeIds.size());
 
-        info.centroidX += centroid.x();
-        info.centroidY += centroid.y();
-        info.count++;
+        information.centroidX += centroid.x();
+        information.centroidY += centroid.y();
+        information.count++;
     }
 
-    std::vector<DomainInfo> sortedDomains;
-    sortedDomains.reserve(domainInfos.size());
-    for (auto& [id, info] : domainInfos)
+    std::vector<DomainInformation> sortedDomains;
+    sortedDomains.reserve(domainInformation.size());
+    for (auto& [id, information] : domainInformation)
     {
-        info.centroidX /= static_cast<double>(info.count);
-        info.centroidY /= static_cast<double>(info.count);
-        sortedDomains.push_back(info);
+        information.centroidX /= static_cast<double>(information.count);
+        information.centroidY /= static_cast<double>(information.count);
+        sortedDomains.push_back(information);
     }
 
-    std::sort(sortedDomains.begin(), sortedDomains.end(), [](const DomainInfo& a, const DomainInfo& b)
+    std::sort(sortedDomains.begin(), sortedDomains.end(), [](const DomainInformation& a, const DomainInformation& b)
               {
                   constexpr double EPS = 1e-6;
                   if (std::abs(a.centroidX - b.centroidX) > EPS)
@@ -441,7 +441,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     for (int i = 0; i < static_cast<int>(sortedDomains.size()); ++i)
         remapping[sortedDomains[i].originalId] = i;
 
-    for (auto& [elemId, domain] : domainIds)
+    for (auto& [elementId, domain] : domainIds)
         domain = remapping[domain];
 
     return domainIds;

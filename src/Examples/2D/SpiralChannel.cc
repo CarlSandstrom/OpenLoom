@@ -20,8 +20,8 @@
 using namespace Meshing;
 
 void addSquare(Geometry2D::GeometryCollection2D& geometry,
-               std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-               std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+               std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+               std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                std::vector<std::string>& edgeLoop,
                const std::string& prefix,
                double size,
@@ -43,8 +43,8 @@ void addSquare(Geometry2D::GeometryCollection2D& geometry,
         geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
             edgeId, corners[i], corners[(i + 1) % 4]));
 
-        topoCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
-        topoEdges.emplace(edgeId, Topology2D::Edge2D(
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(
                                       edgeId, cornerId,
                                       prefix + "_c" + std::to_string((i + 1) % 4)));
         edgeLoop.push_back(edgeId);
@@ -52,28 +52,28 @@ void addSquare(Geometry2D::GeometryCollection2D& geometry,
 }
 
 void addSpiralPolyline(Geometry2D::GeometryCollection2D& geometry,
-                       std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-                       std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+                       std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+                       std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                        const std::string& prefix,
                        const std::vector<Point2D>& points)
 {
-    size_t numPoints = points.size();
+    size_t numberOfPoints = points.size();
 
-    for (size_t i = 0; i < numPoints; ++i)
+    for (size_t i = 0; i < numberOfPoints; ++i)
     {
         std::string cornerId = prefix + "_c" + std::to_string(i);
 
         std::set<std::string> connectedEdges;
         if (i > 0)
             connectedEdges.insert(prefix + "_e" + std::to_string(i - 1));
-        if (i < numPoints - 1)
+        if (i < numberOfPoints - 1)
             connectedEdges.insert(prefix + "_e" + std::to_string(i));
 
         geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, points[i]));
-        topoCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, connectedEdges));
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, connectedEdges));
     }
 
-    for (size_t i = 0; i < numPoints - 1; ++i)
+    for (size_t i = 0; i < numberOfPoints - 1; ++i)
     {
         std::string edgeId = prefix + "_e" + std::to_string(i);
         std::string startCornerId = prefix + "_c" + std::to_string(i);
@@ -81,22 +81,22 @@ void addSpiralPolyline(Geometry2D::GeometryCollection2D& geometry,
 
         geometry.addEdge(
             std::make_unique<Geometry2D::LinearEdge2D>(edgeId, points[i], points[i + 1]));
-        topoEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
     }
 }
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     spdlog::info("Creating 2D spiral channel stress test");
 
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
 
     std::vector<std::string> outerEdgeLoop;
-    addSquare(*geometry, topoCorners, topoEdges, outerEdgeLoop, "outer", 10.0);
+    addSquare(*geometry, topologyCorners, topologyEdges, outerEdgeLoop, "outer", 10.0);
 
     // 3-turn rectangular spiral winding inward, arm spacing = 1.0
     // Corridor width between consecutive arms is 1.0 unit throughout
@@ -117,10 +117,10 @@ int main()
         Point2D(5.0, 5.0),  // p13 — center (end)
     };
 
-    addSpiralPolyline(*geometry, topoCorners, topoEdges, "spiral", spiralPoints);
+    addSpiralPolyline(*geometry, topologyCorners, topologyEdges, "spiral", spiralPoints);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop, std::vector<std::vector<std::string>>{});
+        topologyCorners, topologyEdges, outerEdgeLoop, std::vector<std::vector<std::string>>{});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
 

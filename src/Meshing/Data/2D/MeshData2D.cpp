@@ -45,12 +45,12 @@ void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
 std::pair<size_t, size_t> MeshData2D::splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
                                                                   size_t newNodeId, double tMid)
 {
-    auto segmentIdOpt = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
-    if (!segmentIdOpt)
+    auto optionalSegmentId = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
+    if (!optionalSegmentId)
     {
         return {0, 0};
     }
-    return curveSegmentManager_.splitAt(*segmentIdOpt, newNodeId, tMid);
+    return curveSegmentManager_.splitAt(*optionalSegmentId, newNodeId, tMid);
 }
 
 } // namespace Meshing

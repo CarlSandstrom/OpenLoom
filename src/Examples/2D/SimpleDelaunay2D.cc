@@ -11,7 +11,7 @@ using namespace Meshing;
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     spdlog::info("Simple Delaunay2D Example - Rectangle Corners");
 
