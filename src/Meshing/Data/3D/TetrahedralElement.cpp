@@ -46,9 +46,4 @@ std::array<std::array<size_t, 3>, 4> TetrahedralElement::getFaces() const
              {nodeIds_[0], nodeIds_[2], nodeIds_[1]}}};
 }
 
-std::unique_ptr<IElement> TetrahedralElement::clone() const
-{
-    return std::make_unique<TetrahedralElement>(nodeIds_);
-}
-
 } // namespace Meshing

@@ -4,7 +4,6 @@
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
-#include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <cmath>

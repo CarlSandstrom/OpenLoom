@@ -25,9 +25,6 @@ public:
     virtual size_t getNodeCount() const = 0;
     virtual const std::vector<size_t>& getNodeIds() const = 0;
     virtual bool hasNode(size_t nodeId) const = 0;
-
-    // For transaction support
-    virtual std::unique_ptr<IElement> clone() const = 0;
 };
 
 } // namespace Meshing

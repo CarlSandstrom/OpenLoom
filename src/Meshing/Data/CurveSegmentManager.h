@@ -48,7 +48,6 @@ public:
 
     size_t size() const;
     bool empty() const;
-    void clear();
 
 private:
     size_t addSegmentInternal(const CurveSegment& segment);

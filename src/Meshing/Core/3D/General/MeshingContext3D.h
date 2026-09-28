@@ -58,15 +58,8 @@ public:
     // Access to mesh data structures
     MeshData3D& getMeshData();
     const MeshData3D& getMeshData() const;
-    MeshConnectivity& getConnectivity();
     MeshMutator3D& getMutator();
     MeshOperations3D& getOperations();
-
-    // Utility: rebuild connectivity after large changes
-    void rebuildConnectivity();
-
-    // Clear mesh (data + connectivity + constraints)
-    void clearMesh();
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_ = nullptr;

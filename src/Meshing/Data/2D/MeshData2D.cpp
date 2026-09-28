@@ -27,21 +27,9 @@ size_t MeshData2D::addElementInternal(std::unique_ptr<IElement> element)
     return nextElementId_++;
 }
 
-void MeshData2D::removeNodeInternal(size_t id)
-{
-    nodes_.erase(id);
-    nodeGeometryIds_.erase(id);
-}
-
 void MeshData2D::removeElementInternal(size_t id)
 {
     elements_.erase(id);
-}
-
-Node2D* MeshData2D::getNodeMutable(size_t id)
-{
-    auto it = nodes_.find(id);
-    return (it != nodes_.end()) ? it->second.get() : nullptr;
 }
 
 const std::vector<std::string>& MeshData2D::getGeometryIds(size_t nodeId) const
@@ -62,11 +50,6 @@ void MeshData2D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::stri
     nodeGeometryIds_[nodeId] = std::move(ids);
 }
 
-size_t MeshData2D::addCurveSegmentInternal(const CurveSegment& segment)
-{
-    return curveSegmentManager_.addSegment(segment);
-}
-
 void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
 {
     curveSegmentManager_ = std::move(manager);
@@ -81,11 +64,6 @@ std::pair<size_t, size_t> MeshData2D::splitCurveSegmentInternal(size_t nodeId1, 
         return {0, 0};
     }
     return curveSegmentManager_.splitAt(*segmentIdOpt, newNodeId, tMid);
-}
-
-void MeshData2D::clearCurveSegmentsInternal()
-{
-    curveSegmentManager_.clear();
 }
 
 } // namespace Meshing

@@ -165,7 +165,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesSimpleSquare)
 
     // A square with 4 corner points should produce 2 triangles
     EXPECT_EQ(meshData.getElementCount(), 2u);
-    EXPECT_GE(meshData.getNodeCount(), 4u);
+    EXPECT_GE(meshData.getNodes().size(), 4u);
 
     // Verify all elements have 3 nodes (triangles)
     for (const auto& [id, element] : meshData.getElements())
@@ -188,7 +188,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesSquareWithInteriorPoint)
 
     // A square with one interior point should create 4 triangles
     EXPECT_EQ(meshData.getElementCount(), 4u);
-    EXPECT_GE(meshData.getNodeCount(), 5u);
+    EXPECT_GE(meshData.getNodes().size(), 5u);
 }
 
 TEST(ConstrainedDelaunay2D, HandlesConcavePolygon)
@@ -204,7 +204,7 @@ TEST(ConstrainedDelaunay2D, HandlesConcavePolygon)
 
     // L-shape with 6 corners: should produce 4 triangles
     EXPECT_EQ(meshData.getElementCount(), 4u);
-    EXPECT_GE(meshData.getNodeCount(), 6u);
+    EXPECT_GE(meshData.getNodes().size(), 6u);
 
     // Verify all elements are triangles
     for (const auto& [id, element] : meshData.getElements())
@@ -226,7 +226,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesTriangle)
 
     // Should create exactly 1 triangle
     EXPECT_EQ(meshData.getElementCount(), 1u);
-    EXPECT_GE(meshData.getNodeCount(), 3u);
+    EXPECT_GE(meshData.getNodes().size(), 3u);
 
     // Verify the single element has 3 nodes
     const auto& [id, element] = *meshData.getElements().begin();

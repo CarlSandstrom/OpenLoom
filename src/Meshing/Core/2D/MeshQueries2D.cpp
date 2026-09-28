@@ -418,28 +418,6 @@ bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const CurveS
     return true; // No segment blocks visibility
 }
 
-std::optional<std::string> MeshQueries2D::findCommonGeometryId(size_t nodeId1, size_t nodeId2) const
-{
-    if (!meshData_.getNode(nodeId1) || !meshData_.getNode(nodeId2))
-        return std::nullopt;
-
-    const auto& geometryIds1 = meshData_.getGeometryIds(nodeId1);
-    const auto& geometryIds2 = meshData_.getGeometryIds(nodeId2);
-
-    for (const auto& id1 : geometryIds1)
-    {
-        for (const auto& id2 : geometryIds2)
-        {
-            if (id1 == id2)
-            {
-                return id1;
-            }
-        }
-    }
-
-    return std::nullopt;
-}
-
 std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const
 {
     std::vector<size_t> adjacent;

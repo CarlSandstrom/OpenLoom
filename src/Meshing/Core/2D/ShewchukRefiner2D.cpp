@@ -11,7 +11,6 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Shewchuk2DQualityController.h"
 #include "Topology2D/Topology2D.h"
-#include "Utils/MeshLogger.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <numbers>

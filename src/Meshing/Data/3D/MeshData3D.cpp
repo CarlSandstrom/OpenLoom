@@ -11,31 +11,6 @@ MeshData3D::MeshData3D()
 {
 }
 
-MeshData3D::MeshData3D(const MeshData2D& mesh2D)
-{
-    auto& nodes2D = mesh2D.getNodes();
-    auto& elements2D = mesh2D.getElements();
-
-    for (const auto& [id, node2D] : nodes2D)
-    {
-        const Point2D& coords2D = node2D->getCoordinates();
-        Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
-
-        addNodeInternal(id, std::make_unique<Node3D>(coords3D));
-
-        const auto& geometryIds = mesh2D.getGeometryIds(id);
-        if (!geometryIds.empty())
-            setNodeGeometryIdsInternal(id, geometryIds);
-    }
-
-    for (const auto& [id, element2D] : elements2D)
-    {
-        // Assuming IElement can be cloned for 3D usage
-        auto element3D = element2D->clone();
-        addElementInternal(id, std::move(element3D));
-    }
-}
-
 const std::unordered_map<size_t, std::unique_ptr<Node3D>>& MeshData3D::getNodes() const
 {
     return nodes_;
@@ -100,12 +75,6 @@ const std::vector<std::string>& MeshData3D::getGeometryIds(size_t nodeId) const
     static const std::vector<std::string> empty;
     auto it = nodeGeometryIds_.find(nodeId);
     return it != nodeGeometryIds_.end() ? it->second : empty;
-}
-
-bool MeshData3D::isBoundaryNode(size_t nodeId) const
-{
-    auto it = nodeGeometryIds_.find(nodeId);
-    return it != nodeGeometryIds_.end() && !it->second.empty();
 }
 
 void MeshData3D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids)

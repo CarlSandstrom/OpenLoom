@@ -31,7 +31,6 @@ private:
     void buildNodeToElementsMap();
     void buildFaceToElementsMap();
     void addElementToConnectivity(size_t elementId);
-    void removeElementFromConnectivity(size_t elementId);
 };
 
 } // namespace Meshing

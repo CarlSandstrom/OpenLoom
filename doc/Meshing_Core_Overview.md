@@ -156,10 +156,9 @@ Contexts (`MeshingContext2D`, `MeshingContext3D`) centralize access to geometry,
 
 ## Access Patterns
 
-- Access mesh data through contexts using `getMeshData()` and `getConnectivity()`
+- Access mesh data through contexts using `getMeshData()`
 - Never cache raw pointers; always go through the context
 - Use `MeshMutator2D/3D` for low-level mutations
-- Rebuild connectivity after bulk operations: `context.rebuildConnectivity()`
 
 ## Key Algorithms
 

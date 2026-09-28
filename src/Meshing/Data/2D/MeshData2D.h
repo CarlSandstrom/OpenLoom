@@ -23,7 +23,6 @@ public:
     const Node2D* getNode(size_t id) const;
     const IElement* getElement(size_t id) const;
 
-    size_t getNodeCount() const { return nodes_.size(); }
     size_t getElementCount() const { return elements_.size(); }
 
     const CurveSegmentManager& getCurveSegmentManager() const { return curveSegmentManager_; }
@@ -46,17 +45,13 @@ private:
     // Private methods for friend classes
     size_t addNodeInternal(std::unique_ptr<Node2D> node);
     size_t addElementInternal(std::unique_ptr<IElement> element);
-    void removeNodeInternal(size_t id);
     void removeElementInternal(size_t id);
-    Node2D* getNodeMutable(size_t id);
 
     void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
 
-    size_t addCurveSegmentInternal(const CurveSegment& segment);
     void setCurveSegmentManagerInternal(CurveSegmentManager manager);
     std::pair<size_t, size_t> splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
                                                          size_t newNodeId, double tMid);
-    void clearCurveSegmentsInternal();
 };
 
 } // namespace Meshing

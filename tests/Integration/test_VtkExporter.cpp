@@ -84,15 +84,17 @@ protected:
             std::array<size_t, 3>{n1, n5, n2}));
 
         // Outer boundary constraints (role defaults to Boundary)
-        mutator_->addCurveSegment({n0, n1});
-        mutator_->addCurveSegment({n1, n4});
-        mutator_->addCurveSegment({n4, n5});
-        mutator_->addCurveSegment({n5, n2});
-        mutator_->addCurveSegment({n2, n3});
-        mutator_->addCurveSegment({n3, n0});
+        Meshing::CurveSegmentManager curveSegments;
+        curveSegments.addSegment({n0, n1});
+        curveSegments.addSegment({n1, n4});
+        curveSegments.addSegment({n4, n5});
+        curveSegments.addSegment({n5, n2});
+        curveSegments.addSegment({n2, n3});
+        curveSegments.addSegment({n3, n0});
 
         // Interior constraint dividing the two domains
-        mutator_->addCurveSegment({.nodeId1 = n1, .nodeId2 = n2, .role = Meshing::ConstraintRole::Interior});
+        curveSegments.addSegment({.nodeId1 = n1, .nodeId2 = n2, .role = Meshing::ConstraintRole::Interior});
+        mutator_->setCurveSegmentManager(std::move(curveSegments));
     }
 };
 

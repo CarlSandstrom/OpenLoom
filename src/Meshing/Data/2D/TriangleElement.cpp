@@ -54,9 +54,4 @@ size_t TriangleElement::getOppositeNode(size_t edgeNode1, size_t edgeNode2) cons
                          ", " + std::to_string(edgeNode2) + ") in triangle");
 }
 
-std::unique_ptr<IElement> TriangleElement::clone() const
-{
-    return std::make_unique<TriangleElement>(nodeIds_);
-}
-
 } // namespace Meshing

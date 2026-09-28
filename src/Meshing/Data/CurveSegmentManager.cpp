@@ -95,13 +95,6 @@ bool CurveSegmentManager::empty() const
     return segments_.empty();
 }
 
-void CurveSegmentManager::clear()
-{
-    segments_.clear();
-    endpointToSegmentId_.clear();
-    nextId_ = 0;
-}
-
 size_t CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
 {
     size_t id = nextId_++;

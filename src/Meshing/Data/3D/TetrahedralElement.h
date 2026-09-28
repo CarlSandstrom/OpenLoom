@@ -15,8 +15,6 @@ public:
     const std::vector<size_t>& getNodeIds() const override;
     bool hasNode(size_t nodeId) const override;
 
-    std::unique_ptr<IElement> clone() const override;
-
     // Tet-specific methods
     std::array<size_t, 3> getFace(size_t faceIndex) const;
     std::array<std::array<size_t, 3>, 4> getFaces() const;

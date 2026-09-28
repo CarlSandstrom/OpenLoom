@@ -1,5 +1,4 @@
 #pragma once
-#include "../2D/MeshData2D.h"
 #include "../Base/IElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Node3D.h"
@@ -17,9 +16,6 @@ class MeshData3D
 {
 public:
     MeshData3D();
-    // Temporary: Constructor for MeshConnectivity usage
-    // TODO: Remove once MeshConnectivity supports MeshData2D directly
-    explicit MeshData3D(const MeshData2D& mesh2D);
 
     // Read-only access to mesh data
     const std::unordered_map<size_t, std::unique_ptr<Node3D>>& getNodes() const;
@@ -36,7 +32,6 @@ public:
 
     // Geometry ID association (boundary node metadata)
     const std::vector<std::string>& getGeometryIds(size_t nodeId) const;
-    bool isBoundaryNode(size_t nodeId) const;
 
     // Node IDs of the bounding (super-)tetrahedron currently resident in the
     // mesh, if any. Set while the bounding tetrahedron is present (see

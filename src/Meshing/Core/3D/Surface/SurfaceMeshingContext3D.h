@@ -63,6 +63,8 @@ public:
     const Topology3D::Topology3D& getTopology() const { return *topology_; }
 
     const DiscretizationResult3D& getDiscretizationResult() const;
+    /// No caller yet; kept for periodic meshing, which will need the twin
+    /// segment pairs to match nodes across paired boundaries.
     const TwinManager& getTwinManager() const;
     FacetTriangulationManager& getFacetTriangulationManager();
     const FacetTriangulationManager& getFacetTriangulationManager() const;

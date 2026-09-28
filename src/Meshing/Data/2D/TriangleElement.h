@@ -17,8 +17,6 @@ public:
 
     const std::array<size_t, 3>& getNodeIdArray() const { return nodeIds_; }
 
-    std::unique_ptr<IElement> clone() const override;
-
     std::array<size_t, 2> getEdge(size_t edgeIndex) const;
 
     /// Returns the node ID that is not part of the given edge.
