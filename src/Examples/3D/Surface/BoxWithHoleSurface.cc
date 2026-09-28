@@ -6,9 +6,8 @@
  * of radius 2 centred at (5, 5) along Z.
  *
  * Exports:
- *   - BoxWithHoleSurfaceEdges.vtu        : discretized boundary edges (color by EdgeID)
- *   - BoxWithHoleSurface3D.vtu           : initial surface triangulation (color by SurfaceID)
- *   - BoxWithHoleSurface3D_Refined.vtu   : refined surface triangulation
+ *   - BoxWithHoleSurfaceEdges.vtu : discretized boundary edges (color by EdgeID)
+ *   - BoxWithHoleSurface3D.vtu    : surface mesh (color by SurfaceID)
  */
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
@@ -16,10 +15,10 @@
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
-#include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
@@ -46,37 +45,31 @@ int main()
 
     Geometry3D::DiscretizationSettings3D settings(std::nullopt, std::numbers::pi / 8.0, 2);
 
-    Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
-                                             converter.getTopology(),
-                                             settings,
-                                             Meshing::SurfaceMesh3DQualitySettings{});
+    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                       converter.getTopology(),
+                                                                       settings);
 
-    const auto& discResult = context.getDiscretizationResult();
-
-    std::cout << "Points:         " << discResult.points.size() << "\n";
-    std::cout << "Topology edges: " << discResult.edgeIdToPointIndicesMap.size() << "\n";
-    std::cout << "Faces:          " << context.getFacetTriangulationManager().size() << "\n";
+    std::cout << "Points:         " << discResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
 
-    exporter.writeEdgeMesh(discResult, "BoxWithHoleSurfaceEdges.vtu");
-    Export::TsvExporter::writeDiscretization(discResult, "BoxWithHoleSurfaceEdges");
+    exporter.writeEdgeMesh(*discResult, "BoxWithHoleSurfaceEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discResult, "BoxWithHoleSurfaceEdges");
     std::cout << "Exported edge mesh to BoxWithHoleSurfaceEdges.vtu (color by EdgeID)\n";
 
-    const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();
-    exporter.writeSurfaceMesh(discResult, subfacets, "BoxWithHoleSurface3D.vtu");
-    Export::TsvExporter::writeSurfaceMesh(discResult, subfacets, "BoxWithHoleSurface3D");
-    std::cout << "Exported surface mesh to BoxWithHoleSurface3D.vtu (color by SurfaceID)\n";
-
-    context.refineSurfaces();
-
-    auto surfaceMesh = context.buildSurfaceMesh();
-    std::cout << "Refined: " << surfaceMesh.nodes.size() << " nodes, "
+    Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
+                                    converter.getTopology(),
+                                    settings,
+                                    Meshing::SurfaceMesh3DQualitySettings{});
+    auto surfaceMesh = mesher.mesh();
+    std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";
 
-    exporter.writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D_Refined.vtu");
-    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D_Refined");
-    std::cout << "Exported refined surface mesh to BoxWithHoleSurface3D_Refined.vtu\n";
+    exporter.writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "BoxWithHoleSurface3D");
+    std::cout << "Exported surface mesh to BoxWithHoleSurface3D.vtu (color by SurfaceID)\n";
 
     return 0;
 }

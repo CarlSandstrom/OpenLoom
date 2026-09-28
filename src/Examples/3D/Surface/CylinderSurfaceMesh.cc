@@ -22,11 +22,10 @@
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
-#include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <TopoDS_Shape.hxx>
 #include <gp_Ax2.hxx>
@@ -52,24 +51,19 @@ int main()
     // direction changes by more than π/8 (22.5°).
     Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
-    // Export the discretized boundary edges before refinement.
-    // We need the raw context for this pre-refinement export.
-    Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
-                                             converter.getTopology(),
-                                             discSettings,
-                                             Meshing::SurfaceMesh3DQualitySettings{});
-
-    const auto& discResult = context.getDiscretizationResult();
-    std::cout << "Points:         " << discResult.points.size() << "\n";
-    std::cout << "Topology edges: " << discResult.edgeIdToPointIndicesMap.size() << "\n";
-    std::cout << "Faces:          " << context.getFacetTriangulationManager().size() << "\n";
+    // Export the discretized boundary edges on their own, before meshing.
+    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                       converter.getTopology(),
+                                                                       discSettings);
+    std::cout << "Points:         " << discResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(discResult, "CylinderSurfaceMeshEdges.vtu");
-    Export::TsvExporter::writeDiscretization(discResult, "CylinderSurfaceMeshEdges");
+    exporter.writeEdgeMesh(*discResult, "CylinderSurfaceMeshEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discResult, "CylinderSurfaceMeshEdges");
     std::cout << "Exported edge mesh to CylinderSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
-    // Run the full S1–S3 pipeline via SurfaceMesher3D and export the result.
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
                                     discSettings,

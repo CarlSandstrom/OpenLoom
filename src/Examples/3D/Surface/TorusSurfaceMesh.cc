@@ -8,23 +8,22 @@
  * detection and surface traversal in a topology that none of the simpler examples cover.
  *
  * Gaussian curvature is positive on the outer half and negative on the inner half, so
- * chord-deviation refinement (Phase 2) is enabled to maintain geometric fidelity across
- * both regions.
+ * the chord-deviation criterion is loosened slightly to keep geometric fidelity across
+ * both regions without over-refining.
  *
  * Exports:
- *   - TorusSurfaceMeshEdges.vtu         : discretized seam edges (color by EdgeID)
- *   - TorusSurfaceMesh3D.vtu            : initial surface triangulation (color by SurfaceID)
- *   - TorusSurfaceMesh3D_Refined.vtu    : refined surface triangulation
+ *   - TorusSurfaceMeshEdges.vtu : discretized seam edges (color by EdgeID)
+ *   - TorusSurfaceMesh3D.vtu    : surface mesh (color by SurfaceID)
  */
 
 #include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/General/FacetTriangulationManager.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
-#include "Meshing/Core/3D/Surface/SurfaceMeshingContext3D.h"
 #include <BRepPrimAPI_MakeTorus.hxx>
 #include <TopoDS_Shape.hxx>
 #include <iostream>
@@ -46,35 +45,26 @@ int main()
     Meshing::SurfaceMesh3DQualitySettings quality;
     quality.chordDeviationTolerance = 0.15;
 
-    Meshing::SurfaceMeshingContext3D context(converter.getGeometryCollection(),
-                                             converter.getTopology(),
-                                             settings,
-                                             quality);
+    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                       converter.getTopology(),
+                                                                       settings);
 
-    const auto& discResult = context.getDiscretizationResult();
-    const auto subfacets = context.getFacetTriangulationManager().getAllSubfacets();
-
-    std::cout << "Points:         " << discResult.points.size() << "\n";
-    std::cout << "Topology edges: " << discResult.edgeIdToPointIndicesMap.size() << "\n";
-    std::cout << "Faces:          " << context.getFacetTriangulationManager().size() << "\n";
-    std::cout << "Subfacets:      " << subfacets.size() << "\n";
+    std::cout << "Points:         " << discResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
 
-    exporter.writeEdgeMesh(discResult, "TorusSurfaceMeshEdges.vtu");
+    exporter.writeEdgeMesh(*discResult, "TorusSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to TorusSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
-    exporter.writeSurfaceMesh(discResult, subfacets, "TorusSurfaceMesh3D.vtu");
-    std::cout << "Exported surface mesh to TorusSurfaceMesh3D.vtu (color by SurfaceID)\n";
-
-    context.refineSurfaces();
-
-    auto surfaceMesh = context.buildSurfaceMesh();
-    std::cout << "Refined: " << surfaceMesh.nodes.size() << " nodes, "
+    Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(), converter.getTopology(), settings, quality);
+    auto surfaceMesh = mesher.mesh();
+    std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";
 
-    exporter.writeSurfaceMesh(surfaceMesh, "TorusSurfaceMesh3D_Refined.vtu");
-    std::cout << "Exported refined surface mesh to TorusSurfaceMesh3D_Refined.vtu\n";
+    exporter.writeSurfaceMesh(surfaceMesh, "TorusSurfaceMesh3D.vtu");
+    std::cout << "Exported surface mesh to TorusSurfaceMesh3D.vtu (color by SurfaceID)\n";
 
     return 0;
 }
