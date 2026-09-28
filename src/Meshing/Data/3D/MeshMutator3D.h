@@ -2,7 +2,6 @@
 #include "../Base/IElement.h"
 #include "../Operations/ITransactionListener.h"
 #include "MeshData3D.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <memory>
@@ -43,17 +42,7 @@ public:
     void clearBoundingNodeIds();
 
     // Curve segment operations
-    void addCurveSegment(const CurveSegment& segment);
     void setCurveSegmentManager(CurveSegmentManager manager);
-    std::pair<size_t, size_t> splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid);
-    void clearCurveSegments();
-
-    // Constrained subfacet operations
-    void addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet);
-    void removeConstrainedSubfacet(size_t nodeId1, size_t nodeId2, size_t nodeId3);
-    void replaceConstrainedSubfacet(const ConstrainedSubfacet3D& oldFacet,
-                                    const std::vector<ConstrainedSubfacet3D>& newFacets);
-    void clearConstrainedSubfacets();
 
     // Transaction support
     void setTransactionListener(ITransactionListener* listener);

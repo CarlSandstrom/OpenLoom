@@ -203,47 +203,9 @@ void MeshMutator3D::clearBoundingNodeIds()
 
 // ========== Curve Segment Operations ==========
 
-void MeshMutator3D::addCurveSegment(const CurveSegment& segment)
-{
-    geometry_.curveSegmentManager_.addSegment(segment);
-}
-
 void MeshMutator3D::setCurveSegmentManager(CurveSegmentManager manager)
 {
     geometry_.curveSegmentManager_ = std::move(manager);
-}
-
-std::pair<size_t, size_t> MeshMutator3D::splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid)
-{
-    return geometry_.curveSegmentManager_.splitAt(segmentId, newNodeId, tMid);
-}
-
-void MeshMutator3D::clearCurveSegments()
-{
-    geometry_.curveSegmentManager_.clear();
-}
-
-// ========== Constrained Subfacet Operations ==========
-
-void MeshMutator3D::addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet)
-{
-    geometry_.addConstrainedSubfacetInternal(subfacet);
-}
-
-void MeshMutator3D::removeConstrainedSubfacet(size_t nodeId1, size_t nodeId2, size_t nodeId3)
-{
-    geometry_.removeConstrainedSubfacetInternal(nodeId1, nodeId2, nodeId3);
-}
-
-void MeshMutator3D::replaceConstrainedSubfacet(const ConstrainedSubfacet3D& oldFacet,
-                                               const std::vector<ConstrainedSubfacet3D>& newFacets)
-{
-    geometry_.replaceConstrainedSubfacetInternal(oldFacet, newFacets);
-}
-
-void MeshMutator3D::clearConstrainedSubfacets()
-{
-    geometry_.clearConstrainedSubfacetsInternal();
 }
 
 void MeshMutator3D::validateNodeRemoval(size_t nodeId) const

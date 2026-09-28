@@ -40,7 +40,6 @@ src/Meshing/Core/
 │   │   ├── GeometryStructures3D.h
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
 │   │   ├── DiscretizationResult3D.h
-│   │   ├── ConstraintChecker3D.{h,cpp}
 │   │   ├── EdgeTwinTable.h
 │   │   ├── FacetDiscretization2DBuilder.{h,cpp}
 │   │   ├── FacetTriangulation.{h,cpp}
@@ -97,7 +96,6 @@ src/Meshing/Core/
 - **ElementQuality3D**: Quality metrics for tetrahedral elements
 - **GeometryUtilities3D**: Pure geometric utilities (sphere tests, edge length, etc.)
 - **BoundaryDiscretizer3D**: Samples boundary geometry into discrete points
-- **ConstraintChecker3D**: Encroachment checking for constrained segments and facets
 - **MeshVerifier3D**: Validates mesh integrity (degenerate elements, orphan nodes)
 - **FacetDiscretization2DBuilder**: Builds UV-space discretizations of CAD facets; used by the legacy UV-space surface mesher
 - **FacetTriangulation**: Triangulates a single CAD facet in UV space; used by the legacy UV-space surface mesher
