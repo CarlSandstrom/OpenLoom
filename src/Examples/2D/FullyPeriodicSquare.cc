@@ -6,9 +6,9 @@
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
+#include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
 #include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
-#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/Mesh2DQualitySettings.h"
@@ -167,7 +167,7 @@ int main()
     // -------------------------------------------------------------------------
     // Discretize and triangulate
     // -------------------------------------------------------------------------
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     spdlog::info("Triangulating...");

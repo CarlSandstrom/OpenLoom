@@ -5,8 +5,8 @@
 #include "Geometry/2D/Base/DiscretizationSettings2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
+#include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
-#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Topology2D/Corner2D.h"
@@ -156,7 +156,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesSimpleSquare)
 {
     auto context = makeSquareContext();
 
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     ConstrainedDelaunay2D::triangulate(context, discretization);
@@ -178,7 +178,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesSquareWithInteriorPoint)
 {
     auto context = makeSquareContext();
 
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     std::vector<Point2D> additionalPoints = {Point2D(0.5, 0.5)};
@@ -195,7 +195,7 @@ TEST(ConstrainedDelaunay2D, HandlesConcavePolygon)
 {
     auto context = makeLShapeContext();
 
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     ConstrainedDelaunay2D::triangulate(context, discretization);
@@ -217,7 +217,7 @@ TEST(ConstrainedDelaunay2D, TriangulatesTriangle)
 {
     auto context = makeTriangleContext();
 
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     ConstrainedDelaunay2D::triangulate(context, discretization);

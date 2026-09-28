@@ -1,7 +1,7 @@
 #include "Common/Logging.h"
 #include "Export/VtkExporter.h"
+#include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
-#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/Mesh2DQualitySettings.h"
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
     MeshingContext2D context(reader.takeGeometry(), reader.takeTopology());
 
     // Discretize edges
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     // Create constrained Delaunay triangulation

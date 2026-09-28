@@ -23,7 +23,7 @@ public:
      * @brief Build a constrained Delaunay triangulation into a MeshingContext2D
      *
      * @param context The 2D meshing context containing geometry and topology
-     * @param discretization Pre-computed edge discretization from EdgeDiscretizer2D
+     * @param discretization Pre-computed edge discretization from BoundaryDiscretizer2D
      * @param additionalPoints Additional points to include in triangulation (optional)
      * @param debugExportFilenamePrefix Prefix for debug export filenames (optional)
      * @return Map from input point index to the node id it became

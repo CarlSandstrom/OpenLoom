@@ -1,4 +1,4 @@
-#include "EdgeDiscretizer2D.h"
+#include "BoundaryDiscretizer2D.h"
 #include "Common/MathConstants.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Geometry/2D/Base/ICorner2D.h"
@@ -10,8 +10,8 @@
 namespace Meshing
 {
 
-EdgeDiscretizer2D::EdgeDiscretizer2D(const MeshingContext2D& context,
-                                     const Geometry2D::DiscretizationSettings2D& settings) :
+BoundaryDiscretizer2D::BoundaryDiscretizer2D(const MeshingContext2D& context,
+                                             const Geometry2D::DiscretizationSettings2D& settings) :
     context_(&context),
     settings_(settings)
 {
@@ -41,7 +41,7 @@ Eigen::Vector2d computeEdgeTangentAtParameter(const Geometry2D::IEdge2D& edge, d
 
 } // namespace
 
-DiscretizationResult2D EdgeDiscretizer2D::discretize() const
+DiscretizationResult2D BoundaryDiscretizer2D::discretize() const
 {
     DiscretizationResult2D result;
     const auto& geometry = context_->getGeometry();

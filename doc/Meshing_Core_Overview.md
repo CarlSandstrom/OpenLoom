@@ -21,7 +21,7 @@ src/Meshing/Core/
 │   ├── ElementQuality2D.{h,cpp}
 │   ├── GeometryUtilities2D.{h,cpp}
 │   ├── GeometryStructures2D.h
-│   ├── EdgeDiscretizer2D.{h,cpp}
+│   ├── BoundaryDiscretizer2D.{h,cpp}
 │   ├── ConstraintChecker2D.{h,cpp}
 │   ├── BoundarySplitSynchronizer.{h,cpp}
 │   ├── ShewchukRefiner2D.{h,cpp}
@@ -69,7 +69,7 @@ src/Meshing/Core/
 - **MeshQueries2D**: Spatial queries on 2D meshes
 - **ElementGeometry2D**: Geometric computations (circumcircles, orientations)
 - **ElementQuality2D**: Quality metrics for triangle elements
-- **EdgeDiscretizer2D**: Samples constraint edges into discrete points
+- **BoundaryDiscretizer2D**: Samples constraint edges into discrete points
 - **BoundarySplitSynchronizer**: Mirrors a boundary split onto its twin segment (periodic 2D meshes, via `TwinManager`)
 - **ShewchukRefiner2D**: Quality-driven refinement (Ruppert's algorithm) for 2D meshes
 - **Shewchuk2DQualityController**: Quality controller for 2D refinement

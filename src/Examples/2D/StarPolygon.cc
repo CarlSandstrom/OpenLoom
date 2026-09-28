@@ -1,15 +1,15 @@
+#include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
+#include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
-#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Topology2D/Topology2D.h"
-#include "Common/Logging.h"
 #include "spdlog/spdlog.h"
 
 #include <cmath>
@@ -76,7 +76,7 @@ int main()
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
 
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     spdlog::info("Generating constrained Delaunay triangulation...");
