@@ -7,6 +7,7 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 
+#include <Eigen/Geometry>
 #include <cmath>
 
 using namespace Meshing;
@@ -383,5 +384,36 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTriangleLiesInPlaneAtEqualPow
     EXPECT_NEAR(orthocenter->z(), 1.0, TOLERANCE);
     const double power0 = (*orthocenter - points[0]).squaredNorm() - weights[0];
     for (size_t i = 1; i < 3; ++i)
+        EXPECT_NEAR((*orthocenter - points[i]).squaredNorm() - weights[i], power0, TOLERANCE);
+}
+
+// Four points of an isosceles trapezoid -- matching samples on the two
+// circles bounding a cone, as on HexNutChamfered's chamfers -- are coplanar
+// and cocircular, so the tetrahedron they span is flat to rounding and every
+// point on the line normal to their plane has equal power to all four. It
+// must still get a dual vertex, the one in the plane: returning none left the
+// faces around such a tetrahedron without a dual edge, never restricted, and
+// the chamfer with holes (OPE-186).
+TEST_F(ElementGeometry3DTest, OrthocenterOfFlatCyclicTetrahedronLiesInItsPlane)
+{
+    const Eigen::Matrix3d tilt =
+        (Eigen::AngleAxisd(0.7, Point3D(1.0, 2.0, 0.5).normalized())).toRotationMatrix();
+    const std::array<Point3D, 4> points = {tilt * Point3D(-2.0, -1.0, 0.0), tilt * Point3D(2.0, -1.0, 0.0),
+                                           tilt * Point3D(1.0, 1.5, 0.0), tilt * Point3D(-1.0, 1.5, 0.0)};
+    const std::array<double, 4> weights = {0.1, 0.1, 0.05, 0.05};
+    std::array<size_t, 4> nodeIds;
+    for (size_t i = 0; i < 4; ++i)
+        nodeIds[i] = mutator_->addNode(points[i], weights[i]);
+    addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
+
+    const ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto orthocenter = geometry.computeOrthocenter(*element);
+    ASSERT_TRUE(orthocenter.has_value());
+
+    const Point3D normal = tilt * Point3D(0.0, 0.0, 1.0);
+    EXPECT_NEAR((*orthocenter - points[0]).dot(normal), 0.0, TOLERANCE);
+    const double power0 = (*orthocenter - points[0]).squaredNorm() - weights[0];
+    for (size_t i = 1; i < 4; ++i)
         EXPECT_NEAR((*orthocenter - points[i]).squaredNorm() - weights[i], power0, TOLERANCE);
 }

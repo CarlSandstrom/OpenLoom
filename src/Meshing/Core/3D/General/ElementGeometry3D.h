@@ -41,7 +41,9 @@ public:
     /// point with equal power distance |x - p|^2 - w to all four weighted
     /// vertices. In a regular triangulation this, not the circumcenter, is the
     /// element's vertex of the dual power diagram. Equals the circumcenter
-    /// when every weight is 0. Returns nullopt if the tetrahedron is degenerate.
+    /// when every weight is 0. A tetrahedron flat to rounding gets the
+    /// equal-power point in its plane; nullopt only when three of its vertices
+    /// are collinear.
     std::optional<Point3D> computeOrthocenter(const TetrahedralElement& element) const;
 
     /// The weighted circumcenter of a triangle: the point in its plane with

@@ -58,19 +58,23 @@ struct SampledDirection
         // Periodic: columns points spread evenly (plus jitter) around the
         // *whole* period, never touching minimum/maximum themselves -- there's
         // no reason to privilege the arbitrary parametric cut point.
-        // Non-periodic: columns points spanning [minimum, maximum], jittered
-        // inward.
-        const double spacings =
-            periodic ? static_cast<double>(columns) : static_cast<double>(columns - 1) + jitter;
-        return minimum + (maximum - minimum) * (static_cast<double>(column) + jitter) / spacings;
+        // Non-periodic: an evenly spaced, jittered run whose first column
+        // lies a fraction of a cell before minimum and whose last lies past
+        // maximum, so the cells cover the whole interval. Jittering the run
+        // inward instead left an uncovered band of up to a cell's width along
+        // the minimum edge -- exactly where a crease sits.
+        if (periodic)
+            return minimum + (maximum - minimum) * (static_cast<double>(column) + jitter) / static_cast<double>(columns);
+        return minimum +
+               (maximum - minimum) * (static_cast<double>(column) + jitter - 1.0) / static_cast<double>(columns - 2);
     }
 };
 
 // A periodic direction is sampled as a closed loop (samplesPerDirection
 // distinct columns, the last cell wrapping back to the first column) rather
-// than an open strip (samplesPerDirection + 1 columns, both endpoints sampled
-// once each, so one fewer cell than columns) -- there's no real "boundary" to
-// place two separate columns on.
+// than an open strip (samplesPerDirection + 2 columns, the outer two just
+// past each end, so one fewer cell than columns) -- there's no real
+// "boundary" to place two separate columns on.
 SampledDirection sampledDirection(double minimum, double maximum, bool periodic, size_t samplesPerDirection,
                                   double jitter)
 {
@@ -78,7 +82,7 @@ SampledDirection sampledDirection(double minimum, double maximum, bool periodic,
     direction.minimum = minimum;
     direction.maximum = maximum;
     direction.periodic = periodic;
-    direction.columns = periodic ? samplesPerDirection : samplesPerDirection + 1;
+    direction.columns = periodic ? samplesPerDirection : samplesPerDirection + 2;
     direction.cells = periodic ? direction.columns : direction.columns - 1;
     direction.jitter = jitter;
     return direction;

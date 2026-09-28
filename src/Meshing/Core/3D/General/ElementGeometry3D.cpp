@@ -3,6 +3,7 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 
 #include <Eigen/LU>
+#include <Eigen/QR>
 #include <array>
 #include <cmath>
 
@@ -97,21 +98,27 @@ std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TetrahedralEl
     const Point3D& v0 = nodes[0]->getCoordinates();
     const double w0 = nodes[0]->getWeight();
 
+    // Solved for the offset from v0: 2 (c - v0) . (vi - v0) = |vi - v0|^2 - (wi - w0).
     Eigen::Matrix3d A;
     Eigen::Vector3d b;
     for (size_t i = 1; i < 4; ++i)
     {
-        const Point3D& vi = nodes[i]->getCoordinates();
-        A.row(i - 1) = (vi - v0).transpose();
-        b(i - 1) = 0.5 * (vi.squaredNorm() - v0.squaredNorm() - (nodes[i]->getWeight() - w0));
+        const Point3D edge = nodes[i]->getCoordinates() - v0;
+        A.row(i - 1) = edge.transpose();
+        b(i - 1) = 0.5 * (edge.squaredNorm() - (nodes[i]->getWeight() - w0));
     }
 
-    const Eigen::FullPivLU<Eigen::Matrix3d> lu(A);
-    if (!lu.isInvertible())
+    // A tetrahedron flat to rounding -- four points of a cyclic quad, such as
+    // matching samples on the two circles bounding a cone -- has a whole line
+    // of power-equidistant points normal to its plane. The minimum-norm offset
+    // picks the one in the plane, so the element still has a dual vertex and
+    // its faces a dual edge. Only a collinear triple leaves none.
+    const Eigen::CompleteOrthogonalDecomposition<Eigen::Matrix3d> decomposition(A);
+    if (decomposition.rank() < 2)
     {
         return std::nullopt;
     }
-    return Point3D(lu.solve(b));
+    return Point3D(v0 + decomposition.solve(b));
 }
 
 std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TriangleElement& element) const

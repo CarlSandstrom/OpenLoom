@@ -7,6 +7,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 #include <optional>
+#include <utility>
 
 using namespace Meshing;
 
@@ -171,6 +172,21 @@ TEST(SurfaceTessellationTest, CrossesSurface_BothEndpointsSameSide_ReturnsFalse)
     tessellation.build(surface, 1.0);
 
     EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, 1.0), Point3D(5.3, 4.7, 2.0)));
+}
+
+// A crossing just inside each side of the patch -- where a crease with the
+// neighbouring surface sits -- must be found. The jittered grid used to start
+// a fraction of a cell inside the minimum edge, leaving a band there that no
+// triangle covered; on the dense saddle every missed crease crossing lay in
+// it (OPE-186).
+TEST(SurfaceTessellationTest, CrossesSurface_JustInsideEachSide_ReturnsTrue)
+{
+    const MockPlanarSurface surface(10.0);
+    SurfaceTessellation tessellation;
+    tessellation.build(surface, 1.0);
+
+    for (const auto& [x, y] : {std::pair{0.05, 4.7}, std::pair{9.95, 4.7}, std::pair{5.3, 0.05}, std::pair{5.3, 9.95}})
+        EXPECT_TRUE(tessellation.crossesSurface(Point3D(x, y, -1.0), Point3D(x, y, 1.0))) << x << ", " << y;
 }
 
 TEST(SurfaceTessellationTest, CrossesSurface_OutsideParameterBounds_ReturnsFalse)
