@@ -15,7 +15,7 @@ namespace
 
 // Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
 // 3 axes. A necessary (not sufficient) condition for the shapes they bound to
-// actually intersect -- see isCrossedBySegment().
+// actually intersect -- see findCrossingNearest().
 bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
 {
     return aMin.x() <= bMax.x() && bMin.x() <= aMax.x() && aMin.y() <= bMax.y() && bMin.y() <= aMax.y() &&
@@ -92,28 +92,9 @@ void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
     }
 }
 
-bool TriangleSoupIndex::isCrossedBySegment(const Point3D& a, const Point3D& b) const
-{
-    if (cells_.empty())
-        return false;
-
-    const SegmentQuery segment = {a, b, a.cwiseMin(b), a.cwiseMax(b)};
-
-    const CellCoordinates minimumCell = cellContaining(segment.boundsMin);
-    const CellCoordinates maximumCell = cellContaining(segment.boundsMax);
-
-    for (size_t x = minimumCell.x; x <= maximumCell.x; ++x)
-        for (size_t y = minimumCell.y; y <= maximumCell.y; ++y)
-            for (size_t z = minimumCell.z; z <= maximumCell.z; ++z)
-                if (anyTriangleInCellCrosses(cellIndex({x, y, z}), segment))
-                    return true;
-
-    return false;
-}
-
 // A triangle registered in more than one visited cell is tested more than once;
-// the duplicate test is harmless (at worst a redundant true that terminates the
-// search anyway, or a redundant false that wastes a little work).
+// the duplicate test is harmless (it finds the same crossing point again, so
+// the nearest one is unaffected).
 std::optional<Point3D> TriangleSoupIndex::findCrossingNearest(const Point3D& a,
                                                               const Point3D& b,
                                                               const Point3D& target) const
@@ -210,20 +191,6 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
         nextBoundary[axis] += boundarySpacing[axis];
     }
     return visited;
-}
-
-bool TriangleSoupIndex::anyTriangleInCellCrosses(size_t cellIndex, const SegmentQuery& segment) const
-{
-    for (const size_t triangleIndex : cells_[cellIndex])
-    {
-        const BoundedTriangle& triangle = triangles_[triangleIndex];
-        if (!boundsOverlap(segment.boundsMin, segment.boundsMax, triangle.boundsMin, triangle.boundsMax))
-            continue;
-        if (RobustPredicates3D::segmentCrossesTriangle(segment.start, segment.end, triangle.vertices[0],
-                                                       triangle.vertices[1], triangle.vertices[2]))
-            return true;
-    }
-    return false;
 }
 
 TriangleSoupIndex::CellCoordinates TriangleSoupIndex::cellContaining(const Point3D& point) const

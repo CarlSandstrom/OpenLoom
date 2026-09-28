@@ -55,10 +55,6 @@ public:
     /// this tessellation only needs to not have gaps.
     void build(const Geometry3D::ISurface3D& surface, double targetCellSize);
 
-    /// Whether segment (a, b) crosses this tessellation — exact; see
-    /// TriangleSoupIndex::isCrossedBySegment().
-    bool crossesSurface(const Point3D& a, const Point3D& b) const;
-
     /// Where segment (a, b) crosses this tessellation, nearest to target; see
     /// TriangleSoupIndex::findCrossingNearest(). The point lies on the
     /// tessellation, not exactly on the surface.

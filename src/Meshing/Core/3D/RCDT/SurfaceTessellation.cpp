@@ -279,11 +279,6 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double ta
     triangles_.build(emitTriangles(sampleSurface(surface, u, v)));
 }
 
-bool SurfaceTessellation::crossesSurface(const Point3D& a, const Point3D& b) const
-{
-    return triangles_.isCrossedBySegment(a, b);
-}
-
 std::optional<Point3D> SurfaceTessellation::findCrossingNearest(const Point3D& a,
                                                                 const Point3D& b,
                                                                 const Point3D& target) const

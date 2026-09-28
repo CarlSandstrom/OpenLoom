@@ -12,7 +12,7 @@ namespace Meshing
 
 /**
  * @brief A fixed set of triangles with a uniform spatial grid over them,
- * answering "does this segment cross any of them?" exactly.
+ * answering "where does this segment cross them?", decided exactly.
  *
  * Nothing here knows what the triangles approximate: they are an unstructured
  * soup of independent triangles (no shared-vertex or adjacency information),
@@ -38,17 +38,13 @@ public:
     /// Replaces the contents with these triangles and indexes them.
     void build(const std::vector<Triangle>& triangles);
 
-    /// Whether segment (a, b) crosses any triangle in the soup — exact,
-    /// checking RobustPredicates3D::segmentCrossesTriangle against every
-    /// triangle whose axis-aligned bounding box the segment's own bounding box
-    /// overlaps (a triangle outside that can't possibly be crossed, so the
-    /// exact -- much more expensive -- predicate only runs on candidates that
-    /// survive this cheap prefilter).
-    bool isCrossedBySegment(const Point3D& a, const Point3D& b) const;
-
-    /// Where segment (a, b) crosses the soup: of every triangle it crosses
-    /// (decided by the same exact predicate as isCrossedBySegment()), the
-    /// crossing point nearest to target. The point itself is computed in
+    /// Where segment (a, b) crosses the soup: of every triangle it crosses,
+    /// the crossing point nearest to target. Whether a triangle is crossed is
+    /// decided exactly by RobustPredicates3D::segmentCrossesTriangle, run only
+    /// on triangles in the cells along the segment whose bounding box overlaps
+    /// the segment's own (a triangle outside that can't possibly be crossed,
+    /// so the exact -- much more expensive -- predicate only runs on
+    /// candidates that survive this cheap prefilter). The point itself is computed in
     /// floating point from the triangle's plane. nullopt if none is crossed.
     std::optional<Point3D> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
 
@@ -56,16 +52,6 @@ private:
     struct BoundedTriangle
     {
         Triangle vertices;
-        Point3D boundsMin;
-        Point3D boundsMax;
-    };
-
-    /// A query segment plus its own bounding box, computed once per query
-    /// rather than once per candidate triangle.
-    struct SegmentQuery
-    {
-        Point3D start;
-        Point3D end;
         Point3D boundsMin;
         Point3D boundsMax;
     };
@@ -84,7 +70,6 @@ private:
     /// the grid (a 3D grid walk). Empty when the segment misses the grid.
     std::vector<size_t> cellsAlongSegment(const Point3D& a, const Point3D& b) const;
     size_t cellIndex(const CellCoordinates& cell) const;
-    bool anyTriangleInCellCrosses(size_t cellIndex, const SegmentQuery& segment) const;
 
     std::vector<BoundedTriangle> triangles_;
 

@@ -153,25 +153,36 @@ private:
 } // namespace
 
 // ============================================================================
-// build() + crossesSurface()
+// build() + findCrossingNearest()
 // ============================================================================
 
-TEST(SurfaceTessellationTest, CrossesSurface_StraddlingSegment_ReturnsTrue)
+namespace
+{
+// Whether segment (a, b) crosses the tessellation, asked the way the mesher
+// asks it: through findCrossingNearest, whose cells-along-the-segment walk is
+// the coverage these tests are about.
+bool crosses(const SurfaceTessellation& tessellation, const Point3D& a, const Point3D& b)
+{
+    return tessellation.findCrossingNearest(a, b, a).has_value();
+}
+} // namespace
+
+TEST(SurfaceTessellationTest, Crosses_StraddlingSegment_ReturnsTrue)
 {
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
     tessellation.build(surface, 1.0);
 
-    EXPECT_TRUE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
+    EXPECT_TRUE(crosses(tessellation, Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
 
-TEST(SurfaceTessellationTest, CrossesSurface_BothEndpointsSameSide_ReturnsFalse)
+TEST(SurfaceTessellationTest, Crosses_BothEndpointsSameSide_ReturnsFalse)
 {
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
     tessellation.build(surface, 1.0);
 
-    EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, 1.0), Point3D(5.3, 4.7, 2.0)));
+    EXPECT_FALSE(crosses(tessellation, Point3D(5.3, 4.7, 1.0), Point3D(5.3, 4.7, 2.0)));
 }
 
 // A crossing just inside each side of the patch -- where a crease with the
@@ -179,17 +190,17 @@ TEST(SurfaceTessellationTest, CrossesSurface_BothEndpointsSameSide_ReturnsFalse)
 // a fraction of a cell inside the minimum edge, leaving a band there that no
 // triangle covered; on the dense saddle every missed crease crossing lay in
 // it (OPE-186).
-TEST(SurfaceTessellationTest, CrossesSurface_JustInsideEachSide_ReturnsTrue)
+TEST(SurfaceTessellationTest, Crosses_JustInsideEachSide_ReturnsTrue)
 {
     const MockPlanarSurface surface(10.0);
     SurfaceTessellation tessellation;
     tessellation.build(surface, 1.0);
 
     for (const auto& [x, y] : {std::pair{0.05, 4.7}, std::pair{9.95, 4.7}, std::pair{5.3, 0.05}, std::pair{5.3, 9.95}})
-        EXPECT_TRUE(tessellation.crossesSurface(Point3D(x, y, -1.0), Point3D(x, y, 1.0))) << x << ", " << y;
+        EXPECT_TRUE(crosses(tessellation, Point3D(x, y, -1.0), Point3D(x, y, 1.0))) << x << ", " << y;
 }
 
-TEST(SurfaceTessellationTest, CrossesSurface_OutsideParameterBounds_ReturnsFalse)
+TEST(SurfaceTessellationTest, Crosses_OutsideParameterBounds_ReturnsFalse)
 {
     // Crosses z=0, but at (x,y) = (20,20) -- outside the surface's own
     // [0,10]x[0,10] footprint, so no tessellation triangle should cover it.
@@ -197,10 +208,10 @@ TEST(SurfaceTessellationTest, CrossesSurface_OutsideParameterBounds_ReturnsFalse
     SurfaceTessellation tessellation;
     tessellation.build(surface, 1.0);
 
-    EXPECT_FALSE(tessellation.crossesSurface(Point3D(20.0, 20.0, -1.0), Point3D(20.0, 20.0, 1.0)));
+    EXPECT_FALSE(crosses(tessellation, Point3D(20.0, 20.0, -1.0), Point3D(20.0, 20.0, 1.0)));
 }
 
-TEST(SurfaceTessellationTest, CrossesSurface_ExtremelyLongSegment_StillDetectsCrossing)
+TEST(SurfaceTessellationTest, Crosses_ExtremelyLongSegment_StillDetectsCrossing)
 {
     // Mirrors a dual edge whose endpoint is the orthocentre of a nearly flat
     // tetrahedron, hundreds of units away (OPE-169) -- the crossing must
@@ -209,7 +220,7 @@ TEST(SurfaceTessellationTest, CrossesSurface_ExtremelyLongSegment_StillDetectsCr
     SurfaceTessellation tessellation;
     tessellation.build(surface, 1.0);
 
-    EXPECT_TRUE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1000.0)));
+    EXPECT_TRUE(crosses(tessellation, Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1000.0)));
 }
 
 TEST(SurfaceTessellationTest, Build_ZeroTargetCellSize_ProducesNoTriangles)
@@ -218,14 +229,14 @@ TEST(SurfaceTessellationTest, Build_ZeroTargetCellSize_ProducesNoTriangles)
     SurfaceTessellation tessellation;
     tessellation.build(surface, 0.0);
 
-    EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
+    EXPECT_FALSE(crosses(tessellation, Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
 
 // ============================================================================
 // Trimmed boundary (hole) handling -- the bug this class exists to fix
 // ============================================================================
 
-TEST(SurfaceTessellationTest, CrossesSurface_ThroughHole_ReturnsFalse)
+TEST(SurfaceTessellationTest, Crosses_ThroughHole_ReturnsFalse)
 {
     // A segment crossing z=0 at the exact center of a hole cut into the
     // surface must not be classified as crossing the surface there --
@@ -234,16 +245,16 @@ TEST(SurfaceTessellationTest, CrossesSurface_ThroughHole_ReturnsFalse)
     SurfaceTessellation tessellation;
     tessellation.build(surface, 0.5);
 
-    EXPECT_FALSE(tessellation.crossesSurface(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
+    EXPECT_FALSE(crosses(tessellation, Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
 }
 
-TEST(SurfaceTessellationTest, CrossesSurface_AwayFromHole_ReturnsTrue)
+TEST(SurfaceTessellationTest, Crosses_AwayFromHole_ReturnsTrue)
 {
     const MockPlanarSurfaceWithHole surface(10.0, /*holeRadius=*/2.0);
     SurfaceTessellation tessellation;
     tessellation.build(surface, 0.5);
 
-    EXPECT_TRUE(tessellation.crossesSurface(Point3D(1.3, 0.7, -1.0), Point3D(1.3, 0.7, 1.0)));
+    EXPECT_TRUE(crosses(tessellation, Point3D(1.3, 0.7, -1.0), Point3D(1.3, 0.7, 1.0)));
 }
 
 // ============================================================================
@@ -257,7 +268,7 @@ namespace
 constexpr double SPIKE_CENTER = 1.7;
 } // namespace
 
-TEST(SurfaceTessellationTest, CrossesSurface_CoarseTargetCellSizeMissesNarrowSpike)
+TEST(SurfaceTessellationTest, Crosses_CoarseTargetCellSizeMissesNarrowSpike)
 {
     // targetCellSize = 5.0 on a 10-unit wide surface gives ~3 samples per
     // direction. The spike (width 0.1) is far narrower than the grid spacing,
@@ -268,10 +279,10 @@ TEST(SurfaceTessellationTest, CrossesSurface_CoarseTargetCellSizeMissesNarrowSpi
 
     // The true surface reaches z=10 at the spike center; a segment spanning
     // z=[8,12] there crosses the true surface but not this coarse oracle.
-    EXPECT_FALSE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
+    EXPECT_FALSE(crosses(tessellation, Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
 }
 
-TEST(SurfaceTessellationTest, CrossesSurface_FineTargetCellSizeFindsNarrowSpike)
+TEST(SurfaceTessellationTest, Crosses_FineTargetCellSizeFindsNarrowSpike)
 {
     // targetCellSize = 0.02 on a 10-unit wide surface gives ~400 samples per
     // direction (the cap). Spacing of 0.025 per column guarantees a column
@@ -280,5 +291,5 @@ TEST(SurfaceTessellationTest, CrossesSurface_FineTargetCellSizeFindsNarrowSpike)
     SurfaceTessellation tessellation;
     tessellation.build(surface, 0.02);
 
-    EXPECT_TRUE(tessellation.crossesSurface(Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
+    EXPECT_TRUE(crosses(tessellation, Point3D(SPIKE_CENTER, 0.5, 8.0), Point3D(SPIKE_CENTER, 0.5, 12.0)));
 }
