@@ -1,7 +1,7 @@
 #include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
 #include "Common/DebugFlags.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
+#include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "spdlog/spdlog.h"

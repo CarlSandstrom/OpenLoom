@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include "Mesh2DQualitySettings.h"
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include "MeshingContext2D.h"
 #include <functional>

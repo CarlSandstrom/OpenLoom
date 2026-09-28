@@ -13,8 +13,8 @@
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshVerifier.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Core/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
+#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Topology2D/Topology2D.h"
 

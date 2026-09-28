@@ -34,7 +34,7 @@ CAD shape (OCC)
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"   // only to export the edges
-#include "Meshing/Core/3D/General/DiscretizationResult3D.h"  // only to export the edges
+#include "Meshing/Data/3D/DiscretizationResult3D.h"  // only to export the edges
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"

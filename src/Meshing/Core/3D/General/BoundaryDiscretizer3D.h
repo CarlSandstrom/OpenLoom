@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
-#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Core/3D/General/SizingField3D.h"
+#include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include <memory>
 
 namespace Geometry3D

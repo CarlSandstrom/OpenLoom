@@ -22,7 +22,6 @@ src/Meshing/Core/
 │   ├── GeometryUtilities2D.{h,cpp}
 │   ├── GeometryStructures2D.h
 │   ├── EdgeDiscretizer2D.{h,cpp}
-│   ├── DiscretizationResult2D.h
 │   ├── ConstraintChecker2D.{h,cpp}
 │   ├── BoundarySplitSynchronizer.{h,cpp}
 │   ├── ShewchukRefiner2D.{h,cpp}
@@ -35,7 +34,6 @@ src/Meshing/Core/
 │   │   ├── MeshQueries3D.{h,cpp}
 │   │   ├── ElementGeometry3D.{h,cpp}
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
-│   │   ├── DiscretizationResult3D.h
 │   │   └── MeshDebugUtils3D.{h,cpp}
 │   ├── Surface/                         # Top-level surface mesher
 │   │   └── SurfaceMesher3D.{h,cpp}

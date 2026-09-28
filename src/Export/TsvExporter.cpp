@@ -1,8 +1,8 @@
 #include "TsvExporter.h"
 
-#include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
+#include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
 #include "Meshing/Data/Base/IElement.h"
