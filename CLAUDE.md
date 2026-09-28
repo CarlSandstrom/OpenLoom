@@ -57,7 +57,10 @@ TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
 
 3D surface executables in `build/src/Examples/3D/Surface/`:
 - `CylinderSurfaceMesh`
-- `SurfaceMeshEdges`
+- `HexNutSurfaceMesh`
+- `BoxWithHoleSurface`
+- `SaddleSurfaceMesh`
+- `TorusSurfaceMesh`
 
 3D volume executables in `build/src/Examples/3D/Volume/`:
 - `BoxWithHole` - 3D volume mesh with a cylindrical hole
