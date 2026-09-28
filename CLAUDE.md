@@ -2,9 +2,13 @@
 
 Constrained Delaunay triangulation library for 2D and 3D mesh generation with OpenCASCADE CAD support.
 
+## Version control
+
 Do not commit unless I ask you to. The one exception is during a multi-step refactor: at each green step, *offer* a commit — still do not make one unsolicited. See Refactoring below.
 
 If you think creating a branch is a good idea, ask first.
+
+The rule for branches are: One ticket -> one branch -> review -> merge/create PR
 
 Do not be too verbose when communicating. Keep it brief but do not leave out important information.
 
@@ -53,10 +57,7 @@ TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
 
 3D surface executables in `build/src/Examples/3D/Surface/`:
 - `CylinderSurfaceMesh`
-- `HexNutSurfaceMesh`
-- `BoxWithHoleSurface`
-- `SaddleSurfaceMesh`
-- `TorusSurfaceMesh`
+- `SurfaceMeshEdges`
 
 3D volume executables in `build/src/Examples/3D/Volume/`:
 - `BoxWithHole` - 3D volume mesh with a cylindrical hole
@@ -79,7 +80,7 @@ Class names and module paths in this table are written in backticks, and `./scri
 | `Meshing/Core/2D/` | live | 2D Delaunay: `ConstrainedDelaunay2D`, `MeshOperations2D`, `ShewchukRefiner2D` |
 | `Meshing/Core/3D/General/` | live | Shared 3D infrastructure: `MeshingContext3D`, `MeshOperations3D`, geometry and quality utilities |
 | `Meshing/Core/3D/RCDT/` | live | Ambient-space RCDT mesher, CGAL Mesh_3's design (OPE-186). `RCDTMesher` implements both `ISurfaceMesher3D` and `IVolumeMesher3D` on one pipeline: `ProtectingBallPlacer` places the protecting balls on corners and curves (CGAL's `Protect_edges_sizing_field`), the weighted ambient tetrahedralization is seeded with them, then `SurfaceDelaunayRefiner` refines restricted facets (CGAL's `Refine_facets_3`) and, for a volume, `TetrahedronDelaunayRefiner` refines the tetrahedra inside (CGAL's `Refine_cells_3`) as the level below it. `WeightedDualRestriction` decides restriction: a face is restricted iff its weighted dual edge crosses a surface, found on `SurfaceTessellation` (one CAD surface's trimmed patch sampled onto a jittered UV grid) and `TriangleSoupIndex` (the uniform grid answering the exact segment-crossing query). `SurfaceFacetCriteria` holds CGAL's facet criteria, waived next to protecting balls (`ProtectionExemption`); `RegularConflictRegion` is the conflict region both levels insert through. After refinement, `AmbientTetrahedronRemover` strips the ambient tetrahedra, `RCDTMeshExtractor` extracts and `SurfaceMeshSmoother` smooths. `RestrictedFaceAudit` counts the edges missing a face against the CAD topology, which `meshVolume()` refuses. There is no RCDT-specific context — state lives in `RCDTMesher`, which owns a `MeshingContext3D`. |
-| `Meshing/Core/3D/Surface/` | live | Top-level surface entry point `SurfaceMesher3D`: a thin wrapper around an `ISurfaceMesher3D` (today always `RCDTMesher`), mirroring `VolumeMesher3D`. The per-face UV-space pipeline that used to live here was deleted in OPE-192. |
+| `Meshing/Core/3D/Surface/` | legacy | `SurfaceMesher3D` dispatches between two pipelines. `Auto` selects `AmbientRCDT` whenever the shape has seams, which is true of anything with a cylindrical face, so the UV-space `PerFaceUV` pipeline is in practice reachable only by requesting it explicitly. No example uses it; its coverage is two unit tests on a unit box. Do not assume this module is dead — it is still the entry point every surface example goes through. |
 | `Meshing/Core/3D/Volume/` | live | Initial unconstrained Delaunay tetrahedralization: `Delaunay3D`. Top-level entry point `VolumeMesher3D` |
 | `Meshing/Data/` | live | `MeshData2D`, `MeshData3D`, `Node2D`, `Node3D`, `TriangleElement`, `TetrahedralElement`, `CurveSegmentManager` |
 | `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController2D` |
