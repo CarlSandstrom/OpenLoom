@@ -29,9 +29,6 @@ class MeshingContext2D;
  *
  * The synchroniser holds non-owning references to both the context and the
  * TwinManager, which must outlive the refiner.
- *
- * For 3D use (twins on different faces / different MeshingContext2D instances)
- * the FacetTriangulationManager implements its own cross-context callback.
  */
 class BoundarySplitSynchronizer
 {

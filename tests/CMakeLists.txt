@@ -30,9 +30,6 @@ set(TEST_SOURCES
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
     Meshing/Core/test_ShewchukRefiner2D.cpp
-    Meshing/Core/test_FacetTriangulation.cpp
-    Meshing/Core/test_FacetDiscretization2DBuilder.cpp
-    Meshing/Core/test_FacetTriangulationManager.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
     Meshing/Core/test_MinimumEdgeLengthEstimator.cpp
     Meshing/Core/test_SizingField3D.cpp
@@ -51,7 +48,6 @@ set(TEST_SOURCES
     Meshing/Core/test_SurfaceTessellation.cpp
     Meshing/Core/test_RestrictedFaceAudit.cpp
     Meshing/Core/test_TwinManager.cpp
-    Meshing/Core/test_TwinTableGenerator.cpp
 
     # Topology tests
     Topology/test_Edge.cpp

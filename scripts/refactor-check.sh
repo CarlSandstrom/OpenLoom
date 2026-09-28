@@ -33,10 +33,6 @@ FAST_EXAMPLES=(
     "3D/Surface/CylinderSurfaceMesh"  # single periodic surface, seam handling
     "3D/Surface/HexNutSurfaceMesh"    # planar faces plus a periodic bore
 )
-# Both surface models above resolve to AmbientRCDT: SurfaceMesher3D's Auto
-# strategy picks it whenever the topology has seams, and a cylindrical face
-# always produces one. The legacy PerFaceUV pipeline has no example and no
-# golden -- its only coverage is two unit tests on a unit box.
 
 # Full tier adds the slow models, including the crease-protection benchmark.
 FULL_EXAMPLES=(

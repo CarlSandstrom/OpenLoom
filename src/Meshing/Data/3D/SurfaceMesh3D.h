@@ -12,9 +12,8 @@ namespace Meshing
 /**
  * @brief Result of the 3D surface mesher
  *
- * A conforming triangle mesh of all CAD boundary surfaces, produced by
- * meshing each CAD face independently in UV space and enforcing conformity
- * on shared edges.
+ * A conforming triangle mesh of all CAD boundary surfaces: the restricted
+ * facets of the ambient RCDT mesher (RCDTMesher).
  *
  * Node IDs are indices into the nodes vector.
  * Triangle IDs are indices into the triangles vector.

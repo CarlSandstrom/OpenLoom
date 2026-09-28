@@ -8,18 +8,6 @@
 #include "Meshing/Core/2D/PeriodicDomain2D.h"
 #include "Topology2D/Topology2D.h"
 
-namespace Geometry3D
-{
-class ISurface3D;
-class GeometryCollection3D;
-} // namespace Geometry3D
-
-namespace Topology3D
-{
-class Surface3D;
-class Topology3D;
-} // namespace Topology3D
-
 namespace Meshing
 {
 
@@ -31,31 +19,11 @@ class PeriodicMeshData2D;
 /**
  * @brief Central orchestrator for 2D meshing in parametric space
  *
- * Similar to MeshingContext but for 2D domains. Can be created standalone
- * or extracted from a 3D surface using the fromSurface factory method.
+ * Similar to MeshingContext3D but for 2D domains.
  */
 class MeshingContext2D
 {
 public:
-    /**
-     * @brief Create a 2D meshing context from a 3D surface
-     *
-     * Extracts the 2D parametric domain from a 3D surface:
-     * - Projects boundary corners to (u,v) parametric coordinates
-     * - Creates linear edges in parametric space
-     * - Sets up topology with boundary loop
-     *
-     * @param surface The 3D surface geometry
-     * @param topoSurface The 3D surface topology
-     * @param fullTopology Full 3D topology for edge/corner lookups
-     * @param fullGeometry Full 3D geometry for edge/corner coordinates
-     * @return MeshingContext2D for the surface's parametric domain
-     */
-    static MeshingContext2D fromSurface(const Geometry3D::ISurface3D& surface,
-                                        const Topology3D::Surface3D& topoSurface,
-                                        const Topology3D::Topology3D& fullTopology,
-                                        const Geometry3D::GeometryCollection3D& fullGeometry);
-
     /**
      * @brief Create a standalone 2D meshing context
      */

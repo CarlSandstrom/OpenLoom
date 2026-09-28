@@ -1,7 +1,6 @@
 #include "TsvExporter.h"
 
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
@@ -206,23 +205,6 @@ void TsvExporter::writeDiscretization(const Meshing::DiscretizationResult3D& dis
     }
     writeNodeChains(cells, "edge", discretization.edgeIdToPointIndicesMap);
     writeNodeChains(cells, "surface_points", discretization.surfaceIdToPointIndicesMap);
-}
-
-void TsvExporter::writeSurfaceMesh(const Meshing::DiscretizationResult3D& discretization,
-                                   const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
-                                   const std::string& stem)
-{
-    writePointNodes(discretization.points, stem);
-
-    auto cells = openTable(stem, "cells");
-    cells << CELL_HEADER;
-    for (std::size_t i = 0; i < subfacets.size(); ++i)
-    {
-        const auto& subfacet = subfacets[i];
-        const std::array<std::size_t, 3> triangleNodes = {subfacet.nodeId1, subfacet.nodeId2, subfacet.nodeId3};
-        writeCellRow(cells, "triangle", std::to_string(i), joinNodeIds(triangleNodes), subfacet.geometryId,
-                     formatRole(subfacet.role));
-    }
 }
 
 void TsvExporter::writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh, const std::string& stem)

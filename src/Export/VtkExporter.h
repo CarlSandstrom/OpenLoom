@@ -9,7 +9,6 @@ namespace Meshing
 class MeshData2D;
 class MeshData3D;
 struct DiscretizationResult3D;
-struct ConstrainedSubfacet3D;
 struct SurfaceMesh3D;
 struct VolumeMesh3D;
 } // namespace Meshing
@@ -40,14 +39,7 @@ public:
     // for color-by-edge inspection in ParaView.
     bool writeEdgeMesh(const Meshing::DiscretizationResult3D& result, const std::string& filePath) const;
 
-    // Export surface triangulation as VTK_TRIANGLE cells.
-    // Each triangle cell carries a SurfaceID scalar (0-based index over unique surface IDs)
-    // for color-by-surface inspection in ParaView.
-    bool writeSurfaceMesh(const Meshing::DiscretizationResult3D& discretization,
-                          const std::vector<Meshing::ConstrainedSubfacet3D>& subfacets,
-                          const std::string& filePath) const;
-
-    // Overload that takes a fully assembled SurfaceMesh3D (output of SurfaceMesher3D).
+    // Export a fully assembled SurfaceMesh3D (output of SurfaceMesher3D).
     // Triangles are coloured by SurfaceID using the per-face groups in the struct.
     bool writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh,
                           const std::string& filePath) const;
