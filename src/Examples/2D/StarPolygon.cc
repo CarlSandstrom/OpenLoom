@@ -22,7 +22,7 @@ using namespace Meshing;
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // Stress test: 10-pointed star with outer radius R=10, inner radius r=2.
     //
@@ -33,45 +33,45 @@ int main()
 
     spdlog::info("Creating 10-pointed star polygon (tip angle ~8.7°)");
 
-    const size_t numPoints = 10;
-    const size_t numVertices = 2 * numPoints;
+    const size_t numberOfPoints = 10;
+    const size_t numberOfVertices = 2 * numberOfPoints;
     const double outerRadius = 10.0;
     const double innerRadius = 2.0;
 
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
     std::vector<std::string> edgeLoop;
 
     // Compute all vertex positions. Even indices are outer (tips), odd are inner (valleys).
-    std::vector<Point2D> vertices(numVertices);
-    for (size_t i = 0; i < numVertices; ++i)
+    std::vector<Point2D> vertices(numberOfVertices);
+    for (size_t i = 0; i < numberOfVertices; ++i)
     {
         double radius = (i % 2 == 0) ? outerRadius : innerRadius;
-        double angle = i * M_PI / numPoints;
+        double angle = i * M_PI / numberOfPoints;
         vertices[i] = Point2D(radius * std::cos(angle), radius * std::sin(angle));
     }
 
-    // Add corners and edges. Edge e_i connects c_i -> c_{(i+1) % numVertices}.
-    for (size_t i = 0; i < numVertices; ++i)
+    // Add corners and edges. Edge e_i connects c_i -> c_{(i+1) % numberOfVertices}.
+    for (size_t i = 0; i < numberOfVertices; ++i)
     {
         std::string cornerId = "c" + std::to_string(i);
         std::string edgeId = "e" + std::to_string(i);
-        std::string prevEdgeId = "e" + std::to_string((i + numVertices - 1) % numVertices);
-        size_t nextIndex = (i + 1) % numVertices;
+        std::string previousEdgeId = "e" + std::to_string((i + numberOfVertices - 1) % numberOfVertices);
+        size_t nextIndex = (i + 1) % numberOfVertices;
         std::string nextCornerId = "c" + std::to_string(nextIndex);
 
         geometry->addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, vertices[i]));
         geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
             edgeId, vertices[i], vertices[nextIndex]));
 
-        topoCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, prevEdgeId}));
-        topoEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, cornerId, nextCornerId));
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, cornerId, nextCornerId));
         edgeLoop.push_back(edgeId);
     }
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, edgeLoop,
+        topologyCorners, topologyEdges, edgeLoop,
         std::vector<std::vector<std::string>>{});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));

@@ -34,9 +34,9 @@ const std::map<std::string, TopoDS_Solid>& OpenCascadeGeometryCollection::getSol
 
 std::optional<std::string> OpenCascadeGeometryCollection::findVertexId(const TopoDS_Vertex& vertex) const
 {
-    for (const auto& [id, vertexVal] : vertexMap_)
+    for (const auto& [id, vertexValue] : vertexMap_)
     {
-        if (vertex.IsSame(vertexVal))
+        if (vertex.IsSame(vertexValue))
         {
             return id;
         }
@@ -46,9 +46,9 @@ std::optional<std::string> OpenCascadeGeometryCollection::findVertexId(const Top
 
 std::optional<std::string> OpenCascadeGeometryCollection::findEdgeId(const TopoDS_Edge& edge) const
 {
-    for (const auto& [id, edgeVal] : edgeMap_)
+    for (const auto& [id, edgeValue] : edgeMap_)
     {
-        if (edge.IsSame(edgeVal))
+        if (edge.IsSame(edgeValue))
         {
             return id;
         }
@@ -58,9 +58,9 @@ std::optional<std::string> OpenCascadeGeometryCollection::findEdgeId(const TopoD
 
 std::optional<std::string> OpenCascadeGeometryCollection::findSurfaceId(const TopoDS_Face& face) const
 {
-    for (const auto& [id, faceVal] : faceMap_)
+    for (const auto& [id, faceValue] : faceMap_)
     {
-        if (face.IsSame(faceVal))
+        if (face.IsSame(faceValue))
         {
             return id;
         }
@@ -70,9 +70,9 @@ std::optional<std::string> OpenCascadeGeometryCollection::findSurfaceId(const To
 
 std::optional<std::string> OpenCascadeGeometryCollection::findVolumeId(const TopoDS_Solid& solid) const
 {
-    for (const auto& [id, solidVal] : solidMap_)
+    for (const auto& [id, solidValue] : solidMap_)
     {
-        if (solid.IsSame(solidVal))
+        if (solid.IsSame(solidValue))
         {
             return id;
         }

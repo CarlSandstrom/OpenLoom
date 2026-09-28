@@ -60,7 +60,7 @@
 namespace
 {
 
-constexpr double L = 2.0;         // half-extent of the saddle domain in x and y
+constexpr double LENGTH = 2.0;         // half-extent of the saddle domain in x and y
 constexpr double Z_BOTTOM = -5.0; // flat bottom, below the lowest saddle point (z = -L² = -4)
 
 // Builds the saddle solid: a closed shell consisting of the hyperbolic paraboloid
@@ -72,7 +72,7 @@ constexpr double Z_BOTTOM = -5.0; // flat bottom, below the lowest saddle point 
 // geometrically identical and BRepBuilderAPI_Sewing closes them without gaps.
 TopoDS_Shape buildSaddleSolid()
 {
-    const double squaredL = L * L;
+    const double squaredLength = LENGTH * LENGTH;
 
     BRepBuilderAPI_Sewing sewing;
 
@@ -80,34 +80,34 @@ TopoDS_Shape buildSaddleSolid()
     // cᵢⱼ = αᵢ − βⱼ  where α = β = [L², −L², L²]
     {
         TColgp_Array2OfPnt poles(1, 3, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-L, -L, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(-L, 0.0, 2.0 * squaredL));
-        poles.SetValue(1, 3, gp_Pnt(-L, L, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(0.0, -L, -2.0 * squaredL));
+        poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
+        poles.SetValue(1, 2, gp_Pnt(-LENGTH, 0.0, 2.0 * squaredLength));
+        poles.SetValue(1, 3, gp_Pnt(-LENGTH, LENGTH, 0.0));
+        poles.SetValue(2, 1, gp_Pnt(0.0, -LENGTH, -2.0 * squaredLength));
         poles.SetValue(2, 2, gp_Pnt(0.0, 0.0, 0.0));
-        poles.SetValue(2, 3, gp_Pnt(0.0, L, -2.0 * squaredL));
-        poles.SetValue(3, 1, gp_Pnt(L, -L, 0.0));
-        poles.SetValue(3, 2, gp_Pnt(L, 0.0, 2.0 * squaredL));
-        poles.SetValue(3, 3, gp_Pnt(L, L, 0.0));
+        poles.SetValue(2, 3, gp_Pnt(0.0, LENGTH, -2.0 * squaredLength));
+        poles.SetValue(3, 1, gp_Pnt(LENGTH, -LENGTH, 0.0));
+        poles.SetValue(3, 2, gp_Pnt(LENGTH, 0.0, 2.0 * squaredLength));
+        poles.SetValue(3, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
         sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
     }
 
     // === Bottom face: flat rectangle at z = Z_BOTTOM ===
     {
         gp_Pln plane(gp_Pnt(0.0, 0.0, Z_BOTTOM), gp_Dir(0.0, 0.0, 1.0));
-        sewing.Add(BRepBuilderAPI_MakeFace(plane, -L, L, -L, L).Face());
+        sewing.Add(BRepBuilderAPI_MakeFace(plane, -LENGTH, LENGTH, -LENGTH, LENGTH).Face());
     }
 
     // === Left side (x = −L): ruled surface, top arc z = L²−y², bottom edge at z = Z_BOTTOM ===
     // Top row matches saddle column 1 (u=0) pole-for-pole.
     {
         TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-L, -L, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(-L, 0.0, 2.0 * squaredL));
-        poles.SetValue(1, 3, gp_Pnt(-L, L, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(-L, -L, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(-L, 0.0, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(-L, L, Z_BOTTOM));
+        poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
+        poles.SetValue(1, 2, gp_Pnt(-LENGTH, 0.0, 2.0 * squaredLength));
+        poles.SetValue(1, 3, gp_Pnt(-LENGTH, LENGTH, 0.0));
+        poles.SetValue(2, 1, gp_Pnt(-LENGTH, -LENGTH, Z_BOTTOM));
+        poles.SetValue(2, 2, gp_Pnt(-LENGTH, 0.0, Z_BOTTOM));
+        poles.SetValue(2, 3, gp_Pnt(-LENGTH, LENGTH, Z_BOTTOM));
         sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
     }
 
@@ -115,12 +115,12 @@ TopoDS_Shape buildSaddleSolid()
     // Top row matches saddle column 3 (u=1) pole-for-pole.
     {
         TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(L, -L, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(L, 0.0, 2.0 * squaredL));
-        poles.SetValue(1, 3, gp_Pnt(L, L, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(L, -L, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(L, 0.0, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(L, L, Z_BOTTOM));
+        poles.SetValue(1, 1, gp_Pnt(LENGTH, -LENGTH, 0.0));
+        poles.SetValue(1, 2, gp_Pnt(LENGTH, 0.0, 2.0 * squaredLength));
+        poles.SetValue(1, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
+        poles.SetValue(2, 1, gp_Pnt(LENGTH, -LENGTH, Z_BOTTOM));
+        poles.SetValue(2, 2, gp_Pnt(LENGTH, 0.0, Z_BOTTOM));
+        poles.SetValue(2, 3, gp_Pnt(LENGTH, LENGTH, Z_BOTTOM));
         sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
     }
 
@@ -128,12 +128,12 @@ TopoDS_Shape buildSaddleSolid()
     // Top row matches saddle row 1 (v=0) pole-for-pole.
     {
         TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-L, -L, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(0.0, -L, -2.0 * squaredL));
-        poles.SetValue(1, 3, gp_Pnt(L, -L, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(-L, -L, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(0.0, -L, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(L, -L, Z_BOTTOM));
+        poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
+        poles.SetValue(1, 2, gp_Pnt(0.0, -LENGTH, -2.0 * squaredLength));
+        poles.SetValue(1, 3, gp_Pnt(LENGTH, -LENGTH, 0.0));
+        poles.SetValue(2, 1, gp_Pnt(-LENGTH, -LENGTH, Z_BOTTOM));
+        poles.SetValue(2, 2, gp_Pnt(0.0, -LENGTH, Z_BOTTOM));
+        poles.SetValue(2, 3, gp_Pnt(LENGTH, -LENGTH, Z_BOTTOM));
         sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
     }
 
@@ -141,12 +141,12 @@ TopoDS_Shape buildSaddleSolid()
     // Top row matches saddle row 3 (v=1) pole-for-pole.
     {
         TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-L, L, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(0.0, L, -2.0 * squaredL));
-        poles.SetValue(1, 3, gp_Pnt(L, L, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(-L, L, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(0.0, L, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(L, L, Z_BOTTOM));
+        poles.SetValue(1, 1, gp_Pnt(-LENGTH, LENGTH, 0.0));
+        poles.SetValue(1, 2, gp_Pnt(0.0, LENGTH, -2.0 * squaredLength));
+        poles.SetValue(1, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
+        poles.SetValue(2, 1, gp_Pnt(-LENGTH, LENGTH, Z_BOTTOM));
+        poles.SetValue(2, 2, gp_Pnt(0.0, LENGTH, Z_BOTTOM));
+        poles.SetValue(2, 3, gp_Pnt(LENGTH, LENGTH, Z_BOTTOM));
         sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
     }
 
@@ -165,7 +165,7 @@ TopoDS_Shape buildSaddleSolid()
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     TopoDS_Shape shape = buildSaddleSolid();
     Readers::TopoDS_ShapeConverter converter(shape);

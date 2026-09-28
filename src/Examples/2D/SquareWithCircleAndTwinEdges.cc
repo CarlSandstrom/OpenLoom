@@ -34,8 +34,8 @@
 using namespace Meshing;
 
 static void addSquare(Geometry2D::GeometryCollection2D& geometry,
-                      std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-                      std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+                      std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+                      std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                       std::vector<std::string>& edgeLoop,
                       const std::string& prefix,
                       double size,
@@ -49,71 +49,71 @@ static void addSquare(Geometry2D::GeometryCollection2D& geometry,
 
     for (size_t i = 0; i < 4; ++i)
     {
-        std::string cId  = prefix + "_c" + std::to_string(i);
-        std::string eId  = prefix + "_e" + std::to_string(i);
-        std::string prevE = prefix + "_e" + std::to_string((i + 3) % 4);
+        std::string cornerId       = prefix + "_c" + std::to_string(i);
+        std::string edgeId         = prefix + "_e" + std::to_string(i);
+        std::string previousEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
 
-        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cId, corners[i]));
+        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[i]));
         geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
-            eId, corners[i], corners[(i + 1) % 4]));
+            edgeId, corners[i], corners[(i + 1) % 4]));
 
-        topoCorners.emplace(cId, Topology2D::Corner2D(cId, {eId, prevE}));
-        topoEdges.emplace(eId,
-            Topology2D::Edge2D(eId, cId, prefix + "_c" + std::to_string((i + 1) % 4)));
-        edgeLoop.push_back(eId);
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        topologyEdges.emplace(edgeId,
+            Topology2D::Edge2D(edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
+        edgeLoop.push_back(edgeId);
     }
 }
 
 static void addCircularHole(Geometry2D::GeometryCollection2D& geometry,
-                             std::unordered_map<std::string, Topology2D::Corner2D>& topoCorners,
-                             std::unordered_map<std::string, Topology2D::Edge2D>& topoEdges,
+                             std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
+                             std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
                              std::vector<std::string>& edgeLoop,
                              const std::string& prefix,
                              double centerX,
                              double centerY,
                              double radius,
-                             size_t numSegments = 12)
+                             size_t numberOfSegments = 12)
 {
     gp_Pnt2d center(centerX, centerY);
     gp_Ax2d  axis(center, gp_Dir2d(1.0, 0.0));
     gp_Circ2d circle(axis, radius);
 
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
-        double angle = 2.0 * M_PI * i / numSegments;
+        double angle = 2.0 * M_PI * i / numberOfSegments;
         double x     = centerX + radius * std::cos(angle);
         double y     = centerY + radius * std::sin(angle);
 
-        std::string cId   = prefix + "_c" + std::to_string(i);
-        std::string eId   = prefix + "_e" + std::to_string(i);
-        std::string prevE = prefix + "_e" + std::to_string((i + numSegments - 1) % numSegments);
+        std::string cornerId       = prefix + "_c" + std::to_string(i);
+        std::string edgeId         = prefix + "_e" + std::to_string(i);
+        std::string previousEdgeId = prefix + "_e" + std::to_string((i + numberOfSegments - 1) % numberOfSegments);
 
         geometry.addCorner(
-            std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cId));
-        topoCorners.emplace(cId, Topology2D::Corner2D(cId, {eId, prevE}));
-        edgeLoop.push_back(eId);
+            std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        edgeLoop.push_back(edgeId);
     }
 
-    for (size_t i = 0; i < numSegments; ++i)
+    for (size_t i = 0; i < numberOfSegments; ++i)
     {
-        double startAngle = 2.0 * M_PI * i / numSegments;
-        double endAngle   = 2.0 * M_PI * (i + 1) / numSegments;
+        double startAngle = 2.0 * M_PI * i / numberOfSegments;
+        double endAngle   = 2.0 * M_PI * (i + 1) / numberOfSegments;
 
-        Handle(Geom2d_Circle)      circleGeom = new Geom2d_Circle(circle);
-        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeom, startAngle, endAngle);
+        Handle(Geom2d_Circle)      circleGeometry = new Geom2d_Circle(circle);
+        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
 
-        std::string eId    = prefix + "_e" + std::to_string(i);
-        std::string startC = prefix + "_c" + std::to_string(i);
-        std::string endC   = prefix + "_c" + std::to_string((i + 1) % numSegments);
+        std::string edgeId        = prefix + "_e" + std::to_string(i);
+        std::string startCornerId = prefix + "_c" + std::to_string(i);
+        std::string endCornerId   = prefix + "_c" + std::to_string((i + 1) % numberOfSegments);
 
-        geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, eId));
-        topoEdges.emplace(eId, Topology2D::Edge2D(eId, startC, endC));
+        geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
+        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
     }
 }
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // -------------------------------------------------------------------------
     // Geometry: 10×10 square with a circular hole near the top edge.
@@ -134,8 +134,8 @@ int main()
     spdlog::info("Building square with circular hole near top edge");
 
     auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D>   topoEdges;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D>   topologyEdges;
 
     // Outer square — addSquare produces:
     //   e0: c0(0,0)  → c1(10,0)   bottom  (left-to-right)
@@ -143,14 +143,14 @@ int main()
     //   e2: c2(10,10)→ c3(0,10)   top     (right-to-left)
     //   e3: c3(0,10) → c0(0,0)    left    (top-to-bottom)
     std::vector<std::string> outerLoop;
-    addSquare(*geometry, topoCorners, topoEdges, outerLoop, "sq", 10.0);
+    addSquare(*geometry, topologyCorners, topologyEdges, outerLoop, "sq", 10.0);
 
     // Circular hole — 12 arc segments, center at (5, 8), radius 1.5
     std::vector<std::string> holeLoop;
-    addCircularHole(*geometry, topoCorners, topoEdges, holeLoop, "circ", 7.0, 8.3, 1.5, 12);
+    addCircularHole(*geometry, topologyCorners, topologyEdges, holeLoop, "circ", 7.0, 8.3, 1.5, 12);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerLoop,
+        topologyCorners, topologyEdges, outerLoop,
         std::vector<std::vector<std::string>>{holeLoop});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));
@@ -171,22 +171,22 @@ int main()
     // Node IDs are assigned by the Delaunay inserter and are not guessable
     // ahead of time, so we scan the mesh.
     // -------------------------------------------------------------------------
-    size_t c0Id = SIZE_MAX, c1Id = SIZE_MAX, c2Id = SIZE_MAX, c3Id = SIZE_MAX;
+    size_t corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
-        const Point2D& pt = node->getCoordinates();
-        if      (std::abs(pt.x())        < 1e-9 && std::abs(pt.y())        < 1e-9) c0Id = nodeId;
-        else if (std::abs(pt.x() - 10.0) < 1e-9 && std::abs(pt.y())        < 1e-9) c1Id = nodeId;
-        else if (std::abs(pt.x() - 10.0) < 1e-9 && std::abs(pt.y() - 10.0) < 1e-9) c2Id = nodeId;
-        else if (std::abs(pt.x())        < 1e-9 && std::abs(pt.y() - 10.0) < 1e-9) c3Id = nodeId;
+        const Point2D& point = node->getCoordinates();
+        if      (std::abs(point.x())        < 1e-9 && std::abs(point.y())        < 1e-9) corner0Id = nodeId;
+        else if (std::abs(point.x() - 10.0) < 1e-9 && std::abs(point.y())        < 1e-9) corner1Id = nodeId;
+        else if (std::abs(point.x() - 10.0) < 1e-9 && std::abs(point.y() - 10.0) < 1e-9) corner2Id = nodeId;
+        else if (std::abs(point.x())        < 1e-9 && std::abs(point.y() - 10.0) < 1e-9) corner3Id = nodeId;
     }
-    if (c0Id == SIZE_MAX || c1Id == SIZE_MAX || c2Id == SIZE_MAX || c3Id == SIZE_MAX)
+    if (corner0Id == SIZE_MAX || corner1Id == SIZE_MAX || corner2Id == SIZE_MAX || corner3Id == SIZE_MAX)
     {
         spdlog::error("Could not locate all four corner nodes — aborting");
         return 1;
     }
     spdlog::info("Corner nodes: c0={} (0,0)  c1={} (10,0)  c2={} (10,10)  c3={} (0,10)",
-                 c0Id, c1Id, c2Id, c3Id);
+                 corner0Id, corner1Id, corner2Id, corner3Id);
 
     // -------------------------------------------------------------------------
     // TwinManager: top edge (e2: c2→c3) ↔ bottom edge (e0: c0→c1)
@@ -198,7 +198,7 @@ int main()
     //                                     getTwin(c0,c1) = (c3,c2)
     // -------------------------------------------------------------------------
     TwinManager twinManager;
-    twinManager.registerTwin(TwinManager::NO_SURFACE, c2Id, c3Id, TwinManager::NO_SURFACE, c1Id, c0Id);
+    twinManager.registerTwin(TwinManager::NO_SURFACE, corner2Id, corner3Id, TwinManager::NO_SURFACE, corner1Id, corner0Id);
     spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
 
     // -------------------------------------------------------------------------
@@ -218,11 +218,11 @@ int main()
     std::vector<double> topX, bottomX;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
-        const Point2D& pt = node->getCoordinates();
-        if (std::abs(pt.y() - 10.0) < 1e-9)
-            topX.push_back(pt.x());
-        else if (std::abs(pt.y()) < 1e-9)
-            bottomX.push_back(pt.x());
+        const Point2D& point = node->getCoordinates();
+        if (std::abs(point.y() - 10.0) < 1e-9)
+            topX.push_back(point.x());
+        else if (std::abs(point.y()) < 1e-9)
+            bottomX.push_back(point.x());
     }
     std::sort(topX.begin(),    topX.end());
     std::sort(bottomX.begin(), bottomX.end());

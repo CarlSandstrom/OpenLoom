@@ -3,7 +3,7 @@
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
-#include "Meshing/Core/3D/General/MeshDebugUtils3D.h"
+#include "Meshing/Core/3D/General/MeshDebugUtilities3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/General/SizingField3D.h"
@@ -81,7 +81,7 @@ void seedAmbientTriangulation(MeshingContext3D& context,
 // (extractVolumeMesh() reads those directly) — sync the smoothed positions
 // back so both stay geometrically consistent, rather than only the returned
 // copy.
-void syncNodePositions(MeshingContext3D& context, const SurfaceMesh3D& surfaceMesh)
+void synchronizeNodePositions(MeshingContext3D& context, const SurfaceMesh3D& surfaceMesh)
 {
     auto& mutator = context.getMutator();
     for (size_t nodeId = 0; nodeId < surfaceMesh.nodes.size(); ++nodeId)
@@ -106,7 +106,7 @@ void smoothSurfaceMesh(MeshingContext3D& context,
     if (meshingVolume)
         tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
     SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra);
-    syncNodePositions(context, surfaceMesh);
+    synchronizeNodePositions(context, surfaceMesh);
 }
 
 // AmbientTetrahedronRemover's flood fill crosses every face that is not
@@ -220,7 +220,7 @@ VolumeMesh3D RCDTMesher::meshVolume()
 double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
 {
     spdlog::info("RCDTMesher::seedTriangulation: discretizing boundary ({} surface samples/direction)",
-                 discretizationSettings_.getNumSamplesPerSurfaceDirection());
+                 discretizationSettings_.getNumberOfSamplesPerSurfaceDirection());
 
     // Built before discretization and kept, so the size floor below reads the
     // same h(x) the discretization did -- the point of OPE-181.

@@ -17,7 +17,7 @@ namespace Geometry3D
  *  - Angle-based: inserts a point whenever the tangent direction changes by
  *    more than maxAngleBetweenSegments. Straight edges produce no interior
  *    points; curved edges are resolved adaptively.
- *  - Fixed-count: divides every edge into numSegmentsPerEdge uniform segments.
+ *  - Fixed-count: divides every edge into numberOfSegmentsPerEdge uniform segments.
  */
 class DiscretizationSettings3D
 {
@@ -26,48 +26,48 @@ public:
      * @brief Default constructor — angle-based with π/4 (45°), 2 surface samples.
      */
     DiscretizationSettings3D() :
-        numSegmentsPerEdge_(std::nullopt),
+        numberOfSegmentsPerEdge_(std::nullopt),
         maxAngleBetweenSegments_(std::numbers::pi / 4.0),
-        numSamplesPerSurfaceDirection_(2)
+        numberOfSamplesPerSurfaceDirection_(2)
     {
     }
 
     /**
      * @brief Full explicit constructor.
-     * @param numSegmentsPerEdge   Fixed segment count (nullopt = not used).
+     * @param numberOfSegmentsPerEdge   Fixed segment count (nullopt = not used).
      * @param maxAngleBetweenSegments  Max tangent-angle change per segment (nullopt = not used).
-     * @param numSamplesPerSurfaceDirection  Grid samples per direction on surfaces.
+     * @param numberOfSamplesPerSurfaceDirection  Grid samples per direction on surfaces.
      */
-    DiscretizationSettings3D(std::optional<size_t> numSegmentsPerEdge,
+    DiscretizationSettings3D(std::optional<size_t> numberOfSegmentsPerEdge,
                              std::optional<double> maxAngleBetweenSegments,
-                             size_t numSamplesPerSurfaceDirection) :
-        numSegmentsPerEdge_(numSegmentsPerEdge),
+                             size_t numberOfSamplesPerSurfaceDirection) :
+        numberOfSegmentsPerEdge_(numberOfSegmentsPerEdge),
         maxAngleBetweenSegments_(maxAngleBetweenSegments),
-        numSamplesPerSurfaceDirection_(numSamplesPerSurfaceDirection)
+        numberOfSamplesPerSurfaceDirection_(numberOfSamplesPerSurfaceDirection)
     {
     }
 
     /**
      * @brief Convenience constructor for fixed-count mode (backwards compatible).
-     * @param numSegmentsPerEdge Number of segments to divide each edge into.
-     * @param numSamplesPerSurfaceDirection Grid samples per direction on surfaces.
+     * @param numberOfSegmentsPerEdge Number of segments to divide each edge into.
+     * @param numberOfSamplesPerSurfaceDirection Grid samples per direction on surfaces.
      */
-    DiscretizationSettings3D(size_t numSegmentsPerEdge,
-                             size_t numSamplesPerSurfaceDirection) :
-        numSegmentsPerEdge_(numSegmentsPerEdge),
+    DiscretizationSettings3D(size_t numberOfSegmentsPerEdge,
+                             size_t numberOfSamplesPerSurfaceDirection) :
+        numberOfSegmentsPerEdge_(numberOfSegmentsPerEdge),
         maxAngleBetweenSegments_(std::nullopt),
-        numSamplesPerSurfaceDirection_(numSamplesPerSurfaceDirection)
+        numberOfSamplesPerSurfaceDirection_(numberOfSamplesPerSurfaceDirection)
     {
     }
 
-    std::optional<size_t> getNumSegmentsPerEdge() const { return numSegmentsPerEdge_; }
+    std::optional<size_t> getNumberOfSegmentsPerEdge() const { return numberOfSegmentsPerEdge_; }
     std::optional<double> getMaxAngleBetweenSegments() const { return maxAngleBetweenSegments_; }
-    size_t getNumSamplesPerSurfaceDirection() const { return numSamplesPerSurfaceDirection_; }
+    size_t getNumberOfSamplesPerSurfaceDirection() const { return numberOfSamplesPerSurfaceDirection_; }
 
 private:
-    std::optional<size_t> numSegmentsPerEdge_;
+    std::optional<size_t> numberOfSegmentsPerEdge_;
     std::optional<double> maxAngleBetweenSegments_;
-    size_t numSamplesPerSurfaceDirection_;
+    size_t numberOfSamplesPerSurfaceDirection_;
 };
 
 } // namespace Geometry3D

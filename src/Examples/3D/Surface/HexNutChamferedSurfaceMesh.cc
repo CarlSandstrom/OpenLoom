@@ -112,7 +112,7 @@ TopoDS_Shape buildChamferedHexNut()
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     const TopoDS_Shape shape = buildChamferedHexNut();
     Readers::TopoDS_ShapeConverter converter(shape);

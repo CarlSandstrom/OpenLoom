@@ -137,11 +137,11 @@ Geometry3D::GeometryCollection3D makeGeometry(
 }
 
 // Build a minimal Topology3D with the given edges.
-// edgeDefs: list of (id, startCornerId, endCornerId)
+// edgeDefinitions: list of (id, startCornerId, endCornerId)
 // seamPairs: list of (originalEdgeId, twinEdgeId)
 Topology3D::Topology3D makeTopology(
     const std::vector<std::string>& cornerIds,
-    const std::vector<std::tuple<std::string, std::string, std::string>>& edgeDefs,
+    const std::vector<std::tuple<std::string, std::string, std::string>>& edgeDefinitions,
     const std::vector<std::pair<std::string, std::string>>& seamPairs = {})
 {
     std::unordered_map<std::string, Topology3D::Corner3D> corners;
@@ -149,7 +149,7 @@ Topology3D::Topology3D makeTopology(
         corners.emplace(cornerId, Topology3D::Corner3D(cornerId, {}, {}));
 
     std::unordered_map<std::string, Topology3D::Edge3D> edges;
-    for (const auto& [edgeId, startId, endId] : edgeDefs)
+    for (const auto& [edgeId, startId, endId] : edgeDefinitions)
         edges.emplace(edgeId, Topology3D::Edge3D(edgeId, startId, endId, {}));
 
     std::unordered_map<std::string, Topology3D::Surface3D> surfaces;

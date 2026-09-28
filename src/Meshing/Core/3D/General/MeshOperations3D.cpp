@@ -108,8 +108,8 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     double dx = maxX - minX;
     double dy = maxY - minY;
     double dz = maxZ - minZ;
-    double maxDim = std::max({dx, dy, dz, 1.0}); // At least 1.0 to handle degenerate cases
-    double margin = maxDim * 10.0;               // Large margin for numerical stability
+    double maxDimension = std::max({dx, dy, dz, 1.0}); // At least 1.0 to handle degenerate cases
+    double margin = maxDimension * 10.0;               // Large margin for numerical stability
 
     // Create a super-tetrahedron that contains the bounding box
     // Using a tetrahedron with one vertex at origin-margin and three vertices

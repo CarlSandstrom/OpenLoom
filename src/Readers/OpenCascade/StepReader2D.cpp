@@ -89,28 +89,28 @@ void StepReader2D::buildTopologyAndGeometry()
     }
 
     // Build topology corners from accumulated connectivity
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
     for (const auto& [vertexId, edgeIds] : vertexEdgeConnectivity_)
     {
-        topoCorners.emplace(vertexId, Topology2D::Corner2D(vertexId, edgeIds));
+        topologyCorners.emplace(vertexId, Topology2D::Corner2D(vertexId, edgeIds));
     }
 
     topology_ = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges_, outerEdgeLoop, holeEdgeLoops);
+        topologyCorners, topologyEdges_, outerEdgeLoop, holeEdgeLoops);
 
     spdlog::info("Built 2D topology: {} corners, {} edges, {} holes",
-                 topoCorners.size(), topoEdges_.size(), holeEdgeLoops.size());
+                 topologyCorners.size(), topologyEdges_.size(), holeEdgeLoops.size());
 }
 
 void StepReader2D::processWire(const TopoDS_Wire& wire,
                                 const TopoDS_Face& face,
                                 std::vector<std::string>& edgeLoop)
 {
-    BRepTools_WireExplorer wireExp(wire, face);
+    BRepTools_WireExplorer wireExplorer(wire, face);
 
-    while (wireExp.More())
+    while (wireExplorer.More())
     {
-        TopoDS_Edge edge = wireExp.Current();
+        TopoDS_Edge edge = wireExplorer.Current();
 
         // Get the 2D curve on the face
         double first, last;
@@ -118,7 +118,7 @@ void StepReader2D::processWire(const TopoDS_Wire& wire,
         if (curve2d.IsNull())
         {
             spdlog::warn("Edge has no 2D curve on face, skipping");
-            wireExp.Next();
+            wireExplorer.Next();
             continue;
         }
 
@@ -143,13 +143,13 @@ void StepReader2D::processWire(const TopoDS_Wire& wire,
         std::string endId = findOrCreateVertex(endVertex, face);
 
         // Create topology edge
-        topoEdges_.emplace(edgeId, Topology2D::Edge2D(edgeId, startId, endId));
+        topologyEdges_.emplace(edgeId, Topology2D::Edge2D(edgeId, startId, endId));
 
         // Track vertex-edge connectivity
         vertexEdgeConnectivity_[startId].insert(edgeId);
         vertexEdgeConnectivity_[endId].insert(edgeId);
 
-        wireExp.Next();
+        wireExplorer.Next();
     }
 }
 

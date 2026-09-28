@@ -44,7 +44,7 @@ private:
     std::unique_ptr<Geometry2D::GeometryCollection2D> geometry_;
 
     // Accumulated during wire processing, assembled into Topology2D at the end
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges_;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges_;
     std::unordered_map<std::string, std::set<std::string>> vertexEdgeConnectivity_;
 
     // Vertex deduplication: stores (TopoDS_Vertex, vertexId) pairs

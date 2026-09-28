@@ -23,7 +23,7 @@ using namespace Meshing;
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // Stress test: 200x2 rectangle (aspect ratio 100:1) with a 20x0.8 interior hole.
     //
@@ -60,31 +60,31 @@ int main()
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("hole_e2", Point2D(80.0, 1.4), Point2D(60.0, 1.4)));
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("hole_e3", Point2D(60.0, 1.4), Point2D(60.0, 0.6)));
 
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    topoCorners.emplace("outer_c0", Topology2D::Corner2D("outer_c0", {"outer_e0", "outer_e3"}));
-    topoCorners.emplace("outer_c1", Topology2D::Corner2D("outer_c1", {"outer_e0", "outer_e1"}));
-    topoCorners.emplace("outer_c2", Topology2D::Corner2D("outer_c2", {"outer_e1", "outer_e2"}));
-    topoCorners.emplace("outer_c3", Topology2D::Corner2D("outer_c3", {"outer_e2", "outer_e3"}));
-    topoCorners.emplace("hole_c0", Topology2D::Corner2D("hole_c0", {"hole_e0", "hole_e3"}));
-    topoCorners.emplace("hole_c1", Topology2D::Corner2D("hole_c1", {"hole_e0", "hole_e1"}));
-    topoCorners.emplace("hole_c2", Topology2D::Corner2D("hole_c2", {"hole_e1", "hole_e2"}));
-    topoCorners.emplace("hole_c3", Topology2D::Corner2D("hole_c3", {"hole_e2", "hole_e3"}));
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    topologyCorners.emplace("outer_c0", Topology2D::Corner2D("outer_c0", {"outer_e0", "outer_e3"}));
+    topologyCorners.emplace("outer_c1", Topology2D::Corner2D("outer_c1", {"outer_e0", "outer_e1"}));
+    topologyCorners.emplace("outer_c2", Topology2D::Corner2D("outer_c2", {"outer_e1", "outer_e2"}));
+    topologyCorners.emplace("outer_c3", Topology2D::Corner2D("outer_c3", {"outer_e2", "outer_e3"}));
+    topologyCorners.emplace("hole_c0", Topology2D::Corner2D("hole_c0", {"hole_e0", "hole_e3"}));
+    topologyCorners.emplace("hole_c1", Topology2D::Corner2D("hole_c1", {"hole_e0", "hole_e1"}));
+    topologyCorners.emplace("hole_c2", Topology2D::Corner2D("hole_c2", {"hole_e1", "hole_e2"}));
+    topologyCorners.emplace("hole_c3", Topology2D::Corner2D("hole_c3", {"hole_e2", "hole_e3"}));
 
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
-    topoEdges.emplace("outer_e0", Topology2D::Edge2D("outer_e0", "outer_c0", "outer_c1"));
-    topoEdges.emplace("outer_e1", Topology2D::Edge2D("outer_e1", "outer_c1", "outer_c2"));
-    topoEdges.emplace("outer_e2", Topology2D::Edge2D("outer_e2", "outer_c2", "outer_c3"));
-    topoEdges.emplace("outer_e3", Topology2D::Edge2D("outer_e3", "outer_c3", "outer_c0"));
-    topoEdges.emplace("hole_e0", Topology2D::Edge2D("hole_e0", "hole_c0", "hole_c1"));
-    topoEdges.emplace("hole_e1", Topology2D::Edge2D("hole_e1", "hole_c1", "hole_c2"));
-    topoEdges.emplace("hole_e2", Topology2D::Edge2D("hole_e2", "hole_c2", "hole_c3"));
-    topoEdges.emplace("hole_e3", Topology2D::Edge2D("hole_e3", "hole_c3", "hole_c0"));
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+    topologyEdges.emplace("outer_e0", Topology2D::Edge2D("outer_e0", "outer_c0", "outer_c1"));
+    topologyEdges.emplace("outer_e1", Topology2D::Edge2D("outer_e1", "outer_c1", "outer_c2"));
+    topologyEdges.emplace("outer_e2", Topology2D::Edge2D("outer_e2", "outer_c2", "outer_c3"));
+    topologyEdges.emplace("outer_e3", Topology2D::Edge2D("outer_e3", "outer_c3", "outer_c0"));
+    topologyEdges.emplace("hole_e0", Topology2D::Edge2D("hole_e0", "hole_c0", "hole_c1"));
+    topologyEdges.emplace("hole_e1", Topology2D::Edge2D("hole_e1", "hole_c1", "hole_c2"));
+    topologyEdges.emplace("hole_e2", Topology2D::Edge2D("hole_e2", "hole_c2", "hole_c3"));
+    topologyEdges.emplace("hole_e3", Topology2D::Edge2D("hole_e3", "hole_c3", "hole_c0"));
 
     std::vector<std::string> outerEdgeLoop = {"outer_e0", "outer_e1", "outer_e2", "outer_e3"};
     std::vector<std::string> holeEdgeLoop = {"hole_e0", "hole_e1", "hole_e2", "hole_e3"};
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topoCorners, topoEdges, outerEdgeLoop,
+        topologyCorners, topologyEdges, outerEdgeLoop,
         std::vector<std::vector<std::string>>{holeEdgeLoop});
 
     MeshingContext2D context(std::move(geometry), std::move(topology));

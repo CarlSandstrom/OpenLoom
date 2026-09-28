@@ -59,7 +59,7 @@ CAD shape (OCC)
 ```cpp
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // 1. Build CAD shape
     TopoDS_Shape shape = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
@@ -123,7 +123,7 @@ There is no 3D STEP reader class yet (`StepReader2D` is 2D only). `TopoDS_ShapeC
 ```cpp
 // Angle-based (adaptive, recommended): inserts points where tangent changes > angle
 Geometry3D::DiscretizationSettings3D settings(
-    std::nullopt,             // numSegmentsPerEdge = auto
+    std::nullopt,             // numberOfSegmentsPerEdge = auto
     std::numbers::pi / 8.0,  // maxAngle = 22.5° (use pi/4 = 45° for coarser, pi/16 for finer)
     2);                       // surface samples per UV direction (interior points per face)
 
@@ -131,7 +131,7 @@ Geometry3D::DiscretizationSettings3D settings(
 Geometry3D::DiscretizationSettings3D settings(8, 2);
 ```
 
-**Guideline**: `π/8` (22.5°) is the standard used in all existing examples. Increase `numSamplesPerSurfaceDirection` (e.g. 4) for surfaces with little curvature that still need interior seed points.
+**Guideline**: `π/8` (22.5°) is the standard used in all existing examples. Increase `numberOfSamplesPerSurfaceDirection` (e.g. 4) for surfaces with little curvature that still need interior seed points.
 
 ---
 

@@ -2,7 +2,7 @@
 #include "ElementGeometry2D.h"
 #include "ElementQuality2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "MeshDebugUtils2D.h"
+#include "MeshDebugUtilities2D.h"
 #include "MeshOperations2D.h"
 #include "MeshQueries2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
@@ -229,15 +229,15 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     }
 
     // Compute circumcenter using offset-aware coordinates (no-op for non-periodic meshes)
-    auto circumcenterOpt = geometry.computeCircumcenter(triangleId);
+    auto optionalCircumcenter = geometry.computeCircumcenter(triangleId);
 
-    if (!circumcenterOpt.has_value())
+    if (!optionalCircumcenter.has_value())
     {
         spdlog::debug("ShewchukRefiner2D: Cannot compute circumcenter for triangle {} (likely degenerate), skipping", triangleId);
         return false;
     }
 
-    Point2D circumcenter = circumcenterOpt.value();
+    Point2D circumcenter = optionalCircumcenter.value();
 
     // Check if circumcenter is inside the domain (not in a hole)
     if (!context_->getOperations().getQueries().isPointInsideDomain(circumcenter))
@@ -252,8 +252,8 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
     // node was already inserted. Bowyer-Watson cannot handle duplicate points.
     for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
     {
-        double dist = (node->getCoordinates() - circumcenter).norm();
-        if (dist < MIN_REFINABLE_EDGE)
+        double distance = (node->getCoordinates() - circumcenter).norm();
+        if (distance < MIN_REFINABLE_EDGE)
         {
             spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) coincides with "
                           "existing node {}, skipping",

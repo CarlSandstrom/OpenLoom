@@ -30,7 +30,7 @@
 
 int main()
 {
-    Common::initLogging();
+    Common::initializeLogging();
 
     // 100×10×0.5 box: the two 100×0.5 faces are the thin fins under test.
     TopoDS_Shape shape = BRepPrimAPI_MakeBox(100.0, 10.0, 0.5).Shape();
@@ -41,23 +41,23 @@ int main()
     // along edges, so edge sampling is minimal (just endpoints). Four interior
     // seed points per UV direction ensure the refiner has starting material on
     // each flat face.
-    Geometry3D::DiscretizationSettings3D discSettings(std::nullopt, std::numbers::pi / 8.0, 4);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 4);
 
-    const auto discResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                       converter.getTopology(),
-                                                                       discSettings);
+    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                                 converter.getTopology(),
+                                                                                 discretizationSettings);
 
-    std::cout << "Points:         " << discResult->points.size() << "\n";
-    std::cout << "Topology edges: " << discResult->edgeIdToPointIndicesMap.size() << "\n";
+    std::cout << "Points:         " << discretizationResult->points.size() << "\n";
+    std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";
 
     Export::VtkExporter exporter;
-    exporter.writeEdgeMesh(*discResult, "ThinFinSurfaceMeshEdges.vtu");
+    exporter.writeEdgeMesh(*discretizationResult, "ThinFinSurfaceMeshEdges.vtu");
     std::cout << "Exported edge mesh to ThinFinSurfaceMeshEdges.vtu\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
-                                    discSettings,
+                                    discretizationSettings,
                                     Meshing::SurfaceMesh3DQualitySettings{});
     auto surfaceMesh = mesher.mesh();
 

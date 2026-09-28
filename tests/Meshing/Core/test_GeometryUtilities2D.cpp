@@ -94,24 +94,24 @@ TEST(GeometryUtilities2DTest, CreateSuperTriangleContainsAllPoints)
         Point2D(0.5, 0.5),
         Point2D(0.2, 0.8)};
 
-    auto superTri = GeometryUtilities2D::createSuperTriangle(points);
+    auto superTriangle = GeometryUtilities2D::createSuperTriangle(points);
 
     // Verify that all original points are inside the super triangle
     // This is a simplified check - a full test would verify point-in-triangle
-    EXPECT_EQ(superTri.size(), 3u);
+    EXPECT_EQ(superTriangle.size(), 3u);
 
     // The super triangle should have a large enough extent
-    double minX = std::min({superTri[0].x(), superTri[1].x(), superTri[2].x()});
-    double maxX = std::max({superTri[0].x(), superTri[1].x(), superTri[2].x()});
-    double minY = std::min({superTri[0].y(), superTri[1].y(), superTri[2].y()});
-    double maxY = std::max({superTri[0].y(), superTri[1].y(), superTri[2].y()});
+    double minX = std::min({superTriangle[0].x(), superTriangle[1].x(), superTriangle[2].x()});
+    double maxX = std::max({superTriangle[0].x(), superTriangle[1].x(), superTriangle[2].x()});
+    double minY = std::min({superTriangle[0].y(), superTriangle[1].y(), superTriangle[2].y()});
+    double maxY = std::max({superTriangle[0].y(), superTriangle[1].y(), superTriangle[2].y()});
 
     // All original points should be within the super triangle bounds
-    for (const auto& pt : points)
+    for (const auto& point : points)
     {
-        EXPECT_LT(pt.x(), maxX);
-        EXPECT_GT(pt.x(), minX);
-        EXPECT_LT(pt.y(), maxY);
-        EXPECT_GT(pt.y(), minY);
+        EXPECT_LT(point.x(), maxX);
+        EXPECT_GT(point.x(), minX);
+        EXPECT_LT(point.y(), maxY);
+        EXPECT_GT(point.y(), minY);
     }
 }

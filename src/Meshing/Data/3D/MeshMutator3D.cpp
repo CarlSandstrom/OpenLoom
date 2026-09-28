@@ -56,7 +56,7 @@ size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
     return id;
 }
 
-void MeshMutator3D::moveNode(size_t id, const Point3D& newCoords)
+void MeshMutator3D::moveNode(size_t id, const Point3D& newCoordinates)
 {
     Node3D* node = geometry_.getNodeMutable(id);
     if (!node)
@@ -64,7 +64,7 @@ void MeshMutator3D::moveNode(size_t id, const Point3D& newCoords)
         throw OpenLoom::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
-    node->setCoordinates(newCoords);
+    node->setCoordinates(newCoordinates);
 }
 
 void MeshMutator3D::removeNode(size_t id)
@@ -75,7 +75,7 @@ void MeshMutator3D::removeNode(size_t id)
         throw OpenLoom::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
-    // Validate that node can be removed (this would need connectivity info)
+    // Validate that node can be removed (this would need connectivity information)
     validateNodeRemoval(id);
 
     geometry_.removeNodeInternal(id);

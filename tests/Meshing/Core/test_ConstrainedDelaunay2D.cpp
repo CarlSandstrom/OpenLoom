@@ -45,21 +45,21 @@ MeshingContext2D makeSquareContext()
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e2", p2, p3));
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e3", p3, p0));
 
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    topoCorners.emplace("c0", Topology2D::Corner2D("c0", std::set<std::string>{"e3", "e0"}));
-    topoCorners.emplace("c1", Topology2D::Corner2D("c1", std::set<std::string>{"e0", "e1"}));
-    topoCorners.emplace("c2", Topology2D::Corner2D("c2", std::set<std::string>{"e1", "e2"}));
-    topoCorners.emplace("c3", Topology2D::Corner2D("c3", std::set<std::string>{"e2", "e3"}));
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    topologyCorners.emplace("c0", Topology2D::Corner2D("c0", std::set<std::string>{"e3", "e0"}));
+    topologyCorners.emplace("c1", Topology2D::Corner2D("c1", std::set<std::string>{"e0", "e1"}));
+    topologyCorners.emplace("c2", Topology2D::Corner2D("c2", std::set<std::string>{"e1", "e2"}));
+    topologyCorners.emplace("c3", Topology2D::Corner2D("c3", std::set<std::string>{"e2", "e3"}));
 
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
-    topoEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
-    topoEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
-    topoEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c3"));
-    topoEdges.emplace("e3", Topology2D::Edge2D("e3", "c3", "c0"));
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+    topologyEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
+    topologyEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
+    topologyEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c3"));
+    topologyEdges.emplace("e3", Topology2D::Edge2D("e3", "c3", "c0"));
 
     std::vector<std::string> boundaryEdgeLoop = {"e0", "e1", "e2", "e3"};
 
-    auto topology = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, boundaryEdgeLoop);
+    auto topology = std::make_unique<Topology2D::Topology2D>(topologyCorners, topologyEdges, boundaryEdgeLoop);
 
     return MeshingContext2D(std::move(geometry), std::move(topology));
 }
@@ -82,19 +82,19 @@ MeshingContext2D makeTriangleContext()
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e1", p1, p2));
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e2", p2, p0));
 
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    topoCorners.emplace("c0", Topology2D::Corner2D("c0", std::set<std::string>{"e2", "e0"}));
-    topoCorners.emplace("c1", Topology2D::Corner2D("c1", std::set<std::string>{"e0", "e1"}));
-    topoCorners.emplace("c2", Topology2D::Corner2D("c2", std::set<std::string>{"e1", "e2"}));
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    topologyCorners.emplace("c0", Topology2D::Corner2D("c0", std::set<std::string>{"e2", "e0"}));
+    topologyCorners.emplace("c1", Topology2D::Corner2D("c1", std::set<std::string>{"e0", "e1"}));
+    topologyCorners.emplace("c2", Topology2D::Corner2D("c2", std::set<std::string>{"e1", "e2"}));
 
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
-    topoEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
-    topoEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
-    topoEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c0"));
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+    topologyEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
+    topologyEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
+    topologyEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c0"));
 
     std::vector<std::string> boundaryEdgeLoop = {"e0", "e1", "e2"};
 
-    auto topology = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, boundaryEdgeLoop);
+    auto topology = std::make_unique<Topology2D::Topology2D>(topologyCorners, topologyEdges, boundaryEdgeLoop);
 
     return MeshingContext2D(std::move(geometry), std::move(topology));
 }
@@ -127,25 +127,25 @@ MeshingContext2D makeLShapeContext()
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e4", p4, p5));
     geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>("e5", p5, p0));
 
-    std::unordered_map<std::string, Topology2D::Corner2D> topoCorners;
-    topoCorners.emplace("c0", Topology2D::Corner2D("c0", std::set<std::string>{"e5", "e0"}));
-    topoCorners.emplace("c1", Topology2D::Corner2D("c1", std::set<std::string>{"e0", "e1"}));
-    topoCorners.emplace("c2", Topology2D::Corner2D("c2", std::set<std::string>{"e1", "e2"}));
-    topoCorners.emplace("c3", Topology2D::Corner2D("c3", std::set<std::string>{"e2", "e3"}));
-    topoCorners.emplace("c4", Topology2D::Corner2D("c4", std::set<std::string>{"e3", "e4"}));
-    topoCorners.emplace("c5", Topology2D::Corner2D("c5", std::set<std::string>{"e4", "e5"}));
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    topologyCorners.emplace("c0", Topology2D::Corner2D("c0", std::set<std::string>{"e5", "e0"}));
+    topologyCorners.emplace("c1", Topology2D::Corner2D("c1", std::set<std::string>{"e0", "e1"}));
+    topologyCorners.emplace("c2", Topology2D::Corner2D("c2", std::set<std::string>{"e1", "e2"}));
+    topologyCorners.emplace("c3", Topology2D::Corner2D("c3", std::set<std::string>{"e2", "e3"}));
+    topologyCorners.emplace("c4", Topology2D::Corner2D("c4", std::set<std::string>{"e3", "e4"}));
+    topologyCorners.emplace("c5", Topology2D::Corner2D("c5", std::set<std::string>{"e4", "e5"}));
 
-    std::unordered_map<std::string, Topology2D::Edge2D> topoEdges;
-    topoEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
-    topoEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
-    topoEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c3"));
-    topoEdges.emplace("e3", Topology2D::Edge2D("e3", "c3", "c4"));
-    topoEdges.emplace("e4", Topology2D::Edge2D("e4", "c4", "c5"));
-    topoEdges.emplace("e5", Topology2D::Edge2D("e5", "c5", "c0"));
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+    topologyEdges.emplace("e0", Topology2D::Edge2D("e0", "c0", "c1"));
+    topologyEdges.emplace("e1", Topology2D::Edge2D("e1", "c1", "c2"));
+    topologyEdges.emplace("e2", Topology2D::Edge2D("e2", "c2", "c3"));
+    topologyEdges.emplace("e3", Topology2D::Edge2D("e3", "c3", "c4"));
+    topologyEdges.emplace("e4", Topology2D::Edge2D("e4", "c4", "c5"));
+    topologyEdges.emplace("e5", Topology2D::Edge2D("e5", "c5", "c0"));
 
     std::vector<std::string> boundaryEdgeLoop = {"e0", "e1", "e2", "e3", "e4", "e5"};
 
-    auto topology = std::make_unique<Topology2D::Topology2D>(topoCorners, topoEdges, boundaryEdgeLoop);
+    auto topology = std::make_unique<Topology2D::Topology2D>(topologyCorners, topologyEdges, boundaryEdgeLoop);
 
     return MeshingContext2D(std::move(geometry), std::move(topology));
 }

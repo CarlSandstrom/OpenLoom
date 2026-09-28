@@ -37,11 +37,11 @@ static std::optional<Circle2D> computeCircumcircleFromPoints(
     if (std::abs(d) < 1e-10)
         return std::nullopt;
 
-    const double aSq = ax * ax + ay * ay;
-    const double bSq = bx * bx + by * by;
+    const double aSquared = ax * ax + ay * ay;
+    const double bSquared = bx * bx + by * by;
 
-    const double cx = (by * aSq - ay * bSq) / d;
-    const double cy = (ax * bSq - bx * aSq) / d;
+    const double cx = (by * aSquared - ay * bSquared) / d;
+    const double cy = (ax * bSquared - bx * aSquared) / d;
 
     Circle2D circle;
     circle.center = Point2D(p0.x() + cx, p0.y() + cy);

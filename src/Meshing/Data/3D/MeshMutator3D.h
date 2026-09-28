@@ -29,7 +29,7 @@ public:
     size_t addBoundaryNode(const Point3D& coordinates,
                            const std::vector<std::string>& geometryIds,
                            double weight = 0.0);
-    void moveNode(size_t id, const Point3D& newCoords);
+    void moveNode(size_t id, const Point3D& newCoordinates);
     void removeNode(size_t id);
 
     // Element operations

@@ -108,5 +108,5 @@ public:
     throw OpenLoom::EntityNotFoundException(entityType, entityId, \
                                          std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
-#define OPENLOOM_REQUIRE_NOT_NULL(ptr, name) \
-    OPENLOOM_REQUIRE(ptr != nullptr, OpenLoom::NullGeometryException, name)
+#define OPENLOOM_REQUIRE_NOT_NULL(pointer, name) \
+    OPENLOOM_REQUIRE(pointer != nullptr, OpenLoom::NullGeometryException, name)

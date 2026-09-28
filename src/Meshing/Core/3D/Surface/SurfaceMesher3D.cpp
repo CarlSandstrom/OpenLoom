@@ -10,11 +10,11 @@ SurfaceMesher3D::SurfaceMesher3D(const Geometry3D::GeometryCollection3D& geometr
                                  Geometry3D::DiscretizationSettings3D discretizationSettings,
                                  SurfaceMesh3DQualitySettings qualitySettings,
                                  std::optional<SizingFieldSettings3D> sizingFieldSettings) :
-    impl_(std::make_unique<RCDTMesher>(geometry,
-                                       topology,
-                                       std::move(discretizationSettings),
-                                       std::move(qualitySettings),
-                                       std::move(sizingFieldSettings)))
+    implementation_(std::make_unique<RCDTMesher>(geometry,
+                                                 topology,
+                                                 std::move(discretizationSettings),
+                                                 std::move(qualitySettings),
+                                                 std::move(sizingFieldSettings)))
 {
 }
 
@@ -25,7 +25,7 @@ SurfaceMesher3D& SurfaceMesher3D::operator=(SurfaceMesher3D&&) noexcept = defaul
 
 SurfaceMesh3D SurfaceMesher3D::mesh()
 {
-    return impl_->meshSurface();
+    return implementation_->meshSurface();
 }
 
 } // namespace Meshing

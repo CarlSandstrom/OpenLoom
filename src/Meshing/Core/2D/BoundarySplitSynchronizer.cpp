@@ -24,11 +24,11 @@ void BoundarySplitSynchronizer::operator()(size_t n1, size_t n2, size_t mid)
     auto [twinSurface, t1, t2] = *twin;
 
     const auto& manager = context_->getMeshData().getCurveSegmentManager();
-    auto segmentIdOpt = manager.findSegmentId(t1, t2);
-    if (!segmentIdOpt)
+    auto optionalSegmentId = manager.findSegmentId(t1, t2);
+    if (!optionalSegmentId)
         return;
 
-    const CurveSegment twinSegment = manager.getSegment(*segmentIdOpt);
+    const CurveSegment twinSegment = manager.getSegment(*optionalSegmentId);
 
     const auto* twinEdge = context_->getGeometry().getEdge(twinSegment.edgeId);
     if (!twinEdge)

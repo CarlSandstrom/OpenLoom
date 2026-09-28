@@ -11,7 +11,7 @@ public:
     explicit Node3D(const Point3D& coordinates);
 
     const Point3D& getCoordinates() const;
-    void setCoordinates(const Point3D& coords);
+    void setCoordinates(const Point3D& coordinates);
 
     /// The node's weight for regular-triangulation (weighted Delaunay)
     /// insertion -- a protecting ball's squared radius (OPE-176's

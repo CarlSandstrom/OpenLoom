@@ -20,28 +20,28 @@ enum class DebugFlag
 /// Check if a debug flag is enabled via environment variable.
 inline bool isDebugEnabled(DebugFlag flag)
 {
-    const char* envName = nullptr;
+    const char* environmentVariableName = nullptr;
 
     switch (flag)
     {
     case DebugFlag::CHECK_MESH_EACH_ITERATION:
-        envName = "CHECK_MESH_EACH_ITERATION";
+        environmentVariableName = "CHECK_MESH_EACH_ITERATION";
         break;
     case DebugFlag::EXPORT_MESH_EACH_ITERATION:
-        envName = "EXPORT_MESH_EACH_ITERATION";
+        environmentVariableName = "EXPORT_MESH_EACH_ITERATION";
         break;
     case DebugFlag::VERBOSE_TRIANGULATION:
-        envName = "VERBOSE_TRIANGULATION";
+        environmentVariableName = "VERBOSE_TRIANGULATION";
         break;
     case DebugFlag::LOG_CAVITY_OPERATIONS:
-        envName = "LOG_CAVITY_OPERATIONS";
+        environmentVariableName = "LOG_CAVITY_OPERATIONS";
         break;
     default:
         return false;
     }
 
-    const char* val = std::getenv(envName);
-    return val != nullptr && std::strcmp(val, "1") == 0;
+    const char* value = std::getenv(environmentVariableName);
+    return value != nullptr && std::strcmp(value, "1") == 0;
 }
 
 } // namespace OpenLoom

@@ -60,7 +60,7 @@ protected:
         // Edge-only discretization: RCDT handles the surface interior itself.
         // Angle threshold pi*2/20 ≈ 18.6° yields ~20 points per circular edge,
         // giving a moderately fine boundary polygon for each cap.
-        const Geometry3D::DiscretizationSettings3D discSettings(
+        const Geometry3D::DiscretizationSettings3D discretizationSettings(
             std::nullopt, std::numbers::pi * 2.0 / 20.0 + 0.01, 0);
 
         // Quality settings: circumradius/shortest-edge ratio ≤ 1.0 (the
@@ -72,7 +72,7 @@ protected:
 
         RCDTMesher mesher(converter_->getGeometryCollection(),
                           converter_->getTopology(),
-                          discSettings,
+                          discretizationSettings,
                           qualitySettings);
 
         mesh_ = mesher.meshSurface();
@@ -259,7 +259,7 @@ protected:
         // test) plus 5 surface interior samples/direction — needed because
         // the sphere's boundary alone (one meridian arc + 2 poles) does not
         // span the surface in 3D. See class comment above.
-        const Geometry3D::DiscretizationSettings3D discSettings(
+        const Geometry3D::DiscretizationSettings3D discretizationSettings(
             std::nullopt, std::numbers::pi * 2.0 / 20.0 + 0.01, 5);
 
         SurfaceMesh3DQualitySettings qualitySettings;
@@ -267,7 +267,7 @@ protected:
 
         RCDTMesher mesher(converter_->getGeometryCollection(),
                           converter_->getTopology(),
-                          discSettings,
+                          discretizationSettings,
                           qualitySettings);
 
         mesh_ = mesher.meshSurface();
@@ -419,12 +419,12 @@ protected:
 
         converter_ = std::make_unique<Readers::TopoDS_ShapeConverter>(shape_);
 
-        const Geometry3D::DiscretizationSettings3D discSettings(
+        const Geometry3D::DiscretizationSettings3D discretizationSettings(
             std::nullopt, std::numbers::pi / 8.0, 0);
 
         RCDTMesher mesher(converter_->getGeometryCollection(),
                           converter_->getTopology(),
-                          discSettings);
+                          discretizationSettings);
 
         mesh_ = mesher.meshSurface();
     }

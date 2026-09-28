@@ -29,8 +29,8 @@ public:
 private:
     Handle(Geom2d_Curve) curve_;
     std::string id_;
-    double firstParam_;
-    double lastParam_;
+    double firstParameter_;
+    double lastParameter_;
 };
 
 } // namespace Geometry2D

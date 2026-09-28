@@ -36,12 +36,12 @@ OpenCascadeSurface::~OpenCascadeSurface() = default;
 
 Meshing::Vector3D OpenCascadeSurface::getNormal(double u, double v) const
 {
-    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
-    GeomLProp_SLProps props(geomSurface, u, v, 1, Precision::Confusion());
+    Handle(Geom_Surface) geometricSurface = BRep_Tool::Surface(face_);
+    GeomLProp_SLProps properties(geometricSurface, u, v, 1, Precision::Confusion());
 
-    if (props.IsNormalDefined())
+    if (properties.IsNormalDefined())
     {
-        gp_Vec normal = props.Normal();
+        gp_Vec normal = properties.Normal();
 
         // Flip normal for reversed face orientation
         if (face_.Orientation() == TopAbs_REVERSED)
@@ -59,16 +59,16 @@ Meshing::Vector3D OpenCascadeSurface::getNormal(double u, double v) const
 std::optional<PrincipalCurvatures> OpenCascadeSurface::getPrincipalCurvatures(double u,
                                                                               double v) const
 {
-    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
-    GeomLProp_SLProps props(geomSurface, u, v, 2, Precision::Confusion());
+    Handle(Geom_Surface) geometricSurface = BRep_Tool::Surface(face_);
+    GeomLProp_SLProps properties(geometricSurface, u, v, 2, Precision::Confusion());
 
-    if (!props.IsCurvatureDefined())
+    if (!properties.IsCurvatureDefined())
     {
         return std::nullopt;
     }
 
-    double minimum = props.MinCurvature();
-    double maximum = props.MaxCurvature();
+    double minimum = properties.MinCurvature();
+    double maximum = properties.MaxCurvature();
 
     // OCC signs both curvatures against the underlying geometric surface's
     // own normal. getNormal() reverses that normal for a REVERSED face, so
@@ -101,10 +101,10 @@ Common::BoundingBox2D OpenCascadeSurface::getParameterBounds() const
 
 double OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
 {
-    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+    Handle(Geom_Surface) geometricSurface = BRep_Tool::Surface(face_);
 
     gp_Pnt queryPoint(point.x(), point.y(), point.z());
-    GeomAPI_ProjectPointOnSurf projector(queryPoint, geomSurface);
+    GeomAPI_ProjectPointOnSurf projector(queryPoint, geometricSurface);
 
     if (projector.NbPoints() > 0)
     {
@@ -117,10 +117,10 @@ double OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
 
 Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point) const
 {
-    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
+    Handle(Geom_Surface) geometricSurface = BRep_Tool::Surface(face_);
 
     gp_Pnt queryPoint(point.x(), point.y(), point.z());
-    GeomAPI_ProjectPointOnSurf projector(queryPoint, geomSurface);
+    GeomAPI_ProjectPointOnSurf projector(queryPoint, geometricSurface);
 
     if (projector.NbPoints() > 0)
     {
@@ -138,12 +138,12 @@ Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point)
 std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurface(
     const Meshing::Point3D& point) const
 {
-    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
-    if (geomSurface.IsNull())
+    Handle(Geom_Surface) geometricSurface = BRep_Tool::Surface(face_);
+    if (geometricSurface.IsNull())
         return std::nullopt;
 
     if (!surfaceAnalyzer_)
-        surfaceAnalyzer_ = std::make_unique<ShapeAnalysis_Surface>(geomSurface);
+        surfaceAnalyzer_ = std::make_unique<ShapeAnalysis_Surface>(geometricSurface);
 
     gp_Pnt2d uv = surfaceAnalyzer_->ValueOfUV(gp_Pnt(point.x(), point.y(), point.z()),
                                                Precision::Confusion());
@@ -154,12 +154,12 @@ std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurf
     const Meshing::Point3D& point,
     const Meshing::Point2D& seedUV) const
 {
-    Handle(Geom_Surface) geomSurface = BRep_Tool::Surface(face_);
-    if (geomSurface.IsNull())
+    Handle(Geom_Surface) geometricSurface = BRep_Tool::Surface(face_);
+    if (geometricSurface.IsNull())
         return std::nullopt;
 
     if (!surfaceAnalyzer_)
-        surfaceAnalyzer_ = std::make_unique<ShapeAnalysis_Surface>(geomSurface);
+        surfaceAnalyzer_ = std::make_unique<ShapeAnalysis_Surface>(geometricSurface);
 
     gp_Pnt2d seed(seedUV.x(), seedUV.y());
     gp_Pnt2d uv = surfaceAnalyzer_->NextValueOfUV(seed,

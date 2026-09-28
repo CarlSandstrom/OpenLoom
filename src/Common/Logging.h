@@ -6,7 +6,7 @@
 namespace Common
 {
 
-inline void initLogging()
+inline void initializeLogging()
 {
     spdlog::set_pattern("[%H:%M:%S] %^%v%$");
     spdlog::cfg::load_env_levels();

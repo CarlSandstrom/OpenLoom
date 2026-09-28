@@ -121,23 +121,23 @@ struct TriangleStripFixture
 
     TriangleStripFixture()
     {
-        Point3D ptC1(0.0, 0.0, 0.0);
-        Point3D ptC2(1.0, 0.0, 0.0);
-        Point3D ptC3(0.5, 1.0, 0.0);
-        Point3D ptC4(1.5, 1.0, 0.0);
+        Point3D pointC1(0.0, 0.0, 0.0);
+        Point3D pointC2(1.0, 0.0, 0.0);
+        Point3D pointC3(0.5, 1.0, 0.0);
+        Point3D pointC4(1.5, 1.0, 0.0);
 
         std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
-        corners["C1"] = std::make_unique<MockCorner3D>("C1", ptC1);
-        corners["C2"] = std::make_unique<MockCorner3D>("C2", ptC2);
-        corners["C3"] = std::make_unique<MockCorner3D>("C3", ptC3);
-        corners["C4"] = std::make_unique<MockCorner3D>("C4", ptC4);
+        corners["C1"] = std::make_unique<MockCorner3D>("C1", pointC1);
+        corners["C2"] = std::make_unique<MockCorner3D>("C2", pointC2);
+        corners["C3"] = std::make_unique<MockCorner3D>("C3", pointC3);
+        corners["C4"] = std::make_unique<MockCorner3D>("C4", pointC4);
 
         std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
-        edges["E12"] = std::make_unique<MockEdge3D>("E12", ptC1, ptC2);
-        edges["E13"] = std::make_unique<MockEdge3D>("E13", ptC1, ptC3);
-        edges["E23"] = std::make_unique<MockEdge3D>("E23", ptC2, ptC3);
-        edges["E24"] = std::make_unique<MockEdge3D>("E24", ptC2, ptC4);
-        edges["E34"] = std::make_unique<MockEdge3D>("E34", ptC3, ptC4);
+        edges["E12"] = std::make_unique<MockEdge3D>("E12", pointC1, pointC2);
+        edges["E13"] = std::make_unique<MockEdge3D>("E13", pointC1, pointC3);
+        edges["E23"] = std::make_unique<MockEdge3D>("E23", pointC2, pointC3);
+        edges["E24"] = std::make_unique<MockEdge3D>("E24", pointC2, pointC4);
+        edges["E34"] = std::make_unique<MockEdge3D>("E34", pointC3, pointC4);
 
         std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
         surfaces["S1"] = std::make_unique<MockPlanarSurface>("S1");
@@ -146,24 +146,24 @@ struct TriangleStripFixture
         geometry = std::make_unique<Geometry3D::GeometryCollection3D>(
             std::move(surfaces), std::move(edges), std::move(corners));
 
-        std::unordered_map<std::string, Topology3D::Corner3D> topoCorners;
-        topoCorners.emplace("C1", Topology3D::Corner3D("C1", {"E12", "E13"}, {"S1"}));
-        topoCorners.emplace("C2", Topology3D::Corner3D("C2", {"E12", "E23", "E24"}, {"S1", "S2"}));
-        topoCorners.emplace("C3", Topology3D::Corner3D("C3", {"E13", "E23", "E34"}, {"S1", "S2"}));
-        topoCorners.emplace("C4", Topology3D::Corner3D("C4", {"E24", "E34"}, {"S2"}));
+        std::unordered_map<std::string, Topology3D::Corner3D> topologyCorners;
+        topologyCorners.emplace("C1", Topology3D::Corner3D("C1", {"E12", "E13"}, {"S1"}));
+        topologyCorners.emplace("C2", Topology3D::Corner3D("C2", {"E12", "E23", "E24"}, {"S1", "S2"}));
+        topologyCorners.emplace("C3", Topology3D::Corner3D("C3", {"E13", "E23", "E34"}, {"S1", "S2"}));
+        topologyCorners.emplace("C4", Topology3D::Corner3D("C4", {"E24", "E34"}, {"S2"}));
 
-        std::unordered_map<std::string, Topology3D::Edge3D> topoEdges;
-        topoEdges.emplace("E12", Topology3D::Edge3D("E12", "C1", "C2", {"S1"}));
-        topoEdges.emplace("E13", Topology3D::Edge3D("E13", "C1", "C3", {"S1"}));
-        topoEdges.emplace("E23", Topology3D::Edge3D("E23", "C2", "C3", {"S1", "S2"}));
-        topoEdges.emplace("E24", Topology3D::Edge3D("E24", "C2", "C4", {"S2"}));
-        topoEdges.emplace("E34", Topology3D::Edge3D("E34", "C3", "C4", {"S2"}));
+        std::unordered_map<std::string, Topology3D::Edge3D> topologyEdges;
+        topologyEdges.emplace("E12", Topology3D::Edge3D("E12", "C1", "C2", {"S1"}));
+        topologyEdges.emplace("E13", Topology3D::Edge3D("E13", "C1", "C3", {"S1"}));
+        topologyEdges.emplace("E23", Topology3D::Edge3D("E23", "C2", "C3", {"S1", "S2"}));
+        topologyEdges.emplace("E24", Topology3D::Edge3D("E24", "C2", "C4", {"S2"}));
+        topologyEdges.emplace("E34", Topology3D::Edge3D("E34", "C3", "C4", {"S2"}));
 
-        std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;
-        topoSurfaces.emplace("S1", Topology3D::Surface3D("S1", {"E12", "E23", "E13"}, {"C1", "C2", "C3"}, {"S2"}));
-        topoSurfaces.emplace("S2", Topology3D::Surface3D("S2", {"E23", "E24", "E34"}, {"C2", "C4", "C3"}, {"S1"}));
+        std::unordered_map<std::string, Topology3D::Surface3D> topologySurfaces;
+        topologySurfaces.emplace("S1", Topology3D::Surface3D("S1", {"E12", "E23", "E13"}, {"C1", "C2", "C3"}, {"S2"}));
+        topologySurfaces.emplace("S2", Topology3D::Surface3D("S2", {"E23", "E24", "E34"}, {"C2", "C4", "C3"}, {"S1"}));
 
-        topology = std::make_unique<Topology3D::Topology3D>(topoSurfaces, topoEdges, topoCorners);
+        topology = std::make_unique<Topology3D::Topology3D>(topologySurfaces, topologyEdges, topologyCorners);
     }
 };
 
@@ -203,10 +203,10 @@ TEST(BoundaryDiscretizer3D, EdgePoints_OneSegment_EndpointsOnly)
     const auto& e23pts = result.edgeIdToPointIndicesMap.at("E23");
     ASSERT_EQ(e23pts.size(), 2u);
 
-    size_t idxC2 = result.cornerIdToPointIndexMap.at("C2");
-    size_t idxC3 = result.cornerIdToPointIndexMap.at("C3");
-    EXPECT_EQ(e23pts[0], idxC2);
-    EXPECT_EQ(e23pts[1], idxC3);
+    size_t indexC2 = result.cornerIdToPointIndexMap.at("C2");
+    size_t indexC3 = result.cornerIdToPointIndexMap.at("C3");
+    EXPECT_EQ(e23pts[0], indexC2);
+    EXPECT_EQ(e23pts[1], indexC3);
 }
 
 TEST(BoundaryDiscretizer3D, EdgePoints_TwoSegments_HasMidpoint)
@@ -301,15 +301,15 @@ TEST(BoundaryDiscretizer3D, LengthDrivenWalk_DoesNotDuplicateTheEndVertex)
 
 TEST(BoundaryDiscretizer3D, SeamTwinEdge_SequenceIsReverseOfOriginalEdge)
 {
-    Point3D ptCA(0.0, 0.0, 0.0);
-    Point3D ptCB(1.0, 0.0, 0.0);
+    Point3D pointCA(0.0, 0.0, 0.0);
+    Point3D pointCB(1.0, 0.0, 0.0);
 
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::ICorner3D>> corners;
-    corners["CA"] = std::make_unique<MockCorner3D>("CA", ptCA);
-    corners["CB"] = std::make_unique<MockCorner3D>("CB", ptCB);
+    corners["CA"] = std::make_unique<MockCorner3D>("CA", pointCA);
+    corners["CB"] = std::make_unique<MockCorner3D>("CB", pointCB);
 
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
-    edges["seam"] = std::make_unique<MockEdge3D>("seam", ptCA, ptCB);
+    edges["seam"] = std::make_unique<MockEdge3D>("seam", pointCA, pointCB);
     // seam_twin has no 3D geometry — the discretizer derives its sequence by reversing "seam"
 
     std::unordered_map<std::string, std::unique_ptr<Geometry3D::ISurface3D>> surfaces;
@@ -317,21 +317,21 @@ TEST(BoundaryDiscretizer3D, SeamTwinEdge_SequenceIsReverseOfOriginalEdge)
     auto geometry = std::make_unique<Geometry3D::GeometryCollection3D>(
         std::move(surfaces), std::move(edges), std::move(corners));
 
-    std::unordered_map<std::string, Topology3D::Corner3D> topoCorners;
-    topoCorners.emplace("CA", Topology3D::Corner3D("CA", {"seam", "seam_twin"}, {}));
-    topoCorners.emplace("CB", Topology3D::Corner3D("CB", {"seam", "seam_twin"}, {}));
+    std::unordered_map<std::string, Topology3D::Corner3D> topologyCorners;
+    topologyCorners.emplace("CA", Topology3D::Corner3D("CA", {"seam", "seam_twin"}, {}));
+    topologyCorners.emplace("CB", Topology3D::Corner3D("CB", {"seam", "seam_twin"}, {}));
 
-    std::unordered_map<std::string, Topology3D::Edge3D> topoEdges;
-    topoEdges.emplace("seam", Topology3D::Edge3D("seam", "CA", "CB", {}));
-    topoEdges.emplace("seam_twin", Topology3D::Edge3D("seam_twin", "CB", "CA", {}));
+    std::unordered_map<std::string, Topology3D::Edge3D> topologyEdges;
+    topologyEdges.emplace("seam", Topology3D::Edge3D("seam", "CA", "CB", {}));
+    topologyEdges.emplace("seam_twin", Topology3D::Edge3D("seam_twin", "CB", "CA", {}));
 
-    std::unordered_map<std::string, Topology3D::Surface3D> topoSurfaces;
+    std::unordered_map<std::string, Topology3D::Surface3D> topologySurfaces;
 
     Topology3D::SeamCollection seams;
     seams.addPair("seam", "seam_twin");
 
     auto topology = std::make_unique<Topology3D::Topology3D>(
-        topoSurfaces, topoEdges, topoCorners, std::move(seams));
+        topologySurfaces, topologyEdges, topologyCorners, std::move(seams));
 
     Geometry3D::DiscretizationSettings3D settings(2, 0);
     const auto discretizationResult =

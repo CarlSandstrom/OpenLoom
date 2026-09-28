@@ -16,10 +16,10 @@ PeriodicMeshData2D::PeriodicMeshData2D(const MeshData2D& meshData,
 {
 }
 
-Point2D PeriodicMeshData2D::applyOffset(const Point2D& coord,
+Point2D PeriodicMeshData2D::applyOffset(const Point2D& coordinate,
                                         const PeriodicOffset& offset) const
 {
-    Point2D result = coord;
+    Point2D result = coordinate;
     if (config_.uPeriodic)
         result.x() += offset.u * config_.uPeriod;
     if (config_.vPeriodic)

@@ -1,6 +1,6 @@
 #include "ConstrainedDelaunay2D.h"
 #include "Delaunay2D.h"
-#include "MeshDebugUtils2D.h"
+#include "MeshDebugUtilities2D.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
@@ -54,7 +54,7 @@ std::map<size_t, size_t> ConstrainedDelaunay2D::triangulate(
     while (!allConstrainedEdgesPresent)
     {
         allConstrainedEdgesPresent = true;
-        for (const auto& [segId, segment] : meshData2D.getCurveSegmentManager().getAllSegments())
+        for (const auto& [segmentId, segment] : meshData2D.getCurveSegmentManager().getAllSegments())
         {
             allConstrainedEdgesPresent = allConstrainedEdgesPresent &&
                                          meshOperations.enforceEdge(segment.nodeId1, segment.nodeId2);

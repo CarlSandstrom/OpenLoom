@@ -34,7 +34,7 @@ class IVolumeMesher3D;
  *
  * Usage:
  * @code
- *   VolumeMesher3D mesher(geometry, topology, discSettings, qualitySettings);
+ *   VolumeMesher3D mesher(geometry, topology, discretizationSettings, qualitySettings);
  *   VolumeMesh3D result = mesher.mesh();
  * @endcode
  */
@@ -64,7 +64,7 @@ public:
     VolumeMesh3D mesh();
 
 private:
-    std::unique_ptr<IVolumeMesher3D> impl_;
+    std::unique_ptr<IVolumeMesher3D> implementation_;
 };
 
 } // namespace Meshing
