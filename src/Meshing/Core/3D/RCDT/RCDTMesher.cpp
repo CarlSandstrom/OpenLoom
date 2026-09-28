@@ -1,6 +1,5 @@
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
 
-#include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -10,16 +9,11 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronRemover.h"
-#include "Meshing/Core/3D/RCDT/CurveProtectionSubdivider.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
-#include "Meshing/Core/3D/RCDT/PhaseDiagnosticsExporter.h"
 #include "Meshing/Core/3D/RCDT/ProtectingBallPlacer.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
-#include "Meshing/Core/3D/RCDT/RCDTRefiner.h"
-#include "Meshing/Core/3D/RCDT/RCDTTetQualityController.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceAudit.h"
-#include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
 #include "Meshing/Core/3D/RCDT/SurfaceCandidates.h"
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
@@ -27,7 +21,6 @@
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
@@ -44,8 +37,7 @@ namespace Meshing
 namespace
 {
 
-// Resolved before CurveProtectionSubdivider/Delaunay3D run, since the
-// subdivider needs a size floor to subdivide against.
+// The size floor: SurfaceTessellation's cell size in WeightedDualRestriction.
 double resolveMinimumEdgeLength(const SurfaceMesh3DQualitySettings& qualitySettings,
                                 const SizingField3D* sizingField,
                                 const std::vector<Point3D>& points)
@@ -57,39 +49,16 @@ double resolveMinimumEdgeLength(const SurfaceMesh3DQualitySettings& qualitySetti
     return MinimumEdgeLengthEstimator::fromPointSpacing(points);
 }
 
-// Boissonnat-Oudot protecting balls (OPE-176): every curve/corner sample
-// point is inserted into the initial triangulation as a WEIGHTED point
-// (see RegularPredicates3D) rather than an ordinary one, which forces
-// every crease to appear as an exact edge chain in the resulting
-// regular triangulation -- this is what lets
-// RestrictedTriangulation::classifyFace() disambiguate a
-// crease-straddling face reliably instead of guessing. subdivide()
-// both sizes those weights (CurveProtectionScheme) and, where a corner's
-// radius and a curve's own sampling density are too far apart for a
-// single pair of points to bridge, inserts additional curve points to
-// close the gap gradually -- see CurveProtectionScheme/
-// CurveProtectionSubdivider's own docs for the two properties every
-// radius satisfies and how a conflict between them is resolved.
-//
-// The curve segments are populated here, before RestrictedTriangulation::buildFrom()
-// runs, not after: classifyFace() consults the CurveSegmentManager to
-// recognize a genuinely protected edge (see its doc), so that lookup needs
-// the curve network in place for the very first classification pass, not
-// just for ones triggered later by refinement.
+// Boissonnat-Oudot protecting balls: every corner and curve point is
+// inserted into the initial triangulation as a weighted point (see
+// RegularPredicates3D), with the radius ProtectingBallPlacer gives it, so that
+// every crease appears as an edge chain of the regular triangulation.
 void seedAmbientTriangulation(MeshingContext3D& context,
                               DiscretizationResult3D& discretizationResult,
                               const Geometry3D::GeometryCollection3D& geometry,
-                              const Topology3D::Topology3D& topology,
-                              double minimumEdgeLength,
-                              RCDTRefinementMethod refinementMethod)
+                              const Topology3D::Topology3D& topology)
 {
-    // The CGAL-style path needs protection that meets CGAL's conditions
-    // (ProtectingBallPlacer); the RestrictedTriangulation path keeps the
-    // protection its guards were tuned against.
-    const auto pointWeights =
-        refinementMethod == RCDTRefinementMethod::SurfaceDelaunay
-            ? ProtectingBallPlacer::place(discretizationResult, topology, geometry)
-            : CurveProtectionSubdivider::subdivide(discretizationResult, topology, geometry, minimumEdgeLength);
+    const auto pointWeights = ProtectingBallPlacer::place(discretizationResult, topology, geometry);
 
     const auto& meshData = context.getMeshData();
     const auto delaunayResult = Delaunay3D::triangulate(context.getOperations(),
@@ -97,32 +66,15 @@ void seedAmbientTriangulation(MeshingContext3D& context,
                                                         discretizationResult.geometryIds,
                                                         pointWeights);
 
-    spdlog::info("RCDTMesher::buildInitial: Delaunay3D produced {} nodes, {} elements",
+    spdlog::info("RCDTMesher::seedTriangulation: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
 
     context.getMutator().setCurveSegmentManager(
         CurveSegmentBuilder::build(topology, geometry, discretizationResult,
                                    delaunayResult.pointIndexToNodeIdMap));
 
-    spdlog::info("RCDTMesher::buildInitial: {} curve segments added",
+    spdlog::info("RCDTMesher::seedTriangulation: {} curve segments added",
                  meshData.getCurveSegmentManager().size());
-}
-
-void logDefectiveFaceRemoval(const DefectiveFaceRemovalSummary& defectRemoval)
-{
-    if (defectRemoval.chordFacesRemoved > 0)
-        spdlog::info("RCDTMesher::runPipeline: removed {} same-curve chord faces", defectRemoval.chordFacesRemoved);
-    if (defectRemoval.excessFacesRemoved > 0)
-        spdlog::info("RCDTMesher::runPipeline: removed {} excess restricted faces", defectRemoval.excessFacesRemoved);
-
-    const size_t remainingDefects = defectRemoval.remainingMissingFaceEdges + defectRemoval.remainingExcessFaceEdges +
-                                    defectRemoval.remainingSurfaceMismatchEdges;
-    if (remainingDefects > 0)
-    {
-        spdlog::info("RCDTMesher::runPipeline: {} non-manifold edges remain — {} holes, {} excess, {} surface mismatch",
-                     remainingDefects, defectRemoval.remainingMissingFaceEdges, defectRemoval.remainingExcessFaceEdges,
-                     defectRemoval.remainingSurfaceMismatchEdges);
-    }
 }
 
 // Smoothing only moves the SurfaceMesh3D copy. The same node IDs are still
@@ -190,22 +142,6 @@ size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
                                              { return defect.defect == RestrictedEdgeDefect::MissingFace; }));
 }
 
-void exportPhaseDiagnostics(const MeshingContext3D& context,
-                            const RestrictedTriangulation& restrictedTriangulation,
-                            const Geometry3D::GeometryCollection3D& geometry,
-                            const Topology3D::Topology3D& topology,
-                            double minimumEdgeLength,
-                            const std::string& filePrefix)
-{
-    if (!OPENLOOM_DEBUG_ENABLED(EXPORT_PHASE_DIAGNOSTICS))
-        return;
-
-    const auto& meshData = context.getMeshData();
-    const MeshConnectivity connectivity(meshData);
-    PhaseDiagnosticsExporter::write(meshData, connectivity, geometry, topology,
-                                    restrictedTriangulation.getRestrictedFaces(), minimumEdgeLength, filePrefix);
-}
-
 } // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -219,8 +155,8 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
     qualitySettings_(qualitySettings),
     sizingFieldSettings_(std::move(sizingFieldSettings))
 {
-    // A non-positive floor is not "no floor": RestrictedTriangulation sizes its
-    // tessellation oracle by it, and SurfaceTessellation builds no cells at all
+    // A non-positive floor is not "no floor": WeightedDualRestriction sizes
+    // its tessellations by it, and SurfaceTessellation builds no cells at all
     // for a target size <= 0, leaving every surface's crossing test with
     // nothing to test against.
     const auto& minimumEdgeLength = qualitySettings_.minimumEdgeLength;
@@ -233,59 +169,10 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
 }
 
 SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
-                                      RestrictedTriangulation& restrictedTriangulation,
+                                      RestrictedFaceMap& restrictedFaces,
                                       bool meshingVolume) const
 {
-    const double minimumEdgeLength = buildInitial(context, restrictedTriangulation);
-    exportMesh3D(context.getMeshData(), "rcdt_initial", 0);
-
-    refine(context, restrictedTriangulation, minimumEdgeLength, meshingVolume);
-    exportMesh3D(context.getMeshData(), "rcdt_refined", 1);
-
-    // Exported twice, around removeDefectiveFaces(), because the two answer
-    // different questions. "raw" is what the classifier itself produced, which
-    // is what a replacement oracle has to be compared against. "pruned" is
-    // what actually ships, and is the only one whose over-covered edges are
-    // the residual defects the audit reports -- the raw set still contains
-    // every chord face and flap the post-hoc passes are about to remove.
-    //
-    // Both necessarily precede AmbientTetrahedronRemover: the phase field
-    // needs the exterior tetrahedra that pass is about to strip.
-    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, minimumEdgeLength, "rcdt_raw");
-
-    const auto defectRemoval = restrictedTriangulation.removeDefectiveFaces(context.getMeshData());
-    logDefectiveFaceRemoval(defectRemoval);
-    exportPhaseDiagnostics(context, restrictedTriangulation, *geometry_, *topology_, minimumEdgeLength, "rcdt_pruned");
-    if (meshingVolume)
-        requireClosedBoundary(defectRemoval.remainingMissingFaceEdges);
-
-    // Strips every ambient tetrahedron -- both the seed triangulation's
-    // outer shell and, for domains with holes, the tetrahedra RCDT kept
-    // triangulating interior voids with. getOperations()'s mutator, not
-    // getMutator(): the latter validates node removal against a
-    // MeshConnectivity snapshot that's only refreshed by an explicit
-    // rebuildConnectivity() call, and refine()'s many insertions never call
-    // it -- that snapshot is stale by the time we get here. The operations
-    // mutator performs no such (now-stale) validation.
-    AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(),
-                                      restrictedTriangulation.getRestrictedFaces());
-
-    SurfaceMesh3D surfaceMesh =
-        RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedTriangulation.getRestrictedFaces(),
-                                              *topology_);
-
-    smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, meshingVolume);
-
-    exportMesh3D(context.getMeshData(), "rcdt_smoothed", 2);
-
-    return surfaceMesh;
-}
-
-SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context,
-                                                     RestrictedFaceMap& restrictedFaces,
-                                                     bool meshingVolume) const
-{
-    const double minimumEdgeLength = seedTriangulation(context, RCDTRefinementMethod::SurfaceDelaunay);
+    const double minimumEdgeLength = seedTriangulation(context);
 
     SurfaceDelaunayRefiner surfaceRefiner(context, *topology_, qualitySettings_, minimumEdgeLength);
     if (meshingVolume)
@@ -297,6 +184,9 @@ SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context,
     if (meshingVolume)
         requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
 
+    // getOperations()'s mutator, not getMutator(): the latter validates node
+    // removal against a MeshConnectivity snapshot that refinement's
+    // insertions never refresh.
     AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
     SurfaceMesh3D surfaceMesh = RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_);
     smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, meshingVolume);
@@ -306,15 +196,11 @@ SurfaceMesh3D RCDTMesher::runSurfaceDelaunayPipeline(MeshingContext3D& context,
 SurfaceMesh3D RCDTMesher::meshSurface()
 {
     MeshingContext3D context(*geometry_, *topology_);
-    RestrictedTriangulation restrictedTriangulation;
     RestrictedFaceMap restrictedFaces;
-    SurfaceMesh3D surfaceMesh = qualitySettings_.refinementMethod == RCDTRefinementMethod::SurfaceDelaunay ? runSurfaceDelaunayPipeline(context, restrictedFaces, false) : runPipeline(context, restrictedTriangulation, false);
+    SurfaceMesh3D surfaceMesh = runPipeline(context, restrictedFaces, false);
 
-    // Triangle-only export of the actual output — unlike the exports in
-    // runPipeline(), this contains none of the ambient tetrahedralization's
-    // interior faces (see RestrictedTriangulation: a triangle whose corners
-    // all lie on a CAD surface is not necessarily one of the faces RCDT
-    // selected as the boundary there).
+    // Triangle-only export of the actual output: the restricted facets, none
+    // of the ambient tetrahedralization's other faces.
     exportSurfaceMesh3D(surfaceMesh, "rcdt_surface_mesh.vtu");
 
     return surfaceMesh;
@@ -323,25 +209,17 @@ SurfaceMesh3D RCDTMesher::meshSurface()
 VolumeMesh3D RCDTMesher::meshVolume()
 {
     MeshingContext3D context(*geometry_, *topology_);
+    RestrictedFaceMap restrictedFaces;
 
     // The returned SurfaceMesh3D is only needed for the smoother's triangle
     // adjacency inside the pipeline — smoothing already synced the resulting
     // positions back into the live mesh, so extractVolumeMesh() (reading that
     // live mesh directly) sees the same, consistent positions.
-    if (qualitySettings_.refinementMethod == RCDTRefinementMethod::SurfaceDelaunay)
-    {
-        RestrictedFaceMap restrictedFaces;
-        runSurfaceDelaunayPipeline(context, restrictedFaces, true);
-        return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_);
-    }
-
-    RestrictedTriangulation restrictedTriangulation;
-    runPipeline(context, restrictedTriangulation, true);
-    return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedTriangulation.getRestrictedFaces(),
-                                                *topology_);
+    runPipeline(context, restrictedFaces, true);
+    return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_);
 }
 
-double RCDTMesher::seedTriangulation(MeshingContext3D& context, RCDTRefinementMethod refinementMethod) const
+double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
 {
     spdlog::info("RCDTMesher::seedTriangulation: discretizing boundary ({} surface samples/direction)",
                  discretizationSettings_.getNumSamplesPerSurfaceDirection());
@@ -366,47 +244,9 @@ double RCDTMesher::seedTriangulation(MeshingContext3D& context, RCDTRefinementMe
                                  discretizationResult->points);
     spdlog::info("RCDTMesher::seedTriangulation: minimum edge length = {}", minimumEdgeLength);
 
-    seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_, minimumEdgeLength,
-                             refinementMethod);
+    seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_);
 
     return minimumEdgeLength;
-}
-
-double RCDTMesher::buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const
-{
-    const double minimumEdgeLength = seedTriangulation(context, RCDTRefinementMethod::RestrictedTriangulation);
-
-    const auto& meshData = context.getMeshData();
-    const MeshConnectivity connectivity(meshData);
-    restrictedTriangulation.buildFrom(meshData, connectivity, *geometry_, *topology_, minimumEdgeLength,
-                                      qualitySettings_);
-
-    spdlog::info("RCDTMesher::buildInitial: {} restricted faces, {} unconfirmed",
-                 restrictedTriangulation.getRestrictedFaces().size(),
-                 restrictedTriangulation.getUnconfirmedFaceCount());
-
-    return minimumEdgeLength;
-}
-
-void RCDTMesher::refine(MeshingContext3D& context,
-                        RestrictedTriangulation& restrictedTriangulation,
-                        double minimumEdgeLength,
-                        bool includeTetrahedronQualityRefinement) const
-{
-    spdlog::info("RCDTMesher::refine: starting RCDT refinement (tet quality: {})",
-                 includeTetrahedronQualityRefinement);
-
-    std::optional<RCDTTetQualityController> tetrahedronQualityController;
-    if (includeTetrahedronQualityRefinement)
-        tetrahedronQualityController.emplace(context.getMeshData(), qualitySettings_);
-
-    RCDTRefiner refiner(context,
-                        restrictedTriangulation,
-                        qualitySettings_,
-                        minimumEdgeLength,
-                        tetrahedronQualityController ? &tetrahedronQualityController.value() : nullptr);
-    refiner.refine();
-    spdlog::info("RCDTMesher::refine: done");
 }
 
 } // namespace Meshing

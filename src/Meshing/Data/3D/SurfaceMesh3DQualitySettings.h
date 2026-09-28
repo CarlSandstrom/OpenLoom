@@ -6,18 +6,6 @@
 namespace Meshing
 {
 
-/// Which refinement RCDTMesher runs after seeding the weighted
-/// tetrahedralization (OPE-186). Both start from the same protected seed.
-enum class RCDTRefinementMethod
-{
-    /// RestrictedTriangulation + RCDTRefiner + RestrictedFaceAudit.
-    RestrictedTriangulation,
-
-    /// SurfaceDelaunayRefiner: CGAL Mesh_3's facet refinement as a whole,
-    /// followed by TetrahedronDelaunayRefiner when meshing a volume.
-    SurfaceDelaunay
-};
-
 /**
  * @brief Quality settings shared by both 3D surface meshing strategies:
  * the UV-space pipeline (SurfaceMeshingContext3D) and ambient-space RCDT
@@ -71,9 +59,6 @@ struct SurfaceMesh3DQualitySettings
     /// stress tests or geometries with known acute input angles. Only consumed
     /// by RCDTMesher — the UV-space pipeline ignores it.
     std::size_t maxRefinementIterations = 50000;
-
-    /// Consumed by RCDTMesher::meshSurface() and meshVolume().
-    RCDTRefinementMethod refinementMethod = RCDTRefinementMethod::SurfaceDelaunay;
 };
 
 } // namespace Meshing
