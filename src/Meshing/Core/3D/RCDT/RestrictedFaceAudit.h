@@ -4,6 +4,11 @@
 
 #include <vector>
 
+namespace Topology3D
+{
+class Topology3D;
+} // namespace Topology3D
+
 namespace Meshing
 {
 class MeshData3D;
@@ -27,6 +32,10 @@ namespace Meshing
  */
 namespace RestrictedFaceAudit
 {
+
+/// Every CAD curve against the surfaces it bounds, read from the topology: the
+/// lookup findNonManifoldEdges() reads its expected counts from.
+EdgeToAdjacentSurfacesMap buildEdgeToAdjacentSurfaces(const Topology3D::Topology3D& topology);
 
 /// Every edge whose incident restricted faces do not match what the CAD
 /// topology calls for there. A restricted set that satisfies the invariant

@@ -816,65 +816,6 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
 }
 
 // ============================================================================
-// Find Skinny Tetrahedra Tests
-// ============================================================================
-
-TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraReturnsEmptyForGoodMesh)
-{
-    // Create a well-shaped tetrahedron (regular)
-    double h = std::sqrt(2.0 / 3.0);
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, std::sqrt(3.0) / 2.0, 0.0);
-    size_t n3 = addNode(0.5, std::sqrt(3.0) / 6.0, h);
-    addTetrahedron(n0, n1, n2, n3);
-
-    MeshOperations3D operations(meshData_);
-
-    // Regular tetrahedron has B ratio around 0.61, so bound of 2 should find nothing
-    auto skinny = operations.getQueries().findSkinnyTetrahedra(2.0);
-    EXPECT_TRUE(skinny.empty());
-}
-
-TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraFindsBadTets)
-{
-    // Create a flat/degenerate tetrahedron (skinny)
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(10.0, 0.0, 0.0);
-    size_t n2 = addNode(5.0, 10.0, 0.0);
-    size_t n3 = addNode(5.0, 5.0, 0.1); // Very flat
-    addTetrahedron(n0, n1, n2, n3);
-
-    MeshOperations3D operations(meshData_);
-
-    // Flat tetrahedron should have high B ratio
-    auto skinny = operations.getQueries().findSkinnyTetrahedra(2.0);
-    EXPECT_FALSE(skinny.empty());
-}
-
-TEST_F(MeshOperations3DTest, FindSkinnyTetrahedraWithDifferentBounds)
-{
-    // Create moderately shaped tetrahedron
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 1.0);
-    addTetrahedron(n0, n1, n2, n3);
-
-    MeshOperations3D operations(meshData_);
-
-    // Very permissive bound should find nothing
-    auto skinny1 = operations.getQueries().findSkinnyTetrahedra(100.0);
-    EXPECT_TRUE(skinny1.empty());
-
-    // Very strict bound might find the tet
-    auto skinny2 = operations.getQueries().findSkinnyTetrahedra(0.5);
-    // Either finds it or doesn't depending on actual quality
-    // Just verify it doesn't crash and returns a vector
-    EXPECT_GE(skinny2.size(), 0);
-}
-
-// ============================================================================
 // Find Encroaching Subsegments Tests
 // ============================================================================
 

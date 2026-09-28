@@ -1,7 +1,6 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/General/ConstraintChecker3D.h"
-#include "Meshing/Core/3D/General/ElementQuality3D.h"
 #include "Meshing/Core/3D/General/RegularPredicates3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
@@ -214,27 +213,6 @@ size_t MeshQueries3D::findOppositeVertex(size_t tetId, size_t faceNode1, size_t 
         }
     }
     return SIZE_MAX;
-}
-
-std::vector<size_t> MeshQueries3D::findSkinnyTetrahedra(double ratioBound) const
-{
-    std::vector<size_t> skinnyTets;
-    ElementQuality3D quality(meshData_);
-
-    for (const auto& [tetId, element] : meshData_.getElements())
-    {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-            continue;
-
-        double ratio = quality.getCircumradiusToShortestEdgeRatio(*tet);
-        if (ratio > ratioBound)
-        {
-            skinnyTets.push_back(tetId);
-        }
-    }
-
-    return skinnyTets;
 }
 
 std::vector<CurveSegment> MeshQueries3D::findEncroachingSubsegments(

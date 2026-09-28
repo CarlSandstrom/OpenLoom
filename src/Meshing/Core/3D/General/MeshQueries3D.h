@@ -123,17 +123,6 @@ public:
     size_t findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const;
 
     /**
-     * @brief Find all skinny tetrahedra exceeding the quality bound
-     *
-     * Returns IDs of tetrahedra whose circumradius-to-shortest-edge ratio
-     * exceeds the given bound. These are candidates for refinement.
-     *
-     * @param ratioBound The B ratio threshold (typically > 2)
-     * @return Vector of tetrahedron IDs that are "skinny"
-     */
-    std::vector<size_t> findSkinnyTetrahedra(double ratioBound) const;
-
-    /**
      * @brief Find encroached segments for a given point
      *
      * Checks all provided segments and returns those that would be

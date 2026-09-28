@@ -14,7 +14,6 @@
 #include "Meshing/Core/3D/RCDT/ProtectingBallPlacer.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceAudit.h"
-#include "Meshing/Core/3D/RCDT/SurfaceCandidates.h"
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
 #include "Meshing/Core/3D/RCDT/TetrahedronDelaunayRefiner.h"
@@ -134,9 +133,8 @@ size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
                              const Topology3D::Topology3D& topology,
                              const MeshData3D& meshData)
 {
-    const SurfaceCandidates surfaceCandidates(topology);
-    const auto defects =
-        RestrictedFaceAudit::findNonManifoldEdges(restrictedFaces, surfaceCandidates.getEdgeToAdjacentSurfaces(), meshData);
+    const auto defects = RestrictedFaceAudit::findNonManifoldEdges(
+        restrictedFaces, RestrictedFaceAudit::buildEdgeToAdjacentSurfaces(topology), meshData);
     return static_cast<size_t>(std::count_if(defects.begin(), defects.end(),
                                              [](const NonManifoldRestrictedEdge& defect)
                                              { return defect.defect == RestrictedEdgeDefect::MissingFace; }));

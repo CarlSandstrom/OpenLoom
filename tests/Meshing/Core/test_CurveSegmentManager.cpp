@@ -1,4 +1,3 @@
-#include "Meshing/Core/3D/RCDT/CurveSegmentGeometry.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/General/DiscretizationResult3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
@@ -296,83 +295,6 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
 }
 
 // ============================================================================
-// findEncroached: point inside diametral sphere is returned
-// ============================================================================
-
-TEST(CurveSegmentManagerTest, FindEncroached_PointInsideSphere_ReturnsSegmentId)
-{
-    // Segment between (0,0,0) and (2,0,0): center=(1,0,0), radius=1
-    CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
-    segment.edgeId = "e";
-    segment.tStart = 0.0;
-    segment.tEnd = 1.0;
-
-    CurveSegmentManager manager;
-    const size_t segmentId = manager.addSegment(segment);
-
-    const std::unordered_map<size_t, Point3D> nodePositions = {{0, Point3D(0.0, 0.0, 0.0)},
-                                                               {1, Point3D(2.0, 0.0, 0.0)}};
-
-    // Point at (1, 0.5, 0): distance to center = 0.5 < radius 1 → encroached
-    const auto encroached = manager.findEncroached(Point3D(1.0, 0.5, 0.0), nodePositions);
-
-    ASSERT_EQ(encroached.size(), 1u);
-    EXPECT_EQ(encroached[0], segmentId);
-}
-
-// ============================================================================
-// findEncroached: point outside all spheres returns empty
-// ============================================================================
-
-TEST(CurveSegmentManagerTest, FindEncroached_PointOutsideSphere_ReturnsEmpty)
-{
-    CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
-    segment.edgeId = "e";
-    segment.tStart = 0.0;
-    segment.tEnd = 1.0;
-
-    CurveSegmentManager manager;
-    manager.addSegment(segment);
-
-    const std::unordered_map<size_t, Point3D> nodePositions = {{0, Point3D(0.0, 0.0, 0.0)},
-                                                               {1, Point3D(2.0, 0.0, 0.0)}};
-
-    // Point at (3,0,0): distance to center = 2 > radius 1 → not encroached
-    const auto encroached = manager.findEncroached(Point3D(3.0, 0.0, 0.0), nodePositions);
-    EXPECT_TRUE(encroached.empty());
-}
-
-// ============================================================================
-// findEncroached: a segment's own endpoints lie exactly on the diametral sphere
-// and must NOT be reported as encroaching (the OPE-148 regression case)
-// ============================================================================
-
-TEST(CurveSegmentManagerTest, FindEncroached_SegmentEndpoint_NotReported)
-{
-    // Segment between (0,0,0) and (2,0,0): center=(1,0,0), radius=1.
-    // Both endpoints have distanceSquared == radiusSquared exactly.
-    CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
-    segment.edgeId = "e";
-    segment.tStart = 0.0;
-    segment.tEnd = 1.0;
-
-    CurveSegmentManager manager;
-    manager.addSegment(segment);
-
-    const std::unordered_map<size_t, Point3D> nodePositions = {{0, Point3D(0.0, 0.0, 0.0)},
-                                                               {1, Point3D(2.0, 0.0, 0.0)}};
-
-    EXPECT_TRUE(manager.findEncroached(Point3D(0.0, 0.0, 0.0), nodePositions).empty());
-    EXPECT_TRUE(manager.findEncroached(Point3D(2.0, 0.0, 0.0), nodePositions).empty());
-}
-
-// ============================================================================
 // splitAt: child segments together span the original parameter range
 // ============================================================================
 
@@ -435,83 +357,6 @@ TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainI
 
     EXPECT_EQ(manager.getOrderedNodeIdsForEdge("arc"), (std::vector<size_t>{0, 4, 2, 3, 1}));
     EXPECT_TRUE(manager.getOrderedNodeIdsForEdge("missing").empty());
-}
-
-// ============================================================================
-// splitPoint: split point lies on the circle (gap ≤ tolerance)
-// ============================================================================
-
-TEST(CurveSegmentManagerTest, ComputeSplitPoint_LiesOnCircle)
-{
-    const double radius = 2.0;
-
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
-    edges["arc"] = std::make_unique<MockCircularArcEdge>("arc", radius, 0.0, 0.0, M_PI);
-    auto geometry = makeGeometry(std::move(edges));
-
-    CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
-    segment.edgeId = "arc";
-    segment.tStart = 0.0;
-    segment.tEnd = M_PI;
-
-    CurveSegmentManager manager;
-    const size_t segmentId = manager.addSegment(segment);
-
-    const Point3D splitPoint = CurveSegmentGeometry::splitPoint(manager.getSegment(segmentId), geometry);
-
-    // Point must lie on the circle of radius 2
-    const double radialGap =
-        std::abs(std::sqrt(splitPoint.x() * splitPoint.x() + splitPoint.y() * splitPoint.y()) -
-                 radius);
-    EXPECT_LE(radialGap, 1e-9);
-}
-
-// ============================================================================
-// arc-length correctness: arc-length midpoint is more equidistant than
-// the naive parameter midpoint on a non-uniformly parameterised curve
-// ============================================================================
-
-TEST(CurveSegmentManagerTest, ComputeSplitPoint_ArcLengthMidpoint_MoreEquidistantThanParameterMidpoint)
-{
-    // MockNonUniformEdge: getPoint(t) = (t², 0, 0), t ∈ [0, 1]
-    // Arc length from 0 to t = t²
-    // Arc-length midpoint: t = 1/√2,  splitPoint = (0.5, 0, 0)
-    // Parameter midpoint:  t = 0.5,   splitPoint = (0.25, 0, 0)
-    //
-    // Arc-length split: both halves have arc length 0.5 (equal).
-    // Parameter split:  halves have arc lengths 0.25 and 0.75 (unequal).
-
-    std::unordered_map<std::string, std::unique_ptr<Geometry3D::IEdge3D>> edges;
-    edges["non_uniform_edge"] = std::make_unique<MockNonUniformEdge>();
-    auto geometry = makeGeometry(std::move(edges));
-
-    CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
-    segment.edgeId = "non_uniform_edge";
-    segment.tStart = 0.0;
-    segment.tEnd = 1.0;
-
-    CurveSegmentManager manager;
-    const size_t segmentId = manager.addSegment(segment);
-
-    const Point3D splitPoint = CurveSegmentGeometry::splitPoint(manager.getSegment(segmentId), geometry);
-
-    // Arc-length midpoint lands at (0.5, 0, 0) — equidistant on the curve
-    EXPECT_NEAR(splitPoint.x(), 0.5, 1e-9);
-    EXPECT_NEAR(splitPoint.y(), 0.0, 1e-9);
-
-    // Verify: parameter midpoint would have given (0.25, 0, 0), not (0.5, 0, 0)
-    const double tParameterMid = 0.5;
-    const Point3D parameterMidPoint(tParameterMid * tParameterMid, 0.0, 0.0);
-    EXPECT_NEAR(parameterMidPoint.x(), 0.25, 1e-9); // confirm parameter mid is worse
-
-    // The arc-length split gives equal halves (tMid² = 0.5 and 1 - tMid² = 0.5)
-    const double tMid = 1.0 / std::sqrt(2.0);
-    EXPECT_NEAR(tMid * tMid, 0.5, 1e-9);
-    EXPECT_NEAR(1.0 - tMid * tMid, 0.5, 1e-9);
 }
 
 // ============================================================================

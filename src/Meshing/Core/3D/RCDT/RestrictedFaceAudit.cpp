@@ -2,6 +2,7 @@
 
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
+#include "Topology/Topology3D.h"
 
 #include <array>
 #include <optional>
@@ -96,6 +97,14 @@ RestrictedEdgeCoverageMap buildEdgeCoverage(const RestrictedFaceMap& restrictedF
 
 namespace RestrictedFaceAudit
 {
+
+EdgeToAdjacentSurfacesMap buildEdgeToAdjacentSurfaces(const Topology3D::Topology3D& topology)
+{
+    EdgeToAdjacentSurfacesMap edgeToAdjacentSurfaces;
+    for (const auto& edgeId : topology.getAllEdgeIds())
+        edgeToAdjacentSurfaces[edgeId] = topology.getEdge(edgeId).getAdjacentSurfaceIds();
+    return edgeToAdjacentSurfaces;
+}
 
 std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(
     const RestrictedFaceMap& restrictedFaces,

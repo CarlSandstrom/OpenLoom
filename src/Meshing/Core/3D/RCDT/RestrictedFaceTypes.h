@@ -15,8 +15,8 @@ namespace Meshing
 /// RCDTMeshExtractor, which copies it out unchanged.
 using RestrictedFaceMap = std::unordered_map<FaceKey, std::string, FaceKeyHash>;
 
-/// CAD curve id -> the surfaces that curve bounds, read from the topology once
-/// by SurfaceCandidates. A seam curve appears twice against
+/// CAD curve id -> the surfaces that curve bounds, read from the topology by
+/// RestrictedFaceAudit::buildEdgeToAdjacentSurfaces(). A seam curve appears twice against
 /// its own surface, which is load-bearing -- see
 /// RestrictedFaceAudit::findNonManifoldEdges().
 using EdgeToAdjacentSurfacesMap = std::unordered_map<std::string, std::vector<std::string>>;
