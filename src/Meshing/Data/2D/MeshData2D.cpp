@@ -32,19 +32,6 @@ void MeshData2D::removeElementInternal(size_t id)
     elements_.erase(id);
 }
 
-const std::vector<std::string>& MeshData2D::getGeometryIds(size_t nodeId) const
-{
-    static const std::vector<std::string> empty;
-    auto it = nodeGeometryIds_.find(nodeId);
-    return it != nodeGeometryIds_.end() ? it->second : empty;
-}
-
-bool MeshData2D::isBoundaryNode(size_t nodeId) const
-{
-    auto it = nodeGeometryIds_.find(nodeId);
-    return it != nodeGeometryIds_.end() && !it->second.empty();
-}
-
 void MeshData2D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids)
 {
     nodeGeometryIds_[nodeId] = std::move(ids);

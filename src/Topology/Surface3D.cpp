@@ -31,14 +31,4 @@ const std::vector<std::string>& Surface3D::getCornerIds() const
     return cornerIds_;
 }
 
-const std::vector<std::string>& Surface3D::getAdjacentSurfaceIds() const
-{
-    return adjacentSurfaceIds_;
-}
-
-const std::vector<std::vector<std::string>>& Surface3D::getEdgeLoops() const
-{
-    return edgeLoops_;
-}
-
 } // namespace Topology3D

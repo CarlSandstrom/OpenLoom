@@ -68,8 +68,8 @@ Class names and module paths in this table are written in backticks, and `./scri
 
 | Module | Status | Purpose |
 |--------|--------|---------|
-| `Common/` | live | Types, `BoundingBox2D`, `BoundingBox3D`, exceptions |
-| `Geometry/2D/` | live | 2D geometric entities (`ICorner2D`, `IEdge2D`, `IFace2D`) — Base and OpenCascade implementations |
+| `Common/` | live | Types, `BoundingBox2D`, exceptions |
+| `Geometry/2D/` | live | 2D geometric entities (`ICorner2D`, `IEdge2D`) — Base and OpenCascade implementations |
 | `Geometry/3D/` | live | 3D geometric entities (`ICorner3D`, `IEdge3D`, `ISurface3D`) — Base and OpenCascade implementations |
 | `Topology/` | live | 3D topological relationships (`Corner3D`, `Edge3D`, `Surface3D`, `Topology3D`) |
 | `Topology2D/` | live | 2D topological relationships |

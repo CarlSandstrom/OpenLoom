@@ -14,12 +14,9 @@ public:
            const std::string& endCornerId,
            const std::vector<std::string>& adjacentSurfaceIds);
 
-    std::string getId() const;
     std::string getStartCornerId() const;
     std::string getEndCornerId() const;
     const std::vector<std::string>& getAdjacentSurfaceIds() const;
-    bool isBoundaryEdge() const;
-    bool isManifold() const;
 
 private:
     std::string id_;

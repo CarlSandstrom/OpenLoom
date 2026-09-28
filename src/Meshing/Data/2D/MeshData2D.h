@@ -27,10 +27,6 @@ public:
 
     const CurveSegmentManager& getCurveSegmentManager() const { return curveSegmentManager_; }
 
-    // Geometry ID association (boundary node metadata)
-    const std::vector<std::string>& getGeometryIds(size_t nodeId) const;
-    bool isBoundaryNode(size_t nodeId) const;
-
     // Internal access for operations classes (friends)
     friend class MeshMutator2D;
 

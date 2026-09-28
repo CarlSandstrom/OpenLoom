@@ -24,22 +24,13 @@ public:
     // Entity access
     const Surface3D& getSurface(const std::string& id) const;
     const Edge3D& getEdge(const std::string& id) const;
-    const Corner3D& getCorner(const std::string& id) const;
-    const Volume3D& getVolume(const std::string& id) const;
 
     // Global queries
     std::vector<std::string> getAllSurfaceIds() const;
     std::vector<std::string> getAllEdgeIds() const;
     std::vector<std::string> getAllCornerIds() const;
-    std::vector<std::string> getAllVolumeIds() const;
-    std::vector<std::string> getBoundaryEdgeIds() const;
-    std::vector<std::string> getNonManifoldEdgeIds() const;
 
     const SeamCollection& getSeamCollection() const;
-
-    // Validation
-    bool isValid() const;
-    bool isManifold() const;
 
 private:
     std::unordered_map<std::string, Surface3D> surfaces_;

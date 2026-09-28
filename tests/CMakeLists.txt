@@ -55,7 +55,6 @@ set(TEST_SOURCES
     Meshing/Core/test_TwinTableGenerator.cpp
 
     # Topology tests
-    Topology/test_Corner.cpp
     Topology/test_Edge.cpp
     Topology/test_Surface.cpp
     

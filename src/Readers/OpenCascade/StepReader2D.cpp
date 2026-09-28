@@ -28,11 +28,6 @@ const Topology2D::Topology2D& StepReader2D::getTopology() const
     return *topology_;
 }
 
-const Geometry2D::GeometryCollection2D& StepReader2D::getGeometry() const
-{
-    return *geometry_;
-}
-
 std::unique_ptr<Topology2D::Topology2D> StepReader2D::takeTopology()
 {
     return std::move(topology_);

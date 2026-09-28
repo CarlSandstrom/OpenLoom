@@ -13,10 +13,6 @@ public:
              const std::set<std::string>& connectedEdgeIds,
              const std::set<std::string>& connectedSurfaceIds);
 
-    std::string getId() const;
-    const std::set<std::string>& getConnectedEdgeIds() const;
-    const std::set<std::string>& getConnectedSurfaceIds() const;
-
 private:
     std::string id_;
     std::set<std::string> connectedEdgeIds_;

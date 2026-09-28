@@ -23,8 +23,6 @@ public:
     /// Throws if neither edgeNode1 nor edgeNode2 are found in this triangle.
     size_t getOppositeNode(size_t edgeNode1, size_t edgeNode2) const;
 
-    static constexpr size_t getEdgeCount() { return 3; }
-
 private:
     std::array<size_t, 3> nodeIds_;
 };
