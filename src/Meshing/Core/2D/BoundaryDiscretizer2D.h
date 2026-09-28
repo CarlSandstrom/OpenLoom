@@ -18,12 +18,12 @@ class MeshingContext2D;
  * Example usage:
  * @code
  * MeshingContext2D context(geometry, topology);
- * EdgeDiscretizer2D discretizer(context, settings);
+ * BoundaryDiscretizer2D discretizer(context, settings);
  * auto discretization = discretizer.discretize();
  * ConstrainedDelaunay2D mesher(context, discretization);
  * @endcode
  */
-class EdgeDiscretizer2D
+class BoundaryDiscretizer2D
 {
 public:
     /**
@@ -31,8 +31,8 @@ public:
      * @param context The meshing context containing geometry and topology
      * @param settings Discretization settings (curvature tolerance, segment count)
      */
-    EdgeDiscretizer2D(const MeshingContext2D& context,
-                      const Geometry2D::DiscretizationSettings2D& settings = {});
+    BoundaryDiscretizer2D(const MeshingContext2D& context,
+                          const Geometry2D::DiscretizationSettings2D& settings = {});
 
     /**
      * @brief Discretize all edges in the geometry

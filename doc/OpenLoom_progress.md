@@ -8,7 +8,7 @@ This document tracks the full implementation status of OpenLoom: the 2D constrai
 
 A standalone 2D constrained Delaunay mesher with Shewchuk refinement.
 
-**Pipeline:** `EdgeDiscretizer2D` → `DiscretizationResult2D` → `MeshingContext2D` → `ConstrainedDelaunay2D` → optional `ShewchukRefiner2D` → `VtkExporter`
+**Pipeline:** `BoundaryDiscretizer2D` → `DiscretizationResult2D` → `MeshingContext2D` → `ConstrainedDelaunay2D` → optional `ShewchukRefiner2D` → `VtkExporter`
 
 **Status: COMPLETE**
 
@@ -41,7 +41,7 @@ A standalone 2D constrained Delaunay mesher with Shewchuk refinement.
 
 | Sub-step | Description | File(s) | Status |
 |----------|-------------|---------|--------|
-| C1 | `EdgeDiscretizer2D`: samples CAD boundary edges into `DiscretizationResult2D` (curvature-adaptive or fixed count) | `2D/EdgeDiscretizer2D.h/.cpp` | Done |
+| C1 | `BoundaryDiscretizer2D`: samples CAD boundary edges into `DiscretizationResult2D` (curvature-adaptive or fixed count) | `2D/BoundaryDiscretizer2D.h/.cpp` | Done |
 | C2 | `ConstrainedDelaunay2D`: extends `Delaunay2D` with edge constraint enforcement and exterior triangle removal | `2D/ConstrainedDelaunay2D.h/.cpp` | Done |
 | C3 | `MeshingContext2D`: top-level context owning geometry, topology, and `MeshData2D`; `fromSurface()` factory creates a UV-space context for a CAD face | `2D/MeshingContext2D.h/.cpp` | Done |
 
@@ -425,13 +425,13 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 | File | Role |
 |------|------|
 | `2D/GeometryStructures2D.h` | `Circle2D`, `ConstrainedSegment2D`, `EdgeRole` |
-| `2D/DiscretizationResult2D.h` | Sampled points + edge index maps from `EdgeDiscretizer2D` |
+| `2D/DiscretizationResult2D.h` | Sampled points + edge index maps from `BoundaryDiscretizer2D` |
 | `2D/GeometryUtilities2D.h/.cpp` | Static geometry: orientation, intersection, point-in-circle |
 | `2D/ElementGeometry2D.h/.cpp` | Per-element: circumcircle, area, angles, centroid |
 | `2D/ElementQuality2D.h/.cpp` | Quality metrics: circumradius-to-edge ratio, sorted lists |
 | `2D/Delaunay2D.h/.cpp` | Unconstrained incremental Bowyer-Watson triangulation |
 | `2D/ConstrainedDelaunay2D.h/.cpp` | Constrained triangulation with exterior removal |
-| `2D/EdgeDiscretizer2D.h/.cpp` | CAD edge → sampled `DiscretizationResult2D` |
+| `2D/BoundaryDiscretizer2D.h/.cpp` | CAD edge → sampled `DiscretizationResult2D` |
 | `2D/MeshingContext2D.h/.cpp` | Top-level context; `fromSurface()` for UV-space CAD face meshing |
 | `2D/MeshOperations2D.h/.cpp` | Bowyer-Watson, Lawson flipping, segment splitting, exterior removal |
 | `2D/MeshQueries2D.h/.cpp` | Conflict/cavity queries, encroachment, interior/exterior classification |
@@ -517,7 +517,6 @@ Replaces Parts II and III. A single ambient-space pipeline produces both the sur
 
 # Future Improvements
 
-- [ ] **Rename `EdgeDiscretizer2D` / `BoundaryDiscretizer3D` to a consistent name** — These two classes do the same thing in different dimensions (sampling CAD boundary edges into discretization results) but have different names. They should share the same name apart from the `2D`/`3D` suffix (e.g. both `EdgeDiscretizer2D` / `EdgeDiscretizer3D`, or both `BoundaryDiscretizer2D` / `BoundaryDiscretizer3D`).
 - [ ] **No abbreviations in identifiers** *(do soon)* — All variable, parameter, and function names must use full words. Examples: `disc2D` → `discretization2D`, `globalPtIndices` → `globalPointIndices`, `ctx` → `context`, `mgr` → `manager`. Sweep all files under `src/` and rename abbreviated identifiers.
 - [ ] **`FacetTriangulation` — split into data and logic classes** *(do soon)* — `FacetTriangulation` currently mixes algorithmic logic with data ownership (e.g. `node3DTo2DMap_`, UV-space `MeshingContext2D`). Split into a plain data container (`FacetTriangulationData` or similar) and a separate logic class. Doing this before S2 quality refinement work will keep the logic class focused and testable. Files: `3D/Surface/FacetTriangulation.h/.cpp`.
 - [ ] **Topology3D string IDs → `size_t` indices** — `Edge3D`, `Surface3D`, `Corner3D` currently use `std::string` IDs both for self-identity and for cross-referencing neighbours. Switch to `size_t` indices, store entities in `std::vector` instead of `unordered_map`, and drop `getId()` (only 2 production call sites). Requires updating `TopoDS_ShapeConverter` on ingestion and all consumers of `getStartCornerId()`, `getBoundaryEdgeIds()`, etc. Separately, add `using NodeID = size_t;` and `using ElementID = size_t;` aliases for mesh data so function signatures are self-documenting and grep-able.

@@ -22,7 +22,7 @@ Quick reference for writing new 2D stress-test examples. Read this instead of re
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"   // curved corners
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"     // curved edges
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
-#include "Meshing/Core/2D/EdgeDiscretizer2D.h"
+#include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
 #include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
@@ -73,7 +73,7 @@ int main()
     MeshingContext2D context(std::move(geometry), std::move(topology));
 
     // 4. Discretize
-    EdgeDiscretizer2D discretizer(context);
+    BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     // 5. CDT
