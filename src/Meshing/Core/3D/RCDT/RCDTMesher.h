@@ -2,6 +2,7 @@
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
@@ -24,14 +25,15 @@ namespace Meshing
 {
 
 class MeshingContext3D;
-class RestrictedTriangulation;
 
 /**
  * @brief Ambient-space RCDT mesher: implements both ISurfaceMesher3D and
- * IVolumeMesher3D, since both share the same underlying ambient
- * tetrahedralization + restriction + refinement pipeline — meshSurface()
- * and meshVolume() differ only in what volume output additionally needs (see
- * runPipeline()) and in their final extraction step.
+ * IVolumeMesher3D on one pipeline, CGAL Mesh_3's design (OPE-186): a weighted
+ * ambient tetrahedralization seeded with protecting balls
+ * (ProtectingBallPlacer), facet refinement (SurfaceDelaunayRefiner) and, for a
+ * volume, tetrahedron refinement below it (TetrahedronDelaunayRefiner).
+ * meshSurface() and meshVolume() differ only in that level and in their final
+ * extraction step.
  *
  * Each call builds its own mesh from scratch and releases it on return;
  * nothing is kept between calls.
@@ -62,31 +64,20 @@ private:
     SurfaceMesh3DQualitySettings qualitySettings_;
     std::optional<SizingFieldSettings3D> sizingFieldSettings_;
 
-    /// Returns the resolved minimum edge length: qualitySettings_'s if set,
-    /// otherwise derived here (see MinimumEdgeLengthEstimator).
-    double buildInitial(MeshingContext3D& context, RestrictedTriangulation& restrictedTriangulation) const;
+    /// Discretizes the boundary, resolves the size floor (qualitySettings_'s
+    /// if set, otherwise MinimumEdgeLengthEstimator's), places the protecting
+    /// balls and seeds the weighted ambient tetrahedralization with its curve
+    /// segments. Returns the size floor.
+    double seedTriangulation(MeshingContext3D& context) const;
 
-    /// includeTetrahedronQualityRefinement enables RCDTRefiner's priority-3
-    /// (bad tetrahedra) refinement pass -- meshVolume() passes true,
-    /// meshSurface() passes false so it never pays for volume-quality
-    /// refinement it has no use for.
-    void refine(MeshingContext3D& context,
-                RestrictedTriangulation& restrictedTriangulation,
-                double minimumEdgeLength,
-                bool includeTetrahedronQualityRefinement) const;
-
-    /// Shared pipeline for meshSurface() and meshVolume(): build the initial
-    /// triangulation, refine, remove defective restricted faces, remove the
-    /// ambient tetrahedra (the bounding tetrahedron's included), then extract
-    /// and smooth the surface mesh. meshingVolume is true from meshVolume(): it
-    /// enables tetrahedron-quality refinement, keeps smoothing from inverting
-    /// tetrahedra, and makes a restricted boundary that still has holes an
-    /// error. Returns the (possibly smoothed) surface mesh; meshVolume() only
-    /// needs it for the smoother's triangle adjacency and discards it once
-    /// smoothing has synced back to the live mesh (see meshVolume()).
-    SurfaceMesh3D runPipeline(MeshingContext3D& context,
-                              RestrictedTriangulation& restrictedTriangulation,
-                              bool meshingVolume) const;
+    /// Seed, then SurfaceDelaunayRefiner -- driven by TetrahedronDelaunayRefiner
+    /// when meshingVolume -- then remove the ambient tetrahedra, extract and
+    /// smooth the surface mesh. meshingVolume also keeps smoothing from
+    /// inverting tetrahedra and makes a restricted boundary with holes an
+    /// error. restrictedFaces receives the restricted facets for volume
+    /// extraction; meshVolume() only needs the returned surface mesh for the
+    /// smoother, which has synced its positions back into the live mesh.
+    SurfaceMesh3D runPipeline(MeshingContext3D& context, RestrictedFaceMap& restrictedFaces, bool meshingVolume) const;
 };
 
 } // namespace Meshing

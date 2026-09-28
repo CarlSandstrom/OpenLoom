@@ -11,31 +11,6 @@ MeshData3D::MeshData3D()
 {
 }
 
-MeshData3D::MeshData3D(const MeshData2D& mesh2D)
-{
-    auto& nodes2D = mesh2D.getNodes();
-    auto& elements2D = mesh2D.getElements();
-
-    for (const auto& [id, node2D] : nodes2D)
-    {
-        const Point2D& coords2D = node2D->getCoordinates();
-        Point3D coords3D(coords2D.x(), coords2D.y(), 0.0);
-
-        addNodeInternal(id, std::make_unique<Node3D>(coords3D));
-
-        const auto& geometryIds = mesh2D.getGeometryIds(id);
-        if (!geometryIds.empty())
-            setNodeGeometryIdsInternal(id, geometryIds);
-    }
-
-    for (const auto& [id, element2D] : elements2D)
-    {
-        // Assuming IElement can be cloned for 3D usage
-        auto element3D = element2D->clone();
-        addElementInternal(id, std::move(element3D));
-    }
-}
-
 const std::unordered_map<size_t, std::unique_ptr<Node3D>>& MeshData3D::getNodes() const
 {
     return nodes_;
@@ -102,12 +77,6 @@ const std::vector<std::string>& MeshData3D::getGeometryIds(size_t nodeId) const
     return it != nodeGeometryIds_.end() ? it->second : empty;
 }
 
-bool MeshData3D::isBoundaryNode(size_t nodeId) const
-{
-    auto it = nodeGeometryIds_.find(nodeId);
-    return it != nodeGeometryIds_.end() && !it->second.empty();
-}
-
 void MeshData3D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids)
 {
     nodeGeometryIds_[nodeId] = std::move(ids);
@@ -131,73 +100,6 @@ void MeshData3D::clearBoundingNodeIdsInternal()
 const CurveSegmentManager& MeshData3D::getCurveSegmentManager() const
 {
     return curveSegmentManager_;
-}
-
-const std::vector<ConstrainedSubfacet3D>& MeshData3D::getConstrainedSubfacets() const
-{
-    return constrainedSubfacets_;
-}
-
-size_t MeshData3D::getConstrainedSubsegmentCount() const
-{
-    return curveSegmentManager_.size();
-}
-
-size_t MeshData3D::getConstrainedSubfacetCount() const
-{
-    return constrainedSubfacets_.size();
-}
-
-void MeshData3D::addConstrainedSubfacetInternal(const ConstrainedSubfacet3D& subfacet)
-{
-    constrainedSubfacets_.push_back(subfacet);
-}
-
-void MeshData3D::removeConstrainedSubfacetInternal(size_t nodeId1, size_t nodeId2, size_t nodeId3)
-{
-    std::erase_if(constrainedSubfacets_,
-        [nodeId1, nodeId2, nodeId3](const ConstrainedSubfacet3D& facet)
-        {
-            std::array<size_t, 3> a = {facet.nodeId1, facet.nodeId2, facet.nodeId3};
-            std::array<size_t, 3> b = {nodeId1, nodeId2, nodeId3};
-            std::ranges::sort(a);
-            std::ranges::sort(b);
-            return a == b;
-        });
-}
-
-void MeshData3D::replaceConstrainedSubfacetInternal(const ConstrainedSubfacet3D& oldFacet,
-                                                      const std::vector<ConstrainedSubfacet3D>& newFacets)
-{
-    if (newFacets.empty())
-    {
-        return;
-    }
-
-    // Match using canonical (sorted) node IDs, consistent with removeConstrainedSubfacetInternal
-    std::array<size_t, 3> oldSorted = {oldFacet.nodeId1, oldFacet.nodeId2, oldFacet.nodeId3};
-    std::ranges::sort(oldSorted);
-
-    for (auto it = constrainedSubfacets_.begin(); it != constrainedSubfacets_.end(); ++it)
-    {
-        std::array<size_t, 3> currentSorted = {it->nodeId1, it->nodeId2, it->nodeId3};
-        std::ranges::sort(currentSorted);
-
-        if (currentSorted == oldSorted)
-        {
-            *it = newFacets[0];
-            for (size_t i = 1; i < newFacets.size(); ++i)
-            {
-                constrainedSubfacets_.push_back(newFacets[i]);
-            }
-            return;
-        }
-    }
-}
-
-void MeshData3D::clearConstrainedSubfacetsInternal()
-{
-    constrainedSubfacets_.clear();
 }
 
 } // namespace Meshing

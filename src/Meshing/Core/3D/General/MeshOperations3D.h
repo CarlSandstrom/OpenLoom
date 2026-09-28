@@ -1,22 +1,13 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
-#include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
-
-namespace Geometry3D
-{
-class IEdge3D;
-class ISurface3D;
-} // namespace Geometry3D
 
 namespace Meshing
 {
@@ -28,8 +19,7 @@ class MeshConnectivity;
  * @brief Mutation operations for 3D meshes
  *
  * Provides high-level mesh operations that modify the mesh, building upon MeshMutator3D.
- * Handles algorithms like Bowyer-Watson 3D insertion, cavity finding,
- * and constraint operations for Shewchuk's refinement algorithm.
+ * Handles algorithms like Bowyer-Watson 3D insertion and cavity finding.
  * Uses MeshQueries3D for read-only query operations.
  */
 class MeshOperations3D
@@ -53,27 +43,6 @@ public:
     std::array<size_t, 4> createBoundingTetrahedron(const std::vector<Point3D>& points);
 
     /**
-     * @brief Initialize Delaunay triangulation with a set of points
-     *
-     * Creates a bounding tetrahedron, inserts all vertices using Bowyer-Watson,
-     * and stores the bounding vertex IDs for later removal.
-     *
-     * @param points The points to triangulate
-     * @return Vector of node IDs for the inserted points (in same order as input)
-     */
-    std::vector<size_t> initializeDelaunay(const std::vector<Point3D>& points);
-
-    /**
-     * @brief Remove the bounding tetrahedron vertices and connected elements
-     *
-     * Removes all tetrahedra that contain any of the bounding vertices,
-     * then removes the bounding vertices themselves.
-     *
-     * @param boundingNodeIds The 4 node IDs of the bounding tetrahedron
-     */
-    void removeBoundingTetrahedron(const std::array<size_t, 4>& boundingNodeIds);
-
-    /**
      * @brief Insert a vertex using 3D Bowyer-Watson algorithm
      *
      * Finds conflicting tetrahedra, removes them to form a cavity,
@@ -94,7 +63,7 @@ public:
      * @brief Insert a vertex using 3D Bowyer-Watson algorithm with pre-computed conflicting tetrahedra
      *
      * Overload for callers that have already computed the conflicting-tetrahedra set
-     * (e.g. to derive cavity interior faces for RestrictedTriangulation::updateAfterInsertion
+     * (e.g. SurfaceDelaunayRefiner, which grows it locally and reads the cavity's faces
      * before calling this). Avoids a redundant findConflictingTetrahedra() scan.
      *
      * @param point The 3D point to insert
@@ -107,43 +76,6 @@ public:
                                     std::vector<size_t> conflictingTetrahedra,
                                     const std::vector<std::string>& geometryIds = {},
                                     double weight = 0.0);
-
-    /**
-     * @brief Split a constrained segment at its parametric midpoint
-     *
-     * Uses the parent edge geometry to find the correct midpoint on curved edges.
-     * Inserts the new node via Bowyer-Watson and updates the CurveSegmentManager.
-     *
-     * @param segmentId The ID of the CurveSegment to split
-     * @param parentEdge The geometric edge the segment lies on
-     * @return Pair of new segment IDs, or nullopt if split failed
-     */
-    std::optional<std::pair<size_t, size_t>> splitConstrainedSubsegment(
-        size_t segmentId,
-        const Geometry3D::IEdge3D& parentEdge);
-
-    /**
-     * @brief Split a constrained subfacet at its circumcenter
-     *
-     * Computes the circumcenter of the triangle and inserts it as a new vertex.
-     * The subfacet will be subdivided into smaller subfacets.
-     *
-     * @param subfacet The constrained subfacet to split
-     * @param parentSurface The geometric surface the subfacet lies on
-     * @return ID of the inserted vertex, or nullopt if split failed
-     */
-    std::optional<size_t> splitConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet,
-                                                   const Geometry3D::ISurface3D& parentSurface);
-
-    /**
-     * @brief Remove tetrahedra that contain a specific node
-     *
-     * Used when removing a node or preparing for vertex re-insertion.
-     *
-     * @param nodeId The node ID
-     * @return true if any tetrahedra were removed
-     */
-    bool removeTetrahedraContainingNode(size_t nodeId);
 
     /**
      * @brief Get the mesh mutator for primitive operations

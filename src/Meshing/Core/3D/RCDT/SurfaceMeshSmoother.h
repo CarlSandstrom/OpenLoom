@@ -26,7 +26,8 @@ namespace Meshing
 /// position is fixed by the boundary curve they belong to.
 ///
 /// Delaunay refinement on a curved surface does not reliably converge to
-/// FEM-quality elements on its own (see RCDTRefiner) — this smoothing pass
+/// FEM-quality elements on its own: protected facets are exempt from the
+/// angle criterion (SurfaceFacetCriteria) — this smoothing pass
 /// is the standard follow-up production meshers (Gmsh, Netgen) use to
 /// improve minimum angle without changing mesh topology.
 ///

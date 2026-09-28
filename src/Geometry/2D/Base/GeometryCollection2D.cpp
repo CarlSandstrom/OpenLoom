@@ -44,15 +44,4 @@ std::vector<std::string> GeometryCollection2D::getAllCornerIds() const
     return ids;
 }
 
-std::vector<std::string> GeometryCollection2D::getAllEdgeIds() const
-{
-    std::vector<std::string> ids;
-    ids.reserve(edges_.size());
-    for (const auto& [id, _] : edges_)
-    {
-        ids.push_back(id);
-    }
-    return ids;
-}
-
 } // namespace Geometry2D

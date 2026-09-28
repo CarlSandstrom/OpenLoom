@@ -83,6 +83,8 @@ public:
 
     /// Configure the context for periodic meshing.
     /// Must be called before the first call to getMeshData() or getOperations().
+    /// Nothing calls this yet: it is the entry point to the periodic-offset
+    /// layer (PeriodicMeshData2D), kept as groundwork for periodic meshing.
     void setPeriodicConfig(const PeriodicDomainConfig& config);
 
     /// Returns the periodic data layer, or nullptr for non-periodic contexts.

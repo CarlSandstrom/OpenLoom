@@ -1,8 +1,6 @@
 #pragma once
 #include "../Base/IElement.h"
-#include "../Operations/ITransactionListener.h"
 #include "MeshData3D.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <memory>
@@ -43,34 +41,13 @@ public:
     void clearBoundingNodeIds();
 
     // Curve segment operations
-    void addCurveSegment(const CurveSegment& segment);
     void setCurveSegmentManager(CurveSegmentManager manager);
-    std::pair<size_t, size_t> splitCurveSegment(size_t segmentId, size_t newNodeId, double tMid);
-    void clearCurveSegments();
-
-    // Constrained subfacet operations
-    void addConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet);
-    void removeConstrainedSubfacet(size_t nodeId1, size_t nodeId2, size_t nodeId3);
-    void replaceConstrainedSubfacet(const ConstrainedSubfacet3D& oldFacet,
-                                    const std::vector<ConstrainedSubfacet3D>& newFacets);
-    void clearConstrainedSubfacets();
-
-    // Transaction support
-    void setTransactionListener(ITransactionListener* listener);
-    void clearTransactionListener();
-
-    // Public methods for transaction to restore elements/nodes
-    void restoreElement(size_t id, std::unique_ptr<IElement> element);
-    void restoreNode(size_t id, const Point3D& coordinates);
 
 private:
     MeshData3D& geometry_;
     MeshConnectivity* connectivity_ = nullptr; // Optional for validation
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
-
-    // Transaction listener (optional)
-    ITransactionListener* transactionListener_ = nullptr;
 
     void validateNodeRemoval(size_t nodeId) const;
 };

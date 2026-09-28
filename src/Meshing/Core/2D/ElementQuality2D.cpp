@@ -27,12 +27,6 @@ double ElementQuality2D::computeShortestEdgeLength(const TriangleElement& elemen
     return std::min({lengths[0], lengths[1], lengths[2]});
 }
 
-double ElementQuality2D::computeLongestEdgeLength(const TriangleElement& element) const
-{
-    auto lengths = computeEdgeLengths(element);
-    return std::max({lengths[0], lengths[1], lengths[2]});
-}
-
 std::optional<double> ElementQuality2D::computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const
 {
     auto circumcircle = geometry_.computeCircumcircle(element);

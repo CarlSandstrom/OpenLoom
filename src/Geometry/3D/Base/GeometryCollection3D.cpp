@@ -45,14 +45,4 @@ ICorner3D* GeometryCollection3D::getCorner(const std::string& id) const
     return it->second.get();
 }
 
-IVolume3D* GeometryCollection3D::getVolume(const std::string& id) const
-{
-    auto it = volumes_.find(id);
-    if (it == volumes_.end())
-    {
-        OPENLOOM_THROW_ENTITY_NOT_FOUND("Volume", id);
-    }
-    return it->second.get();
-}
-
 } // namespace Geometry3D

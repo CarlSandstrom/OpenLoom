@@ -4,6 +4,10 @@ Constrained Delaunay triangulation library for 2D and 3D mesh generation with Op
 
 Do not commit unless I ask you to. The one exception is during a multi-step refactor: at each green step, *offer* a commit — still do not make one unsolicited. See Refactoring below.
 
+If you think creating a branch is a good idea, ask first.
+
+Do not be too verbose when communicating. Keep it brief but do not leave out important information.
+
 ## Build & Run
 
 ```bash
@@ -64,23 +68,21 @@ Class names and module paths in this table are written in backticks, and `./scri
 
 | Module | Status | Purpose |
 |--------|--------|---------|
-| `Common/` | live | Types, `BoundingBox2D`, `BoundingBox3D`, exceptions |
-| `Geometry/2D/` | live | 2D geometric entities (`ICorner2D`, `IEdge2D`, `IFace2D`) — Base and OpenCascade implementations |
+| `Common/` | live | Types, `BoundingBox2D`, exceptions |
+| `Geometry/2D/` | live | 2D geometric entities (`ICorner2D`, `IEdge2D`) — Base and OpenCascade implementations |
 | `Geometry/3D/` | live | 3D geometric entities (`ICorner3D`, `IEdge3D`, `ISurface3D`) — Base and OpenCascade implementations |
 | `Topology/` | live | 3D topological relationships (`Corner3D`, `Edge3D`, `Surface3D`, `Topology3D`) |
 | `Topology2D/` | live | 2D topological relationships |
 | `Meshing/Core/2D/` | live | 2D Delaunay: `ConstrainedDelaunay2D`, `MeshOperations2D`, `ShewchukRefiner2D` |
 | `Meshing/Core/3D/General/` | live | Shared 3D infrastructure: `MeshingContext3D`, `MeshOperations3D`, geometry and quality utilities |
-| `Meshing/Core/3D/RCDT/` | live | Ambient-space RCDT mesher: `RCDTMesher`, `RestrictedTriangulation`, and refinement split across `RCDTRefiner` (the loop and the priority order), `RCDTPointInserter` (insertion, curve-segment encroachment, priority 1) and one class per remaining priority — `RestrictedTriangleRefiner`, `TetrahedronQualityRefiner`, `NonManifoldEdgeRefiner`. `RestrictedFaceAudit` checks the restricted-face set against the coverage the CAD topology calls for and removes the repairable defects; it performs no classification, so it is unaffected by OPE-186's oracle replacement. `SurfaceCandidates` resolves a node's geometry ids to the CAD surfaces it can lie on, which both classification and the audit read. `DualEdgeRestrictionOracle` is what actually decides restriction, from each face's dual Voronoi edge; `RestrictedTriangulation` holds one by value and uses only `classify()` and `insertionPointFor()`, which is the seam OPE-186 replaces. The oracle's crossing test comes from `SurfaceTessellation`, which samples one CAD surface's trimmed patch onto a jittered UV grid, and `TriangleSoupIndex`, the surface-agnostic uniform grid over those triangles that answers the exact segment-crossing query. Implements both `ISurfaceMesher3D` and `IVolumeMesher3D`. There is no RCDT-specific context — state lives in `RCDTMesher`, which owns a `MeshingContext3D`. |
+| `Meshing/Core/3D/RCDT/` | live | Ambient-space RCDT mesher, CGAL Mesh_3's design (OPE-186). `RCDTMesher` implements both `ISurfaceMesher3D` and `IVolumeMesher3D` on one pipeline: `ProtectingBallPlacer` places the protecting balls on corners and curves (CGAL's `Protect_edges_sizing_field`), the weighted ambient tetrahedralization is seeded with them, then `SurfaceDelaunayRefiner` refines restricted facets (CGAL's `Refine_facets_3`) and, for a volume, `TetrahedronDelaunayRefiner` refines the tetrahedra inside (CGAL's `Refine_cells_3`) as the level below it. `WeightedDualRestriction` decides restriction: a face is restricted iff its weighted dual edge crosses a surface, found on `SurfaceTessellation` (one CAD surface's trimmed patch sampled onto a jittered UV grid) and `TriangleSoupIndex` (the uniform grid answering the exact segment-crossing query). `SurfaceFacetCriteria` holds CGAL's facet criteria, waived next to protecting balls (`ProtectionExemption`); `RegularConflictRegion` is the conflict region both levels insert through. After refinement, `AmbientTetrahedronRemover` strips the ambient tetrahedra, `RCDTMeshExtractor` extracts and `SurfaceMeshSmoother` smooths. `RestrictedFaceAudit` counts the edges missing a face against the CAD topology, which `meshVolume()` refuses. There is no RCDT-specific context — state lives in `RCDTMesher`, which owns a `MeshingContext3D`. |
 | `Meshing/Core/3D/Surface/` | legacy | `SurfaceMesher3D` dispatches between two pipelines. `Auto` selects `AmbientRCDT` whenever the shape has seams, which is true of anything with a cylindrical face, so the UV-space `PerFaceUV` pipeline is in practice reachable only by requesting it explicitly. No example uses it; its coverage is two unit tests on a unit box. Do not assume this module is dead — it is still the entry point every surface example goes through. |
 | `Meshing/Core/3D/Volume/` | live | Initial unconstrained Delaunay tetrahedralization: `Delaunay3D`. Top-level entry point `VolumeMesher3D` |
 | `Meshing/Data/` | live | `MeshData2D`, `MeshData3D`, `Node2D`, `Node3D`, `TriangleElement`, `TetrahedralElement`, `CurveSegmentManager` |
-| `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController2D`, `IQualityController3D` |
+| `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController2D` |
 | `Meshing/Connectivity/` | live | Element key types: `EdgeKey`, `FaceKey`, `TetrahedronKey` |
-| `Meshing/Operations/` | live | Transactional mutation: `MeshTransaction`, `ScopedTransaction` |
 | `Readers/` | live | OpenCASCADE CAD import |
-| `Export/` | live | `VtkExporter` (VTU, for viewing in ParaView), `TsvExporter` (tab-separated tables, the format the goldens are diffed in). Both also write a caller-assembled `VtkGrid` -- points, cells and named fields -- which is how diagnostics such as `PhaseDiagnosticsExporter` export without writing a format themselves |
-| `Utils/` | live | `MeshLogger` |
+| `Export/` | live | `VtkExporter` (VTU, for viewing in ParaView), `TsvExporter` (tab-separated tables, the format the goldens are diffed in). Both also write a caller-assembled `VtkGrid` -- points, cells and named fields, so a diagnostic can export without writing a format itself |
 
 ### Design Patterns
 - **Strategy Pattern**: `IMesher` interface with pluggable implementations
@@ -165,3 +167,4 @@ Exception hierarchy: `Exception` → `GeometryException`, `MeshException`, `Topo
 - `doc/Terminology.md` - CAD and mesh terminology glossary
 - `doc/Error_Handling.md` - Error handling guide
 - `doc/Meshing_Core_Overview.md` - Architecture overview
+- `doc/RCDT_Techniques.md` - Every technique the mesher relies on, and why each is there

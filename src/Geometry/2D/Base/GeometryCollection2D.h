@@ -31,10 +31,6 @@ public:
 
     // Query all IDs
     std::vector<std::string> getAllCornerIds() const;
-    std::vector<std::string> getAllEdgeIds() const;
-
-    size_t getCornerCount() const { return corners_.size(); }
-    size_t getEdgeCount() const { return edges_.size(); }
 
 private:
     std::unordered_map<std::string, std::unique_ptr<ICorner2D>> corners_;

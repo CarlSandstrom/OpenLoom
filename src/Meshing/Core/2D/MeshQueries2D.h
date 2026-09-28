@@ -73,8 +73,6 @@ public:
 
     std::vector<size_t> findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const;
 
-    std::optional<std::string> findCommonGeometryId(size_t nodeId1, size_t nodeId2) const;
-
     bool isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId) const;
 
     EdgeToTrianglesMap buildEdgeToTrianglesMap() const;

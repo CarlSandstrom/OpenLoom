@@ -3,6 +3,8 @@
 #include "Common/Types.h"
 #include "Meshing/Core/3D/RCDT/TriangleSoupIndex.h"
 
+#include <optional>
+
 namespace Geometry3D
 {
 class ISurface3D;
@@ -15,7 +17,7 @@ namespace Meshing
  * @brief A discrete triangulated approximation of one surface's trimmed
  * patch, used as an exact classification oracle.
  *
- * RestrictedTriangulation needs to know, robustly, whether a given segment
+ * WeightedDualRestriction needs to know, robustly, whether a given segment
  * crosses a surface. Testing that directly against the surface's own
  * continuous (possibly curved) geometry requires a floating-point
  * near-tangent tolerance, which can misclassify a segment whose endpoints
@@ -48,14 +50,15 @@ public:
     /// MAXIMUM_SAMPLES_PER_DIRECTION to bound memory and cost.
     /// A cell isn't clipped to the exact trim curve, so the tessellation can
     /// extend up to one grid cell past the true trimmed patch near its edge
-    /// — harmless here, since callers (RestrictedTriangulation) separately
-    /// check that the points they care about are within the true trim
-    /// boundary; this tessellation only needs to not have gaps.
+    /// — harmless here, since the caller (WeightedDualRestriction) separately
+    /// checks that the crossing it accepts is within the true trim boundary;
+    /// this tessellation only needs to not have gaps.
     void build(const Geometry3D::ISurface3D& surface, double targetCellSize);
 
-    /// Whether segment (a, b) crosses this tessellation — exact; see
-    /// TriangleSoupIndex::isCrossedBySegment().
-    bool crossesSurface(const Point3D& a, const Point3D& b) const;
+    /// Where segment (a, b) crosses this tessellation, nearest to target; see
+    /// TriangleSoupIndex::findCrossingNearest(). The point lies on the
+    /// tessellation, not exactly on the surface.
+    std::optional<Point3D> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
 
 private:
     TriangleSoupIndex triangles_;

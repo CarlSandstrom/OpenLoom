@@ -1,19 +1,10 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/3D/General/GeometryStructures3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
-#include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
-#include <map>
-#include <string>
 #include <vector>
-
-namespace Topology3D
-{
-class Topology3D;
-}
 
 namespace Meshing
 {
@@ -23,7 +14,7 @@ namespace Meshing
  *
  * Provides methods for querying mesh data without modifying it.
  * Handles algorithms like finding conflicting tetrahedra, cavity boundaries,
- * edge/face existence checks, and encroachment detection.
+ * and face adjacency lookups.
  */
 class MeshQueries3D
 {
@@ -59,43 +50,6 @@ public:
     std::vector<std::array<size_t, 3>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
 
     /**
-     * @brief Check if an edge exists in the mesh
-     *
-     * An edge exists if there is at least one tetrahedron that has both
-     * node IDs as vertices.
-     *
-     * @param nodeId1 First node ID
-     * @param nodeId2 Second node ID
-     * @return true if the edge exists in the mesh
-     */
-    bool edgeExistsInMesh(size_t nodeId1, size_t nodeId2) const;
-
-    /**
-     * @brief Find all tetrahedra containing a specific edge
-     *
-     * Returns the IDs of all tetrahedra that have both specified nodes
-     * as vertices.
-     *
-     * @param nodeId1 First node ID of the edge
-     * @param nodeId2 Second node ID of the edge
-     * @return Vector of tetrahedron IDs containing the edge
-     */
-    std::vector<size_t> findTetrahedraWithEdge(size_t nodeId1, size_t nodeId2) const;
-
-    /**
-     * @brief Check if a triangular face exists in the mesh
-     *
-     * A face exists if there is at least one tetrahedron that has all
-     * three node IDs as vertices.
-     *
-     * @param nodeId1 First node ID
-     * @param nodeId2 Second node ID
-     * @param nodeId3 Third node ID
-     * @return true if the face exists in the mesh
-     */
-    bool faceExistsInMesh(size_t nodeId1, size_t nodeId2, size_t nodeId3) const;
-
-    /**
      * @brief Find all tetrahedra containing a specific face
      *
      * Returns the IDs of all tetrahedra that have all three specified nodes
@@ -121,68 +75,6 @@ public:
      * @return Node ID of the opposite vertex, or SIZE_MAX if not found
      */
     size_t findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const;
-
-    /**
-     * @brief Find all skinny tetrahedra exceeding the quality bound
-     *
-     * Returns IDs of tetrahedra whose circumradius-to-shortest-edge ratio
-     * exceeds the given bound. These are candidates for refinement.
-     *
-     * @param ratioBound The B ratio threshold (typically > 2)
-     * @return Vector of tetrahedron IDs that are "skinny"
-     */
-    std::vector<size_t> findSkinnyTetrahedra(double ratioBound) const;
-
-    /**
-     * @brief Find encroached segments for a given point
-     *
-     * Checks all provided segments and returns those that would be
-     * encroached if the given point were inserted.
-     *
-     * @param point The point to test
-     * @param segments The segments to check
-     * @return Vector of segments encroached by the point
-     */
-    std::vector<CurveSegment> findEncroachingSubsegments(
-        const Point3D& point,
-        const std::vector<CurveSegment>& segments) const;
-
-    /**
-     * @brief Find encroached subfacets for a given point
-     *
-     * Checks all provided subfacets and returns those that would be
-     * encroached if the given point were inserted.
-     *
-     * @param point The point to test
-     * @param subfacets The subfacets to check
-     * @return Vector of subfacets encroached by the point
-     */
-    std::vector<ConstrainedSubfacet3D> findEncroachingSubfacets(
-        const Point3D& point,
-        const std::vector<ConstrainedSubfacet3D>& subfacets) const;
-
-    /**
-     * @brief Extract curve segments from topology edges and build a CurveSegmentManager
-     *
-     * Creates a CurveSegmentManager from the topology edges, mapping
-     * discretization point indices to mesh node IDs and capturing tStart/tEnd
-     * from the discretization edge parameters.
-     *
-     * @param topology The 3D topology containing edge definitions
-     * @param cornerIdToPointIndexMap Maps corner IDs to discretization point indices
-     * @param pointIndexToNodeIdMap Maps discretization point indices to mesh node IDs
-     * @param edgeIdToPointIndicesMap Maps edge IDs to ordered discretization point indices
-     * @param pointEdgeParameters Per-point edge parameter values (indexed by point index)
-     * @param pointGeometryIds Per-point geometry IDs corresponding to each parameter value
-     * @return CurveSegmentManager populated with all edge segments
-     */
-    CurveSegmentManager extractConstrainedSubsegments(
-        const Topology3D::Topology3D& topology,
-        const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-        const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
-        const std::vector<std::vector<double>>& pointEdgeParameters,
-        const std::vector<std::vector<std::string>>& pointGeometryIds) const;
 
 private:
     const MeshData3D& meshData_;

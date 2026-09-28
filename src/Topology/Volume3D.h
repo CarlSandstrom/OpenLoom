@@ -13,10 +13,6 @@ public:
              const std::vector<std::string>& boundarySurfaceIds,
              const std::vector<std::string>& adjacentVolumeIds = {});
 
-    std::string getId() const;
-    const std::vector<std::string>& getBoundarySurfaceIds() const;
-    const std::vector<std::string>& getAdjacentVolumeIds() const;
-
 private:
     std::string id_;
     std::vector<std::string> boundarySurfaceIds_;

@@ -16,7 +16,9 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <map>
 #include <set>
+#include <string>
 #include <unordered_set>
 
 #include <gtest/gtest.h>
@@ -35,7 +37,7 @@ using namespace Meshing;
 //   2. The output covers all 6 faces
 //   3. Every boundary edge node participates in at least one triangle
 //   4. No duplicate triangles
-//   5. Correct triangle count per face
+//   5. Each face is triangulated as one disk
 //   6. No degenerate (zero-area) triangles
 //   7. The mesh is a closed 2-manifold (OPE-208)
 // ============================================================================
@@ -133,19 +135,33 @@ TEST_F(RCDTMesherBoxTest, NoDuplicateTriangles)
 }
 
 // ============================================================================
-// 5. Correct triangle count — 6 triangles per face (8 boundary-only nodes → n−2)
+// 5. Each face is triangulated as one disk: by Euler, a disk with B boundary
+//    and I interior nodes has B - 2 + 2I triangles. Counts that pinned one
+//    protection scheme's node placement (6 per face) said nothing about the
+//    triangulation itself.
 // ============================================================================
 
-TEST_F(RCDTMesherBoxTest, TriangleCountPerFace)
+TEST_F(RCDTMesherBoxTest, EachFaceIsATriangulatedDisk)
 {
+    std::map<size_t, std::set<std::string>> nodeFaces;
     for (const auto& [faceId, triangleIndices] : mesh_.faceTriangleIds)
-        EXPECT_EQ(triangleIndices.size(), 6u)
-            << "Face " << faceId << " has " << triangleIndices.size()
-            << " triangles (expected 6)";
+        for (const size_t triangleIndex : triangleIndices)
+            for (const size_t nodeId : mesh_.triangles[triangleIndex])
+                nodeFaces[nodeId].insert(faceId);
 
-    const size_t totalTriangles = mesh_.triangles.size();
-    EXPECT_EQ(totalTriangles, 36u)
-        << "Expected 36 total triangles (6 faces × 6), got " << totalTriangles;
+    for (const auto& [faceId, triangleIndices] : mesh_.faceTriangleIds)
+    {
+        std::set<size_t> nodes;
+        for (const size_t triangleIndex : triangleIndices)
+            nodes.insert(mesh_.triangles[triangleIndex].begin(), mesh_.triangles[triangleIndex].end());
+        const auto isOnAnotherFace = [&](size_t nodeId)
+        { return nodeFaces[nodeId].size() > 1; };
+        const auto boundaryNodes = static_cast<size_t>(std::count_if(nodes.begin(), nodes.end(), isOnAnotherFace));
+        const size_t interiorNodes = nodes.size() - boundaryNodes;
+        EXPECT_EQ(triangleIndices.size(), boundaryNodes - 2 + 2 * interiorNodes)
+            << "Face " << faceId << ": " << triangleIndices.size() << " triangles, " << boundaryNodes
+            << " boundary and " << interiorNodes << " interior nodes";
+    }
 }
 
 // ============================================================================
@@ -309,9 +325,12 @@ TEST(RCDTMesherVolumeWithHoleInBoundaryTest, Throws)
     const TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 10.0).Shape();
     const Readers::TopoDS_ShapeConverter converter(BRepAlgoAPI_Cut(box, cylinder).Shape());
 
+    SurfaceMesh3DQualitySettings qualitySettings;
+    qualitySettings.maxRefinementIterations = 0;
     RCDTMesher mesher(converter.getGeometryCollection(),
                       converter.getTopology(),
-                      Geometry3D::DiscretizationSettings3D(3, 2));
+                      Geometry3D::DiscretizationSettings3D(3, 2),
+                      qualitySettings);
 
     EXPECT_THROW(mesher.meshVolume(), OpenLoom::MeshException);
 }

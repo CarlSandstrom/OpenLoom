@@ -24,22 +24,16 @@ class Topology3D;
 namespace Meshing
 {
 
-class MeshData3D;
-
 /**
  * @brief Manages all facet triangulations for 3D meshing
  *
  * Creates and maintains independent 2D triangulations for each surface in
- * the 3D domain. These triangulations define the initial subfacet constraints
- * and are updated when vertices are inserted during refinement.
+ * the 3D domain, for the legacy PerFaceUV surface mesher.
  *
- * Per Shewchuk's algorithm, facet triangulations are maintained separately
- * from the 3D tetrahedralization and define what subfacets *should* exist.
- *
- * For the surface-mesher path, also builds a surface-aware TwinManager after
- * all facets are initialized.  The TwinManager maps segment pairs by their 2D
- * node IDs so that boundary splits during Shewchuk refinement can be
- * propagated correctly across shared or seam edges.
+ * Also builds a surface-aware TwinManager after all facets are initialized.
+ * The TwinManager maps segment pairs by their 2D node IDs so that boundary
+ * splits during Shewchuk refinement can be propagated correctly across shared
+ * or seam edges.
  *
  * Construction is via named factory methods — the object is always fully
  * initialised on creation and cannot be used in an empty state.
@@ -62,7 +56,7 @@ public:
     // -----------------------------------------------------------------------
 
     /**
-     * @brief Create a manager for the surface-mesher path (no MeshData3D).
+     * @brief Create a manager for the surface mesher.
      *
      * For each surface:
      * 1. Collects all points (corners + edge points + interior points)
@@ -79,19 +73,6 @@ public:
                                                             const Topology3D::Topology3D& topology,
                                                             const DiscretizationResult3D& discretization);
 
-    /**
-     * @brief Create a manager for the volume-mesher path (requires MeshData3D).
-     *
-     * Same projection logic as the surface-mesher path, but node IDs come from
-     * @p pointIndexToNodeIdMap (discretization point index → MeshData3D node ID)
-     * and 3D coordinates are looked up from @p meshData.
-     */
-    static FacetTriangulationManager createForVolumeMesher(const Geometry3D::GeometryCollection3D& geometry,
-                                                           const Topology3D::Topology3D& topology,
-                                                           const DiscretizationResult3D& discretization,
-                                                           const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-                                                           const MeshData3D& meshData);
-
     // -----------------------------------------------------------------------
     // Twin manager
     // -----------------------------------------------------------------------
@@ -99,10 +80,10 @@ public:
     /**
      * @brief Transfer ownership of the TwinManager to the caller.
      *
-     * Only valid after createForSurfaceMesher().  The caller (SurfaceMeshingContext3D)
-     * must hold the returned unique_ptr for the full meshing lifetime.
+     * The caller (SurfaceMeshingContext3D) must hold the returned unique_ptr
+     * for the full meshing lifetime.
      *
-     * Returns nullptr if called on a volume-mesher manager or called twice.
+     * Returns nullptr if called twice.
      */
     std::unique_ptr<TwinManager> releaseTwinManager();
 
@@ -132,20 +113,6 @@ public:
     const FacetTriangulation* getFacetTriangulation(const std::string& surfaceId) const;
 
     /**
-     * @brief Insert a vertex into the appropriate facet triangulation
-     *
-     * Determines which surface the vertex belongs to and updates that
-     * facet's triangulation. Used during refinement when splitting subfacets.
-     *
-     * @param node3DId The 3D mesh node ID
-     * @param point The 3D point coordinates
-     * @param surfaceId The surface this vertex lies on
-     * @return true if insertion succeeded
-     */
-    bool insertVertexOnSurface(size_t node3DId, const Point3D& point,
-                               const std::string& surfaceId);
-
-    /**
      * @brief Build the mapping from CAD edge ID to ordered 3D node IDs along that edge.
      *
      * Iterates all facet triangulations and collects each edge's 3D node sequence
@@ -173,10 +140,6 @@ private:
 
     void initializeForSurfaceMesher(const DiscretizationResult3D& discretization);
 
-    void initializeForVolumeMesher(const DiscretizationResult3D& discretization,
-                                   const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-                                   const MeshData3D& meshData);
-
     /**
      * @brief Build a surface-aware TwinManager from the initialized facet triangulations.
      *
@@ -199,15 +162,6 @@ private:
      */
     std::vector<size_t> collectBoundaryPointIndices(const std::string& surfaceId,
                                                     const DiscretizationResult3D& discretization) const;
-
-    /**
-     * @brief Collect all point indices belonging to a surface
-     *
-     * Includes corner points, edge points (from boundary edges), and
-     * interior surface points.
-     */
-    std::vector<size_t> collectSurfacePointIndices(const std::string& surfaceId,
-                                                   const DiscretizationResult3D& discretization) const;
 
     const Geometry3D::GeometryCollection3D* geometry_;
     const Topology3D::Topology3D* topology_;

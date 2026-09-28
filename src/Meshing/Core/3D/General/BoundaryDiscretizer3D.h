@@ -35,10 +35,9 @@ namespace Meshing
  * a segment may TURN, never how long it may be. Where a curve is steep but
  * barely turning, that permits an arbitrarily long segment -- on
  * SaddleSurfaceMesh's parabolic top arc it produces chords of 3.79 next to
- * chords of 0.20, an 18.9x spread on one curve. CurveProtectionScheme then
- * sizes protecting balls as a multiple of the LONGER adjacent segment, so
- * that spread becomes a ball wide enough to swallow its own neighbours,
- * hiding the finely-sampled crease points entirely.
+ * chords of 0.20, an 18.9x spread on one curve. ProtectingBallPlacer sizes
+ * its balls from this spacing, so the spread becomes the size function it
+ * has to follow.
  *
  * Passing a sizing field adds the missing length bound: a point is
  * emitted as soon as EITHER the tangent has turned by maxAngleBetweenSegments

@@ -15,14 +15,14 @@ namespace Meshing
 
 void AmbientTetrahedronRemover::remove(const MeshData3D& meshData,
                                        MeshMutator3D& mutator,
-                                       const RestrictedTriangulation& restrictedTriangulation)
+                                       const RestrictedFaceMap& restrictedFaces)
 {
     if (!meshData.getBoundingNodeIds())
         OPENLOOM_THROW_MESH(INVALID_OPERATION, "AmbientTetrahedronRemover::remove: no bounding tetrahedron in the mesh");
     const std::array<size_t, 4> boundingNodeIds = *meshData.getBoundingNodeIds();
 
     std::vector<size_t> ambientTetrahedronIds;
-    for (const size_t elementId : AmbientTetrahedronClassifier::classify(meshData, restrictedTriangulation))
+    for (const size_t elementId : AmbientTetrahedronClassifier::classify(meshData, restrictedFaces))
     {
         if (dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId)))
             ambientTetrahedronIds.push_back(elementId);

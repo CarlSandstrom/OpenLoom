@@ -34,9 +34,9 @@ constexpr double NEAR_TANGENT_RELATIVE_TOLERANCE = 1e-10;
 // Provenance: arrived with findSurfaceCrossing() itself (7d15542) with no
 // derivation recorded, and has never been changed. What the number buys is at
 // least arithmetically fixed: 30 halvings narrow the bracket to 2^-30, about
-// 1e-9, of the dual edge's length, and cost 30 CAD projections per insertion
-// point -- this loop is why RestrictedTriangleRefiner computes the crossing
-// for one bad triangle at a time rather than for all of them.
+// 1e-9, of the dual edge's length, and cost 30 CAD projections per crossing,
+// which is why WeightedDualRestriction bisects only within a bracket of a few
+// tessellation cells around the tessellation's crossing.
 constexpr int BISECTION_ITERATIONS = 30;
 
 /// The longest distance between any two corners of the surface's untrimmed

@@ -2,15 +2,17 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/3D/General/RegularPredicates3D.h"
-#include "Meshing/Core/3D/General/RobustPredicates3D.h"
+
+#include <utility>
+#include <vector>
 
 using namespace Meshing;
 
 // ============================================================================
-// insidePointOrthosphere — zero weight reduces exactly to insidePointCircumsphere
+// insidePointOrthosphere — zero weights reduce to the ordinary circumsphere test
 // ============================================================================
 
-TEST(RegularPredicates3DTest, ZeroWeights_CenterOfRegularTetrahedron_MatchesUnweighted)
+TEST(RegularPredicates3DTest, ZeroWeights_CenterOfRegularTetrahedron_IsInside)
 {
     const Point3D p0(1.0, 1.0, 1.0);
     const Point3D p1(1.0, -1.0, -1.0);
@@ -18,12 +20,10 @@ TEST(RegularPredicates3DTest, ZeroWeights_CenterOfRegularTetrahedron_MatchesUnwe
     const Point3D p3(-1.0, -1.0, 1.0);
     const Point3D queryPoint(0.0, 0.0, 0.0);
 
-    EXPECT_EQ(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, queryPoint, 0.0),
-             RobustPredicates3D::insidePointCircumsphere(p0, p1, p2, p3, queryPoint));
     EXPECT_TRUE(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, queryPoint, 0.0));
 }
 
-TEST(RegularPredicates3DTest, ZeroWeights_FarPoint_MatchesUnweighted)
+TEST(RegularPredicates3DTest, ZeroWeights_FarPoint_IsOutside)
 {
     const Point3D p0(1.0, 1.0, 1.0);
     const Point3D p1(1.0, -1.0, -1.0);
@@ -31,37 +31,85 @@ TEST(RegularPredicates3DTest, ZeroWeights_FarPoint_MatchesUnweighted)
     const Point3D p3(-1.0, -1.0, 1.0);
     const Point3D queryPoint(100.0, 100.0, 100.0);
 
-    EXPECT_EQ(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, queryPoint, 0.0),
-             RobustPredicates3D::insidePointCircumsphere(p0, p1, p2, p3, queryPoint));
     EXPECT_FALSE(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, queryPoint, 0.0));
 }
 
-TEST(RegularPredicates3DTest, ZeroWeights_MatchesUnweighted_AcrossManyPoints)
+TEST(RegularPredicates3DTest, ZeroWeights_MatchesCircumsphere_AcrossManyPoints)
 {
-    // Cross-check over a scattered set of query points and both tet windings
-    // to make sure the sign-vs-orientationSign comparison generalizes
-    // (rather than happening to agree only for the two cases above).
+    // A scattered set of query points and both tet windings, to make sure the
+    // sign-vs-orientationSign comparison generalizes (rather than happening
+    // to agree only for the two cases above). The circumsphere is centered at
+    // (1,1,1) with radius sqrt(3); (2,2,2) lies exactly on it, which counts as
+    // inside.
     const Point3D p0(0.0, 0.0, 0.0);
     const Point3D p1(2.0, 0.0, 0.0);
     const Point3D p2(0.0, 2.0, 0.0);
     const Point3D p3(0.0, 0.0, 2.0);
 
-    const std::vector<Point3D> queries = {
-        Point3D(0.5, 0.5, 0.5), Point3D(0.9, 0.9, 0.9), Point3D(5.0, 0.0, 0.0),
-        Point3D(-1.0, -1.0, -1.0), Point3D(1.0, 1.0, 1.0), Point3D(2.0, 2.0, 2.0),
+    const std::vector<std::pair<Point3D, bool>> queries = {
+        {Point3D(0.5, 0.5, 0.5), true},    {Point3D(0.9, 0.9, 0.9), true},   {Point3D(5.0, 0.0, 0.0), false},
+        {Point3D(-1.0, -1.0, -1.0), false}, {Point3D(1.0, 1.0, 1.0), true}, {Point3D(2.0, 2.0, 2.0), true},
     };
 
-    for (const Point3D& queryPoint : queries)
+    for (const auto& [queryPoint, inside] : queries)
     {
         EXPECT_EQ(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, queryPoint, 0.0),
-                 RobustPredicates3D::insidePointCircumsphere(p0, p1, p2, p3, queryPoint))
+                  inside)
             << "queryPoint = " << queryPoint.transpose();
         // Flipped winding (p1, p0 swapped) must agree too -- the predicate's
         // inside/outside answer shouldn't depend on the tet's own winding.
         EXPECT_EQ(RegularPredicates3D::insidePointOrthosphere(p1, 0.0, p0, 0.0, p2, 0.0, p3, 0.0, queryPoint, 0.0),
-                 RobustPredicates3D::insidePointCircumsphere(p1, p0, p2, p3, queryPoint))
+                  inside)
             << "queryPoint = " << queryPoint.transpose();
     }
+}
+
+TEST(RegularPredicates3DTest, ZeroWeights_PointExactlyOnSphere_IsInside)
+{
+    // Each vertex lies exactly on its own tetrahedron's circumsphere.
+    const Point3D p0(1.0, 1.0, 1.0);
+    const Point3D p1(1.0, -1.0, -1.0);
+    const Point3D p2(-1.0, 1.0, -1.0);
+    const Point3D p3(-1.0, -1.0, 1.0);
+
+    EXPECT_TRUE(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, p0, 0.0));
+}
+
+// ============================================================================
+// insidePointOrthosphere — near-degenerate case (OPE-159/OPE-138 regression)
+//
+// A nearly-flat tetrahedron: three points exactly on z=0, a fourth lifted by
+// only 1e-10. Solving the nearly singular 3x3 system for its circumcenter
+// produced circumsphere radii in the hundreds of thousands on the torus (mesh
+// extent ~13 units), which falsely flagged distant, unrelated points as being
+// inside the sphere and corrupted the Bowyer-Watson conflict search. The exact
+// determinant-sign predicate must not reproduce that failure.
+// ============================================================================
+
+TEST(RegularPredicates3DTest, ZeroWeights_NearDegenerateTet_DistantPointIsOutside)
+{
+    const Point3D p0(0.0, 0.0, 0.0);
+    const Point3D p1(1.0, 0.0, 0.0);
+    const Point3D p2(0.0, 1.0, 0.0);
+    const Point3D p3(0.5, 0.5, 1e-10); // barely off the p0,p1,p2 plane
+
+    const Point3D distant(100.0, 100.0, 100.0);
+    EXPECT_FALSE(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, distant, 0.0));
+}
+
+TEST(RegularPredicates3DTest, ZeroWeights_NearDegenerateTet_OwnCentroidIsInside)
+{
+    const Point3D p0(0.0, 0.0, 0.0);
+    const Point3D p1(1.0, 0.0, 0.0);
+    const Point3D p2(0.0, 1.0, 0.0);
+    const Point3D p3(0.5, 0.5, 1e-10);
+
+    // A tetrahedron is convex and inscribed in its own circumsphere, so its
+    // centroid lies strictly inside, however flat. Confirms the predicate
+    // doesn't degrade into "always outside" as a trivial way to dodge the
+    // failure above.
+    const Point3D centroid = (p0 + p1 + p2 + p3) / 4.0;
+    EXPECT_TRUE(RegularPredicates3D::insidePointOrthosphere(p0, 0.0, p1, 0.0, p2, 0.0, p3, 0.0, centroid, 0.0));
 }
 
 TEST(RegularPredicates3DTest, DegenerateTetrahedron_ReturnsFalse)

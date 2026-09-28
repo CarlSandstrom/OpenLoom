@@ -22,7 +22,6 @@ public:
     explicit StepReader2D(const std::string& filePath);
 
     const Topology2D::Topology2D& getTopology() const;
-    const Geometry2D::GeometryCollection2D& getGeometry() const;
 
     std::unique_ptr<Topology2D::Topology2D> takeTopology();
     std::unique_ptr<Geometry2D::GeometryCollection2D> takeGeometry();

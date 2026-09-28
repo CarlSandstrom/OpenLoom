@@ -58,37 +58,6 @@ const std::unordered_map<size_t, CurveSegment>& CurveSegmentManager::getAllSegme
     return segments_;
 }
 
-std::vector<size_t> CurveSegmentManager::findEncroached(const Point3D& point,
-                                                        const std::unordered_map<size_t, Point3D>& nodePositions,
-                                                        std::optional<size_t> excludeNodeId) const
-{
-    std::vector<size_t> encroached;
-
-    for (const auto& [segmentId, segment] : segments_)
-    {
-        if (excludeNodeId && (*excludeNodeId == segment.nodeId1 || *excludeNodeId == segment.nodeId2))
-            continue;
-
-        const auto it1 = nodePositions.find(segment.nodeId1);
-        const auto it2 = nodePositions.find(segment.nodeId2);
-
-        if (it1 == nodePositions.end() || it2 == nodePositions.end())
-            continue;
-
-        const Point3D& p1 = it1->second;
-        const Point3D& p2 = it2->second;
-
-        const Point3D center = (p1 + p2) * 0.5;
-        const double radiusSquared = (p2 - p1).squaredNorm() * 0.25;
-        const double distanceSquared = (point - center).squaredNorm();
-
-        if (distanceSquared < radiusSquared)
-            encroached.push_back(segmentId);
-    }
-
-    return encroached;
-}
-
 std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::string& edgeId) const
 {
     std::vector<CurveSegment> result;
@@ -124,13 +93,6 @@ size_t CurveSegmentManager::size() const
 bool CurveSegmentManager::empty() const
 {
     return segments_.empty();
-}
-
-void CurveSegmentManager::clear()
-{
-    segments_.clear();
-    endpointToSegmentId_.clear();
-    nextId_ = 0;
 }
 
 size_t CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)

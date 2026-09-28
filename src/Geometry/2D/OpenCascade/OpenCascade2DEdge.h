@@ -25,9 +25,6 @@ public:
 
     std::string getId() const override;
 
-    const Handle(Geom2d_Curve) & getCurve() const { return curve_; }
-    double getFirstParameter() const { return firstParam_; }
-    double getLastParameter() const { return lastParam_; }
 
 private:
     Handle(Geom2d_Curve) curve_;

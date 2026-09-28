@@ -53,21 +53,6 @@ TEST_F(ElementQuality2DTest, ComputeShortestEdgeLengthForEquilateralTriangle)
     EXPECT_NEAR(shortest, 1.0, TOLERANCE);
 }
 
-TEST_F(ElementQuality2DTest, ComputeLongestEdgeLengthForRightTriangle)
-{
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(3.0, 0.0);
-    size_t n2 = addNode(0.0, 4.0);
-    addTriangle(n0, n1, n2);
-
-    ElementQuality2D quality(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
-
-    double longest = quality.computeLongestEdgeLength(*element);
-
-    EXPECT_NEAR(longest, 5.0, TOLERANCE);
-}
-
 TEST_F(ElementQuality2DTest, ComputeCircumradiusToShortestEdgeRatioForEquilateral)
 {
     size_t n0 = addNode(0.0, 0.0);

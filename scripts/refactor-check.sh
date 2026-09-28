@@ -114,7 +114,10 @@ for example in "${examples[@]}"; do
         elif ! diff -q "$golden" "$output" >/dev/null; then
             echo
             echo "CHANGED: $name/$(basename "$output")"
-            diff "$golden" "$output" | head -20
+            # diff exits 1 on a difference, and head can close the pipe
+            # early; either would abort the run under pipefail and hide
+            # every later changed output.
+            { diff "$golden" "$output" | head -20; } || true
             changed=$((changed + 1))
         fi
     done

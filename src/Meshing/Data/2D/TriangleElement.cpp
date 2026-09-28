@@ -54,16 +54,4 @@ size_t TriangleElement::getOppositeNode(size_t edgeNode1, size_t edgeNode2) cons
                          ", " + std::to_string(edgeNode2) + ") in triangle");
 }
 
-std::array<size_t, 3> TriangleElement::getSortedNodeIds() const
-{
-    auto sorted = nodeIds_;
-    std::sort(sorted.begin(), sorted.end());
-    return sorted;
-}
-
-std::unique_ptr<IElement> TriangleElement::clone() const
-{
-    return std::make_unique<TriangleElement>(nodeIds_);
-}
-
 } // namespace Meshing

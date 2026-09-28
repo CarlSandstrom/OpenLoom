@@ -13,10 +13,8 @@ namespace Meshing
  */
 struct SurfaceMesh3DQualitySettings
 {
-    /// Maximum allowed circumradius / shortest-edge ratio.
-    /// A bound of 2.0 corresponds roughly to a 30° minimum angle. RCDT's
-    /// termination guarantee has been tuned and tested against 1.0 (see
-    /// RCDTRefiner), which is why that — not 2.0 — is the default here.
+    /// Maximum allowed circumradius / shortest-edge ratio. Read only by the
+    /// UV-space pipeline; RCDT's facet shape criterion reads minAngleDegrees.
     double circumradiusToShortestEdgeRatio = 1.0;
 
     /// Minimum interior angle of any triangle, in degrees.

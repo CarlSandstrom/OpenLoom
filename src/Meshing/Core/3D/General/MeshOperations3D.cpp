@@ -1,8 +1,5 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Common/Exceptions/MeshException.h"
-#include "Geometry/3D/Base/IEdge3D.h"
-#include "Geometry/3D/Base/ISurface3D.h"
-#include "Meshing/Core/3D/General/GeometryUtilities3D.h"
 #include "Meshing/Core/3D/General/RobustPredicates3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
@@ -139,88 +136,6 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
                   id0, id1, id2, id3);
 
     return {id0, id1, id2, id3};
-}
-
-std::vector<size_t> MeshOperations3D::initializeDelaunay(const std::vector<Point3D>& points)
-{
-    if (points.empty())
-    {
-        spdlog::warn("MeshOperations3D::initializeDelaunay: Empty point list");
-        return {};
-    }
-
-    spdlog::info("MeshOperations3D::initializeDelaunay: Initializing with {} points", points.size());
-
-    // Create the bounding tetrahedron
-    std::array<size_t, 4> boundingIds = createBoundingTetrahedron(points);
-
-    // Insert each point using Bowyer-Watson
-    std::vector<size_t> nodeIds;
-    nodeIds.reserve(points.size());
-
-    for (size_t i = 0; i < points.size(); ++i)
-    {
-        size_t nodeId = insertVertexBowyerWatson(points[i]);
-        nodeIds.push_back(nodeId);
-
-        if ((i + 1) % 100 == 0)
-        {
-            spdlog::debug("MeshOperations3D::initializeDelaunay: Inserted {}/{} points",
-                          i + 1, points.size());
-        }
-    }
-
-    spdlog::info("MeshOperations3D::initializeDelaunay: Inserted {} points, {} tetrahedra",
-                 nodeIds.size(), meshData_.getElementCount());
-
-    return nodeIds;
-}
-
-void MeshOperations3D::removeBoundingTetrahedron(const std::array<size_t, 4>& boundingNodeIds)
-{
-    spdlog::debug("MeshOperations3D::removeBoundingTetrahedron: Removing bounding nodes ({}, {}, {}, {})",
-                  boundingNodeIds[0], boundingNodeIds[1], boundingNodeIds[2], boundingNodeIds[3]);
-
-    // Create a set of bounding node IDs for fast lookup
-    std::unordered_set<size_t> boundingSet(boundingNodeIds.begin(), boundingNodeIds.end());
-
-    // Find all tetrahedra that contain any bounding vertex
-    std::vector<size_t> tetsToRemove;
-    for (const auto& [tetId, element] : meshData_.getElements())
-    {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-        {
-            continue;
-        }
-
-        const auto& nodes = tet->getNodeIds();
-        for (size_t nodeId : nodes)
-        {
-            if (boundingSet.contains(nodeId))
-            {
-                tetsToRemove.push_back(tetId);
-                break;
-            }
-        }
-    }
-
-    // Remove the tetrahedra
-    for (size_t tetId : tetsToRemove)
-    {
-        mutator_->removeElement(tetId);
-    }
-
-    // Remove the bounding nodes
-    for (size_t nodeId : boundingNodeIds)
-    {
-        mutator_->removeNode(nodeId);
-    }
-
-    mutator_->clearBoundingNodeIds();
-
-    spdlog::info("MeshOperations3D::removeBoundingTetrahedron: Removed {} tetrahedra and 4 bounding nodes",
-                 tetsToRemove.size());
 }
 
 size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
@@ -457,101 +372,6 @@ void MeshOperations3D::splitCoplanarBoundaryFace(size_t vertexNodeId,
         addOrientedTetrahedron(subFace, apexA);
         addOrientedTetrahedron(subFace, apexB);
     }
-}
-
-std::optional<std::pair<size_t, size_t>>
-MeshOperations3D::splitConstrainedSubsegment(size_t segmentId,
-                                             const Geometry3D::IEdge3D& parentEdge)
-{
-    const CurveSegment& segment = meshData_.getCurveSegmentManager().getSegment(segmentId);
-
-    const auto* node1 = meshData_.getNode(segment.nodeId1);
-    const auto* node2 = meshData_.getNode(segment.nodeId2);
-
-    if (!node1 || !node2)
-    {
-        spdlog::error("MeshOperations3D::splitConstrainedSubsegment: Invalid node IDs");
-        return std::nullopt;
-    }
-
-    Point3D midpoint = (node1->getCoordinates() + node2->getCoordinates()) * 0.5;
-
-    if (segment.tStart != segment.tEnd)
-    {
-        double tMid = (segment.tStart + segment.tEnd) * 0.5;
-        midpoint = parentEdge.getPoint(tMid);
-    }
-
-    size_t midNodeId = insertVertexBowyerWatson(midpoint, {segment.edgeId});
-
-    double tMid = (segment.tStart + segment.tEnd) * 0.5;
-    auto [segmentId1, segmentId2] = mutator_->splitCurveSegment(segmentId, midNodeId, tMid);
-
-    return std::make_pair(segmentId1, segmentId2);
-}
-
-std::optional<size_t>
-MeshOperations3D::splitConstrainedSubfacet(const ConstrainedSubfacet3D& subfacet,
-                                           const Geometry3D::ISurface3D& parentSurface)
-{
-    // Get the three vertices of the subfacet
-    const auto* node1 = meshData_.getNode(subfacet.nodeId1);
-    const auto* node2 = meshData_.getNode(subfacet.nodeId2);
-    const auto* node3 = meshData_.getNode(subfacet.nodeId3);
-
-    if (!node1 || !node2 || !node3)
-    {
-        spdlog::error("MeshOperations3D::splitConstrainedSubfacet: Invalid node IDs");
-        return std::nullopt;
-    }
-
-    Point3D p1 = node1->getCoordinates();
-    Point3D p2 = node2->getCoordinates();
-    Point3D p3 = node3->getCoordinates();
-
-    // Compute the circumcenter in 3D space
-    EquatorialSphere sphere = GeometryUtilities3D::createEquatorialSphere(p1, p2, p3);
-    Point3D circumcenter = sphere.center;
-
-    // Project the circumcenter back onto the parent surface if needed
-    // For now, use the computed circumcenter directly
-    // TODO: Project onto parent surface to handle curved surfaces
-
-    // Insert the circumcenter vertex
-    size_t centerNodeId = insertVertexBowyerWatson(circumcenter, {subfacet.geometryId});
-
-    return centerNodeId;
-}
-
-bool MeshOperations3D::removeTetrahedraContainingNode(size_t nodeId)
-{
-    bool anyRemoved = false;
-    std::vector<size_t> tetsToRemove;
-
-    // Find all tetrahedra containing the node
-    for (const auto& [tetId, element] : meshData_.getElements())
-    {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-        {
-            continue;
-        }
-
-        const auto& nodes = tet->getNodeIds();
-        if (std::find(nodes.begin(), nodes.end(), nodeId) != nodes.end())
-        {
-            tetsToRemove.push_back(tetId);
-        }
-    }
-
-    // Remove the tetrahedra
-    for (size_t tetId : tetsToRemove)
-    {
-        mutator_->removeElement(tetId);
-        anyRemoved = true;
-    }
-
-    return anyRemoved;
 }
 
 } // namespace Meshing

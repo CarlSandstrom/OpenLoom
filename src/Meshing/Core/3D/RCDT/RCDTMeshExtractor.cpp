@@ -1,6 +1,6 @@
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 
-#include "Meshing/Core/3D/RCDT/RestrictedTriangulation.h"
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
@@ -35,11 +35,11 @@ std::vector<Point3D> buildZeroFilledNodeList(const MeshData3D& meshData)
     return nodes;
 }
 
-void appendRestrictedTriangles(const RestrictedTriangulation& restrictedTriangulation,
+void appendRestrictedTriangles(const RestrictedFaceMap& restrictedFaces,
                                std::vector<std::array<size_t, 3>>& triangles,
                                std::map<std::string, std::vector<size_t>>& triangleIdsBySurface)
 {
-    for (const auto& [faceKey, surfaceId] : restrictedTriangulation.getRestrictedFaces())
+    for (const auto& [faceKey, surfaceId] : restrictedFaces)
     {
         triangleIdsBySurface[surfaceId].push_back(triangles.size());
         triangles.push_back({faceKey.nodeIds[0], faceKey.nodeIds[1], faceKey.nodeIds[2]});
@@ -62,12 +62,12 @@ std::map<std::string, std::vector<size_t>> buildEdgeNodeIds(const CurveSegmentMa
 } // namespace
 
 SurfaceMesh3D RCDTMeshExtractor::extractSurfaceMesh(const MeshData3D& meshData,
-                                                    const RestrictedTriangulation& restrictedTriangulation,
+                                                    const RestrictedFaceMap& restrictedFaces,
                                                     const Topology3D::Topology3D& topology)
 {
     SurfaceMesh3D surfaceMesh;
     surfaceMesh.nodes = buildZeroFilledNodeList(meshData);
-    appendRestrictedTriangles(restrictedTriangulation, surfaceMesh.triangles, surfaceMesh.faceTriangleIds);
+    appendRestrictedTriangles(restrictedFaces, surfaceMesh.triangles, surfaceMesh.faceTriangleIds);
     surfaceMesh.edgeNodeIds = buildEdgeNodeIds(meshData.getCurveSegmentManager(), topology);
 
     spdlog::debug("RCDTMeshExtractor::extractSurfaceMesh: {} nodes, {} triangles, {} faces, {} edges",
@@ -78,14 +78,14 @@ SurfaceMesh3D RCDTMeshExtractor::extractSurfaceMesh(const MeshData3D& meshData,
 }
 
 VolumeMesh3D RCDTMeshExtractor::extractVolumeMesh(const MeshData3D& meshData,
-                                                  const RestrictedTriangulation& restrictedTriangulation,
+                                                  const RestrictedFaceMap& restrictedFaces,
                                                   const Topology3D::Topology3D& topology)
 {
     VolumeMesh3D volumeMesh;
     volumeMesh.nodes = buildZeroFilledNodeList(meshData);
     volumeMesh.tetrahedra = extractTetrahedra(meshData);
 
-    appendRestrictedTriangles(restrictedTriangulation, volumeMesh.boundaryTriangles,
+    appendRestrictedTriangles(restrictedFaces, volumeMesh.boundaryTriangles,
                               volumeMesh.boundaryFaceTriangleIds);
     volumeMesh.boundaryEdgeNodeIds = buildEdgeNodeIds(meshData.getCurveSegmentManager(), topology);
 

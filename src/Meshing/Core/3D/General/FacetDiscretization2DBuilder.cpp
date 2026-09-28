@@ -197,8 +197,8 @@ FacetDiscretization2DBuilder::ShiftedLocalMaps FacetDiscretization2DBuilder::pro
             }
 
             // Copy metadata from the original local entry, replacing the original
-            // seam edge ID with the seam twin ID so that findCommonGeometryId /
-            // splitConstrainedSegment use the shifted UV edge.
+            // seam edge ID with the seam twin ID so that splitConstrainedSegment
+            // uses the shifted UV edge.
             auto origIt = globalToLocal_.find(globalIdx);
             if (origIt != globalToLocal_.end())
             {

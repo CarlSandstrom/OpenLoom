@@ -6,7 +6,6 @@
 #include "Meshing/Core/3D/General/EdgeTwinTable.h"
 #include "Meshing/Core/3D/General/FacetDiscretization2DBuilder.h"
 #include "Meshing/Core/3D/General/TwinTableGenerator.h"
-#include "Meshing/Data/3D/MeshData3D.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Surface3D.h"
 #include "Topology/Topology3D.h"
@@ -44,17 +43,6 @@ FacetTriangulationManager FacetTriangulationManager::createForSurfaceMesher(cons
 {
     FacetTriangulationManager manager(geometry, topology);
     manager.initializeForSurfaceMesher(discretization);
-    return manager;
-}
-
-FacetTriangulationManager FacetTriangulationManager::createForVolumeMesher(const Geometry3D::GeometryCollection3D& geometry,
-                                                                           const Topology3D::Topology3D& topology,
-                                                                           const DiscretizationResult3D& discretization,
-                                                                           const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-                                                                           const MeshData3D& meshData)
-{
-    FacetTriangulationManager manager(geometry, topology);
-    manager.initializeForVolumeMesher(discretization, pointIndexToNodeIdMap, meshData);
     return manager;
 }
 
@@ -113,52 +101,6 @@ void FacetTriangulationManager::initializeForSurfaceMesher(const DiscretizationR
                  facetTriangulations_.size());
 
     buildTwinManager();
-}
-
-void FacetTriangulationManager::initializeForVolumeMesher(const DiscretizationResult3D& discretization,
-                                                          const std::map<size_t, size_t>& pointIndexToNodeIdMap,
-                                                          const MeshData3D& /* meshData */)
-{
-    facetTriangulations_.clear();
-
-    for (const auto& surfaceId : topology_->getAllSurfaceIds())
-    {
-        const auto& topoSurface = topology_->getSurface(surfaceId);
-        auto* surface = geometry_->getSurface(surfaceId);
-
-        if (!surface)
-        {
-            spdlog::warn("FacetTriangulationManager: No geometry for surface {}", surfaceId);
-            continue;
-        }
-
-        auto facetTriang = std::make_unique<FacetTriangulation>(
-            *surface, topoSurface, *topology_, *geometry_);
-
-        std::vector<size_t> globalPtIndices = collectSurfacePointIndices(surfaceId, discretization);
-        FacetDiscretization2DBuilder builder(*surface, topoSurface, topology_->getSeamCollection(),
-                                             discretization, globalPtIndices,
-                                             [&pointIndexToNodeIdMap](size_t ptIdx)
-                                             {
-                                                 auto it = pointIndexToNodeIdMap.find(ptIdx);
-                                                 return (it != pointIndexToNodeIdMap.end()) ? it->second : ptIdx;
-                                             },
-                                             *geometry_);
-        builder.build();
-
-        auto discretization2D = builder.takeDiscretization2D();
-        auto localIndexToNode3DId = builder.takeLocalIndexToNode3DId();
-        size_t pointCount = discretization2D.points.size();
-        facetTriang->initialize(std::move(discretization2D), std::move(localIndexToNode3DId));
-
-        spdlog::debug("FacetTriangulationManager: Created triangulation for surface {} with {} points",
-                      surfaceId, pointCount);
-
-        facetTriangulations_[surfaceId] = std::move(facetTriang);
-    }
-
-    spdlog::info("FacetTriangulationManager: Initialized {} facet triangulations",
-                 facetTriangulations_.size());
 }
 
 void FacetTriangulationManager::buildTwinManager()
@@ -289,50 +231,6 @@ std::vector<size_t> FacetTriangulationManager::collectBoundaryPointIndices(const
     return std::vector<size_t>(pointIndices.begin(), pointIndices.end());
 }
 
-std::vector<size_t> FacetTriangulationManager::collectSurfacePointIndices(
-    const std::string& surfaceId,
-    const DiscretizationResult3D& discretization) const
-{
-    std::set<size_t> pointIndices;
-
-    const auto& topoSurface = topology_->getSurface(surfaceId);
-
-    // Add corner points
-    for (const auto& cornerId : topoSurface.getCornerIds())
-    {
-        auto it = discretization.cornerIdToPointIndexMap.find(cornerId);
-        if (it != discretization.cornerIdToPointIndexMap.end())
-        {
-            pointIndices.insert(it->second);
-        }
-    }
-
-    // Add edge points (from boundary edges)
-    for (const auto& edgeId : topoSurface.getBoundaryEdgeIds())
-    {
-        auto it = discretization.edgeIdToPointIndicesMap.find(edgeId);
-        if (it != discretization.edgeIdToPointIndicesMap.end())
-        {
-            for (size_t index : it->second)
-            {
-                pointIndices.insert(index);
-            }
-        }
-    }
-
-    // Add interior surface points
-    auto surfacePointsIt = discretization.surfaceIdToPointIndicesMap.find(surfaceId);
-    if (surfacePointsIt != discretization.surfaceIdToPointIndicesMap.end())
-    {
-        for (size_t index : surfacePointsIt->second)
-        {
-            pointIndices.insert(index);
-        }
-    }
-
-    return std::vector<size_t>(pointIndices.begin(), pointIndices.end());
-}
-
 // -----------------------------------------------------------------------
 // Queries
 // -----------------------------------------------------------------------
@@ -404,30 +302,6 @@ const FacetTriangulation* FacetTriangulationManager::getFacetTriangulation(
         return it->second.get();
     }
     return nullptr;
-}
-
-bool FacetTriangulationManager::insertVertexOnSurface(
-    size_t node3DId,
-    const Point3D& point,
-    const std::string& surfaceId)
-{
-    auto* facetTriang = getFacetTriangulation(surfaceId);
-    if (!facetTriang)
-    {
-        spdlog::error("FacetTriangulationManager: No triangulation for surface {}", surfaceId);
-        return false;
-    }
-
-    auto* surface = geometry_->getSurface(surfaceId);
-    if (!surface)
-    {
-        spdlog::error("FacetTriangulationManager: No geometry for surface {}", surfaceId);
-        return false;
-    }
-
-    Point2D uvCoord = surface->projectPoint(point);
-
-    return facetTriang->insertVertex(node3DId, uvCoord);
 }
 
 } // namespace Meshing

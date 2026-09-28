@@ -18,8 +18,6 @@ public:
     std::string getId() const;
     const std::vector<std::string>& getBoundaryEdgeIds() const;
     const std::vector<std::string>& getCornerIds() const;
-    const std::vector<std::string>& getAdjacentSurfaceIds() const;
-    const std::vector<std::vector<std::string>>& getEdgeLoops() const;
 
 private:
     std::string id_;

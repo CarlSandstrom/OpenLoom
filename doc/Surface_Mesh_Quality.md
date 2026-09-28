@@ -1,57 +1,37 @@
 # Surface Mesh Quality
 
-This document describes how triangle quality is evaluated and enforced during 3D surface mesh refinement. The primary mechanism is `RCDTQualitySettings` used by `RCDTRefiner`. The legacy UV-space quality controllers (`Shewchuk2DQualityController`, `SurfaceMeshQualityController`) used by the old per-face mesher are documented at the end for reference.
+This document describes how triangle quality is evaluated and enforced during 3D surface mesh refinement. RCDT applies CGAL Mesh_3's facet criteria in `SurfaceDelaunayRefiner`. The legacy UV-space quality controllers (`Shewchuk2DQualityController`, `SurfaceMeshQualityController`) used by the old per-face mesher are documented at the end for reference.
 
 ---
 
-## RCDT Quality Settings
+## RCDT facet criteria
 
-`RCDTQualitySettings` (`src/Meshing/Core/3D/RCDT/RCDTQualitySettings.h`) is a plain struct that carries the two quality bounds consumed by `RCDTRefiner`:
+`SurfaceFacetCriteria` (`src/Meshing/Core/3D/RCDT/SurfaceFacetCriteria.h`) reads its bounds from `SurfaceMesh3DQualitySettings`:
 
-```cpp
-struct RCDTQualitySettings
-{
-    double maximumCircumradiusToShortestEdgeRatio = 1.0;
-    double maximumChordDeviation                  = 0.1;
-};
-```
-
-| Field | Description |
+| Setting | Criterion |
 |-------|-------------|
-| `maximumCircumradiusToShortestEdgeRatio` | Maximum allowed ratio of the circumradius of a restricted triangle to its shortest edge, measured in 3D ambient space |
-| `maximumChordDeviation` | Maximum allowed distance from the flat triangle to the actual CAD surface, in model units |
+| `minAngleDegrees` (30) | **shape**: a restricted facet is bad when sin² of its smallest angle is below sin²(`minAngleDegrees`) — CGAL's `facet_angle` |
+| `chordDeviationTolerance` (0.1) | **distance**: bad when the facet's orthocentre lies further than this from its surface Delaunay ball centre (where its dual edge crosses the surface) — CGAL's `facet_distance` |
+| — | **same patch**: bad when two of its surface-interior vertices lie on different surfaces — CGAL's `FACET_VERTICES_ON_SAME_SURFACE_PATCH` |
 
-A restricted triangle fails quality when either bound is exceeded. Both checks are evaluated in 3D ambient space against the actual CAD surface geometry.
+The first failing criterion, then how badly it fails, orders the refinement queue: worst first.
+
+**Exemption at protecting balls** (`ProtectionExemption`, CGAL's `Facet_criterion_visitor_with_features`): a facet touching protected (weighted) vertices is exempt from the shape criterion, and when much smaller than the balls also from the distance criterion. Protection already guarantees the mesh at a crease; refining there would only place points inside the balls, where they are refused. Triangles under 30° therefore remain next to creases, as in CGAL's own output.
 
 ---
 
-## How RCDTRefiner Uses Quality Settings
+## How SurfaceDelaunayRefiner uses them
 
-`RCDTRefiner` (`src/Meshing/Core/3D/RCDT/RCDTRefiner.h`) drives refinement via a two-priority loop. Quality settings are consulted through `RestrictedTriangulation::getBadTriangles`.
+`SurfaceDelaunayRefiner` (`src/Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h`):
 
-**Main loop (`refine`):**
-```
-while any work remains:
-    refineStep()
-```
+1. Classify every face of the seeded tetrahedralization with `WeightedDualRestriction`; queue the restricted facets that fail a criterion.
+2. Take the worst facet and insert its surface Delaunay ball centre by Bowyer-Watson — unless no tetrahedron beside the facet conflicts with it, or it is hidden by or coincident with an existing vertex; then drop the facet.
+3. Reclassify only the faces the insertion created or destroyed.
+4. Repeat until the queue is empty or `maxRefinementIterations` insertions have been made.
 
-**Each refinement step (`refineStep`):**
+There is no size floor and no curve splitting: the protecting balls are fixed after seeding. For volumes, `TetrahedronDelaunayRefiner` runs below this level and bounds `tetCircumradiusToShortestEdgeRatio` (default 2.5); see `doc/RCDT_Techniques.md`.
 
-1. **Priority 1 — split encroached curve segments**: A `CurveSegment` is encroached if any mesh vertex other than its endpoints lies inside or on its diametral sphere (the sphere whose diameter equals the segment length). If any encroached segments exist, split the first one at its arc-length midpoint via Bowyer-Watson. Update `RestrictedTriangulation` incrementally after insertion.
-
-2. **Priority 2 — split bad restricted triangles** (only when no encroached segments remain): Call `restrictedTriangulation.getBadTriangles(settings, meshData, geometry)` to find restricted faces that violate `RCDTQualitySettings`. For each bad triangle:
-   - Compute its circumcircle center (in the surface's tangent plane).
-   - If inserting that point would encroach a curve segment, do not insert; split the encroached segment instead (back to Priority 1).
-   - Otherwise, insert the circumcircle center via Bowyer-Watson and update `RestrictedTriangulation`. The bad triangle is eliminated because its circumsphere is no longer empty.
-
-The circumcenter demotion rule (Priority 2 falling back to Priority 1) is the key termination guarantee: it prevents arbitrarily small insertions near curve segments.
-
-**Quality evaluation in `getBadTriangles`:**
-
-For each restricted face (a face of the tetrahedralization restricted to some surface S):
-1. Lift the three nodes to 3D and compute the circumradius and shortest edge length in ambient space.
-2. If `circumradius / shortestEdge > maximumCircumradiusToShortestEdgeRatio`, the triangle is bad.
-3. Sample the distance from the flat triangle to the CAD surface at the circumcenter and edge midpoints. If any sample exceeds `maximumChordDeviation`, the triangle is bad.
+After refinement, `SurfaceMeshSmoother` moves interior vertices toward their neighbours' centroid and re-projects them onto their surface; it improves most of the exempt triangles at the creases.
 
 ---
 

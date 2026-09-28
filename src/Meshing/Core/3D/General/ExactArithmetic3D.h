@@ -68,9 +68,6 @@ public:
     static Expansion det2x2(const Expansion& a, const Expansion& b, const Expansion& c, const Expansion& d);
     static Expansion det3x3(const Expansion m[3][3]);
 
-    /// Cofactor expansion along the first column.
-    static Expansion det4x4(const Expansion m[4][4]);
-
     static Expansion squaredNormRelative(const Expansion& dx, const Expansion& dy, const Expansion& dz);
 };
 

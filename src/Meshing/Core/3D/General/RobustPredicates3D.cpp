@@ -50,60 +50,9 @@ std::optional<int> fastOrientationSign(const Point3D& p0, const Point3D& p1, con
     return det > 0.0 ? 1 : -1;
 }
 
-std::optional<int> fastInsphereSign(const Point3D& p0, const Point3D& p1, const Point3D& p2, const Point3D& p3,
-                                    const Point3D& queryPoint)
-{
-    const Point3D vertices[4] = {p0, p1, p2, p3};
-    double d[4][4];
-    for (int i = 0; i < 4; ++i)
-    {
-        d[i][0] = vertices[i].x() - queryPoint.x();
-        d[i][1] = vertices[i].y() - queryPoint.y();
-        d[i][2] = vertices[i].z() - queryPoint.z();
-        d[i][3] = d[i][0] * d[i][0] + d[i][1] * d[i][1] + d[i][2] * d[i][2];
-    }
-
-    auto det3 = [](const double m[3][3])
-    {
-        return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-    };
-
-    double minor[4];
-    for (int skipRow = 0; skipRow < 4; ++skipRow)
-    {
-        double sub[3][3];
-        int r = 0;
-        for (int row = 0; row < 4; ++row)
-        {
-            if (row == skipRow)
-                continue;
-            sub[r][0] = d[row][0];
-            sub[r][1] = d[row][1];
-            sub[r][2] = d[row][2];
-            ++r;
-        }
-        minor[skipRow] = det3(sub);
-    }
-
-    double det = 0.0;
-    double permanent = 0.0;
-    for (int i = 0; i < 4; ++i)
-    {
-        double term = d[i][3] * minor[i];
-        permanent += std::abs(term);
-        det += (i % 2 == 0) ? -term : term;
-    }
-    const double bound = SAFETY_FACTOR * permanent;
-
-    if (std::abs(det) <= bound)
-        return std::nullopt;
-    return det > 0.0 ? 1 : -1;
-}
-
 int exactOrientationSign(const Point3D& p0, const Point3D& p1, const Point3D& p2, const Point3D& p3)
 {
-    // Signed volume of (p0,p1,p2,p3), via rows relative to p3 (same
-    // row-subtraction identity used in exactInsphereSign).
+    // Signed volume of (p0,p1,p2,p3), via rows relative to p3.
     Expansion m[3][3];
     const Point3D relativeTo[3] = {p0, p1, p2};
     for (int i = 0; i < 3; ++i)
@@ -116,85 +65,7 @@ int exactOrientationSign(const Point3D& p0, const Point3D& p1, const Point3D& p2
     return ExactArithmetic3D::expansionSign(ExactArithmetic3D::det3x3(m));
 }
 
-int exactInsphereSign(const Point3D& p0, const Point3D& p1, const Point3D& p2, const Point3D& p3,
-                      const Point3D& queryPoint)
-{
-    // Standard in-sphere determinant, built from coordinates shifted relative to
-    // queryPoint (eliminates the "1" column of the textbook 5x5 form — subtracting
-    // one row from the others is determinant-invariant, see class comment). Row i
-    // is [dx_i, dy_i, dz_i, dx_i^2+dy_i^2+dz_i^2] for i in {p0,p1,p2,p3}.
-    const Point3D vertices[4] = {p0, p1, p2, p3};
-
-    Expansion d[4][4];
-    for (int i = 0; i < 4; ++i)
-    {
-        d[i][0] = ExactArithmetic3D::expansionFromDifference(vertices[i].x(), queryPoint.x());
-        d[i][1] = ExactArithmetic3D::expansionFromDifference(vertices[i].y(), queryPoint.y());
-        d[i][2] = ExactArithmetic3D::expansionFromDifference(vertices[i].z(), queryPoint.z());
-        d[i][3] = ExactArithmetic3D::squaredNormRelative(d[i][0], d[i][1], d[i][2]);
-    }
-
-    // 4x4 determinant via cofactor expansion along the last (squared-distance) column.
-    Expansion minor[4];
-    for (int skipRow = 0; skipRow < 4; ++skipRow)
-    {
-        Expansion sub[3][3];
-        int r = 0;
-        for (int row = 0; row < 4; ++row)
-        {
-            if (row == skipRow)
-                continue;
-            sub[r][0] = d[row][0];
-            sub[r][1] = d[row][1];
-            sub[r][2] = d[row][2];
-            ++r;
-        }
-        minor[skipRow] = ExactArithmetic3D::det3x3(sub);
-    }
-
-    // det = -d[0][3]*minor0 + d[1][3]*minor1 - d[2][3]*minor2 + d[3][3]*minor3
-    Expansion determinant;
-    for (int i = 0; i < 4; ++i)
-    {
-        Expansion term = ExactArithmetic3D::expansionMul(d[i][3], minor[i]);
-        if (i % 2 == 0)
-            term = ExactArithmetic3D::expansionNegate(term);
-        determinant = ExactArithmetic3D::expansionAdd(determinant, term);
-    }
-
-    return ExactArithmetic3D::expansionSign(determinant);
-}
-
 } // namespace
-
-bool RobustPredicates3D::insidePointCircumsphere(const Point3D& p0,
-                                                 const Point3D& p1,
-                                                 const Point3D& p2,
-                                                 const Point3D& p3,
-                                                 const Point3D& queryPoint)
-{
-    const int orientation = orientationSign(p0, p1, p2, p3);
-
-    // A degenerate (zero-volume) tetrahedron has no valid circumsphere.
-    if (orientation == 0)
-        return false;
-
-    const std::optional<int> fast = fastInsphereSign(p0, p1, p2, p3, queryPoint);
-    const int insphereSign = fast ? *fast : exactInsphereSign(p0, p1, p2, p3, queryPoint);
-
-    // See class comment: insphereSign agrees with orientationSign exactly when
-    // queryPoint is inside the sphere. Treat exactly-on-sphere (insphereSign
-    // == 0) as inside — inclusive, like the Bowyer-Watson cavity this feeds
-    // needs: boundary-discretized points from a circular/cylindrical edge are
-    // routinely exactly cospherical by construction (regular-polygon
-    // vertices sharing one circle), and a strict "on sphere is not conflicting"
-    // reading leaves some of them out of the cavity, producing an
-    // inconsistent triangulation (a boundary face with only one neighboring
-    // tetrahedron) rather than a genuinely ambiguous/wrong answer.
-    if (insphereSign == 0)
-        return true;
-    return insphereSign == orientation;
-}
 
 int RobustPredicates3D::orientationSign(const Point3D& p0,
                                         const Point3D& p1,

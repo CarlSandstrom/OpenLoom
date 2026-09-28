@@ -10,7 +10,6 @@ Topology2D::Topology2D(const std::unordered_map<std::string, Corner2D>& corners,
                        const std::vector<std::string>& boundaryEdgeLoop) :
     corners_(corners),
     edges_(edges),
-    boundaryEdgeLoop_(boundaryEdgeLoop),
     outerEdgeLoop_(boundaryEdgeLoop)
 {
 }
@@ -24,22 +23,6 @@ Topology2D::Topology2D(const std::unordered_map<std::string, Corner2D>& corners,
     outerEdgeLoop_(outerEdgeLoop),
     holeEdgeLoops_(holeEdgeLoops)
 {
-    // Build boundaryEdgeLoop_ for backward compatibility
-    boundaryEdgeLoop_ = outerEdgeLoop_;
-    for (const auto& holeLoop : holeEdgeLoops_)
-    {
-        boundaryEdgeLoop_.insert(boundaryEdgeLoop_.end(), holeLoop.begin(), holeLoop.end());
-    }
-}
-
-const Corner2D& Topology2D::getCorner(const std::string& id) const
-{
-    auto it = corners_.find(id);
-    if (it == corners_.end())
-    {
-        OPENLOOM_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Corner2D not found: " + id);
-    }
-    return it->second;
 }
 
 const Edge2D& Topology2D::getEdge(const std::string& id) const
@@ -50,17 +33,6 @@ const Edge2D& Topology2D::getEdge(const std::string& id) const
         OPENLOOM_THROW_TOPOLOGY(ENTITY_NOT_FOUND, "Edge2D not found: " + id);
     }
     return it->second;
-}
-
-std::vector<std::string> Topology2D::getAllCornerIds() const
-{
-    std::vector<std::string> ids;
-    ids.reserve(corners_.size());
-    for (const auto& [id, _] : corners_)
-    {
-        ids.push_back(id);
-    }
-    return ids;
 }
 
 std::vector<std::string> Topology2D::getAllEdgeIds() const

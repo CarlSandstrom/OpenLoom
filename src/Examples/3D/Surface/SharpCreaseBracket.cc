@@ -24,24 +24,17 @@
  * AmbientRCDT strategy (OPE-120), since the UV-space path is being removed
  * (OPE-166) and crease handling is mesher-agnostic.
  *
- * This example is what surfaced a real RCDTRefiner bug (fixed alongside it):
- * priority-1 (encroached curve segment splitting) had no minimum-size floor,
- * unlike priorities 2 and 3. Near the acute pocket between the two flanges, a
- * segment could get bisected forever -- each split's midpoint still fell
- * inside the same nearby vertex's encroachment sphere, so the "new" segment
- * was encroached again next iteration -- producing hundreds of duplicate
- * nodes at one coordinate. See RCDTRefiner::unrefinableSegments_.
- *
  * Refinement is not expected to meet the quality bound everywhere near a
- * genuinely small (20 deg) input angle -- the same documented class of
- * limitation as the sliver tetrahedra RCDTRefiner's tet-quality phase doesn't
- * fully solve either (see RCDTRefiner's class doc comment). The output mesh
- * itself is valid throughout (no degenerate or duplicate-coordinate triangles).
+ * genuinely small (20 deg) input angle: facets touching a protecting ball are
+ * exempt from the angle criterion, as in CGAL Mesh_3. The output mesh itself
+ * is a closed surface with no degenerate or duplicate-coordinate triangles.
  *
  * Topology:
- *   - 6 faces: two DEPTH-long flange faces (the crease sides), two end caps
- *     (the extruded profile's start/end), two flange end-cap strips
- *   - The crease itself is the sharp edge shared by the two flange faces
+ *   - 8 faces: the two flanges' outer faces (the crease sides), their two
+ *     inner faces, two flange end strips, and the two end caps (the
+ *     extruded profile's start/end)
+ *   - The crease itself is the sharp (20 deg) edge shared by the two outer
+ *     faces at the convex apex; the inner faces meet at the concave apex
  *
  * Exports:
  *   - SharpCreaseBracketEdges.vtu   : discretized boundary edges (color by EdgeID)
@@ -103,8 +96,15 @@ std::array<Point2D, 6> buildCrossSection()
 
     const Point2D dir1{std::cos(-halfAngle), std::sin(-halfAngle)};
     const Point2D dir2{std::cos(halfAngle), std::sin(halfAngle)};
-    const Point2D n1 = leftNormal(dir1); // points into the concave (inner) side
-    const Point2D n2 = leftNormal(dir2);
+    // Each normal points into the concave (inner) side, toward the other
+    // flange: left of flange 1 (running at -halfAngle), right of flange 2
+    // (running at +halfAngle). Using leftNormal for both put the two "inner"
+    // edges on the same side and made the profile a self-intersecting bow-tie
+    // (signed area 0), so the extruded solid passed through itself along
+    // x = 5.76, y = 0 -- invalid for BRepCheck_Analyzer, its end caps
+    // untriangulable by BRepMesh.
+    const Point2D n1 = leftNormal(dir1);
+    const Point2D n2 = leftNormal(dir2) * -1.0;
 
     // Concave miter: where the two flanges' inner (facing each other) edges cross.
     const Point2D innerApex = intersectLines(n1 * halfThickness, dir1, n2 * halfThickness, dir2);

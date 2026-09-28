@@ -123,32 +123,6 @@ ExactArithmetic3D::Expansion ExactArithmetic3D::det3x3(const Expansion m[3][3])
     return expansionSub(expansionAdd(expansionMul(m[0][0], c0), expansionMul(m[0][2], c2)), expansionMul(m[0][1], c1));
 }
 
-ExactArithmetic3D::Expansion ExactArithmetic3D::det4x4(const Expansion m[4][4])
-{
-    // Cofactor expansion along the first column: det = sum_i (-1)^i * m[i][0] * Minor_i,
-    // where Minor_i is the 3x3 determinant of the other 3 rows' columns 1-3.
-    Expansion determinant;
-    for (int skipRow = 0; skipRow < 4; ++skipRow)
-    {
-        Expansion sub[3][3];
-        int r = 0;
-        for (int row = 0; row < 4; ++row)
-        {
-            if (row == skipRow)
-                continue;
-            sub[r][0] = m[row][1];
-            sub[r][1] = m[row][2];
-            sub[r][2] = m[row][3];
-            ++r;
-        }
-        Expansion term = expansionMul(m[skipRow][0], det3x3(sub));
-        if (skipRow % 2 != 0)
-            term = expansionNegate(term);
-        determinant = expansionAdd(determinant, term);
-    }
-    return determinant;
-}
-
 ExactArithmetic3D::Expansion ExactArithmetic3D::squaredNormRelative(const Expansion& dx, const Expansion& dy,
                                                                      const Expansion& dz)
 {

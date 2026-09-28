@@ -24,8 +24,8 @@ struct SizingSource
  * RCDT historically had no such object. Element size emerged instead from
  * three unrelated criteria in three different units -- an angle
  * (BoundaryDiscretizer3D's maxAngleBetweenSegments), a distance
- * (RCDTQualityController's chordDeviationTolerance), and a segment-length
- * multiple (CurveProtectionScheme's protecting-ball radii) -- which had no
+ * (the chordDeviationTolerance facet criterion), and a segment-length
+ * multiple (the protecting-ball radii) -- which had no
  * way to agree with one another. This class is the single explicit answer
  * every one of those consumers is meant to read instead.
  *
@@ -92,7 +92,7 @@ public:
 
     /// The smallest size any source asks for -- i.e. the finest the field
     /// can ever be, reached only at that source's own position. Callers
-    /// deriving a floor (RCDTRefiner's minimumEdgeLength) want this rather
+    /// deriving a floor (RCDTMesher's minimumEdgeLength) want this rather
     /// than a sampled minimum.
     double getMinimumSourceSize() const { return minimumSourceSize_; }
 

@@ -7,6 +7,8 @@
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 
+#include <Eigen/Geometry>
+#include <algorithm>
 #include <cmath>
 
 using namespace Meshing;
@@ -45,278 +47,112 @@ protected:
     std::unique_ptr<MeshMutator3D> mutator_;
 };
 
-TEST_F(ElementGeometry3DTest, ComputeVolumeForUnitTetrahedron)
-{
-    // Unit tetrahedron with vertices at (0,0,0), (1,0,0), (0,1,0), (0,0,1)
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0, 0.0);
-    size_t n3 = addNode(0.0, 0.0, 1.0);
-    addTetrahedron(n0, n1, n2, n3);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
-
-    double volume = geometry.computeVolume(*element);
-
-    EXPECT_NEAR(volume, 1.0 / 6.0, TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeAreaForTriangleIn3D)
-{
-    // Right triangle in 3D with legs of length 3 and 4
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(3.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 4.0, 0.0);
-    addTriangle(n0, n1, n2);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
-
-    double area = geometry.computeArea(*element);
-
-    EXPECT_NEAR(area, 6.0, TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCircumscribingSphereForRegularTetrahedron)
-{
-    // Regular tetrahedron
-    const double a = 1.0;
-    const double h = std::sqrt(2.0 / 3.0) * a;
-
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(a, 0.0, 0.0);
-    size_t n2 = addNode(a / 2.0, a * std::sqrt(3.0) / 2.0, 0.0);
-    size_t n3 = addNode(a / 2.0, a * std::sqrt(3.0) / 6.0, h);
-    addTetrahedron(n0, n1, n2, n3);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
-
-    auto sphere = geometry.computeCircumscribingSphere(*element);
-
-    ASSERT_TRUE(sphere.has_value());
-    // Regular tetrahedron has circumradius = edge_length * sqrt(6) / 4
-    EXPECT_NEAR(sphere->radius, a * std::sqrt(6.0) / 4.0, TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCentroidForUnitTetrahedron)
-{
-    // Unit tetrahedron with vertices at (0,0,0), (1,0,0), (0,1,0), (0,0,1)
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0, 0.0);
-    size_t n3 = addNode(0.0, 0.0, 1.0);
-    addTetrahedron(n0, n1, n2, n3);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
-
-    Point3D centroid = geometry.computeCentroid(*element);
-
-    // Centroid is average of vertices: (0+1+0+0)/4, (0+0+1+0)/4, (0+0+0+1)/4 = (0.25, 0.25, 0.25)
-    EXPECT_NEAR(centroid.x(), 0.25, TOLERANCE);
-    EXPECT_NEAR(centroid.y(), 0.25, TOLERANCE);
-    EXPECT_NEAR(centroid.z(), 0.25, TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCentroidForTranslatedTetrahedron)
-{
-    // Tetrahedron translated by (1, 2, 3)
-    size_t n0 = addNode(1.0, 2.0, 3.0);
-    size_t n1 = addNode(2.0, 2.0, 3.0);
-    size_t n2 = addNode(1.0, 3.0, 3.0);
-    size_t n3 = addNode(1.0, 2.0, 4.0);
-    addTetrahedron(n0, n1, n2, n3);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
-
-    Point3D centroid = geometry.computeCentroid(*element);
-
-    // Centroid: (1+2+1+1)/4, (2+2+3+2)/4, (3+3+3+4)/4 = (1.25, 2.25, 3.25)
-    EXPECT_NEAR(centroid.x(), 1.25, TOLERANCE);
-    EXPECT_NEAR(centroid.y(), 2.25, TOLERANCE);
-    EXPECT_NEAR(centroid.z(), 3.25, TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCentroidForCubicTetrahedron)
-{
-    // Tetrahedron with vertices at corners of a unit cube
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 1.0, 0.0);
-    size_t n2 = addNode(1.0, 0.0, 1.0);
-    size_t n3 = addNode(0.0, 1.0, 1.0);
-    addTetrahedron(n0, n1, n2, n3);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
-
-    Point3D centroid = geometry.computeCentroid(*element);
-
-    // Centroid: (0+1+1+0)/4, (0+1+0+1)/4, (0+0+1+1)/4 = (0.5, 0.5, 0.5)
-    EXPECT_NEAR(centroid.x(), 0.5, TOLERANCE);
-    EXPECT_NEAR(centroid.y(), 0.5, TOLERANCE);
-    EXPECT_NEAR(centroid.z(), 0.5, TOLERANCE);
-}
-
 // ============================================================================
-// computeNormal tests
+// computeOrthocenter tests
 // ============================================================================
 
-TEST_F(ElementGeometry3DTest, ComputeNormalForTriangleInXYPlane)
+// With no weights a regular triangulation is a Delaunay triangulation, so the
+// orthocenter must reduce to the ordinary circumcenter: equidistant from all
+// four vertices.
+TEST_F(ElementGeometry3DTest, OrthocenterOfUnweightedTetrahedronIsItsCircumcenter)
 {
-    // Triangle in XY plane — normal should point in +Z direction
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0, 0.0);
-    addTriangle(n0, n1, n2);
+    const size_t n0 = addNode(0.0, 0.0, 0.0);
+    const size_t n1 = addNode(2.0, 0.0, 0.0);
+    const size_t n2 = addNode(0.3, 1.7, 0.0);
+    const size_t n3 = addNode(0.4, 0.5, 1.9);
+    addTetrahedron(n0, n1, n2, n3);
 
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto orthocenter = geometry.computeOrthocenter(*element);
 
-    Point3D normal = geometry.computeNormal(*element);
-
-    EXPECT_NEAR(normal.x(), 0.0, TOLERANCE);
-    EXPECT_NEAR(normal.y(), 0.0, TOLERANCE);
-    EXPECT_NEAR(normal.z(), 1.0, TOLERANCE);
+    ASSERT_TRUE(orthocenter.has_value());
+    const double radius = (*orthocenter - meshData_.getNode(n0)->getCoordinates()).norm();
+    for (const size_t nodeId : {n1, n2, n3})
+    {
+        EXPECT_NEAR((*orthocenter - meshData_.getNode(nodeId)->getCoordinates()).norm(), radius, TOLERANCE);
+    }
 }
 
-TEST_F(ElementGeometry3DTest, ComputeNormalForTriangleInXZPlane)
+// The defining property: equal power distance |x - p|^2 - w to every vertex.
+// Weights here are of the size protecting balls give crease nodes, which is
+// what moves the dual edge away from the ordinary circumcenter.
+TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTetrahedronHasEqualPowerToAllVertices)
 {
-    // Triangle in XZ plane with CCW winding — normal points in -Y direction
-    // (1,0,0)-(0,0,0) = (1,0,0), (0,0,1)-(0,0,0) = (0,0,1)
-    // cross = (1,0,0) x (0,0,1) = (0*1-0*0, 0*0-1*1, 1*0-0*0) = (0,-1,0)
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 0.0, 1.0);
-    addTriangle(n0, n1, n2);
+    const std::array<Point3D, 4> points = {Point3D(0.0, 0.0, 0.0), Point3D(2.0, 0.0, 0.0), Point3D(0.3, 1.7, 0.0),
+                                           Point3D(0.4, 0.5, 1.9)};
+    const std::array<double, 4> weights = {0.25, 0.09, 0.0, 0.16};
+    std::array<size_t, 4> nodeIds;
+    for (size_t i = 0; i < 4; ++i)
+        nodeIds[i] = mutator_->addNode(points[i], weights[i]);
+    addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
 
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto orthocenter = geometry.computeOrthocenter(*element);
+    ASSERT_TRUE(orthocenter.has_value());
 
-    Point3D normal = geometry.computeNormal(*element);
+    const double power0 = (*orthocenter - points[0]).squaredNorm() - weights[0];
+    for (size_t i = 1; i < 4; ++i)
+        EXPECT_NEAR((*orthocenter - points[i]).squaredNorm() - weights[i], power0, TOLERANCE);
 
-    EXPECT_NEAR(normal.x(), 0.0, TOLERANCE);
-    EXPECT_NEAR(normal.y(), -1.0, TOLERANCE);
-    EXPECT_NEAR(normal.z(), 0.0, TOLERANCE);
+    // The circumcenter is the one point equidistant from all four vertices,
+    // so unequal distances show the weights moved the orthocenter off it.
+    double largestDistanceDifference = 0.0;
+    const double distance0 = (*orthocenter - points[0]).norm();
+    for (size_t i = 1; i < 4; ++i)
+        largestDistanceDifference =
+            std::max(largestDistanceDifference, std::abs((*orthocenter - points[i]).norm() - distance0));
+    EXPECT_GT(largestDistanceDifference, 0.01);
 }
 
-TEST_F(ElementGeometry3DTest, ComputeNormalIsUnitLength)
+// The triangle version lies in the triangle's plane at equal power to its
+// three vertices.
+TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTriangleLiesInPlaneAtEqualPower)
 {
-    // For any non-degenerate triangle the result must be a unit vector
-    size_t n0 = addNode(1.0, 2.0, 3.0);
-    size_t n1 = addNode(4.0, 1.0, 2.0);
-    size_t n2 = addNode(2.0, 5.0, 1.0);
-    addTriangle(n0, n1, n2);
+    const std::array<Point3D, 3> points = {Point3D(0.0, 0.0, 1.0), Point3D(2.0, 0.5, 1.0), Point3D(0.5, 1.8, 1.0)};
+    const std::array<double, 3> weights = {0.2, 0.0, 0.05};
+    std::array<size_t, 3> nodeIds;
+    for (size_t i = 0; i < 3; ++i)
+        nodeIds[i] = mutator_->addNode(points[i], weights[i]);
 
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const ElementGeometry3D geometry(meshData_);
+    const auto orthocenter = geometry.computeOrthocenter(TriangleElement(nodeIds));
+    ASSERT_TRUE(orthocenter.has_value());
 
-    Point3D normal = geometry.computeNormal(*element);
-
-    EXPECT_NEAR(normal.norm(), 1.0, TOLERANCE);
+    EXPECT_NEAR(orthocenter->z(), 1.0, TOLERANCE);
+    const double power0 = (*orthocenter - points[0]).squaredNorm() - weights[0];
+    for (size_t i = 1; i < 3; ++i)
+        EXPECT_NEAR((*orthocenter - points[i]).squaredNorm() - weights[i], power0, TOLERANCE);
 }
 
-TEST_F(ElementGeometry3DTest, ComputeNormalForDegenerateTriangleReturnsZero)
+// Four points of an isosceles trapezoid -- matching samples on the two
+// circles bounding a cone, as on HexNutChamfered's chamfers -- are coplanar
+// and cocircular, so the tetrahedron they span is flat to rounding and every
+// point on the line normal to their plane has equal power to all four. It
+// must still get a dual vertex, the one in the plane: returning none left the
+// faces around such a tetrahedron without a dual edge, never restricted, and
+// the chamfer with holes (OPE-186).
+TEST_F(ElementGeometry3DTest, OrthocenterOfFlatCyclicTetrahedronLiesInItsPlane)
 {
-    // Collinear points — degenerate triangle
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(2.0, 0.0, 0.0);
-    addTriangle(n0, n1, n2);
+    const Eigen::Matrix3d tilt =
+        (Eigen::AngleAxisd(0.7, Point3D(1.0, 2.0, 0.5).normalized())).toRotationMatrix();
+    const std::array<Point3D, 4> points = {tilt * Point3D(-2.0, -1.0, 0.0), tilt * Point3D(2.0, -1.0, 0.0),
+                                           tilt * Point3D(1.0, 1.5, 0.0), tilt * Point3D(-1.0, 1.5, 0.0)};
+    const std::array<double, 4> weights = {0.1, 0.1, 0.05, 0.05};
+    std::array<size_t, 4> nodeIds;
+    for (size_t i = 0; i < 4; ++i)
+        nodeIds[i] = mutator_->addNode(points[i], weights[i]);
+    addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
 
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const ElementGeometry3D geometry(meshData_);
+    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto orthocenter = geometry.computeOrthocenter(*element);
+    ASSERT_TRUE(orthocenter.has_value());
 
-    Point3D normal = geometry.computeNormal(*element);
-
-    EXPECT_NEAR(normal.norm(), 0.0, TOLERANCE);
-}
-
-// ============================================================================
-// computeCircumcircle tests
-// ============================================================================
-
-TEST_F(ElementGeometry3DTest, ComputeCircumcircleForRightTriangle)
-{
-    // Right triangle with legs 2 along X and Y axes, right angle at origin.
-    // For a right triangle the circumcircle has the hypotenuse as diameter:
-    //   hypotenuse endpoints: (2,0,0) and (0,2,0)
-    //   center = midpoint = (1,1,0), radius = sqrt(2)
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(0.0, 2.0, 0.0);
-    addTriangle(n0, n1, n2);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
-
-    auto circle = geometry.computeCircumcircle(*element);
-
-    ASSERT_TRUE(circle.has_value());
-    EXPECT_NEAR(circle->center.x(), 1.0, TOLERANCE);
-    EXPECT_NEAR(circle->center.y(), 1.0, TOLERANCE);
-    EXPECT_NEAR(circle->center.z(), 0.0, TOLERANCE);
-    EXPECT_NEAR(circle->radius, std::sqrt(2.0), TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCircumcircleForEquilateralTriangle)
-{
-    // Equilateral triangle with unit edge length in XY plane.
-    // Vertices: (0,0,0), (1,0,0), (0.5, sqrt(3)/2, 0)
-    // Circumradius = a / sqrt(3) = 1/sqrt(3)
-    const double sq3 = std::sqrt(3.0);
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, sq3 / 2.0, 0.0);
-    addTriangle(n0, n1, n2);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
-
-    auto circle = geometry.computeCircumcircle(*element);
-
-    ASSERT_TRUE(circle.has_value());
-    EXPECT_NEAR(circle->radius, 1.0 / sq3, TOLERANCE);
-    // Center equidistant from all three vertices
-    EXPECT_NEAR((circle->center - Point3D(0.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
-    EXPECT_NEAR((circle->center - Point3D(1.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
-    EXPECT_NEAR((circle->center - Point3D(0.5, sq3 / 2.0, 0.0)).norm(), circle->radius, TOLERANCE);
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCircumcircleForDegenerateTriangleReturnsNullopt)
-{
-    // Collinear points
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(2.0, 0.0, 0.0);
-    addTriangle(n0, n1, n2);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
-
-    auto circle = geometry.computeCircumcircle(*element);
-
-    EXPECT_FALSE(circle.has_value());
-}
-
-TEST_F(ElementGeometry3DTest, ComputeCircumcircleCenterLiesInTrianglePlane)
-{
-    // Triangle tilted 45 degrees — circumcircle center must lie in same plane
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 1.0, 1.0);
-    addTriangle(n0, n1, n2);
-
-    ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
-
-    auto circle = geometry.computeCircumcircle(*element);
-
-    ASSERT_TRUE(circle.has_value());
-    // All three vertices must be at the circumradius from the center
-    EXPECT_NEAR((circle->center - Point3D(0.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
-    EXPECT_NEAR((circle->center - Point3D(2.0, 0.0, 0.0)).norm(), circle->radius, TOLERANCE);
-    EXPECT_NEAR((circle->center - Point3D(1.0, 1.0, 1.0)).norm(), circle->radius, TOLERANCE);
+    const Point3D normal = tilt * Point3D(0.0, 0.0, 1.0);
+    EXPECT_NEAR((*orthocenter - points[0]).dot(normal), 0.0, TOLERANCE);
+    const double power0 = (*orthocenter - points[0]).squaredNorm() - weights[0];
+    for (size_t i = 1; i < 4; ++i)
+        EXPECT_NEAR((*orthocenter - points[i]).squaredNorm() - weights[i], power0, TOLERANCE);
 }

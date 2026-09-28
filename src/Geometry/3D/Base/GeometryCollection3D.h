@@ -28,7 +28,6 @@ public:
     ISurface3D* getSurface(const std::string& id) const;
     IEdge3D* getEdge(const std::string& id) const;
     ICorner3D* getCorner(const std::string& id) const;
-    IVolume3D* getVolume(const std::string& id) const;
 
 private:
     std::unordered_map<std::string, std::unique_ptr<ISurface3D>> surfaces_;

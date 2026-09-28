@@ -36,11 +36,9 @@ struct FeatureSample
  * refinement guarantee is stated in terms of this quantity for exactly that
  * reason.
  *
- * The codebase already computed a version of this, inside
- * CurveProtectionScheme::computeWeights() (its file-local
- * UnrelatedPointDistance), and applied it to one consumer only -- protecting-ball radii, via
- * DISJOINT_FACTOR. Hoisting it here is what lets every consumer of the
- * sizing field see the same answer.
+ * The retired CurveProtectionScheme computed a version of this for
+ * protecting-ball radii only. Hoisting it here is what lets every consumer of
+ * the sizing field see the same answer.
  *
  * ## What counts as "unrelated"
  *

@@ -28,13 +28,10 @@ namespace Meshing
 /**
  * @brief Manages 2D Delaunay triangulation in parametric space for a single 3D surface
  *
- * Each facet (surface) maintains its own independent 2D triangulation that is
- * updated when vertices are inserted on the facet during refinement. This class
- * maintains bidirectional mapping between 3D mesh node IDs and 2D facet node IDs,
- * and an edge-to-node-sequence map used for building the surface-aware TwinManager.
- *
- * Per Shewchuk's algorithm, facet triangulations define what subfacets *should*
- * exist in the final mesh. They are maintained separately from the 3D tetrahedralization.
+ * Each facet (surface) maintains its own independent 2D triangulation, refined
+ * in UV space by the legacy PerFaceUV surface mesher. This class maps 2D facet
+ * node IDs to 3D node IDs and keeps an edge-to-node-sequence map used for
+ * building the surface-aware TwinManager.
  */
 class FacetTriangulation
 {
@@ -92,25 +89,6 @@ public:
      * @return Vector of ConstrainedSubfacet3D with 3D node IDs
      */
     std::vector<ConstrainedSubfacet3D> getSubfacets() const;
-
-    /**
-     * @brief Insert a vertex into the facet triangulation
-     *
-     * Used during refinement when splitting subfacets. The vertex is
-     * inserted into the 2D triangulation and the mappings are updated.
-     *
-     * @param node3DId The 3D mesh node ID
-     * @param uvCoords The (u,v) parametric coordinates
-     * @return true if insertion succeeded
-     */
-    bool insertVertex(size_t node3DId, const Point2D& uvCoords);
-
-    /**
-     * @brief Get the 2D node ID corresponding to a 3D node ID
-     * @param node3DId The 3D mesh node ID
-     * @return The 2D facet node ID, or std::nullopt if not found
-     */
-    std::optional<size_t> get2DNodeId(size_t node3DId) const;
 
     /**
      * @brief Get the 3D node ID corresponding to a 2D node ID
@@ -206,8 +184,7 @@ private:
 
     std::unique_ptr<MeshingContext2D> context_;
 
-    // Bidirectional mapping between 3D mesh node IDs and 2D facet node IDs
-    std::map<size_t, size_t> node3DTo2DMap_;
+    // Maps each 2D facet node ID to its 3D mesh node ID
     std::map<size_t, size_t> node2DTo3DMap_;
 
     // Maps edge ID → ordered sequence of 2D node IDs along that edge.

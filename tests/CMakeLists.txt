@@ -24,14 +24,9 @@ set(TEST_SOURCES
     Meshing/Core/test_ElementGeometry2D.cpp
     Meshing/Core/test_ElementQuality2D.cpp
     Meshing/Core/test_ConstraintChecker2D.cpp
-    Meshing/Core/test_GeometryUtilities3D.cpp
     Meshing/Core/test_ElementGeometry3D.cpp
-    Meshing/Core/test_ElementQuality3D.cpp
     Meshing/Core/test_RobustPredicates3D.cpp
     Meshing/Core/test_RegularPredicates3D.cpp
-    Meshing/Core/test_CurveProtectionScheme.cpp
-    Meshing/Core/test_CurveProtectionSubdivider.cpp
-    Meshing/Core/test_ConstraintChecker3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_Shewchuk2DQualityController.cpp
     Meshing/Core/test_ShewchukRefiner2D.cpp
@@ -43,24 +38,23 @@ set(TEST_SOURCES
     Meshing/Core/test_SizingField3D.cpp
     Meshing/Core/test_SizingFieldBuilder3D.cpp
     Meshing/Core/SurfaceMeshTopology.cpp
+    Meshing/Core/test_WeightedDualRestriction.cpp
+    Meshing/Core/test_SurfaceDelaunayRefiner.cpp
+    Meshing/Core/test_ProtectingBallPlacer.cpp
+    Meshing/Core/SaddleShape.cpp
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
-    Meshing/Core/test_RCDTTetQualityController.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_SurfaceMesher3D.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
-    Meshing/Core/test_RestrictedTriangulation.cpp
+    Meshing/Core/test_RestrictedFaceAudit.cpp
     Meshing/Core/test_TwinManager.cpp
     Meshing/Core/test_TwinTableGenerator.cpp
 
-    # Meshing Operations tests
-    Meshing/Operations/test_MeshTransaction.cpp
-    
     # Topology tests
-    Topology/test_Corner.cpp
     Topology/test_Edge.cpp
     Topology/test_Surface.cpp
     
@@ -82,7 +76,6 @@ target_link_libraries(runTests PRIVATE
     # OpenLoom libraries
     Topology
     MeshingData
-    MeshingOperations
 
     # Interface libraries (automatically bring in dependencies)
     Geometry
@@ -110,8 +103,7 @@ set(SLOW_TEST_FILTER
     ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*"
     ":SurfaceMesher3DStrategyTest.*"
     ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
-    ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates"
-    ":RestrictedTriangulationTest.UpdateAfterInsertion_MatchesFullRebuild")
+    ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates")
 string(JOIN "" SLOW_TEST_FILTER ${SLOW_TEST_FILTER})
 
 gtest_discover_tests(runTests

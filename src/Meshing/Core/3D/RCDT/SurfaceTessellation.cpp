@@ -58,19 +58,23 @@ struct SampledDirection
         // Periodic: columns points spread evenly (plus jitter) around the
         // *whole* period, never touching minimum/maximum themselves -- there's
         // no reason to privilege the arbitrary parametric cut point.
-        // Non-periodic: columns points spanning [minimum, maximum], jittered
-        // inward.
-        const double spacings =
-            periodic ? static_cast<double>(columns) : static_cast<double>(columns - 1) + jitter;
-        return minimum + (maximum - minimum) * (static_cast<double>(column) + jitter) / spacings;
+        // Non-periodic: an evenly spaced, jittered run whose first column
+        // lies a fraction of a cell before minimum and whose last lies past
+        // maximum, so the cells cover the whole interval. Jittering the run
+        // inward instead left an uncovered band of up to a cell's width along
+        // the minimum edge -- exactly where a crease sits.
+        if (periodic)
+            return minimum + (maximum - minimum) * (static_cast<double>(column) + jitter) / static_cast<double>(columns);
+        return minimum +
+               (maximum - minimum) * (static_cast<double>(column) + jitter - 1.0) / static_cast<double>(columns - 2);
     }
 };
 
 // A periodic direction is sampled as a closed loop (samplesPerDirection
 // distinct columns, the last cell wrapping back to the first column) rather
-// than an open strip (samplesPerDirection + 1 columns, both endpoints sampled
-// once each, so one fewer cell than columns) -- there's no real "boundary" to
-// place two separate columns on.
+// than an open strip (samplesPerDirection + 2 columns, the outer two just
+// past each end, so one fewer cell than columns) -- there's no real
+// "boundary" to place two separate columns on.
 SampledDirection sampledDirection(double minimum, double maximum, bool periodic, size_t samplesPerDirection,
                                   double jitter)
 {
@@ -78,7 +82,7 @@ SampledDirection sampledDirection(double minimum, double maximum, bool periodic,
     direction.minimum = minimum;
     direction.maximum = maximum;
     direction.periodic = periodic;
-    direction.columns = periodic ? samplesPerDirection : samplesPerDirection + 1;
+    direction.columns = periodic ? samplesPerDirection : samplesPerDirection + 2;
     direction.cells = periodic ? direction.columns : direction.columns - 1;
     direction.jitter = jitter;
     return direction;
@@ -135,7 +139,7 @@ size_t samplesPerDirectionFor(double diameter, double targetCellSize)
     // It reports when it binds (OPE-208). Everything above this point is
     // tessellated COARSER than targetCellSize asked for, which voids the
     // guarantee the cell size exists to provide -- see
-    // TESSELLATION_CELL_SIZE_FACTOR in DualEdgeRestrictionOracle.cpp, whose
+    // TESSELLATION_CELL_SIZE_FACTOR in WeightedDualRestriction.cpp, whose
     // claim that cells below minimumEdgeLength / 2 can classify any face down
     // to that floor holds only while this clamp is inactive. Clamping
     // silently left no way to tell from the outside that it had stopped
@@ -235,11 +239,11 @@ std::vector<TriangleSoupIndex::Triangle> emitTriangles(const SampleGrid& grid)
             // inward from the true trim boundary by up to one grid cell
             // width, which is large enough (at this resolution) to open
             // gaps near ordinary edges, not just the ones this class exists
-            // to handle. Over-including here is safe -- classifyFace()
-            // separately gates on the face's own vertices actually lying
-            // within the true trim boundary (verticesWithinTrimmedBoundary),
-            // so a tessellation triangle that pokes slightly past the real
-            // edge never causes a face to be accepted that shouldn't be.
+            // to handle. Over-including here is safe --
+            // WeightedDualRestriction accepts a crossing only within the true
+            // trimmed patch, so a tessellation triangle that pokes slightly
+            // past the real edge never causes a face to be accepted that
+            // shouldn't be.
             if (!grid.withinTrim[corner00] && !grid.withinTrim[corner10] && !grid.withinTrim[corner01] &&
                 !grid.withinTrim[corner11])
                 continue;
@@ -275,9 +279,11 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double ta
     triangles_.build(emitTriangles(sampleSurface(surface, u, v)));
 }
 
-bool SurfaceTessellation::crossesSurface(const Point3D& a, const Point3D& b) const
+std::optional<Point3D> SurfaceTessellation::findCrossingNearest(const Point3D& a,
+                                                                const Point3D& b,
+                                                                const Point3D& target) const
 {
-    return triangles_.isCrossedBySegment(a, b);
+    return triangles_.findCrossingNearest(a, b, target);
 }
 
 } // namespace Meshing
