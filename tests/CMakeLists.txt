@@ -56,9 +56,6 @@ set(TEST_SOURCES
     Meshing/Core/test_TwinManager.cpp
     Meshing/Core/test_TwinTableGenerator.cpp
 
-    # Meshing Operations tests
-    Meshing/Operations/test_MeshTransaction.cpp
-    
     # Topology tests
     Topology/test_Corner.cpp
     Topology/test_Edge.cpp
@@ -82,7 +79,6 @@ target_link_libraries(runTests PRIVATE
     # OpenLoom libraries
     Topology
     MeshingData
-    MeshingOperations
 
     # Interface libraries (automatically bring in dependencies)
     Geometry

@@ -1,6 +1,5 @@
 #pragma once
 #include "../Base/IElement.h"
-#include "../Operations/ITransactionListener.h"
 #include "MeshData3D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
@@ -44,22 +43,11 @@ public:
     // Curve segment operations
     void setCurveSegmentManager(CurveSegmentManager manager);
 
-    // Transaction support
-    void setTransactionListener(ITransactionListener* listener);
-    void clearTransactionListener();
-
-    // Public methods for transaction to restore elements/nodes
-    void restoreElement(size_t id, std::unique_ptr<IElement> element);
-    void restoreNode(size_t id, const Point3D& coordinates);
-
 private:
     MeshData3D& geometry_;
     MeshConnectivity* connectivity_ = nullptr; // Optional for validation
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
-
-    // Transaction listener (optional)
-    ITransactionListener* transactionListener_ = nullptr;
 
     void validateNodeRemoval(size_t nodeId) const;
 };

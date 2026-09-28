@@ -81,7 +81,6 @@ Class names and module paths in this table are written in backticks, and `./scri
 | `Meshing/Data/` | live | `MeshData2D`, `MeshData3D`, `Node2D`, `Node3D`, `TriangleElement`, `TetrahedralElement`, `CurveSegmentManager` |
 | `Meshing/Interfaces/` | live | Mesher and quality-controller interfaces: `ISurfaceMesher3D`, `IVolumeMesher3D`, `IQualityController2D` |
 | `Meshing/Connectivity/` | live | Element key types: `EdgeKey`, `FaceKey`, `TetrahedronKey` |
-| `Meshing/Operations/` | live | Transactional mutation: `MeshTransaction`, `ScopedTransaction` |
 | `Readers/` | live | OpenCASCADE CAD import |
 | `Export/` | live | `VtkExporter` (VTU, for viewing in ParaView), `TsvExporter` (tab-separated tables, the format the goldens are diffed in). Both also write a caller-assembled `VtkGrid` -- points, cells and named fields, so a diagnostic can export without writing a format itself |
 | `Utils/` | live | `MeshLogger` |

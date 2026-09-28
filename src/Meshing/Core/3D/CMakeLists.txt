@@ -19,7 +19,6 @@ target_include_directories(MeshingCore3D PUBLIC
 target_link_libraries(MeshingCore3D PUBLIC
     MeshingCore2D
     MeshingData
-    MeshingOperations
     Geometry
     Geometry2DBase
     Topology
