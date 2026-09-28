@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <utility>
+#include <vector>
 
 namespace Meshing
 {
@@ -39,6 +41,41 @@ bool touchesBoundingTetrahedron(const FaceKey& face, const MeshData3D& meshData)
         if (std::find(boundingNodeIds->begin(), boundingNodeIds->end(), nodeId) != boundingNodeIds->end())
             return true;
     return false;
+}
+
+/// The exact crossing of the dual segment with surface near the tessellation's
+/// crossing, found by bisection along the segment itself in a bracket of a few
+/// tessellation cells: the centre must stay on the dual line. Projecting onto
+/// the surface instead moved it sideways, far enough to land inside a
+/// protecting ball (HexNutChamfered, 0.035 off the line), which broke the
+/// triangulation. Falls back to the tessellation's crossing when the bracket
+/// has no sign change.
+Point3D refineAlongDualSegment(const Point3D& tessellationCrossing,
+                               const Point3D& dualStart,
+                               const Point3D& dualEnd,
+                               double cellSize,
+                               const Geometry3D::ISurface3D& surface)
+{
+    const Point3D direction = dualEnd - dualStart;
+    const double squaredLength = direction.squaredNorm();
+    if (squaredLength <= 0.0)
+        return tessellationCrossing;
+    const double hit = (tessellationCrossing - dualStart).dot(direction) / squaredLength;
+    const double halfWidth = BRACKET_CELLS * cellSize / std::sqrt(squaredLength);
+    const Point3D bracketStart = dualStart + std::max(0.0, hit - halfWidth) * direction;
+    const Point3D bracketEnd = dualStart + std::min(1.0, hit + halfWidth) * direction;
+    return SurfaceProjector::findSurfaceCrossing(bracketStart, bracketEnd, surface).value_or(tessellationCrossing);
+}
+
+/// Whether point lies within surface's trimmed patch. The tessellation
+/// extends up to a cell past the trim boundary, and the bisection above works
+/// on the untrimmed surface, so a crossing can land on the surface but off the
+/// face -- on SharpCreaseBracket, where two flange planes extended past their
+/// faces intersect.
+bool isWithinTrimmedPatch(const Point3D& point, const Geometry3D::ISurface3D& surface)
+{
+    const auto uv = surface.projectPointToUnderlyingSurface(point);
+    return uv.has_value() && surface.isUVWithinTrimmedBoundary(uv->x(), uv->y());
 }
 
 } // namespace
@@ -80,42 +117,24 @@ std::optional<RestrictedFacet> WeightedDualRestriction::restrict(const FaceKey& 
     if (!dualStart || !dualEnd || !faceCenter)
         return std::nullopt;
 
-    std::optional<RestrictedFacet> nearest;
-    double nearestSquaredDistance = 0.0;
+    // Each surface's crossing nearest the face, tried nearest first. The
+    // first one lying within its surface's trimmed patch wins.
+    std::vector<std::pair<double, RestrictedFacet>> crossings;
     for (const auto& [surfaceId, tessellation] : surfaceTessellations_)
-    {
-        const auto crossing = tessellation.findCrossingNearest(*dualStart, *dualEnd, *faceCenter);
-        if (!crossing)
-            continue;
-        const double squaredDistance = (*crossing - *faceCenter).squaredNorm();
-        if (!nearest || squaredDistance < nearestSquaredDistance)
-        {
-            nearest = RestrictedFacet{surfaceId, *crossing};
-            nearestSquaredDistance = squaredDistance;
-        }
-    }
-    if (!nearest)
-        return std::nullopt;
+        if (const auto crossing = tessellation.findCrossingNearest(*dualStart, *dualEnd, *faceCenter))
+            crossings.push_back({(*crossing - *faceCenter).squaredNorm(), RestrictedFacet{surfaceId, *crossing}});
+    std::sort(crossings.begin(), crossings.end(),
+              [](const auto& a, const auto& b)
+              { return a.first < b.first; });
 
-    // The tessellation only approximates the surface. Refine the crossing onto
-    // the exact surface by bisecting along the dual segment itself, in a
-    // bracket of a few tessellation cells around the hit: the centre must stay
-    // on the dual line. Projecting it onto the surface instead moved it
-    // sideways, far enough to land inside a protecting ball (HexNutChamfered,
-    // 0.035 off the line), which broke the triangulation.
-    const Point3D direction = *dualEnd - *dualStart;
-    const double squaredLength = direction.squaredNorm();
-    if (squaredLength > 0.0)
+    for (auto& [squaredDistance, facet] : crossings)
     {
-        const double hit = (nearest->surfaceCenter - *dualStart).dot(direction) / squaredLength;
-        const double halfWidth = BRACKET_CELLS * cellSize_ / std::sqrt(squaredLength);
-        const Point3D bracketStart = *dualStart + std::max(0.0, hit - halfWidth) * direction;
-        const Point3D bracketEnd = *dualStart + std::min(1.0, hit + halfWidth) * direction;
-        if (const auto exact = SurfaceProjector::findSurfaceCrossing(bracketStart, bracketEnd,
-                                                                     *geometry_->getSurface(nearest->surfaceId)))
-            nearest->surfaceCenter = *exact;
+        const Geometry3D::ISurface3D& surface = *geometry_->getSurface(facet.surfaceId);
+        facet.surfaceCenter = refineAlongDualSegment(facet.surfaceCenter, *dualStart, *dualEnd, cellSize_, surface);
+        if (isWithinTrimmedPatch(facet.surfaceCenter, surface))
+            return facet;
     }
-    return nearest;
+    return std::nullopt;
 }
 
 } // namespace Meshing

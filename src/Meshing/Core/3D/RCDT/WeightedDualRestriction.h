@@ -53,7 +53,8 @@ struct RestrictedFacet
  *
  * Crossings are found on each surface's SurfaceTessellation, then refined onto
  * the exact CAD surface by bisection along the dual segment, so the centre
- * stays on the dual line. When the dual edge crosses more than once, the
+ * stays on the dual line, and accepted only within the surface's trimmed
+ * patch. When the dual edge crosses more than once, the
  * crossing nearest the face's own weighted circumcenter wins: that point lies
  * on the dual line, so the nearest crossing is the one belonging to this face.
  */
