@@ -42,7 +42,7 @@ struct SurfaceMesh3DQualitySettings
     double tetCircumradiusToShortestEdgeRatio = 2.5;
 
     /// Maximum number of refinement iterations before the RCDT refiner gives
-    /// up. The default (500) is a safety cap for ordinary meshes. Geometries
+    /// up. The default is a safety cap for ordinary meshes. Geometries
     /// with acute dihedral angles at feature corners (< 60°) drive a
     /// segment-splitting cascade that terminates correctly via the minimum
     /// edge length floor but requires more iterations. Increase this for

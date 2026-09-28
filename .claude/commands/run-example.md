@@ -20,7 +20,6 @@ Run a OpenLoom example executable.
 - CylinderSurfaceMesh
 - ShewchukBox
 - ShewchukBoxWithHole
-- SurfaceMeshEdges
 
 If $ARGUMENTS is provided, determine whether it is a 2D or 3D example and run it from the correct directory:
 ```bash

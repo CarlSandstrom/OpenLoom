@@ -34,8 +34,9 @@ const MeshData2D& mesh = context.getMeshData();
 SurfaceMesher3D mesher(converter.getGeometryCollection(),
                        converter.getTopology(),
                        discretizationSettings,
-                       SurfaceMesh3DQualitySettings{},
-                       SurfaceMeshingStrategy::Auto);
+                       SurfaceMesh3DQualitySettings{});
+
+auto surfaceMesh = mesher.mesh();   // SurfaceMesh3D by value
 ```
 
 ### 3D volume

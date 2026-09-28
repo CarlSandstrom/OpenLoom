@@ -33,21 +33,12 @@ src/Meshing/Core/
 │   │   ├── MeshingContext3D.{h,cpp}
 │   │   ├── MeshOperations3D.{h,cpp}
 │   │   ├── MeshQueries3D.{h,cpp}
-│   │   ├── MeshVerifier3D.{h,cpp}
 │   │   ├── ElementGeometry3D.{h,cpp}
-│   │   ├── GeometryStructures3D.h
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
 │   │   ├── DiscretizationResult3D.h
-│   │   ├── EdgeTwinTable.h
-│   │   ├── FacetDiscretization2DBuilder.{h,cpp}
-│   │   ├── FacetTriangulation.{h,cpp}
-│   │   ├── FacetTriangulationManager.{h,cpp}
-│   │   ├── TwinTableGenerator.{h,cpp}
 │   │   └── MeshDebugUtils3D.{h,cpp}
-│   ├── Surface/                         # UV-space surface mesher (superseded by RCDT)
-│   │   ├── SurfaceMesher3D.{h,cpp}
-│   │   ├── SurfaceMeshingContext3D.{h,cpp}
-│   │   └── SurfaceMeshQuality.{h,cpp}
+│   ├── Surface/                         # Top-level surface mesher
+│   │   └── SurfaceMesher3D.{h,cpp}
 │   ├── Volume/                          # Top-level volume mesher + initial tetrahedralization
 │   │   ├── Delaunay3D.{h,cpp}
 │   │   └── VolumeMesher3D.{h,cpp}
@@ -70,7 +61,7 @@ src/Meshing/Core/
 ## Key Components
 
 ### Contexts
-- **MeshingContext2D** (`2D/`): Manages 2D geometry, topology, and mesh data; supports standalone or surface-based usage
+- **MeshingContext2D** (`2D/`): Manages 2D geometry, topology, and mesh data
 - **MeshingContext3D** (`3D/General/`): Manages 3D geometry, topology, mesh data, and connectivity; `RCDTMesher` owns one per call
 
 ### 2D Algorithms
@@ -81,7 +72,7 @@ src/Meshing/Core/
 - **ElementGeometry2D**: Geometric computations (circumcircles, orientations)
 - **ElementQuality2D**: Quality metrics for triangle elements
 - **EdgeDiscretizer2D**: Samples constraint edges into discrete points
-- **BoundarySplitSynchronizer**: Keeps boundary splits consistent across surfaces
+- **BoundarySplitSynchronizer**: Mirrors a boundary split onto its twin segment (periodic 2D meshes, via `TwinManager`)
 - **ShewchukRefiner2D**: Quality-driven refinement (Ruppert's algorithm) for 2D meshes
 - **Shewchuk2DQualityController**: Quality controller for 2D refinement
 - **ConstraintChecker2D**: Encroachment checking for constrained edges
@@ -92,20 +83,13 @@ src/Meshing/Core/
 - **MeshQueries3D**: Spatial queries on 3D meshes
 - **ElementGeometry3D**: Weighted circumcenters (orthocenters) of tetrahedra and triangles
 - **BoundaryDiscretizer3D**: Samples boundary geometry into discrete points
-- **MeshVerifier3D**: Validates mesh integrity (degenerate elements, orphan nodes)
-- **FacetDiscretization2DBuilder**: Builds UV-space discretizations of CAD facets; used by the legacy UV-space surface mesher
-- **FacetTriangulation**: Triangulates a single CAD facet in UV space; used by the legacy UV-space surface mesher
-- **FacetTriangulationManager**: Orchestrates UV-space triangulation across all CAD facets; used by the legacy UV-space surface mesher
-- **TwinTableGenerator**: Builds twin (half-edge neighbor) tables for surface meshes
 
-### 3D Surface (legacy UV-space mesher)
-- **SurfaceMesher3D**: High-level API for the UV-space surface mesher; superseded by `RCDTMesher`
-- **SurfaceMeshingContext3D**: Per-face UV-space triangulation context; superseded by `RCDTMesher`
-- **SurfaceMeshQuality**: Quality controller for the legacy two-phase UV-space refinement
+### 3D Surface
+- **SurfaceMesher3D**: Top-level, pluggable surface-mesh entry point (no strategy enum — only `RCDTMesher` implements `ISurfaceMesher3D` today); returns a `SurfaceMesh3D`. The per-face UV-space surface mesher that preceded RCDT was deleted in OPE-192
 
 ### 3D Volume
 - **Delaunay3D**: Unconstrained 3D Delaunay tetrahedralization; used by `RCDTMesher` to build its initial ambient tetrahedralization
-- **VolumeMesher3D**: Top-level, pluggable volume-mesh entry point (mirrors `SurfaceMesher3D`, no strategy enum — only `RCDTMesher` implements `IVolumeMesher3D` today); returns a `VolumeMesh3D`
+- **VolumeMesher3D**: Top-level, pluggable volume-mesh entry point (mirrors `SurfaceMesher3D`; only `RCDTMesher` implements `IVolumeMesher3D` today); returns a `VolumeMesh3D`
 
 ### RCDT (ambient-space mesher)
 CGAL Mesh_3's design (OPE-186); `doc/RCDT_Techniques.md` explains each piece.
@@ -118,12 +102,12 @@ CGAL Mesh_3's design (OPE-186); `doc/RCDT_Techniques.md` explains each piece.
 - **AmbientTetrahedronClassifier / Remover**: Flood fill from the bounding tetrahedron across non-restricted faces; used to label inside tetrahedra and to strip the outside
 - **RCDTMeshExtractor**, **SurfaceMeshSmoother**, **TetrahedronInversionGuard**: Output assembly and Laplacian smoothing that never inverts a tetrahedron
 - **CurveSegmentBuilder**: Records the protected point chains along each CAD curve in `CurveSegmentManager`
-- **SurfaceMesh3DQualitySettings** (`Meshing/Data/3D/`): Quality settings shared by RCDT and the UV-space mesher (minimum angle, chord deviation, tetrahedron radius-edge bound, insertion cap)
+- **SurfaceMesh3DQualitySettings** (`Meshing/Data/3D/`): Quality settings read by RCDT (minimum angle, chord deviation, smoothing, size floor, tetrahedron radius-edge bound, iteration cap)
 
 ## Design Patterns
 
 ### Strategy Pattern
-`IQualityController2D` interface with implementations (`Shewchuk2DQualityController`, `SurfaceMeshQualityController`) enables pluggable quality metrics for the 2D mesher and the legacy UV-space surface mesher. RCDT reads its bounds directly from `SurfaceMesh3DQualitySettings`. `SurfaceMesher3D`/`VolumeMesher3D` are backed by `ISurfaceMesher3D`/`IVolumeMesher3D` — the extensibility point for a future non-RCDT algorithm.
+`IQualityController2D` is the quality interface `ShewchukRefiner2D` refines against; `Shewchuk2DQualityController` is its only implementation. RCDT reads its bounds directly from `SurfaceMesh3DQualitySettings`. `SurfaceMesher3D`/`VolumeMesher3D` are backed by `ISurfaceMesher3D`/`IVolumeMesher3D` — the extensibility point for a future non-RCDT algorithm.
 
 ### Context Pattern
 Contexts (`MeshingContext2D`, `MeshingContext3D`) centralize access to geometry, topology, and mutable mesh data with clear ownership semantics.
