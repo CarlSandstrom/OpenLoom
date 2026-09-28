@@ -214,8 +214,7 @@ int main()
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
                                     discretizationSettings,
-                                    quality,
-                                    Meshing::SurfaceMeshingStrategy::AmbientRCDT);
+                                    quality);
     auto surfaceMesh = mesher.mesh();
 
     std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "

@@ -27,7 +27,7 @@ class IVolumeMesher3D;
  * @brief Top-level volume mesher for 3D CAD geometry.
  *
  * Thin wrapper around an IVolumeMesher3D implementation (currently always
- * RCDTMesher, the ambient RCDT pipeline). Unlike SurfaceMesher3D, this has
+ * RCDTMesher, the ambient RCDT pipeline). As with SurfaceMesher3D, there is
  * no strategy enum: only one algorithm exists today, so a dispatch enum
  * would just be padding. The IVolumeMesher3D interface is the extensibility
  * point for future algorithms.

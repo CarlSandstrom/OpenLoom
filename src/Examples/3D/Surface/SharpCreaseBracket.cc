@@ -159,13 +159,10 @@ int main()
     exporter.writeEdgeMesh(*discretizationResult, "SharpCreaseBracketEdges.vtu");
     std::cout << "Exported edge mesh to SharpCreaseBracketEdges.vtu (color by EdgeID)\n";
 
-    // Force AmbientRCDT: this shape has no periodic/seam surfaces, so Auto
-    // would otherwise resolve to the legacy per-face UV-space pipeline.
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
                                     converter.getTopology(),
                                     discretizationSettings,
-                                    Meshing::SurfaceMesh3DQualitySettings{},
-                                    Meshing::SurfaceMeshingStrategy::AmbientRCDT);
+                                    Meshing::SurfaceMesh3DQualitySettings{});
 
     auto surfaceMesh = mesher.mesh();
 
