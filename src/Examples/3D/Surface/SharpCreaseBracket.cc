@@ -39,9 +39,11 @@
  * itself is valid throughout (no degenerate or duplicate-coordinate triangles).
  *
  * Topology:
- *   - 6 faces: two DEPTH-long flange faces (the crease sides), two end caps
- *     (the extruded profile's start/end), two flange end-cap strips
- *   - The crease itself is the sharp edge shared by the two flange faces
+ *   - 8 faces: the two flanges' outer faces (the crease sides), their two
+ *     inner faces, two flange end strips, and the two end caps (the
+ *     extruded profile's start/end)
+ *   - The crease itself is the sharp (20 deg) edge shared by the two outer
+ *     faces at the convex apex; the inner faces meet at the concave apex
  *
  * Exports:
  *   - SharpCreaseBracketEdges.vtu   : discretized boundary edges (color by EdgeID)
@@ -103,8 +105,15 @@ std::array<Point2D, 6> buildCrossSection()
 
     const Point2D dir1{std::cos(-halfAngle), std::sin(-halfAngle)};
     const Point2D dir2{std::cos(halfAngle), std::sin(halfAngle)};
-    const Point2D n1 = leftNormal(dir1); // points into the concave (inner) side
-    const Point2D n2 = leftNormal(dir2);
+    // Each normal points into the concave (inner) side, toward the other
+    // flange: left of flange 1 (running at -halfAngle), right of flange 2
+    // (running at +halfAngle). Using leftNormal for both put the two "inner"
+    // edges on the same side and made the profile a self-intersecting bow-tie
+    // (signed area 0), so the extruded solid passed through itself along
+    // x = 5.76, y = 0 -- invalid for BRepCheck_Analyzer, its end caps
+    // untriangulable by BRepMesh.
+    const Point2D n1 = leftNormal(dir1);
+    const Point2D n2 = leftNormal(dir2) * -1.0;
 
     // Concave miter: where the two flanges' inner (facing each other) edges cross.
     const Point2D innerApex = intersectLines(n1 * halfThickness, dir1, n2 * halfThickness, dir2);
