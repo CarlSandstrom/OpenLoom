@@ -27,7 +27,11 @@ namespace Meshing
  * used by the CGAL-style refinement path (OPE-186).
  *
  *  - Corners: radius from the size function, capped at a third of the
- *    distance to the nearest other corner so corner balls stay disjoint.
+ *    distance to the nearest other corner so corner balls stay disjoint, and
+ *    raised (OPE-218) when two curves leave the corner in the same tangent
+ *    direction -- their separation grows only quadratically with arc length,
+ *    so the corner ball must be large enough to clear that G1-tangent zone
+ *    in one step rather than shrinking into it.
  *  - Curves (insert_balls): between two balls of radii sp <= sq a curve
  *    distance d apart, n = round(2(d - sq) / (sp + sq)) balls whose radii grow
  *    linearly from sp to sq, each spaced from the last by its own radius. A
