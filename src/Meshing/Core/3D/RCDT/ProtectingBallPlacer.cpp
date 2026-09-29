@@ -294,8 +294,75 @@ int repairBalls(std::vector<Curve>& curves, const std::vector<CurveEnds>& ends, 
     return MAXIMUM_REPAIR_ROUNDS;
 }
 
+// Beyond CGAL (OPE-218): two curves meeting at a corner with the same
+// away-from-corner tangent direction (to within TANGENT_COSINE) are G1-
+// tangent there -- a straight-to-arc or arc-to-arc transition with no
+// turning angle to size a corner against. Their separation then grows only
+// quadratically with arc length (gap(s) ~= |kappaA - kappaB| / 2 * s^2), so
+// repairBalls' shrink-on-conflict never converges: each round's smaller
+// radius places the next ball closer to the corner, where the quadratic gap
+// has shrunk faster than the radius did. The fix is a floor, not a cap --
+// size the corner ball so it already reaches past the point where two
+// cornerSize-radius balls, one on each curve, stop conflicting.
+constexpr double TANGENT_COSINE = 0.9848; // cos(10 degrees)
+
+/// Unit tangent direction and curvature of `curve` at the end identified by
+/// `atStart`, direction oriented away from that end's corner.
+struct CornerTangent
+{
+    Vector3D direction;
+    double curvature;
+};
+
+CornerTangent cornerTangentOf(const Curve& curve, bool atStart)
+{
+    const double arc = atStart ? 0.0 : curve.length;
+    const double t = parameterAt(curve, arc);
+    Vector3D direction = curve.edge->getTangent(t).normalized();
+    if (!atStart)
+        direction = -direction;
+    return {direction, curve.edge->getCurvature(t)};
+}
+
+/// The largest corner radius any G1-tangent pair of curves at `cornerId`
+/// demands (0 if none are tangent there). See the comment above.
+double tangentCornerFloor(const std::string& cornerId,
+                          const std::vector<Curve>& curves,
+                          const std::vector<CurveEnds>& ends,
+                          double cornerSize)
+{
+    std::vector<CornerTangent> tangents;
+    for (std::size_t c = 0; c < curves.size(); ++c)
+    {
+        if (ends[c].startCorner == cornerId)
+            tangents.push_back(cornerTangentOf(curves[c], true));
+        if (ends[c].endCorner == cornerId)
+            tangents.push_back(cornerTangentOf(curves[c], false));
+    }
+
+    double floor = 0.0;
+    for (std::size_t i = 0; i < tangents.size(); ++i)
+        for (std::size_t j = i + 1; j < tangents.size(); ++j)
+        {
+            if (tangents[i].direction.dot(tangents[j].direction) < TANGENT_COSINE)
+                continue;
+            // Smaller curvatureGap means slower separation, so a larger
+            // floor -- including the curvatureGap == 0 limit (equal-radius
+            // fillets forming a G2-tangent corner), where no finite radius
+            // satisfies this second-order bound at all: IEEE-754 division
+            // by zero gives +infinity here (cornerSize > 0), which the
+            // nearest-corner cap on the call site then clamps down to the
+            // best available radius rather than silently applying no floor.
+            const double curvatureGap = std::abs(tangents[i].curvature - tangents[j].curvature);
+            floor = std::max(floor, std::sqrt(4.0 * cornerSize / curvatureGap));
+        }
+    return floor;
+}
+
 /// Corner radius: the size at the corner (the smallest adjacent discretization
-/// segment of its curves), capped at a third of the nearest other corner.
+/// segment of its curves), capped at a third of the nearest other corner, and
+/// raised to tangentCornerFloor when a tangent curve pair demands more room
+/// (OPE-218).
 std::map<std::string, Ball> placeCorners(const std::vector<Curve>& curves,
                                          const std::vector<CurveEnds>& ends,
                                          const DiscretizationResult3D& discretization)
@@ -322,7 +389,8 @@ std::map<std::string, Ball> placeCorners(const std::vector<Curve>& curves,
         for (const auto& [otherId, otherIndex] : discretization.cornerIdToPointIndexMap)
             if (otherId != cornerId)
                 nearest = std::min(nearest, (discretization.points[otherIndex] - point).norm());
-        corners[cornerId] = Ball{0.0, point, std::min(cornerSize, nearest / 3.0), cornerId};
+        const double floor = tangentCornerFloor(cornerId, curves, ends, cornerSize);
+        corners[cornerId] = Ball{0.0, point, std::min(std::max(cornerSize, floor), nearest / 3.0), cornerId};
     }
     return corners;
 }
