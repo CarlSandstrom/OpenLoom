@@ -9,6 +9,7 @@ set(EXAMPLE_SOURCES_3D_SURFACE
     SaddleSurfaceMesh.cc
     HexNutSurfaceMesh.cc
     HexNutChamferedSurfaceMesh.cc
+    MeshStepFile3DSurface.cc
 )
 
 # Link external libraries

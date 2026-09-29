@@ -3,6 +3,7 @@
 set(EXAMPLE_SOURCES_3D_VOLUME
     CreateBox.cc
     BoxWithHole.cc
+    MeshStepFile3DVolume.cc
 )
 
 # Link external libraries

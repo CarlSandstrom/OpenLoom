@@ -114,7 +114,14 @@ TopoDS_Shape result = BRepAlgoAPI_Cut(box, cylinder).Shape();
 TopoDS_Shape result = BRepAlgoAPI_Fuse(shapeA, shapeB).Shape();
 ```
 
-There is no 3D STEP reader class yet (`StepReader2D` is 2D only). `TopoDS_ShapeConverter` takes any `TopoDS_Shape`, so a STEP file can be read with OCC's `STEPControl_Reader` and its shape passed in.
+To read a solid from a STEP file instead of building one with OCC calls, use `StepReader3D` (added OPE-177): it wraps `STEPControl_Reader` and exposes `getShape()`, which goes straight into `TopoDS_ShapeConverter` like any other `TopoDS_Shape`.
+
+```cpp
+#include "Readers/OpenCascade/StepReader3D.h"
+
+Readers::StepReader3D reader(stepFilePath);
+Readers::TopoDS_ShapeConverter converter(reader.getShape());
+```
 
 ---
 
@@ -198,3 +205,4 @@ paraview <Name>.vtu
 | `SharpCreaseBracket` | Bent bracket | Edges + mesh | 20° crease |
 | `ThinFinSurfaceMesh` | 100×10×0.5 box | Edges + mesh | Thin plate; slow (OPE-213) |
 | `HexNutChamferedSurfaceMesh` | Hex nut, chamfered bore | Edges + mesh | Many coplanar boundary points (OPE-173) |
+| `MeshStepFile3DSurface` | Any STEP file (argv[1]) | Mesh only | Generic tool, not tied to one part (OPE-177) |
