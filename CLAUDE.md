@@ -175,3 +175,4 @@ Exception hierarchy: `Exception` → `GeometryException`, `MeshException`, `Topo
 - `doc/Error_Handling.md` - Error handling guide
 - `doc/Meshing_Core_Overview.md` - Architecture overview
 - `doc/RCDT_Techniques.md` - Every technique the mesher relies on, and why each is there
+- `doc/RCDT_Current.md` - The current RCDT algorithm phase by phase, written to compare directly against `doc/History/RCDT_Historical.md`

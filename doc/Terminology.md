@@ -493,6 +493,79 @@ double radius = circumsphere.radius;
 
 ---
 
+### Weighted Vertex
+**Definition:** A mesh vertex (node) that carries an extra scalar, its **weight**, consumed by the weighted ("regular") in-sphere test in place of the ordinary one.
+
+**Why:** In OpenLoom's 3D RCDT pipeline, every protected corner and curve point is inserted as a weighted vertex — the weight is the squared radius of its **protecting ball**. An ordinary (unweighted) vertex has weight 0, so the weighted test reduces term for term to the ordinary one when nothing is weighted.
+
+**Properties:**
+- Equivalent to lifting each vertex to `(x, y, z, x²+y²+z² − w)` and taking the lower convex hull — this is the **regular triangulation**, the weighted generalization of a Delaunay triangulation.
+- A weighted vertex `(p, w)` **hides** any candidate point `q` with `|q − p|² ≤ w`: `q` is refused rather than inserted, and never becomes a vertex of the triangulation. This is how a protecting ball keeps other points out of it.
+- The circumsphere concept generalizes to the **orthocenter** (weighted circumcenter): the point at equal power distance `|x − p|² − w` to every vertex of a tetrahedron. Reduces to the ordinary circumcenter when every weight is 0.
+
+**Relationship to other terms:** A weighted vertex is still a **Node** (see above) — "weighted" describes an extra attribute it carries for the regular-triangulation predicate, not a different kind of mesh entity.
+
+**In Code:**
+```cpp
+// weight = 0 for an ordinary point; squared ball radius for a protected one
+std::unordered_map<size_t, double> pointWeights = ProtectingBallPlacer::place(...);
+Delaunay3D::triangulate(operations, points, geometryIds, pointWeights);
+```
+
+**Where it's used:** `Core/3D/General/RegularPredicates3D` (the weighted in-sphere test), `Core/3D/RCDT/ProtectingBallPlacer` (assigns the weights). See `doc/RCDT_Current.md` for the algorithm built on it.
+
+**Aliases:** Regular vertex, power-weighted point
+
+---
+
+### Orthocenter
+**Definition:** The weighted generalization of a circumcenter — for a tetrahedron of weighted vertices, the unique point at equal **power distance** `|x − p|² − w` to all four.
+
+**Property:** Reduces to the ordinary circumcenter when every vertex's weight is 0. It is the vertex of the **power diagram** (the dual of the regular triangulation) — the same role the circumcenter plays for an ordinary Delaunay triangulation and its Voronoi dual.
+
+**Why it matters here:** The dual edge the restriction test checks for a surface crossing runs between the orthocenters of the two tetrahedra sharing a face — not their ordinary circumcenters, since the triangulation itself was built with weights.
+
+**Degenerate case:** For a tetrahedron flat to rounding (e.g. four points of a cyclic quad — matching samples on the two circles bounding a cone), every point on the line normal to its plane has equal power; the minimum-norm solution picks the one in that plane. Returning none instead of that point silently drops the dual edge for every face around the tet — the exact cause of 38 holes in one model before it was fixed (OPE-186).
+
+**In Code:**
+```cpp
+ElementGeometry3D geometry(mesh);
+std::optional<Point3D> orthocenter = geometry.computeOrthocenter(tetrahedron);
+```
+
+**Where it's used:** `Core/3D/General/ElementGeometry3D::computeOrthocenter`, `Core/3D/RCDT/WeightedDualRestriction`.
+
+**Aliases:** Weighted circumcenter, power center
+
+---
+
+### Protecting Ball
+**Definition:** A sphere of radius `r` placed around a corner or curve sample point, implemented as that point's **weight** (`w = r²`) in the weighted triangulation — see **Weighted Vertex**.
+
+**Purpose:** Guarantees the point survives as an isolated vertex of the regular triangulation, and that the mesh edges along a protected curve are exactly the chain of consecutive protected points — the precondition the restricted-Delaunay guarantees near creases depend on.
+
+**Properties — three conditions `ProtectingBallPlacer` must satisfy everywhere:**
+1. no protected point is hidden inside another ball;
+2. balls that are not neighbours on the same curve are disjoint;
+3. neighbours along a curve overlap, so the whole curve is covered end to end.
+
+**Sizing:** A corner's radius comes from the local size function, capped at a third of the distance to the nearest other corner. Along a curve, radii grow linearly between neighbouring balls; any pair that ends up intersecting without being curve-neighbours is shrunk; gaps that open up are repopulated. This repair runs to a fixed point.
+
+**Important:** Protection is fixed once, at seeding — refinement never splits a curve or shrinks/grows a ball afterward. A refinement-inserted point that would fall inside a protecting ball is refused outright (see **Weighted Vertex**), never redirected into the curve.
+
+**In Code:**
+```cpp
+// weight by point index = squared protecting-ball radius
+std::unordered_map<size_t, double> pointWeights =
+    ProtectingBallPlacer::place(discretizationResult, topology, geometry);
+```
+
+**Where it's used:** `Core/3D/RCDT/ProtectingBallPlacer`. See `doc/RCDT_Current.md` ("Key definitions" → Protecting ball) for the full placement and repair algorithm.
+
+**Aliases:** Protected point, feature ball
+
+---
+
 ### Barycentric Coordinates
 **Definition:** A coordinate system for expressing a point's location relative to a simplex (triangle or tetrahedron).
 

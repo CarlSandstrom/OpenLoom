@@ -419,7 +419,7 @@ compare the two refiners from identical inputs, step by step.
 ## 9. Retired (OPE-186)
 
 The path `meshSurface()` and `meshVolume()` ran before 2026-09-28. Its code is in
-git history up to `873c9bf`; `doc/RCDT_Restriction_Audit.md` inventories its
+git history up to `873c9bf`; `doc/History/RCDT_Restriction_Audit.md` inventories its
 restriction decisions.
 
 - **`CurveProtectionScheme` / `CurveProtectionSubdivider`** — protection sized
@@ -440,7 +440,8 @@ restriction decisions.
 
 ## See also
 
+- `doc/RCDT_Current.md` — the algorithm itself, phase by phase, for comparing against the historical path
 - `doc/Meshing_Core_Overview.md` — module layout and ownership
 - `doc/Terminology.md` — CAD and mesh glossary
-- `doc/Theory/RCDT.md`, `doc/Flowcharts/` — the paper's algorithm and the
+- `doc/History/RCDT_Historical.md`, `doc/Flowcharts/` — the paper's algorithm and the
   retired implementation of it

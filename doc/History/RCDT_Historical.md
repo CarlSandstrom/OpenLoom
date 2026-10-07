@@ -1,4 +1,4 @@
-> **Historical (2026-09-28).** This describes the RestrictedTriangulation path that OPE-186 retired; the mesher now follows CGAL Mesh_3's design. The current techniques are in `doc/RCDT_Techniques.md`; the retired code is in git history up to `873c9bf`.
+> **Historical (2026-09-28).** This describes the RestrictedTriangulation path that OPE-186 retired; the mesher now follows CGAL Mesh_3's design. The current algorithm, written in the same phase-by-phase style for direct comparison, is `doc/RCDT_Current.md`; the full technique inventory is `doc/RCDT_Techniques.md`; the retired code is in git history up to `873c9bf`.
 
 Here is the algorithm as implemented in OpenLoom, built from the paper and the flowchart documents.
 
