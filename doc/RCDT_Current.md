@@ -78,6 +78,7 @@ Classify every face once (the weighted dual-edge test), then refine until no cla
 `SurfaceDelaunayRefiner`, `SurfaceFacetCriteria`
 
 **When:** a restricted facet fails one of CGAL's three criteria, checked in this order:
+
 0. **shape** — sin² of its smallest angle below sin²(minimum angle);
 1. **distance** — its orthocentre further than the chord-deviation tolerance from its surface Delaunay ball centre;
 2. **same patch** — its two surface-interior vertices lie on different CAD surfaces. This is a facet straddling a crease — the historical path refused to restrict these; this path refines them instead.
