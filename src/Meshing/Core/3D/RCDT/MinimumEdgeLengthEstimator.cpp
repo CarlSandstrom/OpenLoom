@@ -13,34 +13,14 @@ namespace
 
 constexpr double MINIMUM_EDGE_LENGTH_DIVISOR = 10.0;
 
-// Which of the sizing field's sources the floor is derived from, as a
-// fraction through the sorted source sizes. The SMALLEST overbids: curvature
-// and local-feature-size sampling routinely produces a handful of sources
-// asking for elements far below anything the rest of the model needs, and a
-// floor taken from that one source lets refinement chase the same depth
-// everywhere else. A LOW percentile keeps the floor below every size the
-// field realistically asks for while ignoring those few outliers.
+// Fraction through the sorted source sizes that the floor is taken from. The
+// smallest source overbids, since curvature and feature-size sampling produce a
+// few outliers asking for far smaller elements than the model needs. A central
+// percentile turns the floor into a size target and stops refinement early.
 //
-// It must stay low: the floor is a sliver guard, not a size target (see the
-// header), so a central percentile turns it into one and stops refinement
-// where the mesh has arrived. Measured on SaddleSurfaceMesh with the field
-// enabled, against 1 non-manifold edge for that model with no field at all
-// (OPE-180): 0.05 -> floor 0.0504, 1 defect; 0.10 -> 0.0559, 1; 0.25 ->
-// 0.0841, 7; 0.50 -> 0.173, 12; the old global minimum -> 0.0258, 9. The
-// plateau spans roughly 0.05-0.10, and 0.1 sits inside it rather than on
-// either shoulder.
-//
-// EVIDENCE CAVEAT (OPE-208): that plateau was found by sweeping this constant
-// and reading off non-manifold defect counts -- the one method OPE-208 rules
-// out. The count lumps unrelated failure modes into one number, and the size
-// floor is known to HIDE defects rather than prevent them (OPE-184), so the
-// axis measures suppression as much as quality. The outlier argument in the
-// paragraph above stands on its own and does not rest on those numbers; the
-// numbers do not establish that 0.1 is right. This is a fitted constant.
-//
-// Retirement condition: re-derive the percentile from a property of the field
-// -- what fraction of its sources are sampling artifacts rather than genuine
-// geometric demands -- rather than from any defect count.
+// This is a fitted constant: it was found by sweeping defect counts on
+// SaddleSurfaceMesh (OPE-180), the method OPE-208 rules out. Re-derive it from a
+// property of the field, such as how many sources are sampling artifacts.
 constexpr double SOURCE_SIZE_PERCENTILE = 0.1;
 
 } // namespace
@@ -54,36 +34,32 @@ double MinimumEdgeLengthEstimator::fromPointSpacing(const std::vector<Point3D>& 
         double nearest = std::numeric_limits<double>::max();
         for (size_t j = 0; j < points.size(); ++j)
         {
-            if (i == j)
-                continue;
+            if (i == j) continue;
             nearest = std::min(nearest, (points[i] - points[j]).norm());
         }
         nearestPerPoint.push_back(nearest);
     }
-    if (nearestPerPoint.empty())
-        return 0.0;
+    if (nearestPerPoint.empty()) return 0.0;
 
     std::sort(nearestPerPoint.begin(), nearestPerPoint.end());
-    const double median = nearestPerPoint[nearestPerPoint.size() / 2];
+    double median = nearestPerPoint[nearestPerPoint.size() / 2];
     return median / MINIMUM_EDGE_LENGTH_DIVISOR;
 }
 
 double MinimumEdgeLengthEstimator::fromSizingField(const SizingField3D& sizingField)
 {
-    const auto& sources = sizingField.getSources();
+    auto& sources = sizingField.getSources();
 
     std::vector<double> sourceSizes;
     sourceSizes.reserve(sources.size());
-    for (const SizingSource& source : sources)
+    for (auto& source : sources)
         sourceSizes.push_back(source.size);
 
-    // SizingField3D's constructor rejects an empty source list, so this is a
-    // guard against a future caller rather than a reachable state today.
-    if (sourceSizes.empty())
-        return 0.0;
+    // Unreachable today: SizingField3D's constructor rejects an empty source list.
+    if (sourceSizes.empty()) return 0.0;
 
     std::sort(sourceSizes.begin(), sourceSizes.end());
-    const size_t percentileIndex =
+    size_t percentileIndex =
         std::min(sourceSizes.size() - 1, static_cast<size_t>(SOURCE_SIZE_PERCENTILE * sourceSizes.size()));
     return sourceSizes[percentileIndex] / MINIMUM_EDGE_LENGTH_DIVISOR;
 }
