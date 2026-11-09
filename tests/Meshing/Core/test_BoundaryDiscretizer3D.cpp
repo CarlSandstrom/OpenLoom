@@ -67,7 +67,8 @@ private:
 class MockPlanarSurface : public Geometry3D::ISurface3D
 {
 public:
-    explicit MockPlanarSurface(const std::string& id) : id_(id) {}
+    explicit MockPlanarSurface(const std::string& id) :
+        id_(id) {}
 
     Vector3D getNormal(double /*u*/, double /*v*/) const override
     {
@@ -274,11 +275,11 @@ TEST(BoundaryDiscretizer3D, LengthDrivenWalk_DoesNotDuplicateTheEndVertex)
 
     // Size far larger than the edge, so h(x) never binds and the bound comes
     // from the count alone: E12 has length 1, so the bound is exactly 0.25.
-    const SizingField3D sizingField({{Point3D(0.0, 0.0, 0.0), 100.0}}, 0.3);
+    std::optional<SizingField3D> sizingField(SizingField3D({{Point3D(0.0, 0.0, 0.0), 100.0}}, 0.3));
 
     Geometry3D::DiscretizationSettings3D settings(4, 1);
     const auto discretizationResult =
-        BoundaryDiscretizer3D::discretize(*fix.geometry, *fix.topology, settings, &sizingField);
+        BoundaryDiscretizer3D::discretize(*fix.geometry, *fix.topology, settings, sizingField);
     const auto& result = *discretizationResult;
 
     ASSERT_TRUE(result.edgeIdToPointIndicesMap.contains("E12"));

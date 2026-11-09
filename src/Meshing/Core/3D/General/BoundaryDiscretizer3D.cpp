@@ -14,29 +14,21 @@ namespace Meshing
 
 namespace
 {
-
-double angleBetweenTangents(const Vector3D& a, const Vector3D& b)
-{
-    const double dot = std::clamp(a.dot(b), -1.0, 1.0);
-    return std::acos(dot);
-}
-
+double angleBetweenTangents(const Vector3D& a, const Vector3D& b);
 } // namespace
 
 std::unique_ptr<DiscretizationResult3D>
 BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geometry,
                                   const Topology3D::Topology3D& topology,
                                   const Geometry3D::DiscretizationSettings3D& settings,
-                                  const SizingField3D* sizingField)
+                                  const std::optional<SizingField3D>& sizingField)
 {
     auto result = std::make_unique<DiscretizationResult3D>();
 
-    // Step 1: Sample corner points
-    for (const auto& cornerId : topology.getAllCornerIds())
+    for (auto& cornerId : topology.getAllCornerIds())
     {
-        const auto* corner = geometry.getCorner(cornerId);
-        if (!corner)
-            continue;
+        auto corner = geometry.getCorner(cornerId);
+        if (!corner) continue;
 
         size_t pointIndex = result->points.size();
         result->points.push_back(corner->getPoint());
@@ -45,21 +37,17 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
         result->cornerIdToPointIndexMap[cornerId] = pointIndex;
     }
 
-    // Step 2: Sample edge interior points (excluding endpoints)
-    const auto maxAngle = settings.getMaxAngleBetweenSegments();
-    const auto numberOfSegments = settings.getNumberOfSegmentsPerEdge();
+    auto maxAngle = settings.getMaxAngleBetweenSegments();
+    auto numberOfSegments = settings.getNumberOfSegmentsPerEdge();
 
-    for (const auto& edgeId : topology.getAllEdgeIds())
+    for (auto& edgeId : topology.getAllEdgeIds())
     {
-        // Seam twin edges have no 3D geometry; they are handled in Step 2b.
-        if (topology.getSeamCollection().isSeamTwin(edgeId))
-            continue;
+        // Seam twins have no 3D geometry; they are filled in from their original edge below.
+        if (topology.getSeamCollection().isSeamTwin(edgeId)) continue;
 
-        const auto& topologyEdge = topology.getEdge(edgeId);
-        const auto* edge = geometry.getEdge(edgeId);
-
-        if (!edge)
-            continue;
+        auto& topologyEdge = topology.getEdge(edgeId);
+        auto edge = geometry.getEdge(edgeId);
+        if (!edge) continue;
 
         auto [tMin, tMax] = edge->getParameterBounds();
 
@@ -74,62 +62,41 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
         std::vector<size_t> edgePointIndices;
         edgePointIndices.push_back(startIndex);
 
-        // A degenerate edge (e.g. a sphere's polar edge) has no real 3D curve —
-        // getPoint()/getTangent() are not meaningful along it, and walking it
-        // as if it were a normal curve inserts hundreds of spurious coincident
-        // points at the singularity. It contributes no interior points; the
-        // pole is already represented by its corner.
         if (edge->isDegenerate())
         {
-            // no interior points
+            // A degenerate edge (e.g. a sphere's polar edge) has no real 3D curve, and walking
+            // it inserts spurious coincident points. The pole is already its corner.
         }
-        // Angle mode takes priority over fixed-count mode (see
-        // DiscretizationSettings3D), and a sizing field refines whichever
-        // mode is active rather than replacing it: in angle mode it adds the
-        // length criterion to the walk, and in fixed-count mode it treats
-        // the count's uniform segment length as a maximum that h(x) may
-        // shorten but never lengthen. The field only ever ADDS points --
-        // a count is a coarseness request, not a protection guarantee, and
-        // ProtectingBallPlacer replaces the curve points anyway (so the count
-        // was never authoritative to begin with).
-        else if (maxAngle.has_value() || sizingField != nullptr)
+        // Angle mode takes priority over fixed-count mode. A sizing field only ever adds
+        // points: in fixed-count mode the count's uniform segment length is a maximum that
+        // h(x) may shorten but never lengthen.
+        else if (maxAngle.has_value() || sizingField.has_value())
         {
-            // In fixed-count mode the count contributes its uniform segment
-            // arc length as a cap on the walk's length criterion. Total arc
-            // length is not available analytically, so accumulate it with the
-            // same chord stepping the walk itself uses.
             std::optional<double> uniformSegmentLength;
             if (!maxAngle.has_value() && numberOfSegments.has_value() && numberOfSegments.value() > 0)
             {
+                // Total arc length is not available analytically, so accumulate it with chord steps.
                 constexpr size_t NUMBER_OF_LENGTH_STEPS = 1000;
                 double totalLength = 0.0;
                 Point3D previous = edge->getPoint(tMin);
                 for (size_t i = 1; i <= NUMBER_OF_LENGTH_STEPS; ++i)
                 {
-                    const double t = tMin + static_cast<double>(i) * (tMax - tMin) /
-                                                static_cast<double>(NUMBER_OF_LENGTH_STEPS);
-                    const Point3D current = edge->getPoint(t);
+                    double t = tMin + static_cast<double>(i) * (tMax - tMin) /
+                                          static_cast<double>(NUMBER_OF_LENGTH_STEPS);
+                    Point3D current = edge->getPoint(t);
                     totalLength += (current - previous).norm();
                     previous = current;
                 }
                 uniformSegmentLength = totalLength / static_cast<double>(numberOfSegments.value());
             }
-            // Angle-based: walk 1000 uniform steps; insert a point whenever the
-            // accumulated tangent-angle change since the last inserted point
-            // meets or exceeds maxAngle. Straight edges produce no interior points.
-            //
-            // With a sizing field, accumulated ARCLENGTH is tracked alongside
-            // the angle and either criterion alone triggers a point. That is
-            // what bounds segment length on a curve that is steep but barely
-            // turning, where the angle criterion permits a segment of any
-            // length at all (see the class comment). A straight edge still
-            // produces no interior points from the angle term, but the length
-            // term does subdivide it -- which is the point: a long straight
-            // crease needs interior points for its protecting balls to stay
-            // proportionate to the local mesh size.
+
+            // Walk the edge in uniform parameter steps and emit a point once the accumulated
+            // tangent angle reaches maxAngle or the accumulated arc length reaches the allowed
+            // length. The length criterion is what bounds segments on a steep but barely
+            // turning curve, and it also subdivides straight edges.
             constexpr size_t NUMBER_OF_STEPS = 1000;
             auto previousTangent = edge->getTangent(tMin);
-            double accumulated = 0.0;
+            double accumulatedAngle = 0.0;
 
             Point3D previousPoint = edge->getPoint(tMin);
             Point3D segmentStartPoint = previousPoint;
@@ -139,38 +106,33 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
             {
                 double t = tMin + static_cast<double>(i) * (tMax - tMin) / static_cast<double>(NUMBER_OF_STEPS);
                 auto nextTangent = edge->getTangent(t);
-                accumulated += angleBetweenTangents(previousTangent, nextTangent);
+                accumulatedAngle += angleBetweenTangents(previousTangent, nextTangent);
                 previousTangent = nextTangent;
 
-                const Point3D point = edge->getPoint(t);
+                Point3D point = edge->getPoint(t);
                 accumulatedLength += (point - previousPoint).norm();
                 previousPoint = point;
 
-                const bool angleReached = maxAngle.has_value() && accumulated >= maxAngle.value();
+                bool angleReached = maxAngle.has_value() && accumulatedAngle >= maxAngle.value();
 
-                // Bound the segment by the SMALLER of the sizes its two ends
-                // ask for, so a segment running from a coarse region into a
-                // fine one is cut to suit the fine end rather than overshoot
-                // it.
                 bool lengthReached = false;
-                if (sizingField != nullptr || uniformSegmentLength.has_value())
+                if (sizingField.has_value() || uniformSegmentLength.has_value())
                 {
                     double allowedLength = uniformSegmentLength.value_or(std::numeric_limits<double>::max());
-                    if (sizingField != nullptr)
+                    if (sizingField.has_value())
+                    {
+                        // The smaller of both ends' sizes, so a segment leaving a coarse region
+                        // into a fine one is cut to suit the fine end.
                         allowedLength = std::min({allowedLength,
                                                   sizingField->evaluate(segmentStartPoint),
                                                   sizingField->evaluate(point)});
+                    }
                     lengthReached = accumulatedLength >= allowedLength;
                 }
 
-                // The end vertex is already a point of this edge (it is the
-                // corner both incident edges share), so emitting here would
-                // duplicate it -- two coincident nodes, of which the regular
-                // triangulation can only keep one, leaving the other in no
-                // triangle at all (OPE-207). The angle criterion rarely lands
-                // exactly on tMax; a length criterion, which divides no closed
-                // curve evenly, routinely does.
-                const bool atEndVertex = t >= tMax;
+                // The end vertex is already a point of this edge; emitting there would
+                // duplicate it (OPE-207).
+                bool atEndVertex = t >= tMax;
 
                 if ((angleReached || lengthReached) && !atEndVertex)
                 {
@@ -179,20 +141,17 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
                     result->edgeParameters.push_back({t});
                     result->geometryIds.push_back({edgeId});
                     edgePointIndices.push_back(pointIndex);
-                    accumulated = 0.0;
+                    accumulatedAngle = 0.0;
                     accumulatedLength = 0.0;
                     segmentStartPoint = point;
                 }
 
-                if (t >= tMax)
-                    break;
+                if (atEndVertex) break;
             }
         }
         else if (numberOfSegments.has_value() && numberOfSegments.value() > 1)
         {
-            // Fixed-count without a sizing field: divide the edge into
-            // numberOfSegments uniform segments in parameter space.
-            const size_t n = numberOfSegments.value();
+            size_t n = numberOfSegments.value();
             for (size_t i = 1; i < n; ++i)
             {
                 double t = tMin + (tMax - tMin) * static_cast<double>(i) / static_cast<double>(n);
@@ -205,37 +164,30 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
                 edgePointIndices.push_back(pointIndex);
             }
         }
-        // else: no interior points — edge represented by endpoints only.
 
         edgePointIndices.push_back(endIndex);
         result->edgeIdToPointIndicesMap[edgeId] = edgePointIndices;
     }
 
-    // Step 2b: Populate seam twin edge point sequences (reversed copy of original seam).
-    // Seam twin edges have no 3D geometry entry; their point sequence is the reverse of
-    // the original seam edge, representing the same curve at U + uPeriod in UV space.
-    const auto& seams = topology.getSeamCollection();
-    for (const auto& twinId : seams.getSeamTwinEdgeIds())
+    // A seam twin is the original seam edge reversed: the same curve at U + uPeriod in UV space.
+    auto& seams = topology.getSeamCollection();
+    for (auto& twinId : seams.getSeamTwinEdgeIds())
     {
-        const std::string& originalId = seams.getOriginalEdgeId(twinId);
+        auto& originalId = seams.getOriginalEdgeId(twinId);
         auto originalIterator = result->edgeIdToPointIndicesMap.find(originalId);
-        if (originalIterator == result->edgeIdToPointIndicesMap.end())
-            continue;
+        if (originalIterator == result->edgeIdToPointIndicesMap.end()) continue;
 
         auto reversed = originalIterator->second;
         std::reverse(reversed.begin(), reversed.end());
         result->edgeIdToPointIndicesMap[twinId] = std::move(reversed);
     }
 
-    // Step 3: Sample surface interior points
     size_t surfaceSamples = settings.getNumberOfSamplesPerSurfaceDirection();
 
-    for (const auto& surfaceId : topology.getAllSurfaceIds())
+    for (auto& surfaceId : topology.getAllSurfaceIds())
     {
-        const auto* surface = geometry.getSurface(surfaceId);
-
-        if (!surface)
-            continue;
+        auto surface = geometry.getSurface(surfaceId);
+        if (!surface) continue;
 
         auto bounds = surface->getParameterBounds();
         double uMin = bounds.getUMin();
@@ -253,12 +205,8 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
                 double v = vMin + (vMax - vMin) * static_cast<double>(j) / static_cast<double>(surfaceSamples);
                 Point3D point = surface->getPoint(u, v);
 
-                // A uniform grid over the surface's untrimmed parameter
-                // rectangle can land inside a hole or other cutout in the
-                // face -- skip any sample that isn't actually on the
-                // trimmed patch (see OPE-169).
-                if (!surface->isPointWithinTrimmedBoundary(point))
-                    continue;
+                // The untrimmed parameter grid can land inside a hole in the face (OPE-169).
+                if (!surface->isPointWithinTrimmedBoundary(point)) continue;
 
                 size_t pointIndex = result->points.size();
                 result->points.push_back(point);
@@ -273,5 +221,16 @@ BoundaryDiscretizer3D::discretize(const Geometry3D::GeometryCollection3D& geomet
 
     return result;
 }
+
+namespace
+{
+
+double angleBetweenTangents(const Vector3D& a, const Vector3D& b)
+{
+    double dot = std::clamp(a.dot(b), -1.0, 1.0);
+    return std::acos(dot);
+}
+
+} // namespace
 
 } // namespace Meshing

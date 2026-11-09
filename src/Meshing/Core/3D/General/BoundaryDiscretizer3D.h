@@ -4,6 +4,7 @@
 #include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include <memory>
+#include <optional>
 
 namespace Geometry3D
 {
@@ -62,19 +63,16 @@ public:
      * @param geometry  The geometry collection containing corners, edges, and surfaces
      * @param topology  The topology defining connectivity between geometric entities
      * @param settings  Discretization settings (segments per edge, surface samples)
-     * @param sizingField  When non-null, bounds edge segment length by h(x)
-     *        as well as by tangent angle (see the class comment). Null leaves
+     * @param sizingField  When set, bounds edge segment length by h(x)
+     *        as well as by tangent angle (see the class comment). Empty leaves
      *        segment length unbounded, which is the historical behaviour.
-     *        Only affects the angle-based mode; fixed-count mode is defined
-     *        as uniform subdivision and is left alone. Borrowed, not owned --
-     *        must outlive the call.
      * @return The freshly built result, owned by the caller.
      */
     static std::unique_ptr<DiscretizationResult3D>
     discretize(const Geometry3D::GeometryCollection3D& geometry,
                const Topology3D::Topology3D& topology,
                const Geometry3D::DiscretizationSettings3D& settings = {},
-               const SizingField3D* sizingField = nullptr);
+               const std::optional<SizingField3D>& sizingField = std::nullopt);
 };
 
 } // namespace Meshing

@@ -229,10 +229,7 @@ double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
         sizingField = SizingFieldBuilder3D::build(*geometry_, *topology_, sizingFieldSettings_.value());
 
     auto discretizationResult =
-        BoundaryDiscretizer3D::discretize(*geometry_,
-                                          *topology_,
-                                          discretizationSettings_,
-                                          sizingField ? &sizingField.value() : nullptr);
+        BoundaryDiscretizer3D::discretize(*geometry_, *topology_, discretizationSettings_, sizingField);
 
     spdlog::info("RCDTMesher::seedTriangulation: {} points after discretization",
                  discretizationResult->points.size());

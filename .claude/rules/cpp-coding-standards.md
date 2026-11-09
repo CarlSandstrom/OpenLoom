@@ -39,11 +39,17 @@ paths:
 - Pass non-primitives by `const&` (e.g., `const Point3D&`)
 - One declaration per line (no `int a, b, c;`)
 - Use `auto` when it improves clarity
+- **No `const` on local variables**: `auto count = ...`, not `const auto count = ...` or `const double x`. It adds noise without helping the reader. Parameters and member functions still follow const correctness.
+- **Plain `auto` for locals and loop variables**, including pointers: `auto corner = geometry.getCorner(id)`, not `const auto*` or `auto*`. Deduction already keeps pointers and constness.
+- **`auto&` only to avoid copying a non-trivial object** (strings, containers, topology entities): `for (auto& edgeId : ids)`, `auto& seams = topology.getSeamCollection()`. Plain `auto` copies; use it for pointers and small values.
+- **Optional arguments**: use `std::optional<T>` (passed as `const std::optional<T>&`, default `std::nullopt`), not a nullable `const T*`.
+- **Single-statement `if`**: `if (!corner) continue;` on one line. Use Allman braces once the body is more than one line (or the statement wraps).
 - **Length**: a function body should fit on one screen. Past ~60 lines it needs either a split or a comment stating why it must stay whole (a single algorithm whose steps cannot be named independently). For calibration, the median function in `src/` is 8 lines and 90% are under 50, so 60 is already generous.
 - **How to split**: extract the step into a file-local `static` free function in the `.cpp`, or into a dedicated class if it carries state. Do **not** add a private method to the primary class just to shorten another one — that grows the class's declared job (see Single Responsibility above).
 - **Parameters**: more than 5 suggests a missing parameter struct. If several are passed together through a chain of calls, they are one concept.
 - **Nesting**: more than 3 levels inside a loop body is a split signal. Prefer early `continue`/`return` over an `else` arm.
 - **One level of abstraction**: a function should not mix orchestration with arithmetic. If it both decides what to do and computes how, the computation is the part to extract.
+- **File-local helpers go at the end of the `.cpp`**, in an anonymous namespace after the class's functions. Forward-declare them in an anonymous namespace at the top when earlier code uses them.
 - **Applies going forward**: ~46 existing functions exceed the length rule. They are a backlog, not a blocker — do not rewrite them as a batch. Apply the rule to new code and to a function you are already modifying for another reason, and split it as its own step under the Refactoring rules in `CLAUDE.md`.
 
 ## Classes & Access Control
@@ -69,6 +75,8 @@ paths:
 ## Comments
 - Keep comments minimal - code should be self-documenting
 - Use comments only for non-obvious logic or algorithmic decisions
+- Prefer a clear name or a small well-named function over a comment that explains what the code does
+- Do not narrate steps (`// Step 1: ...`) or restate ticket history; keep a ticket reference only where it marks a non-obvious guard (e.g. `OPE-207`)
 
 ## Error Handling
 - Use custom exceptions from `Common/Exceptions/`:

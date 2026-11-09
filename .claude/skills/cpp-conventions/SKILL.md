@@ -28,7 +28,7 @@ description: OpenLoom C++ house style - naming (camelCase_ members, I-prefixed i
 
 ## Functions
 - Pass non-primitives by `const&`
-- Use `const` correctness throughout
+- Use `const` correctness for parameters and methods, but not on local variables
 - Use `auto` when it improves clarity
 - Only `static_cast` and `dynamic_cast` (no C-style casts)
 - Body fits on one screen; past ~60 lines, split it or state why it must stay whole

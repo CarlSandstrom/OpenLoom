@@ -11,3 +11,5 @@ build_dbg/
 
 # Golden meshes for scripts/refactor-check.sh are tracked despite the *.vtu rule above
 !tests/golden/**/*.vtu
+python/RCDT2D/.venv/
+__pycache__/
