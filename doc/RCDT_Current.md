@@ -33,9 +33,23 @@ A weighted point `(p, w)` placed on every corner and curve sample, `w` the squar
 These are the preconditions the restricted-Delaunay guarantees near features actually depend on.
 
 ### Restricted face
-A triangular face of the weighted tetrahedralization is **restricted to surface S** if its **dual edge in the power diagram** — the segment between the **orthocentres** (weighted circumcentres) of its two tetrahedra — crosses S. The face belongs to whichever surface its dual edge crosses.
+A triangular face of the weighted tetrahedralization is **restricted to surface S** when its **dual edge in the power diagram** — the segment between the **orthocentres** (weighted circumcentres) of its two tetrahedra — crosses S. The restricted faces of a surface are its triangulation: nothing is explicitly recovered or stitched.
 
-There is no vertex-surface-membership gate and no inside/outside test here: restriction is the dual-edge crossing test, nothing else. A convex-hull face (one adjacent tetrahedron — see the bounding supertet, below) has a half-infinite dual ray instead of a segment, handled the same way by extension.
+`WeightedDualRestriction::restrict` decides it, in this order. Every step can answer "not restricted", and nothing downstream revisits that answer:
+
+1. **Bounding-tetrahedron veto.** A face with any of the supertet's four nodes among its vertices is never restricted.
+2. **Two adjacent tetrahedra.** Both neighbours must exist and be tetrahedra. A face with only one — a convex-hull face — is **not** restricted; there is no ray extension. The supertet is kept through all of refinement precisely so this case does not arise while it would matter (R1.3).
+3. **Three orthocentres**: `dualStart` and `dualEnd` from the two tetrahedra, and `faceCenter` from the face itself, by the same weighted construction within its own plane. A tetrahedron flat to rounding still has one — `ElementGeometry3D` takes the minimum-norm solution, the power-equidistant point in its plane — but a collinear triple has none, and the face is not restricted.
+4. **One candidate crossing per surface.** Every surface's `SurfaceTessellation` is asked for the crossing of the segment `[dualStart, dualEnd]` nearest `faceCenter`. The question is put to the tessellation, not to the analytic surface: exact as a predicate at any degeneracy, but resolving only what a grid of half the minimum edge length resolves.
+5. **Nearest crossing inside its own trimmed patch wins.** Candidates are sorted by distance from `faceCenter`; each is refined onto the exact CAD surface by bisection **along the dual segment**, then tested against that surface's trim. The first one landing inside its patch is the answer, and the face belongs to that surface. A nearer crossing lying outside its patch is passed over for a farther one; if every candidate falls outside, the face is not restricted.
+
+The accepted crossing is the centre of the face's **surface Delaunay ball**, which is also the refinement point if the facet turns out to be bad.
+
+**What the test does not look at.** There is no gate on which surfaces the vertices lie on, no inside/outside test, and no bound on the face's size or shape. So a face can be restricted to a surface none of its vertices lies on, and a face lying flush on a surface can come back unrestricted. Where the answer is locally wrong, the refiner is expected to refine it away, as CGAL does.
+
+**The verdict belongs to the face *and its two neighbours*.** Replacing either adjacent tetrahedron moves the dual edge and can flip the answer although the triangle itself never changed. That is why Phase 2 re-tests surviving cavity-boundary faces and not only the faces an insertion created or destroyed.
+
+**Near a weighted vertex it is a knife-edge test.** A protecting ball pushes the orthocentre of every tetrahedron touching it *away* from that vertex, and the dual edge moves with it. Measured on `PartDesignExample-Body.step` (OPENL-14): a facet lying flush on an R35 cylinder had its dual edge leave the cylinder by 0.108 of a unit, putting the crossing at t = −0.0013 — just past the end of the segment — so the facet was, correctly by this rule, not restricted; meanwhile three facets of the same tetrahedron, reaching 10 units inward to a protected curve point, were. The mesh keeps those three instead, as a visible dent. No step of the test misbehaved: the ball had been sized from a curve spacing of about 10 where the local element size was about 4.
 
 ### Curve segment
 A `CurveSegment [a, b]` is a straight mesh edge whose endpoints are consecutive protected points along a topology edge, recorded once by `CurveSegmentBuilder` right after seeding. Unlike the historical path, **a curve segment is never split**: protection is fixed after seeding, and any point that would fall inside a ball is refused rather than redirected into the curve.
@@ -70,7 +84,12 @@ Unlike the historical path, **no restricted faces are classified in Phase 1.** C
 
 ## Phase 2 — Refine (`SurfaceDelaunayRefiner::refine`, driven by `TetrahedronDelaunayRefiner` for a volume)
 
-Classify every face once (the weighted dual-edge test), then refine until no classification is wrong and no facet or tetrahedron fails CGAL's criteria.
+Classify every face once, then refine until no classification is wrong and no facet or tetrahedron fails CGAL's criteria.
+
+**R2.0 — Classify** (`SurfaceDelaunayRefiner::classifyAllFaces`)
+- Walk every tetrahedron in the seed triangulation and put each *distinct* face once through the weighted dual-edge test ("Restricted face", above).
+- Thereafter classification is incremental, never repeated wholesale: each insertion re-tests the faces whose dual edge it could have moved (see the table at the end).
+- A restricted face is recorded with the surface it was restricted to and its surface Delaunay ball centre, then measured against the facet criteria; an unrestricted face is simply absent, and is not measured against anything.
 
 ---
 
@@ -82,6 +101,8 @@ Classify every face once (the weighted dual-edge test), then refine until no cla
 0. **shape** — sin² of its smallest angle below sin²(minimum angle);
 1. **distance** — its orthocentre further than the chord-deviation tolerance from its surface Delaunay ball centre;
 2. **same patch** — its two surface-interior vertices lie on different CAD surfaces. This is a facet straddling a crease — the historical path refused to restrict these; this path refines them instead.
+
+Restriction gates all three: `reclassify` returns the moment the dual-edge test says no, so a face that is not restricted is never measured against any criterion, and no criterion — present or added later — can bring it back. Conversely the exemption in step 4 below waives 0 and 1 independently of each other, and never waives 2.
 
 **Steps:**
 1. Bad facets are ranked worst first, by the first failing criterion, then by how badly.
@@ -127,7 +148,7 @@ No bad facet and no bad tetrahedron remain, or the iteration cap is hit.
 | Structure | What changes |
 |-----------|-------------|
 | `MeshData3D` | New node added; new tets added; old tets removed — same as the historical path |
-| `SurfaceDelaunayRefiner`'s bad-facet queue | Faces the insertion created or destroyed are reclassified by the weighted dual-edge test; nothing else is re-touched |
+| `SurfaceDelaunayRefiner`'s facet set and bad-facet queue | Re-tested by the weighted dual-edge test, for exactly the faces whose dual edge the insertion could have moved: every face of every tetrahedron in the conflict region, plus every face of every tetrahedron incident to the new node. Faces the insertion destroyed are forgotten; faces that survived with a replaced neighbour are re-tested even though the triangle is unchanged. Nothing else is re-touched |
 | `CurveSegmentManager` | **Never changes after Phase 1.** This is the sharpest structural difference from the historical path, where it was rewritten on every curve split |
 
 ---
