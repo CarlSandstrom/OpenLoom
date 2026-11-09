@@ -23,9 +23,14 @@ VolumeMesher3D::~VolumeMesher3D() = default;
 VolumeMesher3D::VolumeMesher3D(VolumeMesher3D&&) noexcept = default;
 VolumeMesher3D& VolumeMesher3D::operator=(VolumeMesher3D&&) noexcept = default;
 
-VolumeMesh3D VolumeMesher3D::mesh()
+void VolumeMesher3D::mesh()
 {
-    return implementation_->meshVolume();
+    implementation_->meshVolume();
+}
+
+const VolumeMesh3D* VolumeMesher3D::getMesh() const
+{
+    return implementation_->getVolumeMesh();
 }
 
 } // namespace Meshing

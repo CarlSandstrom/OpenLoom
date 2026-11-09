@@ -75,7 +75,8 @@ protected:
                           discretizationSettings,
                           qualitySettings);
 
-        mesh_ = mesher.meshSurface();
+        mesher.meshSurface();
+        mesh_ = *mesher.getSurfaceMesh();
     }
 
     static void TearDownTestSuite()
@@ -270,7 +271,8 @@ protected:
                           discretizationSettings,
                           qualitySettings);
 
-        mesh_ = mesher.meshSurface();
+        mesher.meshSurface();
+        mesh_ = *mesher.getSurfaceMesh();
     }
 
     static void TearDownTestSuite()
@@ -426,7 +428,8 @@ protected:
                           converter_->getTopology(),
                           discretizationSettings);
 
-        mesh_ = mesher.meshSurface();
+        mesher.meshSurface();
+        mesh_ = *mesher.getSurfaceMesh();
     }
 
     static void TearDownTestSuite()

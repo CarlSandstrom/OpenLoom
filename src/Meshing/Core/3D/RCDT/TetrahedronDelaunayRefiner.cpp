@@ -52,21 +52,22 @@ std::optional<double> squaredRadiusEdgeRatio(const TetrahedralElement& tetrahedr
 } // namespace
 
 TetrahedronDelaunayRefiner::TetrahedronDelaunayRefiner(MeshingContext3D& context,
-                                                       SurfaceDelaunayRefiner& surfaceRefiner,
-                                                       const SurfaceMesh3DQualitySettings& settings) :
+                                                       const Topology3D::Topology3D& topology,
+                                                       const SurfaceMesh3DQualitySettings& settings,
+                                                       double minimumEdgeLength) :
     context_(&context),
-    surfaceRefiner_(&surfaceRefiner),
+    surfaceRefiner_(context, topology, settings, minimumEdgeLength),
     ratioBound_(settings.tetCircumradiusToShortestEdgeRatio)
 {
 }
 
 void TetrahedronDelaunayRefiner::refine()
 {
-    surfaceRefiner_->refine();
-    while (!surfaceRefiner_->hasReachedInsertionCap() && refineRound())
+    surfaceRefiner_.refine();
+    while (!surfaceRefiner_.hasReachedInsertionCap() && refineRound())
     {
     }
-    if (surfaceRefiner_->hasReachedInsertionCap())
+    if (surfaceRefiner_.hasReachedInsertionCap())
         spdlog::warn("TetrahedronDelaunayRefiner: reached the insertion cap");
     spdlog::info("TetrahedronDelaunayRefiner: {} interior insertions, {} encroached facets refined instead, "
                  "{} tetrahedra left unrefined",
@@ -79,7 +80,7 @@ void TetrahedronDelaunayRefiner::refine()
 bool TetrahedronDelaunayRefiner::refineRound()
 {
     const auto& meshData = context_->getMeshData();
-    const auto ambient = AmbientTetrahedronClassifier::classify(meshData, surfaceRefiner_->getRestrictedFaces());
+    const auto ambient = AmbientTetrahedronClassifier::classify(meshData, surfaceRefiner_.getRestrictedFaces());
 
     const double squaredBound = ratioBound_ * ratioBound_;
     std::vector<std::pair<double, std::size_t>> bad;
@@ -96,7 +97,7 @@ bool TetrahedronDelaunayRefiner::refineRound()
     bool inserted = false;
     for (const auto& [ratio, elementId] : bad)
     {
-        if (surfaceRefiner_->hasReachedInsertionCap())
+        if (surfaceRefiner_.hasReachedInsertionCap())
             break;
         const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
         if (tetrahedron && refineTetrahedron(elementId, *tetrahedron))
@@ -116,23 +117,23 @@ bool TetrahedronDelaunayRefiner::refineTetrahedron(std::size_t elementId, const 
     }
 
     auto conflicting =
-        RegularConflictRegion::find({elementId, INVALID_ID}, *orthocenter, meshData, surfaceRefiner_->getConnectivity());
+        RegularConflictRegion::find({elementId, INVALID_ID}, *orthocenter, meshData, surfaceRefiner_.getConnectivity());
     if (conflicting.empty())
     {
         unrefinable_.insert(elementId);
         return false;
     }
 
-    if (const auto encroached = surfaceRefiner_->findEncroachedFacet(*orthocenter, conflicting))
+    if (const auto encroached = surfaceRefiner_.findEncroachedFacet(*orthocenter, conflicting))
     {
-        const bool refined = surfaceRefiner_->refineFacet(*encroached);
+        const bool refined = surfaceRefiner_.refineFacet(*encroached);
         if (!refined)
         {
             unrefinable_.insert(elementId);
             return false;
         }
         ++encroachmentCount_;
-        surfaceRefiner_->refineQueued();
+        surfaceRefiner_.refineQueued();
         return true;
     }
 
@@ -142,9 +143,9 @@ bool TetrahedronDelaunayRefiner::refineTetrahedron(std::size_t elementId, const 
         return false;
     }
 
-    surfaceRefiner_->insert(*orthocenter, std::move(conflicting), {});
+    surfaceRefiner_.insert(*orthocenter, std::move(conflicting), {});
     ++insertionCount_;
-    surfaceRefiner_->refineQueued();
+    surfaceRefiner_.refineQueued();
     return true;
 }
 

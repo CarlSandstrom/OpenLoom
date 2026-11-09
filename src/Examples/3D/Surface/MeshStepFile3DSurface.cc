@@ -43,7 +43,8 @@ int main(int argc, char* argv[])
                                     converter.getTopology(),
                                     discretizationSettings,
                                     Meshing::SurfaceMesh3DQualitySettings{});
-    auto surfaceMesh = mesher.mesh();
+    mesher.mesh();
+    auto& surfaceMesh = *mesher.getMesh();
 
     std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";

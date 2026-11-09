@@ -33,7 +33,8 @@ int main()
                                    discretizationSettings,
                                    Meshing::SurfaceMesh3DQualitySettings{});
 
-    auto volumeMesh = mesher.mesh();
+    mesher.mesh();
+    auto& volumeMesh = *mesher.getMesh();
 
     std::cout << "VolumeMesh3D: " << volumeMesh.nodes.size() << " nodes, "
               << volumeMesh.tetrahedra.size() << " tetrahedra, "

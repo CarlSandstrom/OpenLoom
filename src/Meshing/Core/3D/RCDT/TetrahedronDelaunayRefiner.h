@@ -1,14 +1,20 @@
 #pragma once
 
+#include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
+#include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 
 #include <cstddef>
 #include <unordered_set>
 
+namespace Topology3D
+{
+class Topology3D;
+} // namespace Topology3D
+
 namespace Meshing
 {
 class MeshingContext3D;
-class SurfaceDelaunayRefiner;
 class TetrahedralElement;
 } // namespace Meshing
 
@@ -40,15 +46,19 @@ class TetrahedronDelaunayRefiner
 {
 public:
     TetrahedronDelaunayRefiner(MeshingContext3D& context,
-                               SurfaceDelaunayRefiner& surfaceRefiner,
-                               const SurfaceMesh3DQualitySettings& settings);
+                               const Topology3D::Topology3D& topology,
+                               const SurfaceMesh3DQualitySettings& settings,
+                               double minimumEdgeLength);
 
     /// Refines the surface, then the volume.
     void refine();
 
+    /// The restricted facets of the level below; valid once refine() has run.
+    RestrictedFaceMap getRestrictedFaces() const { return surfaceRefiner_.getRestrictedFaces(); }
+
 private:
     MeshingContext3D* context_;
-    SurfaceDelaunayRefiner* surfaceRefiner_;
+    SurfaceDelaunayRefiner surfaceRefiner_;
     double ratioBound_;
     std::unordered_set<std::size_t> unrefinable_;
     std::size_t insertionCount_ = 0;

@@ -47,6 +47,11 @@ void smoothSurfaceMesh(MeshingContext3D& context,
                        SurfaceMesh3D& surfaceMesh,
                        size_t iterations,
                        bool meshingVolume);
+RestrictedFaceMap refineBoundary(MeshingContext3D& context,
+                                 const Topology3D::Topology3D& topology,
+                                 const SurfaceMesh3DQualitySettings& qualitySettings,
+                                 double minimumEdgeLength,
+                                 bool meshingVolume);
 void requireClosedBoundary(size_t missingFaceEdges);
 size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
                              const Topology3D::Topology3D& topology,
@@ -75,18 +80,14 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
     }
 }
 
-SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
-                                      RestrictedFaceMap& restrictedFaces,
-                                      bool meshingVolume) const
+void RCDTMesher::runPipeline(MeshingContext3D& context, RestrictedFaceMap& restrictedFaces, bool meshingVolume)
 {
+    surfaceMesh_.reset();
+    volumeMesh_.reset();
+
     double minimumEdgeLength = seedTriangulation(context);
 
-    SurfaceDelaunayRefiner surfaceRefiner(context, *topology_, qualitySettings_, minimumEdgeLength);
-    if (meshingVolume)
-        TetrahedronDelaunayRefiner(context, surfaceRefiner, qualitySettings_).refine();
-    else
-        surfaceRefiner.refine();
-    restrictedFaces = surfaceRefiner.getRestrictedFaces();
+    restrictedFaces = refineBoundary(context, *topology_, qualitySettings_, minimumEdgeLength, meshingVolume);
 
     if (meshingVolume)
         requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
@@ -94,31 +95,39 @@ SurfaceMesh3D RCDTMesher::runPipeline(MeshingContext3D& context,
     // getOperations()'s mutator, not getMutator(): the latter validates removal
     // against a MeshConnectivity snapshot that refinement never refreshes.
     AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
-    SurfaceMesh3D surfaceMesh = RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_);
-    smoothSurfaceMesh(context, *geometry_, surfaceMesh, qualitySettings_.smoothingIterations, meshingVolume);
-    return surfaceMesh;
+    surfaceMesh_ = std::make_unique<SurfaceMesh3D>(RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
+    smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
 }
 
-SurfaceMesh3D RCDTMesher::meshSurface()
+void RCDTMesher::meshSurface()
 {
     MeshingContext3D context(*geometry_, *topology_);
     RestrictedFaceMap restrictedFaces;
-    SurfaceMesh3D surfaceMesh = runPipeline(context, restrictedFaces, false);
+    runPipeline(context, restrictedFaces, false);
 
-    exportSurfaceMesh3D(surfaceMesh, "rcdt_surface_mesh.vtu");
-
-    return surfaceMesh;
+    exportSurfaceMesh3D(*surfaceMesh_, "rcdt_surface_mesh.vtu");
 }
 
-VolumeMesh3D RCDTMesher::meshVolume()
+void RCDTMesher::meshVolume()
 {
     MeshingContext3D context(*geometry_, *topology_);
     RestrictedFaceMap restrictedFaces;
-
-    // The returned surface mesh is not needed: smoothing already synced its
-    // positions back into the live mesh that extractVolumeMesh() reads.
     runPipeline(context, restrictedFaces, true);
-    return RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_);
+
+    // Smoothing has already synced its positions back into the live mesh that
+    // extractVolumeMesh() reads.
+    volumeMesh_ = std::make_unique<VolumeMesh3D>(
+        RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_));
+}
+
+const SurfaceMesh3D* RCDTMesher::getSurfaceMesh() const
+{
+    return surfaceMesh_.get();
+}
+
+const VolumeMesh3D* RCDTMesher::getVolumeMesh() const
+{
+    return volumeMesh_.get();
 }
 
 double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
@@ -169,9 +178,9 @@ void seedAmbientTriangulation(MeshingContext3D& context,
 
     auto& meshData = context.getMeshData();
     auto delaunayResult = Delaunay3D::triangulate(context.getOperations(),
-                                                        discretizationResult.points,
-                                                        discretizationResult.geometryIds,
-                                                        pointWeights);
+                                                  discretizationResult.points,
+                                                  discretizationResult.geometryIds,
+                                                  pointWeights);
 
     spdlog::info("RCDTMesher::seedTriangulation: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
@@ -210,6 +219,24 @@ void smoothSurfaceMesh(MeshingContext3D& context,
         tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
     SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra);
     synchronizeNodePositions(context, surfaceMesh);
+}
+
+RestrictedFaceMap refineBoundary(MeshingContext3D& context,
+                                 const Topology3D::Topology3D& topology,
+                                 const SurfaceMesh3DQualitySettings& qualitySettings,
+                                 double minimumEdgeLength,
+                                 bool meshingVolume)
+{
+    if (meshingVolume)
+    {
+        TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
+        refiner.refine();
+        return refiner.getRestrictedFaces();
+    }
+
+    SurfaceDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
+    refiner.refine();
+    return refiner.getRestrictedFaces();
 }
 
 // A hole in the restricted boundary lets AmbientTetrahedronRemover's flood fill

@@ -15,7 +15,10 @@ class ISurfaceMesher3D
 public:
     virtual ~ISurfaceMesher3D() = default;
 
-    virtual SurfaceMesh3D meshSurface() = 0;
+    virtual void meshSurface() = 0;
+
+    /// The mesh built by meshSurface(); nullptr until it has run.
+    virtual const SurfaceMesh3D* getSurfaceMesh() const = 0;
 };
 
 } // namespace Meshing

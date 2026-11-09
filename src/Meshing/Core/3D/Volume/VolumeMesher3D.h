@@ -35,7 +35,8 @@ class IVolumeMesher3D;
  * Usage:
  * @code
  *   VolumeMesher3D mesher(geometry, topology, discretizationSettings, qualitySettings);
- *   VolumeMesh3D result = mesher.mesh();
+ *   mesher.mesh();
+ *   const VolumeMesh3D& result = *mesher.getMesh();
  * @endcode
  */
 class VolumeMesher3D
@@ -61,7 +62,10 @@ public:
     VolumeMesher3D& operator=(VolumeMesher3D&&) noexcept;
 
     /// Runs the volume meshing pipeline. May only be called once per instance.
-    VolumeMesh3D mesh();
+    void mesh();
+
+    /// The mesh built by mesh(); nullptr until it has run.
+    const VolumeMesh3D* getMesh() const;
 
 private:
     std::unique_ptr<IVolumeMesher3D> implementation_;

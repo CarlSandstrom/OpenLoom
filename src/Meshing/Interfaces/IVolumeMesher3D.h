@@ -15,7 +15,10 @@ class IVolumeMesher3D
 public:
     virtual ~IVolumeMesher3D() = default;
 
-    virtual VolumeMesh3D meshVolume() = 0;
+    virtual void meshVolume() = 0;
+
+    /// The mesh built by meshVolume(); nullptr until it has run.
+    virtual const VolumeMesh3D* getVolumeMesh() const = 0;
 };
 
 } // namespace Meshing

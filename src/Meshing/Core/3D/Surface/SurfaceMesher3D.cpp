@@ -23,9 +23,14 @@ SurfaceMesher3D::~SurfaceMesher3D() = default;
 SurfaceMesher3D::SurfaceMesher3D(SurfaceMesher3D&&) noexcept = default;
 SurfaceMesher3D& SurfaceMesher3D::operator=(SurfaceMesher3D&&) noexcept = default;
 
-SurfaceMesh3D SurfaceMesher3D::mesh()
+void SurfaceMesher3D::mesh()
 {
-    return implementation_->meshSurface();
+    implementation_->meshSurface();
+}
+
+const SurfaceMesh3D* SurfaceMesher3D::getMesh() const
+{
+    return implementation_->getSurfaceMesh();
 }
 
 } // namespace Meshing

@@ -9,6 +9,7 @@
 #include "Meshing/Interfaces/ISurfaceMesher3D.h"
 #include "Meshing/Interfaces/IVolumeMesher3D.h"
 
+#include <memory>
 #include <optional>
 
 namespace Geometry3D
@@ -54,8 +55,11 @@ public:
     RCDTMesher(const RCDTMesher&) = delete;
     RCDTMesher& operator=(const RCDTMesher&) = delete;
 
-    SurfaceMesh3D meshSurface() override;
-    VolumeMesh3D meshVolume() override;
+    void meshSurface() override;
+    void meshVolume() override;
+
+    const SurfaceMesh3D* getSurfaceMesh() const override;
+    const VolumeMesh3D* getVolumeMesh() const override;
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
@@ -63,6 +67,8 @@ private:
     Geometry3D::DiscretizationSettings3D discretizationSettings_;
     SurfaceMesh3DQualitySettings qualitySettings_;
     std::optional<SizingFieldSettings3D> sizingFieldSettings_;
+    std::unique_ptr<SurfaceMesh3D> surfaceMesh_;
+    std::unique_ptr<VolumeMesh3D> volumeMesh_;
 
     /// Discretizes the boundary, resolves the size floor (qualitySettings_'s
     /// if set, otherwise MinimumEdgeLengthEstimator's), places the protecting
@@ -70,14 +76,13 @@ private:
     /// segments. Returns the size floor.
     double seedTriangulation(MeshingContext3D& context) const;
 
-    /// Seed, then SurfaceDelaunayRefiner -- driven by TetrahedronDelaunayRefiner
+    /// Seed, then SurfaceDelaunayRefiner -- owned and driven by TetrahedronDelaunayRefiner
     /// when meshingVolume -- then remove the ambient tetrahedra, extract and
-    /// smooth the surface mesh. meshingVolume also keeps smoothing from
-    /// inverting tetrahedra and makes a restricted boundary with holes an
-    /// error. restrictedFaces receives the restricted facets for volume
-    /// extraction; meshVolume() only needs the returned surface mesh for the
-    /// smoother, which has synced its positions back into the live mesh.
-    SurfaceMesh3D runPipeline(MeshingContext3D& context, RestrictedFaceMap& restrictedFaces, bool meshingVolume) const;
+    /// smooth the surface mesh into surfaceMesh_. meshingVolume also keeps
+    /// smoothing from inverting tetrahedra and makes a restricted boundary with
+    /// holes an error. restrictedFaces receives the restricted facets for volume
+    /// extraction.
+    void runPipeline(MeshingContext3D& context, RestrictedFaceMap& restrictedFaces, bool meshingVolume);
 };
 
 } // namespace Meshing

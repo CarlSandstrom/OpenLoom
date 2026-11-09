@@ -89,7 +89,8 @@ protected:
                               SurfaceMesh3DQualitySettings{},
                               SizingFieldSettings3D{});
 
-        mesh_ = mesher.mesh();
+        mesher.mesh();
+        mesh_ = *mesher.getMesh();
     }
 
     static void TearDownTestSuite()

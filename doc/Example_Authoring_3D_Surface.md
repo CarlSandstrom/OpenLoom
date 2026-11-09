@@ -82,7 +82,8 @@ int main()
         converter.getTopology(),
         settings,
         Meshing::SurfaceMesh3DQualitySettings{});
-    auto surfaceMesh = mesher.mesh();
+    mesher.mesh();
+    auto& surfaceMesh = *mesher.getMesh();
 
     // 6. Export
     exporter.writeSurfaceMesh(surfaceMesh, "MyExample.vtu");

@@ -34,7 +34,8 @@ class ISurfaceMesher3D;
  * Usage:
  * @code
  *   SurfaceMesher3D mesher(geometry, topology, discretizationSettings, qualitySettings);
- *   SurfaceMesh3D result = mesher.mesh();
+ *   mesher.mesh();
+ *   const SurfaceMesh3D& result = *mesher.getMesh();
  * @endcode
  */
 class SurfaceMesher3D
@@ -60,7 +61,10 @@ public:
     SurfaceMesher3D& operator=(SurfaceMesher3D&&) noexcept;
 
     /// Runs the surface meshing pipeline. May only be called once per instance.
-    SurfaceMesh3D mesh();
+    void mesh();
+
+    /// The mesh built by mesh(); nullptr until it has run.
+    const SurfaceMesh3D* getMesh() const;
 
 private:
     std::unique_ptr<ISurfaceMesher3D> implementation_;

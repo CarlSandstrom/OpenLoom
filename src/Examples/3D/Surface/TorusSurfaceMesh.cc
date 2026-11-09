@@ -59,7 +59,8 @@ int main()
     std::cout << "Exported edge mesh to TorusSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(), converter.getTopology(), settings, quality);
-    auto surfaceMesh = mesher.mesh();
+    mesher.mesh();
+    auto& surfaceMesh = *mesher.getMesh();
     std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";
 

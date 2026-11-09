@@ -136,7 +136,8 @@ int main()
                                     discretizationSettings,
                                     Meshing::SurfaceMesh3DQualitySettings{});
 
-    auto surfaceMesh = mesher.mesh();
+    mesher.mesh();
+    auto& surfaceMesh = *mesher.getMesh();
 
     std::cout << "HexNutChamfered: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";
