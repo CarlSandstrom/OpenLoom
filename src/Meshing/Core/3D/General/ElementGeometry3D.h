@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
 #include <optional>
 
 namespace Meshing
 {
 
+class MeshData3D;
+class TetrahedralElement;
 class TriangleElement;
 
 /// Helper that provides geometric computations for 3D mesh elements requiring node coordinates.
