@@ -43,6 +43,7 @@ set(TEST_SOURCES
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
+    Meshing/Core/test_MeshSnapshotWriter.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
