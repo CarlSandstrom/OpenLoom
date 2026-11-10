@@ -20,15 +20,14 @@ Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
 
     spdlog::info("Delaunay3D::triangulate: Starting with {} points", points.size());
 
-    // Create bounding tetrahedron. Left in the mesh -- see class documentation.
+    // Left in the mesh -- see class documentation.
     operations.createBoundingTetrahedron(points);
 
-    // Insert each point using Bowyer-Watson
     for (size_t i = 0; i < points.size(); ++i)
     {
         bool hasGeometryIds = i < geometryIds.size() && !geometryIds[i].empty();
-        const auto weightIt = pointWeights.find(i);
-        const double weight = weightIt != pointWeights.end() ? weightIt->second : 0.0;
+        auto weightEntry = pointWeights.find(i);
+        auto weight = weightEntry != pointWeights.end() ? weightEntry->second : 0.0;
 
         size_t nodeId;
         if (hasGeometryIds)

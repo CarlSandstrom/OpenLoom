@@ -53,20 +53,20 @@ std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TetrahedralEl
 std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TriangleElement& element) const
 {
     auto& nodeIds = element.getNodeIds();
-    auto firstNode = mesh_.getNode(nodeIds[0]);
-    auto secondNode = mesh_.getNode(nodeIds[1]);
-    auto thirdNode = mesh_.getNode(nodeIds[2]);
+    auto node0 = mesh_.getNode(nodeIds[0]);
+    auto node1 = mesh_.getNode(nodeIds[1]);
+    auto node2 = mesh_.getNode(nodeIds[2]);
 
     // c = origin + a*u + b*v, with equal power distance to all three vertices:
     // 2 (c - origin) . u = |u|^2 + w0 - w1 (w = node weight), and likewise for v.
-    auto& origin = firstNode->getCoordinates();
-    Point3D u = secondNode->getCoordinates() - origin;
-    Point3D v = thirdNode->getCoordinates() - origin;
+    auto& origin = node0->getCoordinates();
+    Point3D u = node1->getCoordinates() - origin;
+    Point3D v = node2->getCoordinates() - origin;
 
     Eigen::Matrix2d coefficientMatrix;
     coefficientMatrix << u.dot(u), u.dot(v), u.dot(v), v.dot(v);
-    Eigen::Vector2d rightHandSide(0.5 * (u.dot(u) + firstNode->getWeight() - secondNode->getWeight()),
-                                  0.5 * (v.dot(v) + firstNode->getWeight() - thirdNode->getWeight()));
+    Eigen::Vector2d rightHandSide(0.5 * (u.dot(u) + node0->getWeight() - node1->getWeight()),
+                                  0.5 * (v.dot(v) + node0->getWeight() - node2->getWeight()));
 
     Eigen::FullPivLU<Eigen::Matrix2d> decomposition(coefficientMatrix);
     if (!decomposition.isInvertible())

@@ -56,7 +56,7 @@ public:
      * @param geometryIds Geometry IDs for each point (corner/edge/surface IDs)
      * @param pointWeights Regular-triangulation weight by point index (0 --
      * an ordinary, unweighted point -- if index-absent; see
-     * Node3D::getWeight() and RegularPredicates3D, OPE-176)
+     * Node3D::getWeight() and RegularPredicates3D)
      */
     static Delaunay3DResult triangulate(MeshOperations3D& operations,
                                         const std::vector<Point3D>& points,

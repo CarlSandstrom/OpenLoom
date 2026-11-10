@@ -33,6 +33,7 @@ paths:
 - **Getters**: `get...()` (e.g., `getNodes()`)
 - **Setters**: `set...()` (e.g., `setTolerance()`)
 - **No abbreviations**: always use full words in all identifiers, file names, and comments — e.g., `discretization` not `disc`, `triangulation` not `tri`, `parameterization` not `param`, `configuration` not `config`
+  - A numbered series of like things uses the full type name and an index (`node0`, `node1`, `node2`), not ordinals (`firstNode`, `secondNode`), which read worse in a formula
 
 ## Functions & Methods
 - Prefer `const` correctness (const methods, const references)
