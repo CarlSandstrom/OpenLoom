@@ -49,11 +49,14 @@ void smoothSurfaceMesh(MeshingContext3D& context,
                        SurfaceMesh3D& surfaceMesh,
                        size_t iterations,
                        bool meshingVolume);
-RestrictedFaceMap refineRestrictedFaces(MeshingContext3D& context,
-                                        const Topology3D::Topology3D& topology,
-                                        const SurfaceMesh3DQualitySettings& qualitySettings,
-                                        double minimumEdgeLength,
-                                        bool meshingVolume);
+RestrictedFaceMap refineSurface(MeshingContext3D& context,
+                                const Topology3D::Topology3D& topology,
+                                const SurfaceMesh3DQualitySettings& qualitySettings,
+                                double minimumEdgeLength);
+RestrictedFaceMap refineVolume(MeshingContext3D& context,
+                               const Topology3D::Topology3D& topology,
+                               const SurfaceMesh3DQualitySettings& qualitySettings,
+                               double minimumEdgeLength);
 void requireClosedBoundary(size_t missingFaceEdges);
 size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
                              const Topology3D::Topology3D& topology,
@@ -82,41 +85,29 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
     }
 }
 
-RestrictedFaceMap RCDTMesher::runPipeline(MeshingContext3D& context, bool meshingVolume)
+void RCDTMesher::meshSurface()
 {
     surfaceMesh_.reset();
     volumeMesh_.reset();
 
-    double minimumEdgeLength = buildInitialTriangulation(context);
-
-    auto restrictedFaces = refineRestrictedFaces(context, *topology_, qualitySettings_, minimumEdgeLength, meshingVolume);
-
-    if (meshingVolume)
-    {
-        requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
-    }
-
-    // getOperations()'s mutator, not getMutator(): the latter validates removal
-    // against a MeshConnectivity snapshot that refinement never refreshes.
-    AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
-    surfaceMesh_ = std::make_unique<SurfaceMesh3D>(RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
-    smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
-
-    return restrictedFaces;
-}
-
-void RCDTMesher::meshSurface()
-{
     MeshingContext3D context(*geometry_, *topology_);
-    runPipeline(context, false);
+    double minimumEdgeLength = buildInitialTriangulation(context);
+    auto restrictedFaces = refineSurface(context, *topology_, qualitySettings_, minimumEdgeLength);
+    buildSurfaceMesh(context, restrictedFaces, false);
 
     exportSurfaceMesh3D(*surfaceMesh_, "rcdt_surface_mesh.vtu");
 }
 
 void RCDTMesher::meshVolume()
 {
+    surfaceMesh_.reset();
+    volumeMesh_.reset();
+
     MeshingContext3D context(*geometry_, *topology_);
-    auto restrictedFaces = runPipeline(context, true);
+    double minimumEdgeLength = buildInitialTriangulation(context);
+    auto restrictedFaces = refineVolume(context, *topology_, qualitySettings_, minimumEdgeLength);
+    requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
+    buildSurfaceMesh(context, restrictedFaces, true);
 
     // Smoothing has already synced its positions back into the live mesh that
     // extractVolumeMesh() reads.
@@ -132,6 +123,18 @@ const SurfaceMesh3D* RCDTMesher::getSurfaceMesh() const
 const VolumeMesh3D* RCDTMesher::getVolumeMesh() const
 {
     return volumeMesh_.get();
+}
+
+void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
+                                  const RestrictedFaceMap& restrictedFaces,
+                                  bool meshingVolume)
+{
+    // getOperations()'s mutator, not getMutator(): the latter validates removal
+    // against a MeshConnectivity snapshot that refinement never refreshes.
+    AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
+    surfaceMesh_ = std::make_unique<SurfaceMesh3D>(
+        RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
+    smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
 }
 
 double RCDTMesher::buildInitialTriangulation(MeshingContext3D& context) const
@@ -224,20 +227,22 @@ void smoothSurfaceMesh(MeshingContext3D& context,
     synchronizeNodePositions(context, surfaceMesh);
 }
 
-RestrictedFaceMap refineRestrictedFaces(MeshingContext3D& context,
-                                        const Topology3D::Topology3D& topology,
-                                        const SurfaceMesh3DQualitySettings& qualitySettings,
-                                        double minimumEdgeLength,
-                                        bool meshingVolume)
+RestrictedFaceMap refineSurface(MeshingContext3D& context,
+                                const Topology3D::Topology3D& topology,
+                                const SurfaceMesh3DQualitySettings& qualitySettings,
+                                double minimumEdgeLength)
 {
-    if (meshingVolume)
-    {
-        TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
-        refiner.refine();
-        return refiner.getRestrictedFaces();
-    }
-
     SurfaceDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
+    refiner.refine();
+    return refiner.getRestrictedFaces();
+}
+
+RestrictedFaceMap refineVolume(MeshingContext3D& context,
+                               const Topology3D::Topology3D& topology,
+                               const SurfaceMesh3DQualitySettings& qualitySettings,
+                               double minimumEdgeLength)
+{
+    TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
     refiner.refine();
     return refiner.getRestrictedFaces();
 }

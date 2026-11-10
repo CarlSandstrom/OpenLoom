@@ -228,9 +228,8 @@ int main()
     //
     // This sees holes and excess faces only. It is blind to the third defect
     // kind, an edge carrying the expected NUMBER of faces but on the wrong
-    // surfaces, so it under-reports -- RCDTMesher::runPipeline's own log line,
-    // which classifies all three, is the authority for any number quoted from
-    // this model.
+    // surfaces, so it under-reports -- RestrictedFaceAudit, which classifies
+    // all three, is the authority for any number quoted from this model.
     std::map<std::pair<size_t, size_t>, int> edgeMultiplicity;
     for (const auto& triangle : surfaceMesh.triangles)
         for (size_t i = 0; i < 3; ++i)

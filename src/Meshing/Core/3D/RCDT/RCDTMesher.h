@@ -33,8 +33,8 @@ class MeshingContext3D;
  * ambient tetrahedralization seeded with protecting balls
  * (ProtectingBallPlacer), facet refinement (SurfaceDelaunayRefiner) and, for a
  * volume, tetrahedron refinement below it (TetrahedronDelaunayRefiner).
- * meshSurface() and meshVolume() differ only in that level and in their final
- * extraction step.
+ * meshSurface() and meshVolume() differ only in that level, in the
+ * closed-boundary check a volume needs, and in their final extraction step.
  *
  * Each call builds its mesh from scratch and keeps the result, readable
  * through getSurfaceMesh() / getVolumeMesh() until the next call.
@@ -76,13 +76,10 @@ private:
     /// segments. Returns the size floor.
     double buildInitialTriangulation(MeshingContext3D& context) const;
 
-    /// Seed, then SurfaceDelaunayRefiner -- owned and driven by
-    /// TetrahedronDelaunayRefiner when meshingVolume -- then remove the ambient
-    /// tetrahedra, extract and smooth the surface mesh into surfaceMesh_.
-    /// meshingVolume also keeps smoothing from inverting tetrahedra and makes a
-    /// restricted boundary with holes an error. Returns the restricted facets,
-    /// which volume extraction needs.
-    RestrictedFaceMap runPipeline(MeshingContext3D& context, bool meshingVolume);
+    /// Removes the ambient tetrahedra, then extracts and smooths the surface
+    /// mesh into surfaceMesh_. meshingVolume keeps smoothing from inverting
+    /// tetrahedra.
+    void buildSurfaceMesh(MeshingContext3D& context, const RestrictedFaceMap& restrictedFaces, bool meshingVolume);
 };
 
 } // namespace Meshing
