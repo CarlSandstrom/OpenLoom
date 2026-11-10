@@ -36,8 +36,8 @@ class MeshingContext3D;
  * meshSurface() and meshVolume() differ only in that level and in their final
  * extraction step.
  *
- * Each call builds its own mesh from scratch and releases it on return;
- * nothing is kept between calls.
+ * Each call builds its mesh from scratch and keeps the result, readable
+ * through getSurfaceMesh() / getVolumeMesh() until the next call.
  */
 class RCDTMesher : public ISurfaceMesher3D, public IVolumeMesher3D
 {
@@ -74,15 +74,15 @@ private:
     /// if set, otherwise MinimumEdgeLengthEstimator's), places the protecting
     /// balls and seeds the weighted ambient tetrahedralization with its curve
     /// segments. Returns the size floor.
-    double seedTriangulation(MeshingContext3D& context) const;
+    double buildInitialTriangulation(MeshingContext3D& context) const;
 
-    /// Seed, then SurfaceDelaunayRefiner -- owned and driven by TetrahedronDelaunayRefiner
-    /// when meshingVolume -- then remove the ambient tetrahedra, extract and
-    /// smooth the surface mesh into surfaceMesh_. meshingVolume also keeps
-    /// smoothing from inverting tetrahedra and makes a restricted boundary with
-    /// holes an error. restrictedFaces receives the restricted facets for volume
-    /// extraction.
-    void runPipeline(MeshingContext3D& context, RestrictedFaceMap& restrictedFaces, bool meshingVolume);
+    /// Seed, then SurfaceDelaunayRefiner -- owned and driven by
+    /// TetrahedronDelaunayRefiner when meshingVolume -- then remove the ambient
+    /// tetrahedra, extract and smooth the surface mesh into surfaceMesh_.
+    /// meshingVolume also keeps smoothing from inverting tetrahedra and makes a
+    /// restricted boundary with holes an error. Returns the restricted facets,
+    /// which volume extraction needs.
+    RestrictedFaceMap runPipeline(MeshingContext3D& context, bool meshingVolume);
 };
 
 } // namespace Meshing

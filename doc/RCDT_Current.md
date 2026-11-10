@@ -56,7 +56,7 @@ A `CurveSegment [a, b]` is a straight mesh edge whose endpoints are consecutive 
 
 ---
 
-## Phase 1 — Seed (`RCDTMesher::seedTriangulation`)
+## Phase 1 — Initial triangulation (`RCDTMesher::buildInitialTriangulation`)
 
 **Goal:** a weighted Delaunay tetrahedralization with every corner and curve point protected, and none of its faces classified yet.
 

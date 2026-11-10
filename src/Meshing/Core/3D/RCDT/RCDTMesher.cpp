@@ -26,8 +26,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Meshing
@@ -38,20 +40,20 @@ namespace
 double resolveMinimumEdgeLength(const SurfaceMesh3DQualitySettings& qualitySettings,
                                 const std::optional<SizingField3D>& sizingField,
                                 const std::vector<Point3D>& points);
-void seedAmbientTriangulation(MeshingContext3D& context,
-                              DiscretizationResult3D& discretizationResult,
-                              const Geometry3D::GeometryCollection3D& geometry,
-                              const Topology3D::Topology3D& topology);
+void buildAmbientTriangulation(MeshingContext3D& context,
+                               DiscretizationResult3D& discretizationResult,
+                               const Geometry3D::GeometryCollection3D& geometry,
+                               const Topology3D::Topology3D& topology);
 void smoothSurfaceMesh(MeshingContext3D& context,
                        const Geometry3D::GeometryCollection3D& geometry,
                        SurfaceMesh3D& surfaceMesh,
                        size_t iterations,
                        bool meshingVolume);
-RestrictedFaceMap refineBoundary(MeshingContext3D& context,
-                                 const Topology3D::Topology3D& topology,
-                                 const SurfaceMesh3DQualitySettings& qualitySettings,
-                                 double minimumEdgeLength,
-                                 bool meshingVolume);
+RestrictedFaceMap refineRestrictedFaces(MeshingContext3D& context,
+                                        const Topology3D::Topology3D& topology,
+                                        const SurfaceMesh3DQualitySettings& qualitySettings,
+                                        double minimumEdgeLength,
+                                        bool meshingVolume);
 void requireClosedBoundary(size_t missingFaceEdges);
 size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
                              const Topology3D::Topology3D& topology,
@@ -65,8 +67,8 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
                        std::optional<SizingFieldSettings3D> sizingFieldSettings) :
     geometry_(&geometry),
     topology_(&topology),
-    discretizationSettings_(discretizationSettings),
-    qualitySettings_(qualitySettings),
+    discretizationSettings_(std::move(discretizationSettings)),
+    qualitySettings_(std::move(qualitySettings)),
     sizingFieldSettings_(std::move(sizingFieldSettings))
 {
     // A non-positive floor is not "no floor": SurfaceTessellation builds no cells
@@ -80,30 +82,33 @@ RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
     }
 }
 
-void RCDTMesher::runPipeline(MeshingContext3D& context, RestrictedFaceMap& restrictedFaces, bool meshingVolume)
+RestrictedFaceMap RCDTMesher::runPipeline(MeshingContext3D& context, bool meshingVolume)
 {
     surfaceMesh_.reset();
     volumeMesh_.reset();
 
-    double minimumEdgeLength = seedTriangulation(context);
+    double minimumEdgeLength = buildInitialTriangulation(context);
 
-    restrictedFaces = refineBoundary(context, *topology_, qualitySettings_, minimumEdgeLength, meshingVolume);
+    auto restrictedFaces = refineRestrictedFaces(context, *topology_, qualitySettings_, minimumEdgeLength, meshingVolume);
 
     if (meshingVolume)
+    {
         requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
+    }
 
     // getOperations()'s mutator, not getMutator(): the latter validates removal
     // against a MeshConnectivity snapshot that refinement never refreshes.
     AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
     surfaceMesh_ = std::make_unique<SurfaceMesh3D>(RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
     smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
+
+    return restrictedFaces;
 }
 
 void RCDTMesher::meshSurface()
 {
     MeshingContext3D context(*geometry_, *topology_);
-    RestrictedFaceMap restrictedFaces;
-    runPipeline(context, restrictedFaces, false);
+    runPipeline(context, false);
 
     exportSurfaceMesh3D(*surfaceMesh_, "rcdt_surface_mesh.vtu");
 }
@@ -111,8 +116,7 @@ void RCDTMesher::meshSurface()
 void RCDTMesher::meshVolume()
 {
     MeshingContext3D context(*geometry_, *topology_);
-    RestrictedFaceMap restrictedFaces;
-    runPipeline(context, restrictedFaces, true);
+    auto restrictedFaces = runPipeline(context, true);
 
     // Smoothing has already synced its positions back into the live mesh that
     // extractVolumeMesh() reads.
@@ -130,26 +134,26 @@ const VolumeMesh3D* RCDTMesher::getVolumeMesh() const
     return volumeMesh_.get();
 }
 
-double RCDTMesher::seedTriangulation(MeshingContext3D& context) const
+double RCDTMesher::buildInitialTriangulation(MeshingContext3D& context) const
 {
-    spdlog::info("RCDTMesher::seedTriangulation: discretizing boundary ({} surface samples/direction)",
+    spdlog::info("RCDTMesher::buildInitialTriangulation: discretizing boundary ({} surface samples/direction)",
                  discretizationSettings_.getNumberOfSamplesPerSurfaceDirection());
 
     // Kept, so the size floor reads the same h(x) the discretization did.
     std::optional<SizingField3D> sizingField;
     if (sizingFieldSettings_.has_value())
+    {
         sizingField = SizingFieldBuilder3D::build(*geometry_, *topology_, sizingFieldSettings_.value());
+    }
 
-    auto discretizationResult =
-        BoundaryDiscretizer3D::discretize(*geometry_, *topology_, discretizationSettings_, sizingField);
+    auto discretizationResult = BoundaryDiscretizer3D::discretize(*geometry_, *topology_, discretizationSettings_, sizingField);
 
-    spdlog::info("RCDTMesher::seedTriangulation: {} points after discretization",
-                 discretizationResult->points.size());
+    spdlog::info("RCDTMesher::buildInitialTriangulation: {} points after discretization", discretizationResult->points.size());
 
     double minimumEdgeLength = resolveMinimumEdgeLength(qualitySettings_, sizingField, discretizationResult->points);
-    spdlog::info("RCDTMesher::seedTriangulation: minimum edge length = {}", minimumEdgeLength);
+    spdlog::info("RCDTMesher::buildInitialTriangulation: minimum edge length = {}", minimumEdgeLength);
 
-    seedAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_);
+    buildAmbientTriangulation(context, *discretizationResult, *geometry_, *topology_);
 
     return minimumEdgeLength;
 }
@@ -169,10 +173,10 @@ double resolveMinimumEdgeLength(const SurfaceMesh3DQualitySettings& qualitySetti
 
 // Boissonnat-Oudot protecting balls: corner and curve points enter the initial
 // triangulation as weighted points, so every crease appears as an edge chain.
-void seedAmbientTriangulation(MeshingContext3D& context,
-                              DiscretizationResult3D& discretizationResult,
-                              const Geometry3D::GeometryCollection3D& geometry,
-                              const Topology3D::Topology3D& topology)
+void buildAmbientTriangulation(MeshingContext3D& context,
+                               DiscretizationResult3D& discretizationResult,
+                               const Geometry3D::GeometryCollection3D& geometry,
+                               const Topology3D::Topology3D& topology)
 {
     auto pointWeights = ProtectingBallPlacer::place(discretizationResult, topology, geometry);
 
@@ -182,14 +186,14 @@ void seedAmbientTriangulation(MeshingContext3D& context,
                                                   discretizationResult.geometryIds,
                                                   pointWeights);
 
-    spdlog::info("RCDTMesher::seedTriangulation: Delaunay3D produced {} nodes, {} elements",
+    spdlog::info("RCDTMesher::buildInitialTriangulation: Delaunay3D produced {} nodes, {} elements",
                  meshData.getNodeCount(), meshData.getElementCount());
 
     context.getMutator().setCurveSegmentManager(
         CurveSegmentBuilder::build(topology, geometry, discretizationResult,
                                    delaunayResult.pointIndexToNodeIdMap));
 
-    spdlog::info("RCDTMesher::seedTriangulation: {} curve segments added",
+    spdlog::info("RCDTMesher::buildInitialTriangulation: {} curve segments added",
                  meshData.getCurveSegmentManager().size());
 }
 
@@ -215,17 +219,16 @@ void smoothSurfaceMesh(MeshingContext3D& context,
     spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)", iterations);
     // In volume mode smoothing must not turn the solid's tetrahedra inside out.
     std::vector<std::array<size_t, 4>> tetrahedra;
-    if (meshingVolume)
-        tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
+    if (meshingVolume) tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
     SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra);
     synchronizeNodePositions(context, surfaceMesh);
 }
 
-RestrictedFaceMap refineBoundary(MeshingContext3D& context,
-                                 const Topology3D::Topology3D& topology,
-                                 const SurfaceMesh3DQualitySettings& qualitySettings,
-                                 double minimumEdgeLength,
-                                 bool meshingVolume)
+RestrictedFaceMap refineRestrictedFaces(MeshingContext3D& context,
+                                        const Topology3D::Topology3D& topology,
+                                        const SurfaceMesh3DQualitySettings& qualitySettings,
+                                        double minimumEdgeLength,
+                                        bool meshingVolume)
 {
     if (meshingVolume)
     {

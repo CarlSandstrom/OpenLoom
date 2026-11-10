@@ -22,7 +22,7 @@ namespace Meshing
 struct DiscretizationResult3D;
 
 /// Builds the curve segments that record where the model's edge curves run
-/// through the mesh. Runs once, from RCDTMesher::seedTriangulation(); the
+/// through the mesh. Runs once, from RCDTMesher::buildInitialTriangulation(); the
 /// protection is fixed after seeding, so refinement never splits them.
 class CurveSegmentBuilder
 {
