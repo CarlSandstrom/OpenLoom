@@ -26,6 +26,7 @@ namespace Meshing
 {
 class MeshConnectivity;
 class MeshingContext3D;
+class MeshSnapshotWriter;
 } // namespace Meshing
 
 namespace Meshing
@@ -52,6 +53,9 @@ namespace Meshing
  *  - No post-processing: the restricted facets are the surface.
  *
  * Terminates on an empty queue or after maxRefinementIterations insertions.
+ *
+ * snapshotWriter, when given and enabled, receives surface-mesh snapshots as
+ * refinement proceeds; it never changes what the refiner does.
  */
 class SurfaceDelaunayRefiner
 {
@@ -59,7 +63,8 @@ public:
     SurfaceDelaunayRefiner(MeshingContext3D& context,
                            const Topology3D::Topology3D& topology,
                            const SurfaceMesh3DQualitySettings& settings,
-                           double minimumEdgeLength);
+                           double minimumEdgeLength,
+                           MeshSnapshotWriter* snapshotWriter = nullptr);
     ~SurfaceDelaunayRefiner();
     SurfaceDelaunayRefiner(const SurfaceDelaunayRefiner&) = delete;
     SurfaceDelaunayRefiner& operator=(const SurfaceDelaunayRefiner&) = delete;
@@ -105,6 +110,8 @@ private:
     using Badness = SurfaceFacetCriteria::Badness;
 
     MeshingContext3D* context_;
+    const Topology3D::Topology3D* topology_;
+    MeshSnapshotWriter* snapshotWriter_;
     SurfaceMesh3DQualitySettings settings_;
     WeightedDualRestriction restriction_;
     SurfaceFacetCriteria criteria_;

@@ -5,6 +5,7 @@
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/General/MeshDebugUtilities3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
+#include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronRemover.h"
@@ -52,11 +53,13 @@ void smoothSurfaceMesh(MeshingContext3D& context,
 RestrictedFaceMap refineSurface(MeshingContext3D& context,
                                 const Topology3D::Topology3D& topology,
                                 const SurfaceMesh3DQualitySettings& qualitySettings,
-                                double minimumEdgeLength);
+                                double minimumEdgeLength,
+                                MeshSnapshotWriter& snapshotWriter);
 RestrictedFaceMap refineVolume(MeshingContext3D& context,
                                const Topology3D::Topology3D& topology,
                                const SurfaceMesh3DQualitySettings& qualitySettings,
-                               double minimumEdgeLength);
+                               double minimumEdgeLength,
+                               MeshSnapshotWriter& snapshotWriter);
 void requireClosedBoundary(size_t missingFaceEdges);
 size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
                              const Topology3D::Topology3D& topology,
@@ -92,7 +95,8 @@ void RCDTMesher::meshSurface()
 
     MeshingContext3D context(*geometry_, *topology_);
     double minimumEdgeLength = buildInitialTriangulation(context);
-    auto restrictedFaces = refineSurface(context, *topology_, qualitySettings_, minimumEdgeLength);
+    MeshSnapshotWriter snapshotWriter;
+    auto restrictedFaces = refineSurface(context, *topology_, qualitySettings_, minimumEdgeLength, snapshotWriter);
     buildSurfaceMesh(context, restrictedFaces, false);
 
     exportSurfaceMesh3D(*surfaceMesh_, "rcdt_surface_mesh.vtu");
@@ -105,7 +109,8 @@ void RCDTMesher::meshVolume()
 
     MeshingContext3D context(*geometry_, *topology_);
     double minimumEdgeLength = buildInitialTriangulation(context);
-    auto restrictedFaces = refineVolume(context, *topology_, qualitySettings_, minimumEdgeLength);
+    MeshSnapshotWriter snapshotWriter;
+    auto restrictedFaces = refineVolume(context, *topology_, qualitySettings_, minimumEdgeLength, snapshotWriter);
     requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
     buildSurfaceMesh(context, restrictedFaces, true);
 
@@ -230,9 +235,10 @@ void smoothSurfaceMesh(MeshingContext3D& context,
 RestrictedFaceMap refineSurface(MeshingContext3D& context,
                                 const Topology3D::Topology3D& topology,
                                 const SurfaceMesh3DQualitySettings& qualitySettings,
-                                double minimumEdgeLength)
+                                double minimumEdgeLength,
+                                MeshSnapshotWriter& snapshotWriter)
 {
-    SurfaceDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
+    SurfaceDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength, &snapshotWriter);
     refiner.refine();
     return refiner.getRestrictedFaces();
 }
@@ -240,9 +246,10 @@ RestrictedFaceMap refineSurface(MeshingContext3D& context,
 RestrictedFaceMap refineVolume(MeshingContext3D& context,
                                const Topology3D::Topology3D& topology,
                                const SurfaceMesh3DQualitySettings& qualitySettings,
-                               double minimumEdgeLength)
+                               double minimumEdgeLength,
+                               MeshSnapshotWriter& snapshotWriter)
 {
-    TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
+    TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength, &snapshotWriter);
     refiner.refine();
     return refiner.getRestrictedFaces();
 }

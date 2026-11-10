@@ -34,8 +34,11 @@ std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vect
 SurfaceDelaunayRefiner::SurfaceDelaunayRefiner(MeshingContext3D& context,
                                                const Topology3D::Topology3D& topology,
                                                const SurfaceMesh3DQualitySettings& settings,
-                                               double minimumEdgeLength) :
+                                               double minimumEdgeLength,
+                                               MeshSnapshotWriter* snapshotWriter) :
     context_(&context),
+    topology_(&topology),
+    snapshotWriter_(snapshotWriter),
     settings_(settings),
     restriction_(*context.getGeometry(), topology, minimumEdgeLength),
     criteria_(settings, surfaceIdsOf(topology))

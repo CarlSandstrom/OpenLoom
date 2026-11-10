@@ -54,9 +54,10 @@ std::optional<double> squaredRadiusEdgeRatio(const TetrahedralElement& tetrahedr
 TetrahedronDelaunayRefiner::TetrahedronDelaunayRefiner(MeshingContext3D& context,
                                                        const Topology3D::Topology3D& topology,
                                                        const SurfaceMesh3DQualitySettings& settings,
-                                                       double minimumEdgeLength) :
+                                                       double minimumEdgeLength,
+                                                       MeshSnapshotWriter* snapshotWriter) :
     context_(&context),
-    surfaceRefiner_(context, topology, settings, minimumEdgeLength),
+    surfaceRefiner_(context, topology, settings, minimumEdgeLength, snapshotWriter),
     ratioBound_(settings.tetCircumradiusToShortestEdgeRatio)
 {
 }
