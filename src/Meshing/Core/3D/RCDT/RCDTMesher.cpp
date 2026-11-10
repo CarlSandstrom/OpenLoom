@@ -3,7 +3,6 @@
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
-#include "Meshing/Core/3D/General/MeshDebugUtilities3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
@@ -97,9 +96,7 @@ void RCDTMesher::meshSurface()
     double minimumEdgeLength = buildInitialTriangulation(context);
     MeshSnapshotWriter snapshotWriter;
     auto restrictedFaces = refineSurface(context, *topology_, qualitySettings_, minimumEdgeLength, snapshotWriter);
-    buildSurfaceMesh(context, restrictedFaces, false);
-
-    exportSurfaceMesh3D(*surfaceMesh_, "rcdt_surface_mesh.vtu");
+    buildSurfaceMesh(context, restrictedFaces, false, snapshotWriter);
 }
 
 void RCDTMesher::meshVolume()
@@ -112,7 +109,7 @@ void RCDTMesher::meshVolume()
     MeshSnapshotWriter snapshotWriter;
     auto restrictedFaces = refineVolume(context, *topology_, qualitySettings_, minimumEdgeLength, snapshotWriter);
     requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
-    buildSurfaceMesh(context, restrictedFaces, true);
+    buildSurfaceMesh(context, restrictedFaces, true, snapshotWriter);
 
     // Smoothing has already synced its positions back into the live mesh that
     // extractVolumeMesh() reads.
@@ -132,7 +129,8 @@ const VolumeMesh3D* RCDTMesher::getVolumeMesh() const
 
 void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
                                   const RestrictedFaceMap& restrictedFaces,
-                                  bool meshingVolume)
+                                  bool meshingVolume,
+                                  MeshSnapshotWriter& snapshotWriter)
 {
     // getOperations()'s mutator, not getMutator(): the latter validates removal
     // against a MeshConnectivity snapshot that refinement never refreshes.
@@ -140,6 +138,7 @@ void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
     surfaceMesh_ = std::make_unique<SurfaceMesh3D>(
         RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
     smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
+    if (qualitySettings_.smoothingIterations > 0) snapshotWriter.write("smoothed", *surfaceMesh_);
 }
 
 double RCDTMesher::buildInitialTriangulation(MeshingContext3D& context) const
@@ -240,6 +239,7 @@ RestrictedFaceMap refineSurface(MeshingContext3D& context,
 {
     SurfaceDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength, &snapshotWriter);
     refiner.refine();
+    refiner.writeSnapshot("refined");
     return refiner.getRestrictedFaces();
 }
 

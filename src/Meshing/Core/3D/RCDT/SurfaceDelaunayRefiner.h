@@ -102,6 +102,10 @@ public:
 
     std::size_t getInsertionCount() const { return insertionCount_; }
 
+    /// Writes the current restricted facets as a snapshot labelled label. Does
+    /// nothing unless the snapshot writer is set and enabled; read-only on the mesh.
+    void writeSnapshot(const std::string& label) const;
+
     /// Facets whose refinement point did not conflict with either of their
     /// tetrahedra, left as they are (see the class doc).
     std::size_t getDroppedCount() const { return droppedFaces_.size(); }

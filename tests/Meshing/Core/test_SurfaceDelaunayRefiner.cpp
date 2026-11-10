@@ -1,5 +1,6 @@
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 
+#include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/SurfaceFacetCriteria.h"
 #include "Meshing/Core/3D/RCDT/WeightedDualRestriction.h"
@@ -13,6 +14,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <numbers>
@@ -44,14 +48,10 @@ protected:
     static constexpr double MINIMUM_EDGE_LENGTH = 0.1;
     static constexpr double MINIMUM_ANGLE_DEGREES = 30.0;
 
-    static void SetUpTestSuite()
+    static void sampleSphere(const std::string& surfaceId,
+                             std::vector<Point3D>& points,
+                             std::vector<std::vector<std::string>>& geometryIds)
     {
-        converter_ = std::make_unique<Readers::TopoDS_ShapeConverter>(BRepPrimAPI_MakeSphere(RADIUS).Shape());
-        const auto& topology = converter_->getTopology();
-        const std::string surfaceId = topology.getAllSurfaceIds().front();
-
-        std::vector<Point3D> points;
-        std::vector<std::vector<std::string>> geometryIds;
         const double goldenAngle = std::numbers::pi * (3.0 - std::sqrt(5.0));
         for (size_t i = 0; i < SAMPLE_COUNT; ++i)
         {
@@ -61,6 +61,17 @@ protected:
             points.emplace_back(RADIUS * ring * std::cos(angle), RADIUS * ring * std::sin(angle), RADIUS * z);
             geometryIds.push_back({surfaceId});
         }
+    }
+
+    static void SetUpTestSuite()
+    {
+        converter_ = std::make_unique<Readers::TopoDS_ShapeConverter>(BRepPrimAPI_MakeSphere(RADIUS).Shape());
+        const auto& topology = converter_->getTopology();
+        const std::string surfaceId = topology.getAllSurfaceIds().front();
+
+        std::vector<Point3D> points;
+        std::vector<std::vector<std::string>> geometryIds;
+        sampleSphere(surfaceId, points, geometryIds);
 
         context_ = std::make_unique<MeshingContext3D>(converter_->getGeometryCollection(), topology);
         Delaunay3D::triangulate(context_->getOperations(), points, geometryIds);
@@ -162,4 +173,88 @@ TEST(SurfaceFacetCriteriaTest, SamePatchRuleFlagsOnlySurfaceInteriorVerticesOnDi
     EXPECT_EQ(straddling->first, 2);
 
     EXPECT_FALSE(criteria.findBadness(FaceKey(onTop, alsoOnTop, onCurve), facet, meshData).has_value());
+}
+
+namespace
+{
+
+class ScopedEnvironmentOverride
+{
+public:
+    ScopedEnvironmentOverride(const std::string& name, const std::string& value) :
+        name_(name)
+    {
+        auto previous = std::getenv(name_.c_str());
+        hadPreviousValue_ = previous != nullptr;
+        if (hadPreviousValue_) previousValue_ = previous;
+        setenv(name_.c_str(), value.c_str(), 1);
+    }
+
+    ~ScopedEnvironmentOverride()
+    {
+        if (hadPreviousValue_)
+            setenv(name_.c_str(), previousValue_.c_str(), 1);
+        else
+            unsetenv(name_.c_str());
+    }
+
+private:
+    std::string name_;
+    bool hadPreviousValue_;
+    std::string previousValue_;
+};
+
+size_t countLines(const std::filesystem::path& path)
+{
+    std::ifstream stream(path);
+    size_t count = 0;
+    std::string line;
+    while (std::getline(stream, line)) ++count;
+    return count;
+}
+
+} // namespace
+
+TEST_F(SurfaceDelaunayRefinerTest, WritesSeededInsertionAndRefinedSnapshots)
+{
+    auto directory = std::filesystem::temp_directory_path() / "openloom_surface_refiner_snapshots";
+    std::filesystem::remove_all(directory);
+    std::filesystem::create_directories(directory);
+    ScopedEnvironmentOverride flag("EXPORT_MESH_EACH_ITERATION", "1");
+    ScopedEnvironmentOverride stride("EXPORT_MESH_EVERY_N", "50");
+    MeshSnapshotWriter writer(directory.string());
+
+    const auto& topology = converter_->getTopology();
+    std::vector<Point3D> points;
+    std::vector<std::vector<std::string>> geometryIds;
+    sampleSphere(topology.getAllSurfaceIds().front(), points, geometryIds);
+    MeshingContext3D context(converter_->getGeometryCollection(), topology);
+    Delaunay3D::triangulate(context.getOperations(), points, geometryIds);
+
+    SurfaceMesh3DQualitySettings settings;
+    settings.minAngleDegrees = MINIMUM_ANGLE_DEGREES;
+    settings.chordDeviationTolerance = 0.05;
+    settings.maxRefinementIterations = 5000;
+    SurfaceDelaunayRefiner refiner(context, topology, settings, MINIMUM_EDGE_LENGTH, &writer);
+    refiner.refine();
+    refiner.writeSnapshot("refined");
+
+    std::vector<std::string> labels;
+    for (auto& entry : std::filesystem::directory_iterator(directory))
+    {
+        auto name = entry.path().filename().string();
+        if (name.ends_with(".vtu")) labels.push_back(name.substr(0, name.size() - 4));
+    }
+    std::sort(labels.begin(), labels.end());
+
+    ASSERT_GE(labels.size(), 3u);
+    EXPECT_EQ(labels.front(), "rcdt_000000_seeded");
+    EXPECT_NE(labels[1].find("_insertion"), std::string::npos);
+    EXPECT_NE(labels.back().find("_refined"), std::string::npos);
+
+    // One header row plus one row per restricted facet.
+    auto cellsLines = countLines(directory / (labels.back() + ".cells.tsv"));
+    EXPECT_EQ(cellsLines - 1, refiner.getRestrictedFaces().size());
+
+    std::filesystem::remove_all(directory);
 }

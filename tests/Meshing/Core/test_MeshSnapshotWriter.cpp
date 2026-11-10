@@ -55,7 +55,9 @@ class MeshSnapshotWriterTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        directory_ = std::filesystem::temp_directory_path() / "openloom_mesh_snapshot_writer_test";
+        // ctest runs each test in its own process, in parallel.
+        auto testName = std::string(::testing::UnitTest::GetInstance()->current_test_info()->name());
+        directory_ = std::filesystem::temp_directory_path() / ("openloom_mesh_snapshot_writer_" + testName);
         std::filesystem::remove_all(directory_);
         std::filesystem::create_directories(directory_);
         unsetenv("EXPORT_MESH_EACH_ITERATION");

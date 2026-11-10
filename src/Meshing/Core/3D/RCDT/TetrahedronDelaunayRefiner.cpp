@@ -70,6 +70,7 @@ void TetrahedronDelaunayRefiner::refine()
     }
     if (surfaceRefiner_.hasReachedInsertionCap())
         spdlog::warn("TetrahedronDelaunayRefiner: reached the insertion cap");
+    surfaceRefiner_.writeSnapshot("refined");
     spdlog::info("TetrahedronDelaunayRefiner: {} interior insertions, {} encroached facets refined instead, "
                  "{} tetrahedra left unrefined",
                  insertionCount_, encroachmentCount_, unrefinable_.size());

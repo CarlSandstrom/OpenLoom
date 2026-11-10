@@ -1,9 +1,12 @@
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
+#include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
+#include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RegularConflictRegion.h"
 #include "Meshing/Data/3D/MeshData3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
@@ -52,6 +55,7 @@ void SurfaceDelaunayRefiner::refine()
     connectivity_ = std::make_unique<MeshConnectivity>(context_->getMeshData());
     classifyAllFaces();
     spdlog::info("SurfaceDelaunayRefiner: {} restricted facets, {} bad", facets_.size(), queue_.size());
+    writeSnapshot("seeded");
 
     refineQueued();
 
@@ -187,6 +191,16 @@ void SurfaceDelaunayRefiner::insert(const Point3D& point,
     {
         reclassify(newFace);
     }
+
+    if (snapshotWriter_ && snapshotWriter_->isInsertionDue(insertionCount_)) writeSnapshot("insertion");
+}
+
+void SurfaceDelaunayRefiner::writeSnapshot(const std::string& label) const
+{
+    if (!snapshotWriter_ || !snapshotWriter_->isEnabled()) return;
+
+    snapshotWriter_->write(
+        label, RCDTMeshExtractor::extractSurfaceMesh(context_->getMeshData(), getRestrictedFaces(), *topology_));
 }
 
 std::optional<FaceKey> SurfaceDelaunayRefiner::findEncroachedFacet(const Point3D& point,
