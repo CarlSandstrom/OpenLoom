@@ -3,14 +3,13 @@
 #include "Common/DebugFlags.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Export/VtkGrid.h"
 #include "spdlog/spdlog.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
-#include <utility>
 
 namespace Meshing
 {
@@ -18,65 +17,80 @@ namespace Meshing
 namespace
 {
 
-size_t readStride()
-{
-    auto text = std::getenv("EXPORT_MESH_EVERY_N");
-    if (text == nullptr) return 1;
+std::size_t sequence = 0;
 
-    char* end = nullptr;
-    long long value = std::strtoll(text, &end, 10);
-    if (end == text || *end != '\0' || value <= 0)
-    {
-        spdlog::warn("MeshSnapshotWriter: EXPORT_MESH_EVERY_N='{}' is not a positive integer, using 1", text);
-        return 1;
-    }
-    return static_cast<size_t>(value);
-}
-
-std::string formatSequence(size_t sequence)
-{
-    char buffer[32];
-    std::snprintf(buffer, sizeof(buffer), "%06zu", sequence);
-    return buffer;
-}
+std::size_t readStride();
+std::string buildStem(const std::string& label);
 
 } // namespace
 
-MeshSnapshotWriter::MeshSnapshotWriter(std::string outputDirectory) :
-    outputDirectory_(std::move(outputDirectory)),
-    enabled_(OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION)),
-    stride_(enabled_ ? readStride() : 1)
+bool MeshSnapshotWriter::isEnabled()
 {
+    return OPENLOOM_DEBUG_ENABLED(EXPORT_MESH_EACH_ITERATION);
 }
 
-bool MeshSnapshotWriter::isEnabled() const
+bool MeshSnapshotWriter::isInsertionDue(std::size_t insertionCount)
 {
-    return enabled_;
+    return isEnabled() && insertionCount % readStride() == 0;
 }
 
-bool MeshSnapshotWriter::isInsertionDue(size_t insertionCount) const
+void MeshSnapshotWriter::restartSequence()
 {
-    return enabled_ && insertionCount % stride_ == 0;
+    sequence = 0;
 }
 
-void MeshSnapshotWriter::write(const std::string& label, const SurfaceMesh3D& surfaceMesh)
+void MeshSnapshotWriter::write(const std::string& label, const Export::VtkGrid& grid)
 {
-    if (!enabled_) return;
+    if (!isEnabled()) return;
 
-    auto stem = (std::filesystem::path(outputDirectory_) / ("rcdt_" + formatSequence(sequence_++) + "_" + label)).string();
-
+    auto stem = buildStem(label);
     try
     {
-        if (!Export::VtkExporter().writeSurfaceMesh(surfaceMesh, stem + ".vtu"))
+        if (!Export::VtkExporter().writeGrid(grid, stem + ".vtu"))
         {
             spdlog::warn("MeshSnapshotWriter: could not write {}.vtu", stem);
         }
-        Export::TsvExporter::writeSurfaceMesh(surfaceMesh, stem);
+        Export::TsvExporter::writeGrid(grid, stem);
     }
     catch (const std::exception& error)
     {
         spdlog::warn("MeshSnapshotWriter: snapshot {} failed: {}", stem, error.what());
     }
 }
+
+namespace
+{
+
+std::size_t readStride()
+{
+    auto text = std::getenv("EXPORT_MESH_EVERY_N");
+    if (text == nullptr) return 1;
+
+    char* end = nullptr;
+    long long value = std::strtoll(text, &end, 10);
+    if (end != text && *end == '\0' && value > 0) return static_cast<std::size_t>(value);
+
+    static std::string warnedValue;
+    if (warnedValue != text)
+    {
+        warnedValue = text;
+        spdlog::warn("MeshSnapshotWriter: EXPORT_MESH_EVERY_N='{}' is not a positive integer, using 1", text);
+    }
+    return 1;
+}
+
+std::string buildStem(const std::string& label)
+{
+    auto directoryText = std::getenv("EXPORT_MESH_DIRECTORY");
+    std::filesystem::path directory = directoryText != nullptr ? directoryText : ".";
+    std::error_code ignored;
+    std::filesystem::create_directories(directory, ignored);
+
+    char number[32];
+    std::snprintf(number, sizeof(number), "%06zu", sequence++);
+    return (directory / ("rcdt_" + std::string(number) + "_" + label)).string();
+}
+
+} // namespace
 
 } // namespace Meshing

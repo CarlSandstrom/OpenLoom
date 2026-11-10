@@ -26,7 +26,6 @@ namespace Meshing
 {
 class MeshConnectivity;
 class MeshingContext3D;
-class MeshSnapshotWriter;
 } // namespace Meshing
 
 namespace Meshing
@@ -54,8 +53,8 @@ namespace Meshing
  *
  * Terminates on an empty queue or after maxRefinementIterations insertions.
  *
- * snapshotWriter, when given and enabled, receives surface-mesh snapshots as
- * refinement proceeds; it never changes what the refiner does.
+ * While MeshSnapshotWriter is enabled it receives snapshots as refinement
+ * proceeds; that never changes what the refiner does.
  */
 class SurfaceDelaunayRefiner
 {
@@ -63,8 +62,7 @@ public:
     SurfaceDelaunayRefiner(MeshingContext3D& context,
                            const Topology3D::Topology3D& topology,
                            const SurfaceMesh3DQualitySettings& settings,
-                           double minimumEdgeLength,
-                           MeshSnapshotWriter* snapshotWriter = nullptr);
+                           double minimumEdgeLength);
     ~SurfaceDelaunayRefiner();
     SurfaceDelaunayRefiner(const SurfaceDelaunayRefiner&) = delete;
     SurfaceDelaunayRefiner& operator=(const SurfaceDelaunayRefiner&) = delete;
@@ -103,7 +101,7 @@ public:
     std::size_t getInsertionCount() const { return insertionCount_; }
 
     /// Writes the current restricted facets as a snapshot labelled label. Does
-    /// nothing unless the snapshot writer is set and enabled; read-only on the mesh.
+    /// nothing unless MeshSnapshotWriter is enabled; read-only on the mesh.
     void writeSnapshot(const std::string& label) const;
 
     /// Facets whose refinement point did not conflict with either of their
@@ -115,7 +113,6 @@ private:
 
     MeshingContext3D* context_;
     const Topology3D::Topology3D* topology_;
-    MeshSnapshotWriter* snapshotWriter_;
     SurfaceMesh3DQualitySettings settings_;
     WeightedDualRestriction restriction_;
     SurfaceFacetCriteria criteria_;

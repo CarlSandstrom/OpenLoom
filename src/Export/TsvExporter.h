@@ -14,6 +14,8 @@ struct VolumeMesh3D;
 namespace Export
 {
 
+struct VtkGrid;
+
 /**
  * @brief Writes mesher output as tab-separated tables: the format
  * `scripts/refactor-check.sh` diffs against `tests/golden/`.
@@ -45,6 +47,10 @@ public:
     static void writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh, const std::string& stem);
 
     static void writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh, const std::string& stem);
+
+    /// A caller-assembled grid: `node_id x y z` plus one column per point
+    /// field, and `kind id nodes` plus one column per cell field.
+    static void writeGrid(const VtkGrid& grid, const std::string& stem);
 };
 
 } // namespace Export

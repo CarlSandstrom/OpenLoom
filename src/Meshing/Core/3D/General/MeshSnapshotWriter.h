@@ -3,42 +3,49 @@
 #include <cstddef>
 #include <string>
 
+namespace Export
+{
+struct VtkGrid;
+} // namespace Export
+
 namespace Meshing
 {
 
-struct SurfaceMesh3D;
-
 /**
- * @brief Writes a numbered series of surface-mesh snapshots while a mesher runs.
+ * @brief Writes a numbered series of debug snapshots while a mesher runs.
  *
- * Active only when EXPORT_MESH_EACH_ITERATION=1. EXPORT_MESH_EVERY_N sets the
- * insertion stride (positive integer, default 1; an invalid value falls back
- * to 1). Both are read once, at construction -- this is the only place that
- * reads them.
+ * Active only when EXPORT_MESH_EACH_ITERATION=1. Two more environment
+ * variables are read on every call; this is the only place that reads any of
+ * the three:
  *
- * Each write() produces `<directory>/rcdt_<sequence>_<label>` in every
- * format the writer knows (VTU for ParaView, TSV for diffing). The sequence is
- * a six-digit counter owned by the writer, so the series sorts. A failed write
- * is logged and never aborts meshing.
+ *  - EXPORT_MESH_EVERY_N: insertion stride (positive integer, default 1; an
+ *    invalid value falls back to 1).
+ *  - EXPORT_MESH_DIRECTORY: where snapshots go (default: the working
+ *    directory).
+ *
+ * Each write() produces `rcdt_<sequence>_<label>` in every format the writer
+ * knows (VTU for ParaView, TSV for diffing). The sequence is a six-digit
+ * counter shared by the whole process, so the series sorts; a mesher run calls
+ * restartSequence() first so each run numbers from 0. A failed write is
+ * logged and never aborts meshing.
+ *
+ * The writer knows nothing about what a grid shows: callers assemble it.
  */
 class MeshSnapshotWriter
 {
 public:
-    explicit MeshSnapshotWriter(std::string outputDirectory = ".");
+    MeshSnapshotWriter() = delete;
 
-    bool isEnabled() const;
+    static bool isEnabled();
 
     /// True when enabled and insertionCount is a multiple of the stride.
-    bool isInsertionDue(size_t insertionCount) const;
+    static bool isInsertionDue(std::size_t insertionCount);
+
+    /// The next write() is numbered 0.
+    static void restartSequence();
 
     /// No-op when disabled.
-    void write(const std::string& label, const SurfaceMesh3D& surfaceMesh);
-
-private:
-    std::string outputDirectory_;
-    bool enabled_;
-    size_t stride_;
-    size_t sequence_ = 0;
+    static void write(const std::string& label, const Export::VtkGrid& grid);
 };
 
 } // namespace Meshing

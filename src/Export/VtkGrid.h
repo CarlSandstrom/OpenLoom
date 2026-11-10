@@ -12,6 +12,7 @@ namespace Export
 
 enum class VtkCellType
 {
+    Vertex = 1,
     Line = 3,
     Triangle = 5,
     Quadrilateral = 9,

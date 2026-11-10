@@ -1,10 +1,12 @@
 #include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 
-#include "Meshing/Data/3D/SurfaceMesh3D.h"
+#include "Export/VtkGrid.h"
 
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <string>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -39,13 +41,14 @@ private:
     std::string previousValue_;
 };
 
-SurfaceMesh3D makeSingleTriangle()
+Export::VtkGrid makeSingleTriangle()
 {
-    SurfaceMesh3D surfaceMesh;
-    surfaceMesh.nodes = {Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0), Point3D(0.0, 1.0, 0.0)};
-    surfaceMesh.triangles = {{0, 1, 2}};
-    surfaceMesh.faceTriangleIds["surface"] = {0};
-    return surfaceMesh;
+    Export::VtkGrid grid;
+    grid.points = {Point3D(0.0, 0.0, 0.0), Point3D(1.0, 0.0, 0.0), Point3D(0.0, 1.0, 0.0)};
+    grid.nodeIds = {0, 1, 2};
+    grid.cells.push_back({Export::VtkCellType::Triangle, {0, 1, 2}});
+    grid.cellFields.push_back({"Marker", std::vector<int>{7}});
+    return grid;
 }
 
 } // namespace
@@ -62,10 +65,13 @@ protected:
         std::filesystem::create_directories(directory_);
         unsetenv("EXPORT_MESH_EACH_ITERATION");
         unsetenv("EXPORT_MESH_EVERY_N");
+        setenv("EXPORT_MESH_DIRECTORY", directory_.c_str(), 1);
+        MeshSnapshotWriter::restartSequence();
     }
 
     void TearDown() override
     {
+        unsetenv("EXPORT_MESH_DIRECTORY");
         std::filesystem::remove_all(directory_);
     }
 
@@ -85,22 +91,19 @@ protected:
 
 TEST_F(MeshSnapshotWriterTest, WritesNothingWhenFlagUnset)
 {
-    MeshSnapshotWriter writer(directory_.string());
+    MeshSnapshotWriter::write("seeded", makeSingleTriangle());
 
-    writer.write("seeded", makeSingleTriangle());
-
-    EXPECT_FALSE(writer.isEnabled());
+    EXPECT_FALSE(MeshSnapshotWriter::isEnabled());
     EXPECT_EQ(countFiles(), 0u);
 }
 
 TEST_F(MeshSnapshotWriterTest, WritesNumberedFilesInEveryFormat)
 {
     ScopedEnvironmentOverride flag("EXPORT_MESH_EACH_ITERATION", "1");
-    MeshSnapshotWriter writer(directory_.string());
-    auto surfaceMesh = makeSingleTriangle();
+    auto grid = makeSingleTriangle();
 
-    writer.write("seeded", surfaceMesh);
-    writer.write("refined", surfaceMesh);
+    MeshSnapshotWriter::write("seeded", grid);
+    MeshSnapshotWriter::write("refined", grid);
 
     EXPECT_TRUE(exists("rcdt_000000_seeded.vtu"));
     EXPECT_TRUE(exists("rcdt_000000_seeded.nodes.tsv"));
@@ -114,14 +117,12 @@ TEST_F(MeshSnapshotWriterTest, InsertionStrideFollowsEnvironment)
 {
     ScopedEnvironmentOverride flag("EXPORT_MESH_EACH_ITERATION", "1");
     ScopedEnvironmentOverride stride("EXPORT_MESH_EVERY_N", "3");
-    MeshSnapshotWriter writer(directory_.string());
-
-    EXPECT_TRUE(writer.isInsertionDue(0));
-    EXPECT_FALSE(writer.isInsertionDue(1));
-    EXPECT_FALSE(writer.isInsertionDue(2));
-    EXPECT_TRUE(writer.isInsertionDue(3));
-    EXPECT_FALSE(writer.isInsertionDue(5));
-    EXPECT_TRUE(writer.isInsertionDue(6));
+    EXPECT_TRUE(MeshSnapshotWriter::isInsertionDue(0));
+    EXPECT_FALSE(MeshSnapshotWriter::isInsertionDue(1));
+    EXPECT_FALSE(MeshSnapshotWriter::isInsertionDue(2));
+    EXPECT_TRUE(MeshSnapshotWriter::isInsertionDue(3));
+    EXPECT_FALSE(MeshSnapshotWriter::isInsertionDue(5));
+    EXPECT_TRUE(MeshSnapshotWriter::isInsertionDue(6));
 }
 
 TEST_F(MeshSnapshotWriterTest, InvalidStrideFallsBackToOne)
@@ -131,16 +132,40 @@ TEST_F(MeshSnapshotWriterTest, InvalidStrideFallsBackToOne)
     for (auto invalid : {"0", "abc", "-2"})
     {
         ScopedEnvironmentOverride stride("EXPORT_MESH_EVERY_N", invalid);
-        MeshSnapshotWriter writer(directory_.string());
-
-        EXPECT_TRUE(writer.isInsertionDue(1)) << invalid;
-        EXPECT_TRUE(writer.isInsertionDue(2)) << invalid;
+        EXPECT_TRUE(MeshSnapshotWriter::isInsertionDue(1)) << invalid;
+        EXPECT_TRUE(MeshSnapshotWriter::isInsertionDue(2)) << invalid;
     }
 }
 
 TEST_F(MeshSnapshotWriterTest, NoInsertionIsDueWhenFlagUnset)
 {
-    MeshSnapshotWriter writer(directory_.string());
+    EXPECT_FALSE(MeshSnapshotWriter::isInsertionDue(0));
+}
 
-    EXPECT_FALSE(writer.isInsertionDue(0));
+TEST_F(MeshSnapshotWriterTest, RestartSequenceNumbersFromZeroAgain)
+{
+    ScopedEnvironmentOverride flag("EXPORT_MESH_EACH_ITERATION", "1");
+    auto grid = makeSingleTriangle();
+
+    MeshSnapshotWriter::write("first", grid);
+    MeshSnapshotWriter::restartSequence();
+    MeshSnapshotWriter::write("second", grid);
+
+    EXPECT_TRUE(exists("rcdt_000000_first.vtu"));
+    EXPECT_TRUE(exists("rcdt_000000_second.vtu"));
+}
+
+TEST_F(MeshSnapshotWriterTest, TsvCarriesTheGridFields)
+{
+    ScopedEnvironmentOverride flag("EXPORT_MESH_EACH_ITERATION", "1");
+
+    MeshSnapshotWriter::write("grid", makeSingleTriangle());
+
+    std::ifstream cells(directory_ / "rcdt_000000_grid.cells.tsv");
+    std::string header;
+    std::string row;
+    std::getline(cells, header);
+    std::getline(cells, row);
+    EXPECT_EQ(header, "kind\tid\tnodes\tMarker");
+    EXPECT_EQ(row, "triangle\t0\t0,1,2\t7");
 }

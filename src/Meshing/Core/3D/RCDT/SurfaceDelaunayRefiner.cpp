@@ -1,10 +1,12 @@
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 
+#include "Export/VtkGrid.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RegularConflictRegion.h"
+#include "Meshing/Core/3D/RCDT/SnapshotGridBuilder.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
@@ -37,11 +39,9 @@ std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vect
 SurfaceDelaunayRefiner::SurfaceDelaunayRefiner(MeshingContext3D& context,
                                                const Topology3D::Topology3D& topology,
                                                const SurfaceMesh3DQualitySettings& settings,
-                                               double minimumEdgeLength,
-                                               MeshSnapshotWriter* snapshotWriter) :
+                                               double minimumEdgeLength) :
     context_(&context),
     topology_(&topology),
-    snapshotWriter_(snapshotWriter),
     settings_(settings),
     restriction_(*context.getGeometry(), topology, minimumEdgeLength),
     criteria_(settings, surfaceIdsOf(topology))
@@ -192,15 +192,16 @@ void SurfaceDelaunayRefiner::insert(const Point3D& point,
         reclassify(newFace);
     }
 
-    if (snapshotWriter_ && snapshotWriter_->isInsertionDue(insertionCount_)) writeSnapshot("insertion");
+    if (MeshSnapshotWriter::isInsertionDue(insertionCount_)) writeSnapshot("insertion");
 }
 
 void SurfaceDelaunayRefiner::writeSnapshot(const std::string& label) const
 {
-    if (!snapshotWriter_ || !snapshotWriter_->isEnabled()) return;
+    if (!MeshSnapshotWriter::isEnabled()) return;
 
-    snapshotWriter_->write(
-        label, RCDTMeshExtractor::extractSurfaceMesh(context_->getMeshData(), getRestrictedFaces(), *topology_));
+    auto surfaceMesh =
+        RCDTMeshExtractor::extractSurfaceMesh(context_->getMeshData(), getRestrictedFaces(), *topology_);
+    MeshSnapshotWriter::write(label, SnapshotGridBuilder::fromSurfaceMesh(surfaceMesh));
 }
 
 std::optional<FaceKey> SurfaceDelaunayRefiner::findEncroachedFacet(const Point3D& point,

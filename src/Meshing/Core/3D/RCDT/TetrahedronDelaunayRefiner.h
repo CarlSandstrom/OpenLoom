@@ -15,7 +15,6 @@ class Topology3D;
 namespace Meshing
 {
 class MeshingContext3D;
-class MeshSnapshotWriter;
 class TetrahedralElement;
 } // namespace Meshing
 
@@ -49,8 +48,7 @@ public:
     TetrahedronDelaunayRefiner(MeshingContext3D& context,
                                const Topology3D::Topology3D& topology,
                                const SurfaceMesh3DQualitySettings& settings,
-                               double minimumEdgeLength,
-                               MeshSnapshotWriter* snapshotWriter = nullptr);
+                               double minimumEdgeLength);
 
     /// Refines the surface, then the volume.
     void refine();

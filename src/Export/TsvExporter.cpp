@@ -2,6 +2,7 @@
 
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
+#include "Export/VtkGrid.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
@@ -15,6 +16,8 @@
 #include <map>
 #include <ostream>
 #include <string>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 namespace Export
@@ -137,6 +140,56 @@ void writeNodeChains(std::ostream& os, const std::string& kind,
         writeCellRow(os, kind, std::to_string(index++), joinNodeIds(nodeIds), geometryId, NOT_APPLICABLE);
 }
 
+std::string formatCellKind(VtkCellType type)
+{
+    switch (type)
+    {
+    case VtkCellType::Vertex:
+        return "vertex";
+    case VtkCellType::Line:
+        return "line";
+    case VtkCellType::Triangle:
+        return "triangle";
+    case VtkCellType::Quadrilateral:
+        return "quadrilateral";
+    case VtkCellType::Tetrahedron:
+        return "tetrahedron";
+    case VtkCellType::Hexahedron:
+        return "hexahedron";
+    case VtkCellType::Wedge:
+        return "wedge";
+    case VtkCellType::Pyramid:
+        return "pyramid";
+    }
+    return "unknown";
+}
+
+std::string formatFieldValue(const VtkField& field, std::size_t index)
+{
+    return std::visit(
+        [index](const auto& values)
+        {
+            using Value = typename std::decay_t<decltype(values)>::value_type;
+            if constexpr (std::is_same_v<Value, double>)
+                return formatDouble(values[index]);
+            else
+                return std::to_string(values[index]);
+        },
+        field.values);
+}
+
+void writeFieldNames(std::ostream& os, const std::vector<VtkField>& fields)
+{
+    for (const auto& field : fields)
+        os << '\t' << field.name;
+}
+
+void writeFieldValues(std::ostream& os, const std::vector<VtkField>& fields, std::size_t index)
+{
+    for (const auto& field : fields)
+        os << '\t' << formatFieldValue(field, index);
+}
+
 template <typename Map>
 std::vector<typename Map::key_type> sortedKeys(const Map& map)
 {
@@ -230,6 +283,34 @@ void TsvExporter::writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh, const
     }
     writeTriangles(cells, volumeMesh.boundaryTriangles, volumeMesh.boundaryFaceTriangleIds);
     writeNodeChains(cells, "edge", volumeMesh.boundaryEdgeNodeIds);
+}
+
+void TsvExporter::writeGrid(const VtkGrid& grid, const std::string& stem)
+{
+    auto nodes = openTable(stem, "nodes");
+    nodes << "node_id\tx\ty\tz";
+    writeFieldNames(nodes, grid.pointFields);
+    nodes << '\n';
+    for (std::size_t i = 0; i < grid.points.size(); ++i)
+    {
+        const auto& point = grid.points[i];
+        nodes << (i < grid.nodeIds.size() ? grid.nodeIds[i] : i) << '\t' << formatDouble(point.x()) << '\t'
+              << formatDouble(point.y()) << '\t' << formatDouble(point.z());
+        writeFieldValues(nodes, grid.pointFields, i);
+        nodes << '\n';
+    }
+
+    auto cells = openTable(stem, "cells");
+    cells << "kind\tid\tnodes";
+    writeFieldNames(cells, grid.cellFields);
+    cells << '\n';
+    for (std::size_t i = 0; i < grid.cells.size(); ++i)
+    {
+        const auto& cell = grid.cells[i];
+        cells << formatCellKind(cell.type) << '\t' << i << '\t' << joinNodeIds(cell.pointIndices);
+        writeFieldValues(cells, grid.cellFields, i);
+        cells << '\n';
+    }
 }
 
 } // namespace Export

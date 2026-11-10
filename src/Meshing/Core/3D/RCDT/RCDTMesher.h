@@ -26,7 +26,6 @@ namespace Meshing
 {
 
 class MeshingContext3D;
-class MeshSnapshotWriter;
 
 /**
  * @brief Ambient-space RCDT mesher: implements both ISurfaceMesher3D and
@@ -80,10 +79,7 @@ private:
     /// Removes the ambient tetrahedra, then extracts and smooths the surface
     /// mesh into surfaceMesh_, writing a "smoothed" snapshot when smoothing ran.
     /// meshingVolume keeps smoothing from inverting tetrahedra.
-    void buildSurfaceMesh(MeshingContext3D& context,
-                          const RestrictedFaceMap& restrictedFaces,
-                          bool meshingVolume,
-                          MeshSnapshotWriter& snapshotWriter);
+    void buildSurfaceMesh(MeshingContext3D& context, const RestrictedFaceMap& restrictedFaces, bool meshingVolume);
 };
 
 } // namespace Meshing

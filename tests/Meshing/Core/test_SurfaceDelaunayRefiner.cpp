@@ -222,7 +222,8 @@ TEST_F(SurfaceDelaunayRefinerTest, WritesSeededInsertionAndRefinedSnapshots)
     std::filesystem::create_directories(directory);
     ScopedEnvironmentOverride flag("EXPORT_MESH_EACH_ITERATION", "1");
     ScopedEnvironmentOverride stride("EXPORT_MESH_EVERY_N", "50");
-    MeshSnapshotWriter writer(directory.string());
+    ScopedEnvironmentOverride output("EXPORT_MESH_DIRECTORY", directory.string());
+    MeshSnapshotWriter::restartSequence();
 
     const auto& topology = converter_->getTopology();
     std::vector<Point3D> points;
@@ -235,7 +236,7 @@ TEST_F(SurfaceDelaunayRefinerTest, WritesSeededInsertionAndRefinedSnapshots)
     settings.minAngleDegrees = MINIMUM_ANGLE_DEGREES;
     settings.chordDeviationTolerance = 0.05;
     settings.maxRefinementIterations = 5000;
-    SurfaceDelaunayRefiner refiner(context, topology, settings, MINIMUM_EDGE_LENGTH, &writer);
+    SurfaceDelaunayRefiner refiner(context, topology, settings, MINIMUM_EDGE_LENGTH);
     refiner.refine();
     refiner.writeSnapshot("refined");
 
