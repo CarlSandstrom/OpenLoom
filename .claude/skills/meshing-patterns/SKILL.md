@@ -93,4 +93,4 @@ View with `paraview output.vtu`.
 ## When investigating
 
 Run examples and tests with `CHECK_MESH_EACH_ITERATION=1` to catch mesh
-corruption early. `EXPORT_MESH_EACH_ITERATION=1` dumps per-iteration meshes.
+corruption early. `EXPORT_MESH_EACH_ITERATION=1` makes the 3D RCDT meshers write numbered `rcdt_<n>_<label>` VTU+TSV surface snapshots (`seeded`, every `EXPORT_MESH_EVERY_N`th `insertion`, `refined`, `smoothed`) to the working directory.

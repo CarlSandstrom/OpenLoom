@@ -34,7 +34,7 @@ src/Meshing/Core/
 │   │   ├── MeshQueries3D.{h,cpp}
 │   │   ├── ElementGeometry3D.{h,cpp}
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
-│   │   └── MeshDebugUtilities3D.{h,cpp}
+│   │   └── MeshSnapshotWriter.{h,cpp}
 │   ├── Surface/                         # Top-level surface mesher
 │   │   └── SurfaceMesher3D.{h,cpp}
 │   ├── Volume/                          # Top-level volume mesher + initial tetrahedralization
