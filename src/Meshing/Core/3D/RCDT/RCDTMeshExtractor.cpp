@@ -15,26 +15,6 @@ namespace Meshing
 namespace
 {
 
-// Zero-fill rather than plain resize(): node IDs below the highest surviving
-// one may be gaps left by the removed supertet corners, and Eigen's default
-// constructor does not zero-initialize — an unfilled slot would otherwise
-// hold whatever was previously in that memory.
-std::vector<Point3D> buildZeroFilledNodeList(const MeshData3D& meshData)
-{
-    std::vector<Point3D> nodes;
-    if (meshData.getNodeCount() == 0)
-        return nodes;
-
-    size_t maxNodeId = 0;
-    for (const auto& [nodeId, node] : meshData.getNodes())
-        maxNodeId = std::max(maxNodeId, nodeId);
-
-    nodes.resize(maxNodeId + 1, Point3D::Zero());
-    for (const auto& [nodeId, node] : meshData.getNodes())
-        nodes[nodeId] = node->getCoordinates();
-    return nodes;
-}
-
 void appendRestrictedTriangles(const RestrictedFaceMap& restrictedFaces,
                                std::vector<std::array<size_t, 3>>& triangles,
                                std::map<std::string, std::vector<size_t>>& triangleIdsBySurface)
@@ -61,12 +41,32 @@ std::map<std::string, std::vector<size_t>> buildEdgeNodeIds(const CurveSegmentMa
 
 } // namespace
 
+// Zero-fill rather than plain resize(): node IDs below the highest surviving
+// one may be gaps left by the removed supertet corners, and Eigen's default
+// constructor does not zero-initialize — an unfilled slot would otherwise
+// hold whatever was previously in that memory.
+std::vector<Point3D> RCDTMeshExtractor::extractNodePositions(const MeshData3D& meshData)
+{
+    std::vector<Point3D> nodes;
+    if (meshData.getNodeCount() == 0)
+        return nodes;
+
+    size_t maxNodeId = 0;
+    for (const auto& [nodeId, node] : meshData.getNodes())
+        maxNodeId = std::max(maxNodeId, nodeId);
+
+    nodes.resize(maxNodeId + 1, Point3D::Zero());
+    for (const auto& [nodeId, node] : meshData.getNodes())
+        nodes[nodeId] = node->getCoordinates();
+    return nodes;
+}
+
 SurfaceMesh3D RCDTMeshExtractor::extractSurfaceMesh(const MeshData3D& meshData,
                                                     const RestrictedFaceMap& restrictedFaces,
                                                     const Topology3D::Topology3D& topology)
 {
     SurfaceMesh3D surfaceMesh;
-    surfaceMesh.nodes = buildZeroFilledNodeList(meshData);
+    surfaceMesh.nodes = extractNodePositions(meshData);
     appendRestrictedTriangles(restrictedFaces, surfaceMesh.triangles, surfaceMesh.faceTriangleIds);
     surfaceMesh.edgeNodeIds = buildEdgeNodeIds(meshData.getCurveSegmentManager(), topology);
 
@@ -82,7 +82,7 @@ VolumeMesh3D RCDTMeshExtractor::extractVolumeMesh(const MeshData3D& meshData,
                                                   const Topology3D::Topology3D& topology)
 {
     VolumeMesh3D volumeMesh;
-    volumeMesh.nodes = buildZeroFilledNodeList(meshData);
+    volumeMesh.nodes = extractNodePositions(meshData);
     volumeMesh.tetrahedra = extractTetrahedra(meshData);
 
     appendRestrictedTriangles(restrictedFaces, volumeMesh.boundaryTriangles,

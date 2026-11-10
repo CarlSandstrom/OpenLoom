@@ -26,6 +26,9 @@ class MeshData3D;
 class RCDTMeshExtractor
 {
 public:
+    /// Node positions indexed by node ID, zero where an ID is a gap.
+    static std::vector<Point3D> extractNodePositions(const MeshData3D& meshData);
+
     static SurfaceMesh3D extractSurfaceMesh(const MeshData3D& meshData,
                                             const RestrictedFaceMap& restrictedFaces,
                                             const Topology3D::Topology3D& topology);

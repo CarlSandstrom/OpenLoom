@@ -4,11 +4,9 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
-#include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RegularConflictRegion.h"
 #include "Meshing/Core/3D/RCDT/SnapshotGridBuilder.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
@@ -56,6 +54,8 @@ void SurfaceDelaunayRefiner::refine()
     classifyAllFaces();
     spdlog::info("SurfaceDelaunayRefiner: {} restricted facets, {} bad", facets_.size(), queue_.size());
     writeSnapshot("seeded");
+    if (MeshSnapshotWriter::isEnabled())
+        MeshSnapshotWriter::write("balls", SnapshotGridBuilder::fromProtectingBalls(context_->getMeshData()));
 
     refineQueued();
 
@@ -199,9 +199,9 @@ void SurfaceDelaunayRefiner::writeSnapshot(const std::string& label) const
 {
     if (!MeshSnapshotWriter::isEnabled()) return;
 
-    auto surfaceMesh =
-        RCDTMeshExtractor::extractSurfaceMesh(context_->getMeshData(), getRestrictedFaces(), *topology_);
-    MeshSnapshotWriter::write(label, SnapshotGridBuilder::fromSurfaceMesh(surfaceMesh));
+    MeshSnapshotWriter::write(label,
+                              SnapshotGridBuilder::fromRestrictedFacets(
+                                  context_->getMeshData(), *topology_, facets_, badness_, droppedFaces_));
 }
 
 std::optional<FaceKey> SurfaceDelaunayRefiner::findEncroachedFacet(const Point3D& point,

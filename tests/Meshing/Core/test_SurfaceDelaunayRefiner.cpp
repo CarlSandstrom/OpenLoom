@@ -248,14 +248,23 @@ TEST_F(SurfaceDelaunayRefinerTest, WritesSeededInsertionAndRefinedSnapshots)
     }
     std::sort(labels.begin(), labels.end());
 
-    ASSERT_GE(labels.size(), 3u);
-    EXPECT_EQ(labels.front(), "rcdt_000000_seeded");
-    EXPECT_NE(labels[1].find("_insertion"), std::string::npos);
+    ASSERT_GE(labels.size(), 4u);
+    EXPECT_EQ(labels[0], "rcdt_000000_seeded");
+    EXPECT_EQ(labels[1], "rcdt_000001_balls");
+    EXPECT_NE(labels[2].find("_insertion"), std::string::npos);
     EXPECT_NE(labels.back().find("_refined"), std::string::npos);
 
     // One header row plus one row per restricted facet.
     auto cellsLines = countLines(directory / (labels.back() + ".cells.tsv"));
     EXPECT_EQ(cellsLines - 1, refiner.getRestrictedFaces().size());
+
+    std::ifstream refinedCells(directory / (labels.back() + ".cells.tsv"));
+    std::string header;
+    std::getline(refinedCells, header);
+    EXPECT_EQ(header, "kind\tid\tnodes\tSurfaceID\tBadnessCriterion\tBadnessValue\tDropped");
+
+    // The sphere has no curves, so the protecting balls are empty: header only.
+    EXPECT_EQ(countLines(directory / (labels[1] + ".nodes.tsv")), 1u);
 
     std::filesystem::remove_all(directory);
 }
