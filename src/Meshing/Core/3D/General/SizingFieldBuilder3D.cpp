@@ -17,27 +17,58 @@ namespace Meshing
 namespace
 {
 
-/// The element size at which a chord across curvature kappa stands off the
-/// true geometry by exactly tolerance. Infinite where the geometry is
-/// straight or flat, which correctly means "this imposes no size limit"
-/// rather than "zero".
+struct GeometrySamples
+{
+    std::vector<FeatureSample> samples;
+    std::vector<double> curvatureSizes;
+};
+
+double sizeFromCurvature(double curvature, double tolerance);
+double boundingBoxDiagonal(const std::vector<FeatureSample>& samples);
+GeometrySamples sampleCurves(const Geometry3D::GeometryCollection3D& geometry,
+                             const Topology3D::Topology3D& topology,
+                             const SizingFieldSettings3D& settings);
+GeometrySamples sampleSurfaces(const Geometry3D::GeometryCollection3D& geometry,
+                               const Topology3D::Topology3D& topology,
+                               const SizingFieldSettings3D& settings);
+GeometrySamples concatenate(GeometrySamples first, const GeometrySamples& second);
+std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
+                                       const std::vector<double>& featureSizes,
+                                       const SizingFieldSettings3D& settings);
+
+} // namespace
+
+SizingField3D SizingFieldBuilder3D::build(const Geometry3D::GeometryCollection3D& geometry,
+                                          const Topology3D::Topology3D& topology,
+                                          const SizingFieldSettings3D& settings)
+{
+    auto geometrySamples = concatenate(sampleCurves(geometry, topology, settings),
+                                       sampleSurfaces(geometry, topology, settings));
+
+    auto featureSizes = LocalFeatureSize3D::compute(geometrySamples.samples, topology);
+
+    return SizingField3D(buildSources(geometrySamples, featureSizes, settings), settings.gradientLimit);
+}
+
+namespace
+{
+
+// Infinite where the geometry is straight or flat, which means "no size limit", not "zero".
 double sizeFromCurvature(double curvature, double tolerance)
 {
-    if (!(curvature > 0.0) || !std::isfinite(curvature))
-        return std::numeric_limits<double>::infinity();
+    if (!(curvature > 0.0) || !std::isfinite(curvature)) return std::numeric_limits<double>::infinity();
 
     return std::sqrt(8.0 * tolerance / curvature);
 }
 
 double boundingBoxDiagonal(const std::vector<FeatureSample>& samples)
 {
-    if (samples.empty())
-        return 0.0;
+    if (samples.empty()) return 0.0;
 
     Point3D minimum = samples.front().position;
     Point3D maximum = samples.front().position;
 
-    for (const auto& sample : samples)
+    for (auto& sample : samples)
     {
         minimum = minimum.cwiseMin(sample.position);
         maximum = maximum.cwiseMax(sample.position);
@@ -46,119 +77,127 @@ double boundingBoxDiagonal(const std::vector<FeatureSample>& samples)
     return (maximum - minimum).norm();
 }
 
-} // namespace
-
-SizingField3D SizingFieldBuilder3D::build(const Geometry3D::GeometryCollection3D& geometry,
-                                          const Topology3D::Topology3D& topology,
-                                          const SizingFieldSettings3D& settings)
+GeometrySamples sampleCurves(const Geometry3D::GeometryCollection3D& geometry,
+                             const Topology3D::Topology3D& topology,
+                             const SizingFieldSettings3D& settings)
 {
-    std::vector<FeatureSample> samples;
-    std::vector<double> curvatureSizes;
+    GeometrySamples result;
 
-    // Curves. A seam twin duplicates its original's points in reverse (see
-    // BoundaryDiscretizer3D) and would only contribute the same samples
-    // twice; a degenerate edge has no real 3D curve to probe at all.
-    for (const auto& edgeId : topology.getAllEdgeIds())
+    for (auto& edgeId : topology.getAllEdgeIds())
     {
-        if (topology.getSeamCollection().isSeamTwin(edgeId))
-            continue;
+        // A seam twin would only repeat its original's samples, and a degenerate edge has no
+        // real 3D curve to probe.
+        if (topology.getSeamCollection().isSeamTwin(edgeId)) continue;
 
-        const auto* edge = geometry.getEdge(edgeId);
-        if (!edge || edge->isDegenerate())
-            continue;
+        auto edge = geometry.getEdge(edgeId);
+        if (!edge || edge->isDegenerate()) continue;
 
-        const auto [tMinimum, tMaximum] = edge->getParameterBounds();
-        const std::size_t stations = std::max<std::size_t>(settings.samplesPerCurve, 2);
+        auto [tMinimum, tMaximum] = edge->getParameterBounds();
+        auto stations = std::max<std::size_t>(settings.samplesPerCurve, 2);
 
         double arcLength = 0.0;
         Point3D previous = edge->getPoint(tMinimum);
 
         for (std::size_t station = 0; station <= stations; ++station)
         {
-            const double t = tMinimum + (tMaximum - tMinimum) * static_cast<double>(station) /
-                                            static_cast<double>(stations);
-            const Point3D position = edge->getPoint(t);
+            double t = tMinimum + (tMaximum - tMinimum) * static_cast<double>(station) /
+                                      static_cast<double>(stations);
+            Point3D position = edge->getPoint(t);
             arcLength += (position - previous).norm();
             previous = position;
 
-            samples.push_back({position, edgeId, arcLength, true});
-            curvatureSizes.push_back(
+            result.samples.push_back({position, edgeId, arcLength, true});
+            result.curvatureSizes.push_back(
                 sizeFromCurvature(edge->getCurvature(t), settings.chordDeviationTolerance));
         }
     }
 
-    // Surfaces.
-    for (const auto& surfaceId : topology.getAllSurfaceIds())
-    {
-        const auto* surface = geometry.getSurface(surfaceId);
-        if (!surface)
-            continue;
+    return result;
+}
 
-        const auto bounds = surface->getParameterBounds();
-        const std::size_t stations = std::max<std::size_t>(settings.samplesPerSurfaceDirection, 2);
+GeometrySamples sampleSurfaces(const Geometry3D::GeometryCollection3D& geometry,
+                               const Topology3D::Topology3D& topology,
+                               const SizingFieldSettings3D& settings)
+{
+    GeometrySamples result;
+
+    for (auto& surfaceId : topology.getAllSurfaceIds())
+    {
+        auto surface = geometry.getSurface(surfaceId);
+        if (!surface) continue;
+
+        auto bounds = surface->getParameterBounds();
+        auto stations = std::max<std::size_t>(settings.samplesPerSurfaceDirection, 2);
 
         for (std::size_t i = 0; i <= stations; ++i)
         {
-            const double u = bounds.getUMin() + (bounds.getUMax() - bounds.getUMin()) *
-                                                    static_cast<double>(i) /
-                                                    static_cast<double>(stations);
+            double u = bounds.getUMin() + (bounds.getUMax() - bounds.getUMin()) *
+                                              static_cast<double>(i) / static_cast<double>(stations);
 
             for (std::size_t j = 0; j <= stations; ++j)
             {
-                const double v = bounds.getVMin() + (bounds.getVMax() - bounds.getVMin()) *
-                                                        static_cast<double>(j) /
-                                                        static_cast<double>(stations);
+                double v = bounds.getVMin() + (bounds.getVMax() - bounds.getVMin()) *
+                                                  static_cast<double>(j) / static_cast<double>(stations);
 
-                // A uniform grid over the untrimmed parameter rectangle can
-                // land in a hole or cutout (see OPE-169); such a point is
-                // not on the model and must not seed the field.
-                if (!surface->isUVWithinTrimmedBoundary(u, v))
-                    continue;
+                // The untrimmed parameter grid can land in a hole or cutout (OPE-169); such a point
+                // is not on the model and must not seed the field.
+                if (!surface->isUVWithinTrimmedBoundary(u, v)) continue;
 
-                const auto curvatures = surface->getPrincipalCurvatures(u, v);
-                const double curvature =
-                    curvatures.has_value() ? std::max(std::abs(curvatures->minimum), std::abs(curvatures->maximum)) : 0.0;
+                auto curvatures = surface->getPrincipalCurvatures(u, v);
+                double curvature = curvatures.has_value()
+                                       ? std::max(std::abs(curvatures->minimum), std::abs(curvatures->maximum))
+                                       : 0.0;
 
-                samples.push_back({surface->getPoint(u, v), surfaceId, 0.0, false});
-                curvatureSizes.push_back(
-                    sizeFromCurvature(curvature, settings.chordDeviationTolerance));
+                result.samples.push_back({surface->getPoint(u, v), surfaceId, 0.0, false});
+                result.curvatureSizes.push_back(sizeFromCurvature(curvature, settings.chordDeviationTolerance));
             }
         }
     }
 
-    const std::vector<double> featureSizes =
-        LocalFeatureSize3D::compute(samples, topology);
+    return result;
+}
 
-    const double diagonal = boundingBoxDiagonal(samples);
-    const double floor = settings.minimumSizeFraction * diagonal;
+GeometrySamples concatenate(GeometrySamples first, const GeometrySamples& second)
+{
+    first.samples.insert(first.samples.end(), second.samples.begin(), second.samples.end());
+    first.curvatureSizes.insert(first.curvatureSizes.end(),
+                                second.curvatureSizes.begin(),
+                                second.curvatureSizes.end());
+    return first;
+}
+
+std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
+                                       const std::vector<double>& featureSizes,
+                                       const SizingFieldSettings3D& settings)
+{
+    auto& samples = geometrySamples.samples;
+    double diagonal = boundingBoxDiagonal(samples);
+    double sizeFloor = settings.minimumSizeFraction * diagonal;
 
     std::vector<SizingSource> sources;
     sources.reserve(samples.size());
 
     for (std::size_t i = 0; i < samples.size(); ++i)
     {
-        const double size =
-            std::min(curvatureSizes[i], featureSizes[i] / settings.elementsAcrossFeatureGap);
+        double size = std::min(geometrySamples.curvatureSizes[i], featureSizes[i] / settings.elementsAcrossFeatureGap);
 
-        // Neither term constrains this sample -- flat geometry with nothing
-        // unrelated nearby. Emitting no source is the correct answer; the
-        // envelope covers the position from its neighbours instead.
-        if (!std::isfinite(size))
-            continue;
+        // Flat geometry with nothing unrelated nearby: no source is the right answer, and the
+        // envelope covers the position from its neighbours.
+        if (!std::isfinite(size)) continue;
 
-        sources.push_back({samples[i].position, std::max(size, floor)});
+        sources.push_back({samples[i].position, std::max(size, sizeFloor)});
     }
 
+    // The geometry imposes no size limit anywhere: one coarse source at model scale says so and
+    // keeps every consumer on the same path. A source too large is safe; too small is not.
     if (sources.empty())
     {
-        // No curvature and no proximity anywhere: the geometry genuinely
-        // imposes no size limit. One coarse source at model scale says
-        // exactly that, and keeps every consumer on the same code path.
-        // Sizing a source too LARGE is safe; too small is not.
         sources.push_back({Point3D::Zero(), diagonal > 0.0 ? diagonal : 1.0});
     }
 
-    return SizingField3D(std::move(sources), settings.gradientLimit);
+    return sources;
 }
+
+} // namespace
 
 } // namespace Meshing

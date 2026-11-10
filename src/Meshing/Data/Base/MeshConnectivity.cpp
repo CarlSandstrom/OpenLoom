@@ -21,9 +21,7 @@ const std::vector<size_t>& MeshConnectivity::getNodeElements(size_t nodeId) cons
         return it->second;
     }
 
-    // Return empty vector if node not found
-    static const std::vector<size_t> emptyVector;
-    return emptyVector;
+    return {};
 }
 
 const std::pair<size_t, size_t>& MeshConnectivity::getFaceElements(const FaceKey& face) const
