@@ -47,16 +47,14 @@ struct RestrictedFacet
  *
  * Deliberately nothing else: no gate on which surfaces the vertices share, no
  * shortcut routes, no inside/outside test. Where the answer is locally wrong
- * the refiner that uses this is expected to refine it away, as CGAL does. This
- * replaced the old DualEdgeRestrictionOracle, which added all of those
- * (OPE-186).
+ * the refiner that uses this is expected to refine it away, as CGAL does.
  *
  * Crossings are found on each surface's SurfaceTessellation, then refined onto
  * the exact CAD surface by bisection along the dual segment, so the centre
  * stays on the dual line, and accepted only within the surface's trimmed
- * patch. When the dual edge crosses more than once, the
- * crossing nearest the face's own weighted circumcenter wins: that point lies
- * on the dual line, so the nearest crossing is the one belonging to this face.
+ * patch. When the dual edge crosses more than once, the crossing nearest the
+ * face's own weighted circumcenter wins: that point lies on the dual line, so
+ * the nearest crossing is the one belonging to this face.
  */
 class WeightedDualRestriction
 {

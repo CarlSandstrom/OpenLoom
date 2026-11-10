@@ -33,27 +33,25 @@ namespace Meshing
 
 /**
  * @brief Surface refinement as CGAL Mesh_3 does it (Refine_facets_3), on the
- * weighted tetrahedralization RCDTMesher seeds; it replaced the
- * RestrictedTriangulation + RCDTRefiner path (OPE-186). When meshing a volume,
- * TetrahedronDelaunayRefiner drives it as the level above its own.
+ * weighted tetrahedralization RCDTMesher seeds (OPE-186). When meshing a
+ * volume, TetrahedronDelaunayRefiner drives it as the level above its own.
  *
- * The design is CGAL's as a whole, because its pieces were each measured to
- * fail when ported one at a time into the existing refiner:
+ * The pieces only work together: each was measured to fail when
+ * ported one at a time into the earlier refiner:
  *
  *  - Restriction by the weighted dual edge alone (WeightedDualRestriction).
- *  - CGAL's three facet criteria (SurfaceFacetCriteria).
+ *  - Three facet criteria (SurfaceFacetCriteria).
  *  - Worst facet first: ordered by the first criterion that fails, then by
  *    how badly.
  *  - The refinement point is the facet's surface Delaunay ball centre.
- *  - CGAL's refusals only: a point is not inserted when neither tetrahedron
- *    beside the facet conflicts with it, or when an existing vertex hides it
- *    (it lies in that vertex's protecting ball) or coincides with it. No size
- *    floor or proximity guard; protection is fixed after seeding and curves
- *    are never split.
+ *  - A point is not inserted when neither tetrahedron beside the facet
+ *    conflicts with it, or when an existing vertex hides it (it lies in that
+ *    vertex's protecting ball) or coincides with it. No size floor or
+ *    proximity guard; protection is fixed after seeding and curves are never
+ *    split.
  *  - No post-processing: the restricted facets are the surface.
  *
- * Terminates on an empty queue or after maxRefinementIterations insertions,
- * the counterpart of CGAL's maximal_number_of_vertices.
+ * Terminates on an empty queue or after maxRefinementIterations insertions.
  */
 class SurfaceDelaunayRefiner
 {

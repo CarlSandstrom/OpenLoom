@@ -17,48 +17,42 @@ namespace Meshing
  * @brief A discrete triangulated approximation of one surface's trimmed
  * patch, used as an exact classification oracle.
  *
- * WeightedDualRestriction needs to know, robustly, whether a given segment
- * crosses a surface. Testing that directly against the surface's own
- * continuous (possibly curved) geometry requires a floating-point
- * near-tangent tolerance, which can misclassify a segment whose endpoints
- * are only fractions of a unit from the surface (see OPE-169). Reducing the
- * question to "does this segment cross any triangle in a fixed tessellation
- * of the surface" turns it into a purely point-based predicate
- * (RobustPredicates3D::segmentCrossesTriangle), evaluated exactly regardless
- * of how close to degenerate the input is.
+ * WeightedDualRestriction needs to know, robustly, whether a segment crosses a
+ * surface. Testing that against the surface's own continuous geometry needs a
+ * near-tangent tolerance, which can misclassify a segment whose endpoints are
+ * only fractions of a unit from the surface (OPE-169). Asking instead whether
+ * the segment crosses any triangle of a fixed tessellation turns it into a
+ * point-based predicate (RobustPredicates3D::segmentCrossesTriangle),
+ * evaluated exactly however close to degenerate the input is.
  *
- * Built entirely from the ISurface3D interface every backend already
- * implements (getPoint(), getParameterBounds(), isUVWithinTrimmedBoundary())
- * — no CAD-kernel-specific tessellator required, so this works identically
- * for a flat plane or a NURBS patch, and doesn't tie RCDT to OCC.
+ * Built from the ISurface3D interface alone (getPoint(), getParameterBounds(),
+ * isUVWithinTrimmedBoundary()), so it works the same for a plane or a NURBS
+ * patch and does not tie RCDT to OpenCascade.
  *
  * This class is the UV sampling half of that job: where to place samples and
- * which cells to emit. The triangles it produces are held in a
- * TriangleSoupIndex, which knows nothing about surfaces and answers the
- * crossing query.
+ * which cells to emit. The triangles are held in a TriangleSoupIndex, which
+ * knows nothing about surfaces and answers the crossing query.
  */
 class SurfaceTessellation
 {
 public:
-    /// Builds a UV-grid tessellation of surface's trimmed patch at a
-    /// resolution whose triangle edge lengths are at most targetCellSize —
-    /// scaled the same way regardless of whether the surface is flat: a flat
-    /// surface's triangles are exact at any resolution, but the jittered
-    /// grid's own edge-coverage gap near the trim boundary is not, so
-    /// resolution still needs to track targetCellSize there too (see the
-    /// .cpp for the gap this fixed). The computed sample count is capped at
-    /// MAXIMUM_SAMPLES_PER_DIRECTION to bound memory and cost.
-    /// A cell isn't clipped to the exact trim curve, so the tessellation can
-    /// extend up to one grid cell past the true trimmed patch near its edge
-    /// — harmless here, since the caller (WeightedDualRestriction) separately
-    /// checks that the crossing it accepts is within the true trim boundary;
-    /// this tessellation only needs to not have gaps.
+    /// Builds a UV-grid tessellation of surface's trimmed patch with triangle
+    /// edges at most targetCellSize long, for flat surfaces too: the jittered
+    /// grid's coverage gap near the trim boundary needs the resolution even
+    /// where the triangles themselves are exact. The sample count per
+    /// direction is capped to bound cost, and the cap warns when it binds.
+    ///
+    /// A cell is not clipped to the trim curve, so the tessellation can extend
+    /// up to one cell past the trimmed patch. That is harmless: the caller
+    /// checks that an accepted crossing lies within the true trim boundary.
     void build(const Geometry3D::ISurface3D& surface, double targetCellSize);
 
-    /// Where segment (a, b) crosses this tessellation, nearest to target; see
+    /// Where the segment crosses this tessellation, nearest to target; see
     /// TriangleSoupIndex::findCrossingNearest(). The point lies on the
     /// tessellation, not exactly on the surface.
-    std::optional<Point3D> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
+    std::optional<Point3D> findCrossingNearest(const Point3D& segmentStart,
+                                               const Point3D& segmentEnd,
+                                               const Point3D& target) const;
 
 private:
     TriangleSoupIndex triangles_;

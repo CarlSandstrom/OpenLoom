@@ -12,7 +12,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace Meshing
@@ -20,23 +24,11 @@ namespace Meshing
 
 namespace
 {
-
 constexpr size_t INVALID_ID = SIZE_MAX;
 
-std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology)
-{
-    const auto surfaceIds = topology.getAllSurfaceIds();
-    return {surfaceIds.begin(), surfaceIds.end()};
-}
-
-std::vector<FaceKey> facesOf(const TetrahedralElement& tetrahedron)
-{
-    std::vector<FaceKey> faces;
-    for (const auto& faceNodes : tetrahedron.getFaces())
-        faces.emplace_back(faceNodes);
-    return faces;
-}
-
+std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology);
+std::vector<FaceKey> facesOf(const TetrahedralElement& tetrahedron);
+std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<size_t>& elementIds);
 } // namespace
 
 SurfaceDelaunayRefiner::SurfaceDelaunayRefiner(MeshingContext3D& context,
@@ -61,7 +53,9 @@ void SurfaceDelaunayRefiner::refine()
     refineQueued();
 
     if (hasReachedInsertionCap())
+    {
         spdlog::warn("SurfaceDelaunayRefiner: reached the insertion cap ({})", settings_.maxRefinementIterations);
+    }
     spdlog::info("SurfaceDelaunayRefiner: {} insertions, {} restricted facets, {} still bad, {} dropped",
                  insertionCount_, facets_.size(), queue_.size(), droppedFaces_.size());
 }
@@ -81,7 +75,7 @@ bool SurfaceDelaunayRefiner::hasReachedInsertionCap() const
 RestrictedFaceMap SurfaceDelaunayRefiner::getRestrictedFaces() const
 {
     RestrictedFaceMap faces;
-    for (const auto& [face, facet] : facets_)
+    for (auto& [face, facet] : facets_)
         faces.emplace(face, facet.surfaceId);
     return faces;
 }
@@ -89,20 +83,21 @@ RestrictedFaceMap SurfaceDelaunayRefiner::getRestrictedFaces() const
 void SurfaceDelaunayRefiner::classifyAllFaces()
 {
     std::unordered_set<FaceKey, FaceKeyHash> seen;
-    for (const auto& [elementId, element] : context_->getMeshData().getElements())
+    for (auto& [elementId, element] : context_->getMeshData().getElements())
     {
-        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tetrahedron)
-            continue;
-        for (const auto& face : facesOf(*tetrahedron))
-            if (seen.insert(face).second)
-                reclassify(face);
+        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tetrahedron) continue;
+
+        for (auto& face : facesOf(*tetrahedron))
+        {
+            if (seen.insert(face).second) reclassify(face);
+        }
     }
 }
 
 void SurfaceDelaunayRefiner::forget(const FaceKey& face)
 {
-    const auto badness = badness_.find(face);
+    auto badness = badness_.find(face);
     if (badness != badness_.end())
     {
         queue_.erase({badness->second, face});
@@ -115,11 +110,11 @@ void SurfaceDelaunayRefiner::forget(const FaceKey& face)
 void SurfaceDelaunayRefiner::reclassify(const FaceKey& face)
 {
     forget(face);
-    const auto facet = restriction_.restrict(face, context_->getMeshData(), *connectivity_);
-    if (!facet)
-        return;
+    auto facet = restriction_.restrict(face, context_->getMeshData(), *connectivity_);
+    if (!facet) return;
+
     facets_.emplace(face, *facet);
-    if (const auto badness = criteria_.findBadness(face, *facet, context_->getMeshData()))
+    if (auto badness = criteria_.findBadness(face, *facet, context_->getMeshData()))
     {
         badness_.emplace(face, *badness);
         queue_.emplace(*badness, face);
@@ -129,20 +124,21 @@ void SurfaceDelaunayRefiner::reclassify(const FaceKey& face)
 bool SurfaceDelaunayRefiner::refineWorst()
 {
     while (!queue_.empty())
-        if (refineFacet(queue_.begin()->second))
-            return true;
+    {
+        if (refineFacet(queue_.begin()->second)) return true;
+    }
     return false;
 }
 
 bool SurfaceDelaunayRefiner::refineFacet(const FaceKey& face)
 {
     auto& meshData = context_->getMeshData();
-    const RestrictedFacet facet = facets_.at(face);
+    auto facet = facets_.at(face);
 
-    // CGAL's refusals: the point must conflict with a tetrahedron beside the
-    // facet, or inserting it would not remove the facet; and it must not be
-    // hidden by, or coincide with, an existing vertex.
-    const auto& [elementId1, elementId2] = connectivity_->getFaceElements(face);
+    // The point must conflict with a tetrahedron beside the facet, or inserting
+    // it would not remove the facet; and it must not be hidden by, or coincide
+    // with, an existing vertex.
+    auto [elementId1, elementId2] = connectivity_->getFaceElements(face);
     auto conflicting = RegularConflictRegion::find({elementId1, elementId2}, facet.surfaceCenter, meshData, *connectivity_);
     if (conflicting.empty() || RegularConflictRegion::isHiddenOrDuplicate(facet.surfaceCenter, conflicting, meshData))
     {
@@ -155,7 +151,7 @@ bool SurfaceDelaunayRefiner::refineFacet(const FaceKey& face)
 
 void SurfaceDelaunayRefiner::drop(const FaceKey& face)
 {
-    const auto badness = badness_.find(face);
+    auto badness = badness_.find(face);
     if (badness != badness_.end())
     {
         queue_.erase({badness->second, face});
@@ -170,54 +166,82 @@ void SurfaceDelaunayRefiner::insert(const Point3D& point,
 {
     auto& meshData = context_->getMeshData();
 
-    std::vector<FaceKey> cavityFaces;
-    for (const size_t elementId : conflictRegion)
-        if (const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId)))
-            for (const auto& cavityFace : facesOf(*tetrahedron))
-                cavityFaces.push_back(cavityFace);
+    auto cavityFaces = facesOfElements(meshData, conflictRegion);
 
-    const size_t newNodeId =
+    auto newNodeId =
         context_->getOperations().insertVertexBowyerWatson(point, std::move(conflictRegion), std::move(geometryIds));
     ++insertionCount_;
 
     connectivity_ = std::make_unique<MeshConnectivity>(meshData);
-    for (const auto& cavityFace : cavityFaces)
+    for (auto& cavityFace : cavityFaces)
     {
         if (connectivity_->getFaceElements(cavityFace).first == INVALID_ID)
             forget(cavityFace);
         else
             reclassify(cavityFace);
     }
-    for (const size_t elementId : connectivity_->getNodeElements(newNodeId))
-        if (const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId)))
-            for (const auto& newFace : facesOf(*tetrahedron))
-                reclassify(newFace);
+    for (auto& newFace : facesOfElements(meshData, connectivity_->getNodeElements(newNodeId)))
+    {
+        reclassify(newFace);
+    }
 }
 
 std::optional<FaceKey> SurfaceDelaunayRefiner::findEncroachedFacet(const Point3D& point,
                                                                    const std::vector<size_t>& conflictRegion) const
 {
-    const auto& meshData = context_->getMeshData();
-    for (const size_t elementId : conflictRegion)
+    auto& meshData = context_->getMeshData();
+    for (auto elementId : conflictRegion)
     {
-        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
-        if (!tetrahedron)
-            continue;
-        for (const auto& face : facesOf(*tetrahedron))
+        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        if (!tetrahedron) continue;
+
+        for (auto& face : facesOf(*tetrahedron))
         {
-            const auto facet = facets_.find(face);
-            if (facet == facets_.end())
-                continue;
+            auto facet = facets_.find(face);
+            if (facet == facets_.end()) continue;
+
             // The surface Delaunay ball: centred on the dual line, so at equal
             // power to all three weighted vertices.
-            const Node3D* vertex = meshData.getNode(face.nodeIds[0]);
-            const Point3D& center = facet->second.surfaceCenter;
-            const double squaredRadius = (center - vertex->getCoordinates()).squaredNorm() - vertex->getWeight();
-            if ((point - center).squaredNorm() < squaredRadius)
-                return face;
+            auto vertex = meshData.getNode(face.nodeIds[0]);
+            auto& center = facet->second.surfaceCenter;
+            double squaredRadius = (center - vertex->getCoordinates()).squaredNorm() - vertex->getWeight();
+            if ((point - center).squaredNorm() < squaredRadius) return face;
         }
     }
     return std::nullopt;
 }
+
+namespace
+{
+
+std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology)
+{
+    auto surfaceIds = topology.getAllSurfaceIds();
+    return {surfaceIds.begin(), surfaceIds.end()};
+}
+
+std::vector<FaceKey> facesOf(const TetrahedralElement& tetrahedron)
+{
+    std::vector<FaceKey> faces;
+    for (auto& faceNodes : tetrahedron.getFaces())
+        faces.emplace_back(faceNodes);
+    return faces;
+}
+
+std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<size_t>& elementIds)
+{
+    std::vector<FaceKey> faces;
+    for (auto elementId : elementIds)
+    {
+        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        if (!tetrahedron) continue;
+
+        for (auto& face : facesOf(*tetrahedron))
+            faces.push_back(face);
+    }
+    return faces;
+}
+
+} // namespace
 
 } // namespace Meshing

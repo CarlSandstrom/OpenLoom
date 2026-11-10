@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace Meshing
 {
@@ -27,7 +28,7 @@ SizingField3D::SizingField3D(std::vector<SizingSource> sources, double gradientL
                             "SizingField3D gradient limit must be finite and strictly positive");
     }
 
-    for (const auto& source : sources_)
+    for (auto& source : sources_)
     {
         if (!(source.size > 0.0) || !std::isfinite(source.size))
         {
@@ -43,7 +44,7 @@ double SizingField3D::evaluate(const Point3D& point) const
 {
     double size = std::numeric_limits<double>::infinity();
 
-    for (const auto& source : sources_)
+    for (auto& source : sources_)
     {
         size = std::min(size, source.size + gradientLimit_ * (point - source.position).norm());
     }
