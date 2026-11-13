@@ -2,8 +2,6 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
-#include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
 #include <array>
 #include <memory>
 #include <string>
@@ -12,8 +10,8 @@
 namespace Meshing
 {
 
+class MeshData3D;
 class MeshMutator3D;
-class MeshConnectivity;
 
 /**
  * @brief Mutation operations for 3D meshes
@@ -25,17 +23,12 @@ class MeshConnectivity;
 class MeshOperations3D
 {
 public:
-    /**
-     * @brief Construct mesh operations with mesh data
-     * @param meshData Reference to the 3D mesh data
-     */
     explicit MeshOperations3D(MeshData3D& meshData);
 
     /**
      * @brief Create a bounding tetrahedron that contains all given points
      *
      * Creates a large tetrahedron that encloses all input points with margin.
-     * This is the first step in Delaunay initialization.
      *
      * @param points The points that must be contained within the tetrahedron
      * @return Array of 4 node IDs for the bounding tetrahedron vertices
@@ -52,7 +45,7 @@ public:
      * @param geometryIds Optional geometry entity IDs this vertex belongs to
      * @param weight The vertex's regular-triangulation weight (0 for an
      * ordinary, unweighted vertex -- see Node3D::getWeight() and
-     * RegularPredicates3D, OPE-176)
+     * RegularPredicates3D)
      * @return Node ID of the inserted vertex
      */
     size_t insertVertexBowyerWatson(const Point3D& point,
@@ -156,13 +149,13 @@ private:
      *
      * @param vertexNodeId The newly inserted vertex
      * @param face The coplanar boundary face being split
-     * @param apexA Apex of the tetrahedron on the removed (conflicting) side
-     * @param apexB Apex of the tetrahedron on the kept (neighbor) side
+     * @param apex0 Apex of the tetrahedron on the removed (conflicting) side
+     * @param apex1 Apex of the tetrahedron on the kept (neighbor) side
      */
     void splitCoplanarBoundaryFace(size_t vertexNodeId,
                                    const std::array<size_t, 3>& face,
-                                   size_t apexA,
-                                   size_t apexB);
+                                   size_t apex0,
+                                   size_t apex1);
 };
 
 } // namespace Meshing

@@ -38,6 +38,7 @@
  */
 
 #include "Common/Logging.h"
+#include "Common/Types.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -54,8 +55,10 @@
 #include <gp_Vec.hxx>
 
 #include <array>
+#include <cmath>
 #include <iostream>
 #include <numbers>
+#include <optional>
 
 namespace
 {
@@ -65,20 +68,20 @@ constexpr double FLANGE_THICKNESS = 2.0;
 constexpr double DEPTH = 10.0;
 constexpr double BEND_ANGLE_DEGREES = 20.0; // < 30 deg: the acute dihedral under test
 
-using Point2D = std::array<double, 2>;
+using Meshing::Point2D;
 
-Point2D operator+(const Point2D& a, const Point2D& b) { return {a[0] + b[0], a[1] + b[1]}; }
-Point2D operator*(const Point2D& v, double s) { return {v[0] * s, v[1] * s}; }
-
-// Left-normal of a direction vector (rotate 90 deg counter-clockwise).
-Point2D leftNormal(const Point2D& d) { return {-d[1], d[0]}; }
-
-// Intersection of line (p1 + t*d1) with line (p2 + s*d2).
-Point2D intersectLines(const Point2D& p1, const Point2D& d1, const Point2D& p2, const Point2D& d2)
+// Left-normal of a direction (rotate 90 deg counter-clockwise).
+Point2D leftNormal(const Point2D& direction)
 {
-    const double denominator = d1[0] * d2[1] - d1[1] * d2[0];
-    const double t = ((p2[0] - p1[0]) * d2[1] - (p2[1] - p1[1]) * d2[0]) / denominator;
-    return p1 + d1 * t;
+    return {-direction.y(), direction.x()};
+}
+
+// Intersection of line (point1 + t*direction1) with line (point2 + s*direction2).
+Point2D intersectLines(const Point2D& point1, const Point2D& direction1, const Point2D& point2, const Point2D& direction2)
+{
+    double denominator = direction1.x() * direction2.y() - direction1.y() * direction2.x();
+    double t = ((point2.x() - point1.x()) * direction2.y() - (point2.y() - point1.y()) * direction2.x()) / denominator;
+    return point1 + direction1 * t;
 }
 
 // Builds the bent-strip cross-section: two THICKNESS-wide flanges of length
@@ -87,11 +90,11 @@ Point2D intersectLines(const Point2D& p1, const Point2D& d1, const Point2D& p2, 
 // (outer) corners.
 std::array<Point2D, 6> buildCrossSection()
 {
-    const double halfAngle = (BEND_ANGLE_DEGREES / 2.0) * std::numbers::pi / 180.0;
-    const double halfThickness = FLANGE_THICKNESS / 2.0;
+    double halfAngle = (BEND_ANGLE_DEGREES / 2.0) * std::numbers::pi / 180.0;
+    double halfThickness = FLANGE_THICKNESS / 2.0;
 
-    const Point2D direction1{std::cos(-halfAngle), std::sin(-halfAngle)};
-    const Point2D direction2{std::cos(halfAngle), std::sin(halfAngle)};
+    Point2D direction1{std::cos(-halfAngle), std::sin(-halfAngle)};
+    Point2D direction2{std::cos(halfAngle), std::sin(halfAngle)};
     // Each normal points into the concave (inner) side, toward the other
     // flange: left of flange 1 (running at -halfAngle), right of flange 2
     // (running at +halfAngle). Using leftNormal for both put the two "inner"
@@ -99,31 +102,31 @@ std::array<Point2D, 6> buildCrossSection()
     // (signed area 0), so the extruded solid passed through itself along
     // x = 5.76, y = 0 -- invalid for BRepCheck_Analyzer, its end caps
     // untriangulable by BRepMesh.
-    const Point2D n1 = leftNormal(direction1);
-    const Point2D n2 = leftNormal(direction2) * -1.0;
+    Point2D normal1 = leftNormal(direction1);
+    Point2D normal2 = leftNormal(direction2) * -1.0;
 
     // Concave miter: where the two flanges' inner (facing each other) edges cross.
-    const Point2D innerApex = intersectLines(n1 * halfThickness, direction1, n2 * halfThickness, direction2);
+    Point2D innerApex = intersectLines(normal1 * halfThickness, direction1, normal2 * halfThickness, direction2);
     // Convex miter: where the two flanges' outer edges cross (behind the origin).
-    const Point2D outerApex = intersectLines(n1 * -halfThickness, direction1, n2 * -halfThickness, direction2);
+    Point2D outerApex = intersectLines(normal1 * -halfThickness, direction1, normal2 * -halfThickness, direction2);
 
     return {
         outerApex,
-        direction1 * FLANGE_LENGTH + n1 * -halfThickness, // flange 1, outer, far end
-        direction1 * FLANGE_LENGTH + n1 * halfThickness,  // flange 1, inner, far end
+        direction1 * FLANGE_LENGTH + normal1 * -halfThickness, // flange 1, outer, far end
+        direction1 * FLANGE_LENGTH + normal1 * halfThickness,  // flange 1, inner, far end
         innerApex,
-        direction2 * FLANGE_LENGTH + n2 * halfThickness,  // flange 2, inner, far end
-        direction2 * FLANGE_LENGTH + n2 * -halfThickness, // flange 2, outer, far end
+        direction2 * FLANGE_LENGTH + normal2 * halfThickness,  // flange 2, inner, far end
+        direction2 * FLANGE_LENGTH + normal2 * -halfThickness, // flange 2, outer, far end
     };
 }
 
 TopoDS_Shape buildSharpCreaseBracket()
 {
-    const auto profile = buildCrossSection();
+    auto profile = buildCrossSection();
 
     BRepBuilderAPI_MakePolygon polygonBuilder;
-    for (const auto& point : profile)
-        polygonBuilder.Add(gp_Pnt(point[0], point[1], 0.0));
+    for (auto& point : profile)
+        polygonBuilder.Add(gp_Pnt(point.x(), point.y(), 0.0));
     polygonBuilder.Close();
 
     TopoDS_Face face = BRepBuilderAPI_MakeFace(polygonBuilder.Wire()).Face();

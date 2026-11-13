@@ -2,8 +2,8 @@
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/General/RegularPredicates3D.h"
 #include "Meshing/Data/3D/Node3D.h"
-#include "spdlog/spdlog.h"
 #include <algorithm>
+#include <array>
 #include <map>
 
 namespace Meshing
@@ -18,14 +18,10 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
 {
     std::vector<size_t> conflicting;
 
-    // Check all tetrahedra
     for (const auto& [tetId, element] : meshData_.getElements())
     {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-        {
-            continue;
-        }
+        auto tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet) continue;
 
         // Weighted in-sphere ("orthosphere") test via a robust exact-
         // arithmetic determinant sign, not an explicit circumcenter/radius:
@@ -36,20 +32,17 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
         // exactly to the plain (unweighted) test when every weight involved
         // is 0 (see RegularPredicates3D, OPE-176).
         const auto& nodeIds = tet->getNodeIds();
-        const Node3D* n0 = meshData_.getNode(nodeIds[0]);
-        const Node3D* n1 = meshData_.getNode(nodeIds[1]);
-        const Node3D* n2 = meshData_.getNode(nodeIds[2]);
-        const Node3D* n3 = meshData_.getNode(nodeIds[3]);
-        if (!n0 || !n1 || !n2 || !n3)
-        {
-            continue;
-        }
+        auto node0 = meshData_.getNode(nodeIds[0]);
+        auto node1 = meshData_.getNode(nodeIds[1]);
+        auto node2 = meshData_.getNode(nodeIds[2]);
+        auto node3 = meshData_.getNode(nodeIds[3]);
+        if (!node0 || !node1 || !node2 || !node3) continue;
 
         if (RegularPredicates3D::insidePointOrthosphere(
-                n0->getCoordinates(), n0->getWeight(),
-                n1->getCoordinates(), n1->getWeight(),
-                n2->getCoordinates(), n2->getWeight(),
-                n3->getCoordinates(), n3->getWeight(),
+                node0->getCoordinates(), node0->getWeight(),
+                node1->getCoordinates(), node1->getWeight(),
+                node2->getCoordinates(), node2->getWeight(),
+                node3->getCoordinates(), node3->getWeight(),
                 point, pointWeight))
         {
             conflicting.push_back(tetId);
@@ -62,38 +55,25 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
 std::vector<std::array<size_t, 3>>
 MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices) const
 {
-    // Map to count how many times each face appears, and store the original oriented face
     std::map<FaceKey, size_t> faceCount;
     std::map<FaceKey, std::array<size_t, 3>> faceOrientation;
 
-    // Iterate through all conflicting tetrahedra and count their faces
     for (size_t tetId : conflictingIndices)
     {
-        const auto* element = meshData_.getElement(tetId);
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-        if (!tet)
-        {
-            continue;
-        }
+        auto element = meshData_.getElement(tetId);
+        auto tet = dynamic_cast<const TetrahedralElement*>(element);
+        if (!tet) continue;
 
-        // Get the four faces with consistent outward-pointing orientation
-        // Using standard tet face ordering (each face opposite to one node)
-        auto faces = tet->getFaces();
-
-        for (const auto& face : faces)
+        for (auto& face : tet->getFaces())
         {
             FaceKey key(face[0], face[1], face[2]);
             faceCount[key]++;
-            // Store the oriented face (first occurrence wins; for boundary faces
-            // there is only one occurrence)
-            if (!faceOrientation.contains(key))
-            {
-                faceOrientation[key] = face;
-            }
+            // First occurrence wins; a boundary face occurs only once
+            faceOrientation.try_emplace(key, face);
         }
     }
 
-    // Boundary faces appear exactly once (not shared with another conflicting tet)
+    // A boundary face is not shared with another conflicting tetrahedron
     std::vector<std::array<size_t, 3>> boundary;
     for (const auto& [faceKey, count] : faceCount)
     {
@@ -112,16 +92,13 @@ std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t
 
     for (const auto& [tetId, element] : meshData_.getElements())
     {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tet)
-            continue;
+        auto tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tet) continue;
 
-        const auto& nodes = tet->getNodeIds();
-        bool hasNode1 = std::find(nodes.begin(), nodes.end(), nodeId1) != nodes.end();
-        bool hasNode2 = std::find(nodes.begin(), nodes.end(), nodeId2) != nodes.end();
-        bool hasNode3 = std::find(nodes.begin(), nodes.end(), nodeId3) != nodes.end();
-
-        if (hasNode1 && hasNode2 && hasNode3)
+        auto& nodes = tet->getNodeIds();
+        auto hasNode = [&nodes](size_t nodeId)
+        { return std::ranges::find(nodes, nodeId) != nodes.end(); };
+        if (hasNode(nodeId1) && hasNode(nodeId2) && hasNode(nodeId3))
         {
             result.push_back(tetId);
         }
@@ -129,24 +106,17 @@ std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t
     return result;
 }
 
-size_t MeshQueries3D::findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const
+std::optional<size_t> MeshQueries3D::findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const
 {
-    const auto* element = meshData_.getElement(tetId);
-    const auto* tet = dynamic_cast<const TetrahedralElement*>(element);
-    if (!tet)
-    {
-        return SIZE_MAX;
-    }
+    auto element = meshData_.getElement(tetId);
+    auto tet = dynamic_cast<const TetrahedralElement*>(element);
+    if (!tet) return std::nullopt;
 
-    const auto& nodes = tet->getNodeIds();
-    for (size_t nodeId : nodes)
+    for (size_t nodeId : tet->getNodeIds())
     {
-        if (nodeId != faceNode1 && nodeId != faceNode2 && nodeId != faceNode3)
-        {
-            return nodeId;
-        }
+        if (nodeId != faceNode1 && nodeId != faceNode2 && nodeId != faceNode3) return nodeId;
     }
-    return SIZE_MAX;
+    return std::nullopt;
 }
 
 } // namespace Meshing

@@ -3,7 +3,9 @@
 #include "Topology/Topology3D.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -32,188 +34,71 @@ constexpr double PROXIMITY_PATH_FACTOR = 3.0;
 // round-trip round-off in the sampled positions.
 constexpr double CLOSED_CURVE_TOLERANCE = 1e-9;
 
-/// How far apart two samples on one curve are, measured along that curve.
-/// On a CLOSED curve the route may run either way round, and the shorter
-/// one wins -- without which a seam circle's first and last samples, which
-/// occupy the same point in space, would appear a full circumference apart
-/// along the curve and so read as an infinitely thin feature.
-double arcDistance(double arcLengthA, double arcLengthB, double totalArcLength, bool closed)
+/// The edges and corners through which one entity connects to the others.
+struct EntityConnections
 {
-    const double along = std::abs(arcLengthA - arcLengthB);
-    return closed ? std::min(along, totalArcLength - along) : along;
-}
+    std::vector<std::size_t> boundaryEdgeIndices;
+    std::vector<std::string> cornerIds;
+};
 
-/// The boundary edges of one entity. A surface reports the edges bounding
-/// it; an edge reports itself, since it is its own boundary as far as
-/// routing between entities is concerned.
-std::vector<std::string> entityBoundaryEdgeIds(const std::string& entityId,
-                                               const Topology3D::Topology3D& topology,
-                                               const std::unordered_set<std::string>& edgeIds,
-                                               const std::unordered_set<std::string>& surfaceIds)
+/// One curve's own length, and whether it closes on itself -- both are
+/// needed to measure distance along it (see arcDistance).
+struct CurveExtent
 {
-    if (edgeIds.count(entityId) > 0)
-        return {entityId};
+    double totalArcLength = 0.0;
+    Point3D firstPosition = Point3D::Zero();
+    Point3D lastPosition = Point3D::Zero();
+    bool started = false;
+    bool closed = false;
+};
 
-    if (surfaceIds.count(entityId) > 0)
-        return topology.getSurface(entityId).getBoundaryEdgeIds();
-
-    return {};
-}
-
-/// The corners of one entity. Needed alongside the edges above because two
-/// entities can meet at a single corner without sharing any edge -- two
-/// edges of a box at a vertex, or an edge touching a face it does not
-/// bound. Such a pair does have a route, and treating it as unconnected
-/// makes every junction look like a thin feature.
-std::vector<std::string> entityCornerIds(const std::string& entityId,
-                                         const Topology3D::Topology3D& topology,
-                                         const std::unordered_set<std::string>& edgeIds,
-                                         const std::unordered_set<std::string>& surfaceIds)
-{
-    if (edgeIds.count(entityId) > 0)
-    {
-        const auto& edge = topology.getEdge(entityId);
-        return {edge.getStartCornerId(), edge.getEndCornerId()};
-    }
-
-    if (surfaceIds.count(entityId) > 0)
-        return topology.getSurface(entityId).getCornerIds();
-
-    return {};
-}
+std::unordered_map<std::string, EntityConnections>
+collectEntityConnections(const std::vector<FeatureSample>& samples,
+                         const Topology3D::Topology3D& topology,
+                         const std::unordered_map<std::string, std::size_t>& edgeIndexById);
+std::unordered_map<std::string, CurveExtent> measureCurveExtents(const std::vector<FeatureSample>& samples);
+std::vector<std::vector<double>> computeDistancesToEdges(const std::vector<FeatureSample>& samples,
+                                                         const std::unordered_map<std::string, std::size_t>& edgeIndexById,
+                                                         std::size_t edgeCount);
+double routeAlongEntity(const FeatureSample& sample0,
+                        const FeatureSample& sample1,
+                        const std::unordered_map<std::string, CurveExtent>& curveExtents);
+bool oneBoundsTheOther(const std::vector<std::size_t>& edges0, const std::vector<std::size_t>& edges1);
+std::optional<double> routeThroughSharedEdges(const std::vector<std::size_t>& edges0,
+                                              const std::vector<std::size_t>& edges1,
+                                              const std::vector<double>& distancesToEdges0,
+                                              const std::vector<double>& distancesToEdges1);
+bool shareACorner(const std::vector<std::string>& corners0, const std::vector<std::string>& corners1);
 
 } // namespace
 
 std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>& samples,
                                                 const Topology3D::Topology3D& topology)
 {
-    const auto allEdgeIds = topology.getAllEdgeIds();
-    const auto allSurfaceIds = topology.getAllSurfaceIds();
-    const std::unordered_set<std::string> edgeIds(allEdgeIds.begin(), allEdgeIds.end());
-    const std::unordered_set<std::string> surfaceIds(allSurfaceIds.begin(), allSurfaceIds.end());
-
     // Every route between two different entities runs through an edge they
     // have in common, so the pairwise loop needs each sample's distance to
     // each edge. Resolving that here keeps the loop itself to arithmetic.
+    auto allEdgeIds = topology.getAllEdgeIds();
     std::unordered_map<std::string, std::size_t> edgeIndexById;
     for (std::size_t index = 0; index < allEdgeIds.size(); ++index)
         edgeIndexById.emplace(allEdgeIds[index], index);
 
-    std::unordered_map<std::string, std::vector<std::size_t>> boundaryEdgeIndicesByEntity;
-    std::unordered_map<std::string, std::vector<std::string>> cornerIdsByEntity;
+    auto connectionsByEntity = collectEntityConnections(samples, topology, edgeIndexById);
+    auto curveExtents = measureCurveExtents(samples);
+    auto distanceToEdge = computeDistancesToEdges(samples, edgeIndexById, allEdgeIds.size());
 
-    for (const auto& sample : samples)
-    {
-        if (boundaryEdgeIndicesByEntity.count(sample.entityId) > 0)
-            continue;
-
-        std::vector<std::size_t> indices;
-        for (const auto& edgeId :
-             entityBoundaryEdgeIds(sample.entityId, topology, edgeIds, surfaceIds))
-        {
-            const auto found = edgeIndexById.find(edgeId);
-            if (found != edgeIndexById.end())
-                indices.push_back(found->second);
-        }
-
-        boundaryEdgeIndicesByEntity.emplace(sample.entityId, std::move(indices));
-
-        cornerIdsByEntity.emplace(sample.entityId,
-                                  entityCornerIds(sample.entityId, topology, edgeIds, surfaceIds));
-    }
-
-    // Each curve's own length, and whether it closes on itself -- both are
-    // needed to measure distance along it (see arcDistance).
-    struct CurveExtent
-    {
-        double totalArcLength = 0.0;
-        Point3D firstPosition = Point3D::Zero();
-        Point3D lastPosition = Point3D::Zero();
-        bool started = false;
-    };
-
-    std::unordered_map<std::string, CurveExtent> curveExtents;
-
-    for (const auto& sample : samples)
-    {
-        if (!sample.onCurve)
-            continue;
-
-        auto& extent = curveExtents[sample.entityId];
-        if (!extent.started)
-        {
-            extent.firstPosition = sample.position;
-            extent.started = true;
-        }
-
-        extent.lastPosition = sample.position;
-        extent.totalArcLength = std::max(extent.totalArcLength, sample.arcLengthAlongCurve);
-    }
-
-    std::unordered_map<std::string, bool> curveIsClosed;
-    for (const auto& [entityId, extent] : curveExtents)
-    {
-        curveIsClosed[entityId] =
-            (extent.firstPosition - extent.lastPosition).norm() <=
-            CLOSED_CURVE_TOLERANCE * std::max(extent.totalArcLength, 1.0);
-    }
-
-    const double infinity = std::numeric_limits<double>::infinity();
-    std::vector<std::vector<double>> distanceToEdge(samples.size(),
-                                                    std::vector<double>(allEdgeIds.size(), infinity));
-
-    for (std::size_t i = 0; i < samples.size(); ++i)
-    {
-        for (const auto& other : samples)
-        {
-            if (!other.onCurve)
-                continue;
-
-            const auto edge = edgeIndexById.find(other.entityId);
-            if (edge == edgeIndexById.end())
-                continue;
-
-            distanceToEdge[i][edge->second] =
-                std::min(distanceToEdge[i][edge->second], (samples[i].position - other.position).norm());
-        }
-    }
-
-    auto shareACorner = [&](const std::string& entityA, const std::string& entityB)
-    {
-        const auto& cornersB = cornerIdsByEntity.at(entityB);
-        for (const auto& cornerId : cornerIdsByEntity.at(entityA))
-        {
-            if (std::find(cornersB.begin(), cornersB.end(), cornerId) != cornersB.end())
-                return true;
-        }
-        return false;
-    };
-
+    auto infinity = std::numeric_limits<double>::infinity();
     std::vector<double> featureSizes(samples.size(), infinity);
 
-    for (std::size_t i = 0; i < samples.size(); ++i)
+    for (std::size_t index0 = 0; index0 < samples.size(); ++index0)
     {
-        for (std::size_t j = i + 1; j < samples.size(); ++j)
+        for (std::size_t index1 = index0 + 1; index1 < samples.size(); ++index1)
         {
-            const auto& a = samples[i];
-            const auto& b = samples[j];
-            const double distance = (a.position - b.position).norm();
+            auto& sample0 = samples[index0];
+            auto& sample1 = samples[index1];
+            auto distance = (sample0.position - sample1.position).norm();
 
             if (distance <= 0.0)
-                continue;
-
-            const auto& edgesA = boundaryEdgeIndicesByEntity.at(a.entityId);
-            const auto& edgesB = boundaryEdgeIndicesByEntity.at(b.entityId);
-
-            // A curve that bounds a surface lies ON it. The two are close
-            // everywhere along their whole shared length, structurally, so
-            // no separation between them ever describes a thin feature.
-            const bool oneBoundsTheOther =
-                (a.entityId != b.entityId) &&
-                ((edgesA.size() == 1 && std::find(edgesB.begin(), edgesB.end(), edgesA.front()) != edgesB.end()) ||
-                 (edgesB.size() == 1 && std::find(edgesA.begin(), edgesA.end(), edgesB.front()) != edgesA.end()));
-
-            if (oneBoundsTheOther)
                 continue;
 
             // Length of the shortest route between the samples that stays on
@@ -222,33 +107,22 @@ std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>
             // unconditionally a shortcut.
             double pathLength = infinity;
 
-            if (a.entityId == b.entityId)
+            if (sample0.entityId == sample1.entityId)
             {
-                // Same curve: the route is the curve itself. Same surface:
-                // no geodesic estimate is available, so treat the samples as
-                // connected and never constraining (header's limitation).
-                pathLength = (a.onCurve && b.onCurve) ? arcDistance(a.arcLengthAlongCurve,
-                                                                    b.arcLengthAlongCurve,
-                                                                    curveExtents.at(a.entityId).totalArcLength,
-                                                                    curveIsClosed.at(a.entityId)) :
-                                                        0.0;
+                pathLength = routeAlongEntity(sample0, sample1, curveExtents);
             }
             else
             {
-                // Different entities meeting along a shared EDGE: the route
-                // runs through it, which is what lets a thin fin register --
-                // its two faces meet at the tip edge, yet mid-fin the route
-                // out to that edge and back is far longer than the thickness.
-                bool sharesEdge = false;
-                for (const std::size_t edge : edgesA)
-                {
-                    if (std::find(edgesB.begin(), edgesB.end(), edge) == edgesB.end())
-                        continue;
+                auto& connections0 = connectionsByEntity.at(sample0.entityId);
+                auto& connections1 = connectionsByEntity.at(sample1.entityId);
 
-                    sharesEdge = true;
-                    pathLength =
-                        std::min(pathLength, distanceToEdge[i][edge] + distanceToEdge[j][edge]);
-                }
+                if (oneBoundsTheOther(connections0.boundaryEdgeIndices, connections1.boundaryEdgeIndices))
+                    continue;
+
+                auto route = routeThroughSharedEdges(connections0.boundaryEdgeIndices,
+                                                     connections1.boundaryEdgeIndices,
+                                                     distanceToEdge[index0],
+                                                     distanceToEdge[index1]);
 
                 // Entities meeting at only a CORNER are deliberately never
                 // constrained against each other, however close they run.
@@ -274,19 +148,221 @@ std::vector<double> LocalFeatureSize3D::compute(const std::vector<FeatureSample>
                 // Letting it into h(x) instead made SaddleSurfaceMesh diverge:
                 // 8991 nodes after 90 minutes against a 1223-node baseline,
                 // still growing.
-                if (!sharesEdge && shareACorner(a.entityId, b.entityId))
+                if (!route && shareACorner(connections0.cornerIds, connections1.cornerIds))
                     continue;
+
+                pathLength = route.value_or(infinity);
             }
 
             if (pathLength <= PROXIMITY_PATH_FACTOR * distance)
                 continue;
 
-            featureSizes[i] = std::min(featureSizes[i], distance);
-            featureSizes[j] = std::min(featureSizes[j], distance);
+            featureSizes[index0] = std::min(featureSizes[index0], distance);
+            featureSizes[index1] = std::min(featureSizes[index1], distance);
         }
     }
 
     return featureSizes;
 }
+
+namespace
+{
+
+template <typename T>
+bool contains(const std::vector<T>& values, const T& value)
+{
+    return std::find(values.begin(), values.end(), value) != values.end();
+}
+
+/// How far apart two samples on one curve are, measured along that curve.
+/// On a CLOSED curve the route may run either way round, and the shorter
+/// one wins -- without which a seam circle's first and last samples, which
+/// occupy the same point in space, would appear a full circumference apart
+/// along the curve and so read as an infinitely thin feature.
+double arcDistance(double arcLength0, double arcLength1, double totalArcLength, bool closed)
+{
+    auto along = std::abs(arcLength0 - arcLength1);
+    return closed ? std::min(along, totalArcLength - along) : along;
+}
+
+/// The boundary edges of one entity. A surface reports the edges bounding
+/// it; an edge reports itself, since it is its own boundary as far as
+/// routing between entities is concerned.
+std::vector<std::string> entityBoundaryEdgeIds(const std::string& entityId,
+                                               const Topology3D::Topology3D& topology,
+                                               const std::unordered_map<std::string, std::size_t>& edgeIndexById,
+                                               const std::unordered_set<std::string>& surfaceIds)
+{
+    if (edgeIndexById.count(entityId) > 0)
+        return {entityId};
+
+    if (surfaceIds.count(entityId) > 0)
+        return topology.getSurface(entityId).getBoundaryEdgeIds();
+
+    return {};
+}
+
+/// The corners of one entity. Needed alongside the edges above because two
+/// entities can meet at a single corner without sharing any edge -- two
+/// edges of a box at a vertex, or an edge touching a face it does not
+/// bound. Such a pair does have a route, and treating it as unconnected
+/// makes every junction look like a thin feature.
+std::vector<std::string> entityCornerIds(const std::string& entityId,
+                                         const Topology3D::Topology3D& topology,
+                                         const std::unordered_map<std::string, std::size_t>& edgeIndexById,
+                                         const std::unordered_set<std::string>& surfaceIds)
+{
+    if (edgeIndexById.count(entityId) > 0)
+    {
+        auto& edge = topology.getEdge(entityId);
+        return {edge.getStartCornerId(), edge.getEndCornerId()};
+    }
+
+    if (surfaceIds.count(entityId) > 0)
+        return topology.getSurface(entityId).getCornerIds();
+
+    return {};
+}
+
+std::unordered_map<std::string, EntityConnections>
+collectEntityConnections(const std::vector<FeatureSample>& samples,
+                         const Topology3D::Topology3D& topology,
+                         const std::unordered_map<std::string, std::size_t>& edgeIndexById)
+{
+    auto allSurfaceIds = topology.getAllSurfaceIds();
+    std::unordered_set<std::string> surfaceIds(allSurfaceIds.begin(), allSurfaceIds.end());
+
+    std::unordered_map<std::string, EntityConnections> connectionsByEntity;
+    for (auto& sample : samples)
+    {
+        if (connectionsByEntity.count(sample.entityId) > 0)
+            continue;
+
+        EntityConnections connections;
+        for (auto& edgeId : entityBoundaryEdgeIds(sample.entityId, topology, edgeIndexById, surfaceIds))
+        {
+            auto found = edgeIndexById.find(edgeId);
+            if (found != edgeIndexById.end())
+                connections.boundaryEdgeIndices.push_back(found->second);
+        }
+        connections.cornerIds = entityCornerIds(sample.entityId, topology, edgeIndexById, surfaceIds);
+
+        connectionsByEntity.emplace(sample.entityId, std::move(connections));
+    }
+
+    return connectionsByEntity;
+}
+
+std::unordered_map<std::string, CurveExtent> measureCurveExtents(const std::vector<FeatureSample>& samples)
+{
+    std::unordered_map<std::string, CurveExtent> curveExtents;
+
+    for (auto& sample : samples)
+    {
+        if (!sample.onCurve)
+            continue;
+
+        auto& extent = curveExtents[sample.entityId];
+        if (!extent.started)
+        {
+            extent.firstPosition = sample.position;
+            extent.started = true;
+        }
+
+        extent.lastPosition = sample.position;
+        extent.totalArcLength = std::max(extent.totalArcLength, sample.arcLengthAlongCurve);
+    }
+
+    for (auto& [entityId, extent] : curveExtents)
+    {
+        extent.closed = (extent.firstPosition - extent.lastPosition).norm() <=
+                        CLOSED_CURVE_TOLERANCE * std::max(extent.totalArcLength, 1.0);
+    }
+
+    return curveExtents;
+}
+
+/// For each sample, the distance to the nearest sample on each edge, or
+/// infinity for an edge with no samples.
+std::vector<std::vector<double>> computeDistancesToEdges(const std::vector<FeatureSample>& samples,
+                                                         const std::unordered_map<std::string, std::size_t>& edgeIndexById,
+                                                         std::size_t edgeCount)
+{
+    std::vector<std::vector<double>> distanceToEdge(
+        samples.size(), std::vector<double>(edgeCount, std::numeric_limits<double>::infinity()));
+
+    for (std::size_t sampleIndex = 0; sampleIndex < samples.size(); ++sampleIndex)
+    {
+        for (auto& other : samples)
+        {
+            if (!other.onCurve)
+                continue;
+
+            auto edge = edgeIndexById.find(other.entityId);
+            if (edge == edgeIndexById.end())
+                continue;
+
+            auto& distance = distanceToEdge[sampleIndex][edge->second];
+            distance = std::min(distance, (samples[sampleIndex].position - other.position).norm());
+        }
+    }
+
+    return distanceToEdge;
+}
+
+/// The route between two samples on the same entity. Same curve: the route
+/// is the curve itself. Same surface: no geodesic estimate is available, so
+/// the samples are treated as connected and never constraining (see the
+/// header's known limitation).
+double routeAlongEntity(const FeatureSample& sample0,
+                        const FeatureSample& sample1,
+                        const std::unordered_map<std::string, CurveExtent>& curveExtents)
+{
+    if (!sample0.onCurve || !sample1.onCurve)
+        return 0.0;
+
+    auto& extent = curveExtents.at(sample0.entityId);
+    return arcDistance(sample0.arcLengthAlongCurve, sample1.arcLengthAlongCurve, extent.totalArcLength, extent.closed);
+}
+
+/// A curve that bounds a surface lies ON it. The two are close everywhere
+/// along their whole shared length, structurally, so no separation between
+/// them ever describes a thin feature.
+bool oneBoundsTheOther(const std::vector<std::size_t>& edges0, const std::vector<std::size_t>& edges1)
+{
+    return (edges0.size() == 1 && contains(edges1, edges0.front())) ||
+           (edges1.size() == 1 && contains(edges0, edges1.front()));
+}
+
+/// The shortest route between samples on two entities meeting along a
+/// shared EDGE, which runs through that edge -- this is what lets a thin fin
+/// register: its two faces meet at the tip edge, yet mid-fin the route out
+/// to that edge and back is far longer than the thickness. No value when the
+/// entities share no edge.
+std::optional<double> routeThroughSharedEdges(const std::vector<std::size_t>& edges0,
+                                              const std::vector<std::size_t>& edges1,
+                                              const std::vector<double>& distancesToEdges0,
+                                              const std::vector<double>& distancesToEdges1)
+{
+    std::optional<double> shortest;
+    for (auto edge : edges0)
+    {
+        if (!contains(edges1, edge)) continue;
+
+        auto route = distancesToEdges0[edge] + distancesToEdges1[edge];
+        shortest = std::min(shortest.value_or(std::numeric_limits<double>::infinity()), route);
+    }
+    return shortest;
+}
+
+bool shareACorner(const std::vector<std::string>& corners0, const std::vector<std::string>& corners1)
+{
+    return std::any_of(corners0.begin(),
+                       corners0.end(),
+                       [&](const std::string& cornerId)
+                       { return contains(corners1, cornerId); });
+}
+
+} // namespace
 
 } // namespace Meshing

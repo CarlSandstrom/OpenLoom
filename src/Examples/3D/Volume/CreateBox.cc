@@ -7,24 +7,29 @@
  *     triangles; tetrahedra carry SurfaceID = -1)
  */
 
-#include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Volume/VolumeMesher3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <TopoDS_Shape.hxx>
 #include <iostream>
 
+namespace
+{
+constexpr double BOX_SIDE_LENGTH = 10.0;
+} // namespace
+
 int main()
 {
     Common::initializeLogging();
 
-    TopoDS_Shape cube = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
-    Readers::TopoDS_ShapeConverter converter(cube);
+    TopoDS_Shape box = BRepPrimAPI_MakeBox(BOX_SIDE_LENGTH, BOX_SIDE_LENGTH, BOX_SIDE_LENGTH).Shape();
+    Readers::TopoDS_ShapeConverter converter(box);
 
     Geometry3D::DiscretizationSettings3D discretizationSettings(3, 2);
 

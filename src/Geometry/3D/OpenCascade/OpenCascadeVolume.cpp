@@ -1,5 +1,4 @@
 #include "OpenCascadeVolume.h"
-#include <TopoDS_Shape.hxx>
 #include <functional>
 #include <sstream>
 

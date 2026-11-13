@@ -14,11 +14,8 @@ namespace Meshing
  * magnitude -- see RobustPredicates3D.h for why exactness (not merely extra
  * precision) matters for this codebase's predicates.
  *
- * Extracted from RobustPredicates3D so RegularPredicates3D (OPE-176's
- * weighted/regular-triangulation predicates) can reuse the same toolkit
- * instead of duplicating it: both classes need identical exact-sum,
- * exact-product, and determinant building blocks, only the geometric
- * predicate built on top differs.
+ * Shared by RobustPredicates3D and RegularPredicates3D, which need identical
+ * exact-sum, exact-product and determinant building blocks.
  *
  * This implements the "always exact" (non-adaptive) forms only -- always
  * doing full expansion arithmetic rather than escalating from a fast
@@ -49,21 +46,21 @@ public:
     /// Exact sum of two expansions -- a simplified (not maximally compact,
     /// but still exact and still O(n)) variant of Shewchuk's
     /// fast-expansion-sum.
-    static Expansion expansionAdd(const Expansion& e, const Expansion& f);
+    static Expansion expansionAdd(const Expansion& first, const Expansion& second);
 
-    static Expansion expansionNegate(const Expansion& e);
-    static Expansion expansionSub(const Expansion& e, const Expansion& f);
+    static Expansion expansionNegate(const Expansion& expansion);
+    static Expansion expansionSub(const Expansion& first, const Expansion& second);
 
     /// Exact expansion * scalar.
-    static Expansion expansionScale(const Expansion& e, double b);
+    static Expansion expansionScale(const Expansion& expansion, double scalar);
 
     /// Exact expansion * expansion.
-    static Expansion expansionMul(const Expansion& e, const Expansion& f);
+    static Expansion expansionMul(const Expansion& first, const Expansion& second);
 
     /// Sign of an exact expansion: nonoverlapping components sorted by
     /// increasing magnitude means the largest-magnitude (last) nonzero
     /// component alone determines the sign of the whole sum.
-    static int expansionSign(const Expansion& e);
+    static int expansionSign(const Expansion& expansion);
 
     static Expansion det2x2(const Expansion& a, const Expansion& b, const Expansion& c, const Expansion& d);
     static Expansion det3x3(const Expansion m[3][3]);

@@ -29,7 +29,7 @@ The first failing criterion, then how badly it fails, orders the refinement queu
 3. Reclassify only the faces the insertion created or destroyed.
 4. Repeat until the queue is empty or `maxRefinementIterations` insertions have been made.
 
-There is no size floor and no curve splitting: the protecting balls are fixed after seeding. For volumes, `TetrahedronDelaunayRefiner` runs below this level and bounds `tetCircumradiusToShortestEdgeRatio` (default 2.5); see `doc/RCDT_Techniques.md`.
+There is no size floor and no curve splitting: the protecting balls are fixed after seeding. For volumes, `TetrahedronDelaunayRefiner` runs below this level and bounds `tetrahedronCircumradiusToShortestEdgeRatio` (default 2.5); see `doc/RCDT_Techniques.md`.
 
 After refinement, `SurfaceMeshSmoother` moves interior vertices toward their neighbours' centroid and re-projects them onto their surface; it improves most of the exempt triangles at the creases.
 

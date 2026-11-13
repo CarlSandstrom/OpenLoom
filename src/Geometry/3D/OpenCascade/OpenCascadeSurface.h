@@ -1,12 +1,11 @@
 #pragma once
 
-#include "../Base/ISurface3D.h"
+#include "Geometry/3D/Base/ISurface3D.h"
 #include <TopoDS_Face.hxx>
 #include <memory>
 
-// Forward declare to avoid pulling OCC headers into translation units that
-// only need the ISurface3D interface. Both are plain classes so forward
-// declarations are valid.
+// Forward declared to keep OpenCASCADE headers out of translation units that
+// only need the ISurface3D interface.
 class BRepAdaptor_Surface;
 class BRepTopAdaptor_FClass2d;
 class ShapeAnalysis_Surface;
@@ -21,8 +20,7 @@ class OpenCascadeSurface : public ISurface3D
 {
 public:
     explicit OpenCascadeSurface(const TopoDS_Face& face);
-    // Destructor must be defined in the .cpp where ShapeAnalysis_Surface is
-    // complete (required by std::unique_ptr<ShapeAnalysis_Surface>).
+    // Defined in the .cpp, where the cached OpenCASCADE types are complete.
     ~OpenCascadeSurface() override;
 
     Meshing::Vector3D getNormal(double u, double v) const override;
@@ -41,25 +39,12 @@ public:
     bool isUVWithinTrimmedBoundary(double u, double v) const override;
 
 private:
-    // Both adaptors are lazily initialized on first use and reused for all
-    // subsequent calls. BRepAdaptor_Surface construction is non-trivial (it
-    // wraps the face's geometric surface, resolves orientation, etc.) and
-    // creating a new one on every getPoint()/getNormal() call adds meaningful
-    // overhead when the surface is evaluated thousands of times during
-    // tessellation build and classification. ShapeAnalysis_Surface::ValueOfUV
-    // additionally builds an internal Extrema grid (O(Nu × Nv) evaluations)
-    // on first use and caches it — re-creating it every call would rebuild
-    // that grid each time, which is catastrophic for RCDT refinement on Bezier
-    // surfaces.
-    // The UV classifier is cached for the same reason as the two adaptors
-    // above, and it matters more than either. A BRepClass_FaceClassifier is
-    // built from scratch on construction -- it walks the face's wires, loads
-    // every pcurve and prepares intersectors -- so classifying one point that
-    // way pays for the whole face each time. Profiling the cylinder example
-    // (callgrind, Release) put isUVWithinTrimmedBoundary at 78% of total
-    // runtime, most of it inside that repeated setup and the allocator churn
-    // it produces. BRepTopAdaptor_FClass2d exists precisely to be built once
-    // per face and asked many times.
+    // The adaptor, analyzer and classifier are built lazily on first use and
+    // reused. Each is expensive to construct and the surface is queried
+    // thousands of times during tessellation and classification:
+    // ShapeAnalysis_Surface builds an internal extrema grid on first use, and
+    // BRepTopAdaptor_FClass2d walks every wire and pcurve of the face, so
+    // rebuilding either per call dominates the runtime.
     TopoDS_Face face_;
     mutable std::unique_ptr<BRepAdaptor_Surface> surfaceAdaptor_;
     mutable std::unique_ptr<ShapeAnalysis_Surface> surfaceAnalyzer_;

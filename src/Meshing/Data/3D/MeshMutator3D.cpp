@@ -1,28 +1,24 @@
-#include "MeshMutator3D.h"
-#include "../Base/MeshConnectivity.h"
+#include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Common/Exceptions/MeshException.h"
-#include "Node3D.h"
+#include "Meshing/Data/3D/Node3D.h"
+#include "Meshing/Data/Base/MeshConnectivity.h"
+
+#include <algorithm>
 
 namespace Meshing
 {
 
-MeshMutator3D::MeshMutator3D(MeshData3D& geometry) :
-    geometry_(geometry)
+MeshMutator3D::MeshMutator3D(MeshData3D& meshData3D) :
+    meshData3D_(meshData3D)
 {
-    // Initialize ID counters from existing mesh data to avoid collisions
-    for (const auto& [id, node] : geometry_.getNodes())
+    // Continue numbering after the ids already in the mesh so new ids never collide.
+    for (const auto& [id, node] : meshData3D_.getNodes())
     {
-        if (id >= nextNodeId_)
-        {
-            nextNodeId_ = id + 1;
-        }
+        nextNodeId_ = std::max(nextNodeId_, id + 1);
     }
-    for (const auto& [id, element] : geometry_.getElements())
+    for (const auto& [id, element] : meshData3D_.getElements())
     {
-        if (id >= nextElementId_)
-        {
-            nextElementId_ = id + 1;
-        }
+        nextElementId_ = std::max(nextElementId_, id + 1);
     }
 }
 
@@ -33,11 +29,11 @@ void MeshMutator3D::setConnectivity(MeshConnectivity* connectivity)
 
 size_t MeshMutator3D::addNode(const Point3D& coordinates, double weight)
 {
-    size_t id = nextNodeId_++;
+    auto id = nextNodeId_++;
 
     auto node = std::make_unique<Node3D>(coordinates);
     node->setWeight(weight);
-    geometry_.addNodeInternal(id, std::move(node));
+    meshData3D_.addNodeInternal(id, std::move(node));
 
     return id;
 }
@@ -46,19 +42,15 @@ size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
                                       const std::vector<std::string>& geometryIds,
                                       double weight)
 {
-    size_t id = nextNodeId_++;
-
-    auto node = std::make_unique<Node3D>(coordinates);
-    node->setWeight(weight);
-    geometry_.addNodeInternal(id, std::move(node));
-    geometry_.setNodeGeometryIdsInternal(id, geometryIds);
+    auto id = addNode(coordinates, weight);
+    meshData3D_.setNodeGeometryIdsInternal(id, geometryIds);
 
     return id;
 }
 
 void MeshMutator3D::moveNode(size_t id, const Point3D& newCoordinates)
 {
-    Node3D* node = geometry_.getNodeMutable(id);
+    auto node = meshData3D_.getNodeMutable(id);
     if (!node)
     {
         throw OpenLoom::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
@@ -69,65 +61,54 @@ void MeshMutator3D::moveNode(size_t id, const Point3D& newCoordinates)
 
 void MeshMutator3D::removeNode(size_t id)
 {
-    const Node3D* node = geometry_.getNode(id);
-    if (!node)
+    if (!meshData3D_.getNode(id))
     {
         throw OpenLoom::MeshEntityNotFoundException("Node", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
+    if (connectivity_ && !connectivity_->canRemoveNode(id))
+    {
+        auto elementCount = connectivity_->getNodeElements(id).size();
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "Cannot remove node " + std::to_string(id) + ": still referenced by " +
+                                std::to_string(elementCount) + " element(s)");
+    }
 
-    // Validate that node can be removed (this would need connectivity information)
-    validateNodeRemoval(id);
-
-    geometry_.removeNodeInternal(id);
+    meshData3D_.removeNodeInternal(id);
 }
 
 size_t MeshMutator3D::addElement(std::unique_ptr<IElement> element)
 {
-    size_t id = nextElementId_++;
+    auto id = nextElementId_++;
 
-    geometry_.addElementInternal(id, std::move(element));
+    meshData3D_.addElementInternal(id, std::move(element));
 
     return id;
 }
 
 void MeshMutator3D::removeElement(size_t id)
 {
-    const IElement* element = geometry_.getElement(id);
-    if (!element)
+    if (!meshData3D_.getElement(id))
     {
         throw OpenLoom::MeshEntityNotFoundException("Element", id, std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
-    geometry_.removeElementInternal(id);
+    meshData3D_.removeElementInternal(id);
 }
 
 void MeshMutator3D::setBoundingNodeIds(const std::array<size_t, 4>& boundingNodeIds)
 {
-    geometry_.setBoundingNodeIdsInternal(boundingNodeIds);
+    meshData3D_.setBoundingNodeIdsInternal(boundingNodeIds);
 }
 
 void MeshMutator3D::clearBoundingNodeIds()
 {
-    geometry_.clearBoundingNodeIdsInternal();
+    meshData3D_.clearBoundingNodeIdsInternal();
 }
 
-// ========== Curve Segment Operations ==========
-
-void MeshMutator3D::setCurveSegmentManager(CurveSegmentManager manager)
+void MeshMutator3D::setCurveSegmentManager(CurveSegmentManager curveSegmentManager)
 {
-    geometry_.curveSegmentManager_ = std::move(manager);
-}
-
-void MeshMutator3D::validateNodeRemoval(size_t nodeId) const
-{
-    if (connectivity_ && !connectivity_->canRemoveNode(nodeId))
-    {
-        const auto& elements = connectivity_->getNodeElements(nodeId);
-        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                            "Cannot remove node " + std::to_string(nodeId) +
-                                ": still referenced by " + std::to_string(elements.size()) + " element(s)");
-    }
+    meshData3D_.curveSegmentManager_ = std::move(curveSegmentManager);
 }
 
 } // namespace Meshing

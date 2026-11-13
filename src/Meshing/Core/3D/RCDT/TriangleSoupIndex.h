@@ -73,7 +73,7 @@ private:
 
     std::vector<BoundedTriangle> triangles_;
 
-    // The grid: cubic, resolution_ cells along each axis, cell (x, y, z)
+    // The grid: resolution_ cells along each axis, cell (x, y, z)
     // spanning gridMin_ + cellSize_ * (x, y, z) and one cellSize_ further.
     // Each cell holds the indices into triangles_ of the triangles whose
     // bounding box overlaps it, so a triangle spanning a cell boundary appears

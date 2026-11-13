@@ -19,8 +19,12 @@
 #include <filesystem>
 #include <iostream>
 #include <numbers>
+#include <optional>
 #include <spdlog/spdlog.h>
 #include <string>
+
+constexpr double MAX_ANGLE_BETWEEN_SEGMENTS = std::numbers::pi / 8.0;
+constexpr size_t SAMPLES_PER_SURFACE_DIRECTION = 2;
 
 int main(int argc, char* argv[])
 {
@@ -32,13 +36,15 @@ int main(int argc, char* argv[])
 
     Common::initializeLogging();
 
-    const std::string stepFile = argv[1];
+    auto stepFile = std::string(argv[1]);
     spdlog::info("Loading 3D STEP file: {}", stepFile);
 
     Readers::StepReader3D reader(stepFile);
     Readers::TopoDS_ShapeConverter converter(reader.getShape());
 
-    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);
+    Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt,
+                                                                MAX_ANGLE_BETWEEN_SEGMENTS,
+                                                                SAMPLES_PER_SURFACE_DIRECTION);
 
     Meshing::VolumeMesher3D mesher(converter.getGeometryCollection(),
                                    converter.getTopology(),
@@ -51,7 +57,7 @@ int main(int argc, char* argv[])
               << volumeMesh.tetrahedra.size() << " tetrahedra, "
               << volumeMesh.boundaryTriangles.size() << " boundary triangles\n";
 
-    const std::string outputName = std::filesystem::path(stepFile).stem().string() + "_volume.vtu";
+    auto outputName = std::filesystem::path(stepFile).stem().string() + "_volume.vtu";
     Export::VtkExporter exporter;
     exporter.writeVolumeMesh(volumeMesh, outputName);
     std::cout << "Exported volume mesh to " << outputName << "\n";

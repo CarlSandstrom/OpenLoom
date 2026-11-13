@@ -6,55 +6,43 @@ namespace Meshing
 {
 
 /**
- * @brief Robust (exact) predicate for weighted (regular-triangulation) points.
+ * @brief Robust (exact) in-orthosphere predicate for weighted points, as a
+ * regular triangulation needs.
  *
- * Added for OPE-176's crease protecting balls: Boissonnat-Oudot curve
- * protection needs a *weighted* Delaunay (regular) triangulation, where each
- * inserted point carries a weight (its squared protecting-ball radius) so
- * that a small ball near a large one is never incorrectly swallowed by an
- * ordinary (zero-weight) neighbor. This class provides the one predicate
- * that differs between Delaunay and regular triangulation -- the in-sphere
- * test generalizes to an "in-orthosphere" (power-distance) test; the
- * orientation predicate is unaffected by weights, so callers reuse
- * RobustPredicates3D::orientationSign() directly instead of this class
- * duplicating it.
+ * Each point carries a weight (its squared protecting-ball radius), so that a
+ * small ball next to a large one is never swallowed by an unweighted
+ * neighbour. Only the in-sphere test differs from the unweighted case; the
+ * orientation predicate ignores weights, so callers use
+ * RobustPredicates3D::orientationSign() directly.
  *
- * A weighted point (p, w) has power distance pow(x, p) = |x - p|^2 - w to
- * any point x. The regular triangulation's in-orthosphere test is the
- * classic in-sphere determinant with each row's quadratic term
- * (x^2+y^2+z^2) replaced by that term minus the point's own weight --
- * equivalent to lifting each weighted point to the 4D paraboloid point
- * (x, y, z, x^2+y^2+z^2-w) and testing which side of the hyperplane through
- * the tetrahedron's four lifted points the query's lifted point falls on.
- * Setting every weight (including the query's) to 0 makes this identical,
- * term for term, to the unweighted in-sphere determinant, so this predicate
- * reduces exactly to the ordinary circumsphere test in that case (see
+ * A weighted point (p, w) has power distance |x - p|^2 - w to a point x. The
+ * in-orthosphere test is the in-sphere determinant with each row's quadratic
+ * term x^2+y^2+z^2 reduced by the point's weight: lifting each point to
+ * (x, y, z, x^2+y^2+z^2-w) and asking which side of the hyperplane through
+ * the four lifted tetrahedron points the lifted query lies. With every weight
+ * 0 it is term for term the ordinary circumsphere test (see
  * test_RegularPredicates3D.cpp).
  *
- * It evaluates the determinant's sign directly and never forms an explicit
- * center or radius. Solving the 3x3 linear system for a circumcenter instead
- * is nearly singular for a near-flat tetrahedron: the solved center can be
- * wrong by orders of magnitude, which corrupts every conflict test that
- * relies on it (OPE-159).
+ * The determinant's sign is evaluated directly; no center or radius is
+ * formed. Solving for a circumcenter is nearly singular on a near-flat
+ * tetrahedron and can be wrong by orders of magnitude (OPE-159).
  *
- * Same exact-expansion-arithmetic technique as RobustPredicates3D (see its
- * class comment for why exactness, not just extra precision, matters here),
- * sharing the ExactArithmetic3D toolkit rather than duplicating it.
+ * Uses the same exact expansion arithmetic as RobustPredicates3D, through
+ * ExactArithmetic3D.
  */
 class RegularPredicates3D
 {
 public:
     /// True if queryPoint (with weight queryWeight) lies inside or exactly on
-    /// the orthogonal sphere of the weighted tetrahedron (p0,w0)..(p3,w3) --
-    /// inclusive on ties, because boundary-discretized points routinely land
-    /// exactly cospherical/co-orthospherical by construction, and treating
-    /// such a tie as outside leaves them out of the Bowyer-Watson cavity. Returns false if (p0,p1,p2,p3) is degenerate
-    /// (zero-volume): a degenerate tetrahedron has no valid orthosphere,
-    /// regardless of weights.
-    static bool insidePointOrthosphere(const Point3D& p0, double w0,
-                                       const Point3D& p1, double w1,
-                                       const Point3D& p2, double w2,
-                                       const Point3D& p3, double w3,
+    /// the orthosphere of the weighted tetrahedron (point0, weight0) ..
+    /// (point3, weight3). Ties count as inside, because boundary points often
+    /// lie exactly co-orthospherical by construction and must enter the
+    /// Bowyer-Watson cavity. Returns false for a degenerate (zero-volume)
+    /// tetrahedron, which has no orthosphere whatever the weights.
+    static bool insidePointOrthosphere(const Point3D& point0, double weight0,
+                                       const Point3D& point1, double weight1,
+                                       const Point3D& point2, double weight2,
+                                       const Point3D& point3, double weight3,
                                        const Point3D& queryPoint, double queryWeight);
 };
 

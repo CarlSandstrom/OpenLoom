@@ -1,4 +1,4 @@
-#include "Edge3D.h"
+#include "Topology/Edge3D.h"
 
 namespace Topology3D
 {
@@ -14,12 +14,12 @@ Edge3D::Edge3D(const std::string& id,
 {
 }
 
-std::string Edge3D::getStartCornerId() const
+const std::string& Edge3D::getStartCornerId() const
 {
     return startCornerId_;
 }
 
-std::string Edge3D::getEndCornerId() const
+const std::string& Edge3D::getEndCornerId() const
 {
     return endCornerId_;
 }

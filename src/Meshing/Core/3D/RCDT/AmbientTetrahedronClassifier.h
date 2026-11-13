@@ -8,10 +8,6 @@
 namespace Meshing
 {
 class MeshData3D;
-} // namespace Meshing
-
-namespace Meshing
-{
 
 /**
  * @brief Classifies every tetrahedron of the ambient RCDT tetrahedralization

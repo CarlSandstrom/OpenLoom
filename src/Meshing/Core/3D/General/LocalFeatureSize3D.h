@@ -26,7 +26,7 @@ struct FeatureSample
 
 /**
  * @brief Local feature size: how far each sampled point is from the nearest
- * *unrelated* part of the boundary (OPE-181).
+ * *unrelated* part of the boundary.
  *
  * Local feature size is the second thing that forces elements to be small,
  * and it is independent of the first. Curvature says how fast the geometry
@@ -35,10 +35,6 @@ struct FeatureSample
  * with 1-unit elements -- triangles would simply bridge across it. Ruppert's
  * refinement guarantee is stated in terms of this quantity for exactly that
  * reason.
- *
- * The retired CurveProtectionScheme computed a version of this for
- * protecting-ball radii only. Hoisting it here is what lets every consumer of
- * the sizing field see the same answer.
  *
  * ## What counts as "unrelated"
  *

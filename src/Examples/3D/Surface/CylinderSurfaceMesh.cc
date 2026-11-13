@@ -17,7 +17,6 @@
  *   - CylinderSurfaceMesh3D.vtu    : full surface triangulation (color by SurfaceID)
  */
 
-#include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
@@ -26,6 +25,7 @@
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <TopoDS_Shape.hxx>
 #include <gp_Ax2.hxx>
@@ -52,9 +52,9 @@ int main()
     Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);
 
     // Export the discretized boundary edges on their own, before meshing.
-    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                                 converter.getTopology(),
-                                                                                 discretizationSettings);
+    auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                           converter.getTopology(),
+                                                                           discretizationSettings);
     std::cout << "Points:         " << discretizationResult->points.size() << "\n";
     std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";
     std::cout << "Faces:          " << converter.getTopology().getAllSurfaceIds().size() << "\n";

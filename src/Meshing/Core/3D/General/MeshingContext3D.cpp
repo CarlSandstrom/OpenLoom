@@ -1,24 +1,22 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 
-#include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
-#include "Topology/Topology3D.h"
 
 namespace Meshing
 {
 
 MeshingContext3D::MeshingContext3D(const Geometry3D::GeometryCollection3D& geometry,
                                    const Topology3D::Topology3D& topology) :
-    geometry_(&geometry), topology_(&topology)
+    geometry_(&geometry),
+    topology_(&topology)
 {
     ensureInitialized();
 }
 
-MeshingContext3D::MeshingContext3D() :
-    geometry_(nullptr), topology_(nullptr)
+MeshingContext3D::MeshingContext3D()
 {
     ensureInitialized();
 }
@@ -50,8 +48,6 @@ MeshOperations3D& MeshingContext3D::getOperations()
     ensureInitialized();
     return *meshOperations_;
 }
-
-// ========== Private Methods ==========
 
 void MeshingContext3D::ensureInitialized()
 {

@@ -42,42 +42,41 @@
 #include <cmath>
 #include <iostream>
 #include <numbers>
+#include <optional>
 
 namespace
 {
 
 // M8 hex nut geometry (metric standard, all dimensions in mm)
-constexpr double ACROSS_FLATS = 13.0;  // flat-to-flat width
-constexpr double HEIGHT = 6.5;          // nut height
-constexpr double BORE_RADIUS = 4.0;    // M8 bore (8 mm diameter)
+constexpr double ACROSS_FLATS = 13.0; // flat-to-flat width
+constexpr double HEIGHT = 6.5;        // nut height
+constexpr double BORE_RADIUS = 4.0;   // M8 bore (8 mm diameter)
 
 TopoDS_Shape buildHexNut()
 {
     // The circumscribed radius (vertex-to-center) for a regular hexagon with
     // flat-to-flat distance ACROSS_FLATS: r = (ACROSS_FLATS / 2) / cos(30°) = ACROSS_FLATS / sqrt(3).
-    const double circumscribedRadius = ACROSS_FLATS / std::sqrt(3.0);
+    double circumscribedRadius = ACROSS_FLATS / std::sqrt(3.0);
 
     // Hexagonal base: vertices at 30°, 90°, 150°, 210°, 270°, 330° place one flat
     // face toward +X (i.e., the right-hand flat is vertical, parallel to Y).
     BRepBuilderAPI_MakePolygon hexPolygon;
-    for (int i = 0; i < 6; ++i)
+    for (int cornerIndex = 0; cornerIndex < 6; ++cornerIndex)
     {
-        const double angle = (2.0 * i + 1.0) * std::numbers::pi / 6.0;
+        double angle = (2.0 * cornerIndex + 1.0) * std::numbers::pi / 6.0;
         hexPolygon.Add(gp_Pnt(circumscribedRadius * std::cos(angle),
                               circumscribedRadius * std::sin(angle),
                               0.0));
     }
     hexPolygon.Close();
 
-    const TopoDS_Face hexFace = BRepBuilderAPI_MakeFace(hexPolygon.Wire()).Face();
+    TopoDS_Face hexFace = BRepBuilderAPI_MakeFace(hexPolygon.Wire()).Face();
     TopoDS_Shape hexPrism = BRepPrimAPI_MakePrism(hexFace, gp_Vec(0.0, 0.0, HEIGHT)).Shape();
 
     // Main bore: full-height cylinder, radius = BORE_RADIUS.
-    const gp_Ax2 boreAxis(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
-    const TopoDS_Shape bore = BRepPrimAPI_MakeCylinder(boreAxis, BORE_RADIUS, HEIGHT).Shape();
-    TopoDS_Shape nutBody = BRepAlgoAPI_Cut(hexPrism, bore).Shape();
-
-    return nutBody;
+    gp_Ax2 boreAxis(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
+    TopoDS_Shape bore = BRepPrimAPI_MakeCylinder(boreAxis, BORE_RADIUS, HEIGHT).Shape();
+    return BRepAlgoAPI_Cut(hexPrism, bore).Shape();
 }
 
 } // namespace
@@ -86,7 +85,7 @@ int main()
 {
     Common::initializeLogging();
 
-    const TopoDS_Shape shape = buildHexNut();
+    TopoDS_Shape shape = buildHexNut();
     Readers::TopoDS_ShapeConverter converter(shape);
 
     Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);

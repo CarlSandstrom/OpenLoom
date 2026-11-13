@@ -102,11 +102,10 @@ std::vector<std::array<size_t, 4>> RCDTMeshExtractor::extractTetrahedra(const Me
     std::vector<std::array<size_t, 4>> tetrahedra;
     for (const auto& [elementId, element] : meshData.getElements())
     {
-        const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
-        if (!tetrahedron)
-            continue;
+        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+        if (!tetrahedron) continue;
 
-        const auto& nodeIds = tetrahedron->getNodeIds();
+        auto& nodeIds = tetrahedron->getNodeIds();
         tetrahedra.push_back({nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]});
     }
     return tetrahedra;

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ICorner3D.h"
-#include "IEdge3D.h"
-#include "ISurface3D.h"
-#include "IVolume3D.h"
+#include "Geometry/3D/Base/ICorner3D.h"
+#include "Geometry/3D/Base/IEdge3D.h"
+#include "Geometry/3D/Base/ISurface3D.h"
+#include "Geometry/3D/Base/IVolume3D.h"
 #include <memory>
 #include <string>
 #include <unordered_map>

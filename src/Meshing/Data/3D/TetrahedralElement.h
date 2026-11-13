@@ -1,5 +1,7 @@
 #pragma once
-#include "../Base/IElement.h"
+
+#include "Meshing/Data/Base/IElement.h"
+
 #include <array>
 
 namespace Meshing
@@ -15,13 +17,13 @@ public:
     const std::vector<size_t>& getNodeIds() const override;
     bool hasNode(size_t nodeId) const override;
 
-    // Tet-specific methods
+    // Tetrahedron-specific methods
     std::array<size_t, 3> getFace(size_t faceIndex) const;
     std::array<std::array<size_t, 3>, 4> getFaces() const;
 
 private:
-    std::array<size_t, 4> nodeIds_; // Ordered connectivity
-    std::vector<size_t> nodeIdsVector_;  // Cached vector for IElement interface
+    std::array<size_t, 4> nodeIds_;     // Ordered connectivity
+    std::vector<size_t> nodeIdsVector_; // Cached vector for IElement interface
 };
 
 } // namespace Meshing

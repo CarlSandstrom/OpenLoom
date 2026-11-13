@@ -47,6 +47,7 @@
 #include <cmath>
 #include <iostream>
 #include <numbers>
+#include <optional>
 
 namespace
 {
@@ -61,48 +62,46 @@ TopoDS_Shape buildChamferedHexNut()
 {
     // The circumscribed radius (vertex-to-center) for a regular hexagon with
     // flat-to-flat distance ACROSS_FLATS: r = (ACROSS_FLATS / 2) / cos(30°) = ACROSS_FLATS / sqrt(3).
-    const double circumscribedRadius = ACROSS_FLATS / std::sqrt(3.0);
+    double circumscribedRadius = ACROSS_FLATS / std::sqrt(3.0);
 
     BRepBuilderAPI_MakePolygon hexPolygon;
-    for (int i = 0; i < 6; ++i)
+    for (int cornerIndex = 0; cornerIndex < 6; ++cornerIndex)
     {
-        const double angle = (2.0 * i + 1.0) * std::numbers::pi / 6.0;
+        double angle = (2.0 * cornerIndex + 1.0) * std::numbers::pi / 6.0;
         hexPolygon.Add(gp_Pnt(circumscribedRadius * std::cos(angle),
                               circumscribedRadius * std::sin(angle),
                               0.0));
     }
     hexPolygon.Close();
 
-    const TopoDS_Face hexFace = BRepBuilderAPI_MakeFace(hexPolygon.Wire()).Face();
+    TopoDS_Face hexFace = BRepBuilderAPI_MakeFace(hexPolygon.Wire()).Face();
     TopoDS_Shape hexPrism = BRepPrimAPI_MakePrism(hexFace, gp_Vec(0.0, 0.0, HEIGHT)).Shape();
 
-    const gp_Ax2 boreAxis(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
-    const TopoDS_Shape bore = BRepPrimAPI_MakeCylinder(boreAxis, BORE_RADIUS, HEIGHT).Shape();
+    gp_Ax2 boreAxis(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
+    TopoDS_Shape bore = BRepPrimAPI_MakeCylinder(boreAxis, BORE_RADIUS, HEIGHT).Shape();
     TopoDS_Shape nutBody = BRepAlgoAPI_Cut(hexPrism, bore).Shape();
 
     // Chamfer both bore openings so the chamfer's outer circle lands exactly at
     // z = 0 / z = HEIGHT: the bore edge at each opening is the circle where
-    // curve->Value(first/last) sit at radius BORE_RADIUS and share a z value.
+    // the curve's end points sit at radius BORE_RADIUS and share a z value.
     BRepFilletAPI_MakeChamfer chamferMaker(nutBody);
     for (TopExp_Explorer edgeExplorer(nutBody, TopAbs_EDGE); edgeExplorer.More(); edgeExplorer.Next())
     {
-        const TopoDS_Edge edge = TopoDS::Edge(edgeExplorer.Current());
-        double first = 0.0;
-        double last = 0.0;
-        const Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, first, last);
+        TopoDS_Edge edge = TopoDS::Edge(edgeExplorer.Current());
+        double firstParameter = 0.0;
+        double lastParameter = 0.0;
+        Handle(Geom_Curve) curve = BRep_Tool::Curve(edge, firstParameter, lastParameter);
         if (curve.IsNull())
             continue;
 
-        const gp_Pnt p0 = curve->Value(first);
-        const gp_Pnt p1 = curve->Value(last);
-        const bool onBoreCircle = std::abs(std::hypot(p0.X(), p0.Y()) - BORE_RADIUS) < 1e-6 &&
-                                   std::abs(std::hypot(p1.X(), p1.Y()) - BORE_RADIUS) < 1e-6;
-        const bool sharedFlatFace = std::abs(p0.Z() - p1.Z()) < 1e-6 &&
-                                     (std::abs(p0.Z()) < 1e-6 || std::abs(p0.Z() - HEIGHT) < 1e-6);
+        gp_Pnt point0 = curve->Value(firstParameter);
+        gp_Pnt point1 = curve->Value(lastParameter);
+        bool onBoreCircle = std::abs(std::hypot(point0.X(), point0.Y()) - BORE_RADIUS) < 1e-6 &&
+                            std::abs(std::hypot(point1.X(), point1.Y()) - BORE_RADIUS) < 1e-6;
+        bool sharedFlatFace = std::abs(point0.Z() - point1.Z()) < 1e-6 &&
+                              (std::abs(point0.Z()) < 1e-6 || std::abs(point0.Z() - HEIGHT) < 1e-6);
         if (onBoreCircle && sharedFlatFace)
-        {
             chamferMaker.Add(CHAMFER_SIZE, edge);
-        }
     }
 
     return chamferMaker.Shape();
@@ -114,7 +113,7 @@ int main()
 {
     Common::initializeLogging();
 
-    const TopoDS_Shape shape = buildChamferedHexNut();
+    TopoDS_Shape shape = buildChamferedHexNut();
     Readers::TopoDS_ShapeConverter converter(shape);
 
     Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 2);

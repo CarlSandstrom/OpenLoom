@@ -15,234 +15,218 @@ using Expansion = ExactArithmetic3D::Expansion;
 
 constexpr double SAFETY_FACTOR = 1e-8;
 
-// ---------------------------------------------------------------------------
 // The textbook weighted in-sphere ("orthosphere") test is a 5x5 determinant
-// with a trailing all-ones column (one row per weighted point: the tet's 4
-// vertices plus the query, each [x, y, z, x^2+y^2+z^2-w, 1]). Rather than
-// compute that 5x5 directly (which forces every term to use each point's
-// ABSOLUTE coordinates, defeating the conditioning a query-relative
-// reduction gives -- confirmed empirically: it roughly doubled the
-// exact-arithmetic fallback rate, which is why this doesn't build that way),
-// this reduces the 5x5 to the classic 4x4 in-sphere determinant relative to
-// the query (small, geometrically local magnitudes -- the actual source of
-// the fast path's low fallback rate), plus one extra correction term for the
-// query's own weight.
+// with one row [x, y, z, x^2+y^2+z^2-w, 1] per weighted point: the
+// tetrahedron's four vertices plus the query. Computing it directly uses
+// absolute coordinates, which measurably doubled the exact-arithmetic
+// fallback rate. Instead every point is translated by -queryPoint, which
+// leaves the determinant unchanged (a column operation), and the query's row
+// becomes [0, 0, 0, -queryWeight, 1]. Expanding along that row leaves two
+// cofactors:
 //
-// Translating all 5 points by -queryPoint doesn't change the determinant
-// (adding a linear combination of the x/y/z/"1" columns to the height
-// column, to account for the translation, is a column operation and column
-// operations don't change a determinant -- this holds independent of the
-// weight subtraction, since weights are carried unchanged by translation).
-// After translating, the query's own row becomes [0, 0, 0, -queryWeight, 1]
-// (mostly zero), so expanding the 5x5 along that row leaves only two
-// surviving cofactors:
-//
-//   det5x5 = queryWeight * orientDet + M4
+//   det5x5 = queryWeight * orientationDeterminant + M4
 //
 // where:
-//  - orientDet is the 4x4 determinant of the tet's 4 points' [x,y,z,1] rows
-//    -- translation-invariant, so it's just RobustPredicates3D::
-//    orientationSign()'s own underlying quantity (computed here as its own
-//    small local helper since that class only exposes the sign, not the
-//    value this needs to combine with queryWeight).
-//  - M4 is the 4x4 determinant of the tet's 4 points' [dx,dy,dz,dx^2+dy^2+dz^2-w]
-//    rows relative to queryPoint -- exactly the unweighted in-sphere
-//    determinant, generalized by subtracting each point's weight from its
-//    height term.
+//  - orientationDeterminant is the 4x4 determinant of the tetrahedron's
+//    [x, y, z, 1] rows, the quantity behind RobustPredicates3D::
+//    orientationSign(), recomputed here because that class exposes only
+//    its sign.
+//  - M4 is the 4x4 determinant of the tetrahedron's
+//    [dx, dy, dz, dx^2+dy^2+dz^2-w] rows relative to queryPoint: the
+//    unweighted in-sphere determinant with each point's weight subtracted
+//    from its height term.
 //
-// Both terms use small, query-relative magnitudes, so this has the same
-// fast-path conditioning as the unweighted predicate; when queryWeight == 0
-// (refinement's ordinary, unweighted Steiner points -- the overwhelmingly
-// common case) the orientDet term is skipped entirely, leaving M4 alone,
-// identical in cost to an unweighted in-sphere test.
-// ---------------------------------------------------------------------------
+// Both terms use small, query-relative magnitudes, so the fast path is as
+// well conditioned as the unweighted predicate. When queryWeight == 0 (every
+// ordinary refinement point) the orientation term is skipped, leaving the
+// cost of an unweighted in-sphere test.
 
 struct FastResult
 {
     double value = 0.0;
 
-    // Sum of the absolute values of every term the determinant's cofactor
-    // expansion summed to reach `value` -- NOT |value| itself (that's the
-    // already-cancelled result, and using it in place of this to bound a
-    // *further* computation this value feeds into would understate the true
-    // error: |value| can be far smaller than the raw term magnitudes that
-    // combined to produce it). This is what a caller combining this result
-    // with another quantity must scale its own SAFETY_FACTOR bound from.
+    // Sum of the absolute values of the cofactor-expansion terms that summed
+    // to `value`. Rounding error scales with this, not with |value|, which
+    // cancellation can make far smaller; a caller combining this result with
+    // another quantity scales its SAFETY_FACTOR bound from it.
     double permanent = 0.0;
 };
 
-FastResult fastOrientDet(const Point3D& p0, const Point3D& p1, const Point3D& p2, const Point3D& p3)
+FastResult fastOrientationDeterminant(const std::array<Point3D, 4>& points);
+Expansion exactOrientationDeterminant(const std::array<Point3D, 4>& points);
+FastResult fastM4(const std::array<Point3D, 4>& points, const std::array<double, 4>& weights,
+                  const Point3D& queryPoint);
+Expansion exactM4(const std::array<Point3D, 4>& points, const std::array<double, 4>& weights,
+                  const Point3D& queryPoint);
+
+} // namespace
+
+bool RegularPredicates3D::insidePointOrthosphere(const Point3D& point0, double weight0,
+                                                 const Point3D& point1, double weight1,
+                                                 const Point3D& point2, double weight2,
+                                                 const Point3D& point3, double weight3,
+                                                 const Point3D& queryPoint, double queryWeight)
 {
-    const double ax = p0.x() - p3.x(), ay = p0.y() - p3.y(), az = p0.z() - p3.z();
-    const double bx = p1.x() - p3.x(), by = p1.y() - p3.y(), bz = p1.z() - p3.z();
-    const double cx = p2.x() - p3.x(), cy = p2.y() - p3.y(), cz = p2.z() - p3.z();
+    int orientation = RobustPredicates3D::orientationSign(point0, point1, point2, point3);
+    if (orientation == 0)
+        return false;
 
-    const double t0 = ax * (by * cz);
-    const double t1 = ax * (bz * cy);
-    const double t2 = ay * (bx * cz);
-    const double t3 = ay * (bz * cx);
-    const double t4 = az * (bx * cy);
-    const double t5 = az * (by * cx);
+    std::array<Point3D, 4> points = {point0, point1, point2, point3};
+    std::array<double, 4> weights = {weight0, weight1, weight2, weight3};
 
-    const double det = t0 - t1 - t2 + t3 + t4 - t5;
-    const double permanent = std::abs(t0) + std::abs(t1) + std::abs(t2) + std::abs(t3) + std::abs(t4) + std::abs(t5);
-    return {det, permanent};
+    int orthosphereSign;
+    if (queryWeight == 0.0)
+    {
+        // det5x5 == M4 exactly when queryWeight is 0 (see the file comment).
+        FastResult m4 = fastM4(points, weights, queryPoint);
+        if (std::abs(m4.value) > SAFETY_FACTOR * m4.permanent)
+            orthosphereSign = (m4.value > 0.0) ? 1 : -1;
+        else
+            orthosphereSign = ExactArithmetic3D::expansionSign(exactM4(points, weights, queryPoint));
+    }
+    else
+    {
+        FastResult orientationDeterminant = fastOrientationDeterminant(points);
+        FastResult m4 = fastM4(points, weights, queryPoint);
+        double determinant = queryWeight * orientationDeterminant.value + m4.value;
+        // Bound from each term's permanent, not its cancelled value, so the
+        // threshold covers the rounding error of the combined sum.
+        double bound = SAFETY_FACTOR * (std::abs(queryWeight) * orientationDeterminant.permanent + m4.permanent);
+
+        if (std::abs(determinant) > bound)
+        {
+            orthosphereSign = determinant > 0.0 ? 1 : -1;
+        }
+        else
+        {
+            Expansion exact = ExactArithmetic3D::expansionAdd(
+                ExactArithmetic3D::expansionScale(exactOrientationDeterminant(points), queryWeight),
+                exactM4(points, weights, queryPoint));
+            orthosphereSign = ExactArithmetic3D::expansionSign(exact);
+        }
+    }
+
+    return orthosphereSign == 0 || orthosphereSign == orientation;
 }
 
-Expansion exactOrientDet(const Point3D& p0, const Point3D& p1, const Point3D& p2, const Point3D& p3)
+namespace
 {
-    Expansion m[3][3];
-    const Point3D relativeTo[3] = {p0, p1, p2};
-    for (int i = 0; i < 3; ++i)
-    {
-        m[i][0] = ExactArithmetic3D::expansionFromDifference(relativeTo[i].x(), p3.x());
-        m[i][1] = ExactArithmetic3D::expansionFromDifference(relativeTo[i].y(), p3.y());
-        m[i][2] = ExactArithmetic3D::expansionFromDifference(relativeTo[i].z(), p3.z());
-    }
-    return ExactArithmetic3D::det3x3(m);
+
+FastResult fastOrientationDeterminant(const std::array<Point3D, 4>& points)
+{
+    double edge0X = points[0].x() - points[3].x();
+    double edge0Y = points[0].y() - points[3].y();
+    double edge0Z = points[0].z() - points[3].z();
+    double edge1X = points[1].x() - points[3].x();
+    double edge1Y = points[1].y() - points[3].y();
+    double edge1Z = points[1].z() - points[3].z();
+    double edge2X = points[2].x() - points[3].x();
+    double edge2Y = points[2].y() - points[3].y();
+    double edge2Z = points[2].z() - points[3].z();
+
+    double term0 = edge0X * (edge1Y * edge2Z);
+    double term1 = edge0X * (edge1Z * edge2Y);
+    double term2 = edge0Y * (edge1X * edge2Z);
+    double term3 = edge0Y * (edge1Z * edge2X);
+    double term4 = edge0Z * (edge1X * edge2Y);
+    double term5 = edge0Z * (edge1Y * edge2X);
+
+    double determinant = term0 - term1 - term2 + term3 + term4 - term5;
+    double permanent = std::abs(term0) + std::abs(term1) + std::abs(term2) + std::abs(term3) + std::abs(term4) +
+                       std::abs(term5);
+    return {determinant, permanent};
 }
 
-FastResult fastM4(const std::array<Point3D, 4>& p, const std::array<double, 4>& w, const Point3D& queryPoint)
+Expansion exactOrientationDeterminant(const std::array<Point3D, 4>& points)
 {
-    double d[4][4];
-    for (int i = 0; i < 4; ++i)
+    Expansion matrix[3][3];
+    for (size_t i = 0; i < 3; ++i)
     {
-        d[i][0] = p[static_cast<size_t>(i)].x() - queryPoint.x();
-        d[i][1] = p[static_cast<size_t>(i)].y() - queryPoint.y();
-        d[i][2] = p[static_cast<size_t>(i)].z() - queryPoint.z();
-        d[i][3] = d[i][0] * d[i][0] + d[i][1] * d[i][1] + d[i][2] * d[i][2] - w[static_cast<size_t>(i)];
+        matrix[i][0] = ExactArithmetic3D::expansionFromDifference(points[i].x(), points[3].x());
+        matrix[i][1] = ExactArithmetic3D::expansionFromDifference(points[i].y(), points[3].y());
+        matrix[i][2] = ExactArithmetic3D::expansionFromDifference(points[i].z(), points[3].z());
     }
+    return ExactArithmetic3D::det3x3(matrix);
+}
 
-    auto det3 = [](const double m[3][3])
+double fastDeterminant3x3(const double matrix[3][3])
+{
+    return matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) -
+           matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0]) +
+           matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
+}
+
+// minors[skipRow] is the 3x3 determinant of the first three columns of rows,
+// with row skipRow removed. Shared by the double and the Expansion path.
+template <typename Element, typename Determinant3x3>
+void computeMinors(const Element (&rows)[4][4], Element (&minors)[4], Determinant3x3 determinant3x3)
+{
+    for (size_t skipRow = 0; skipRow < 4; ++skipRow)
     {
-        return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-             + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-    };
+        Element subMatrix[3][3];
+        size_t subRow = 0;
+        for (size_t row = 0; row < 4; ++row)
+        {
+            if (row == skipRow) continue;
+            subMatrix[subRow][0] = rows[row][0];
+            subMatrix[subRow][1] = rows[row][1];
+            subMatrix[subRow][2] = rows[row][2];
+            ++subRow;
+        }
+        minors[skipRow] = determinant3x3(subMatrix);
+    }
+}
+
+FastResult fastM4(const std::array<Point3D, 4>& points, const std::array<double, 4>& weights, const Point3D& queryPoint)
+{
+    double rows[4][4];
+    for (size_t i = 0; i < 4; ++i)
+    {
+        rows[i][0] = points[i].x() - queryPoint.x();
+        rows[i][1] = points[i].y() - queryPoint.y();
+        rows[i][2] = points[i].z() - queryPoint.z();
+        rows[i][3] = rows[i][0] * rows[i][0] + rows[i][1] * rows[i][1] + rows[i][2] * rows[i][2] - weights[i];
+    }
 
     double minor[4];
-    for (int skipRow = 0; skipRow < 4; ++skipRow)
-    {
-        double sub[3][3];
-        int r = 0;
-        for (int row = 0; row < 4; ++row)
-        {
-            if (row == skipRow)
-                continue;
-            sub[r][0] = d[row][0];
-            sub[r][1] = d[row][1];
-            sub[r][2] = d[row][2];
-            ++r;
-        }
-        minor[skipRow] = det3(sub);
-    }
+    computeMinors(rows, minor, fastDeterminant3x3);
 
-    double det = 0.0;
+    double determinant = 0.0;
     double permanent = 0.0;
-    for (int i = 0; i < 4; ++i)
+    for (size_t i = 0; i < 4; ++i)
     {
-        double term = d[i][3] * minor[i];
+        double term = rows[i][3] * minor[i];
         permanent += std::abs(term);
-        det += (i % 2 == 0) ? -term : term;
+        determinant += (i % 2 == 0) ? -term : term;
     }
-    return {det, permanent};
+    return {determinant, permanent};
 }
 
-Expansion exactM4(const std::array<Point3D, 4>& p, const std::array<double, 4>& w, const Point3D& queryPoint)
+Expansion exactM4(const std::array<Point3D, 4>& points, const std::array<double, 4>& weights, const Point3D& queryPoint)
 {
-    Expansion d[4][4];
-    for (int i = 0; i < 4; ++i)
+    Expansion rows[4][4];
+    for (size_t i = 0; i < 4; ++i)
     {
-        d[i][0] = ExactArithmetic3D::expansionFromDifference(p[static_cast<size_t>(i)].x(), queryPoint.x());
-        d[i][1] = ExactArithmetic3D::expansionFromDifference(p[static_cast<size_t>(i)].y(), queryPoint.y());
-        d[i][2] = ExactArithmetic3D::expansionFromDifference(p[static_cast<size_t>(i)].z(), queryPoint.z());
-        const Expansion squaredNorm = ExactArithmetic3D::squaredNormRelative(d[i][0], d[i][1], d[i][2]);
-        d[i][3] = ExactArithmetic3D::expansionSub(
-            squaredNorm, ExactArithmetic3D::expansionFromDouble(w[static_cast<size_t>(i)]));
+        rows[i][0] = ExactArithmetic3D::expansionFromDifference(points[i].x(), queryPoint.x());
+        rows[i][1] = ExactArithmetic3D::expansionFromDifference(points[i].y(), queryPoint.y());
+        rows[i][2] = ExactArithmetic3D::expansionFromDifference(points[i].z(), queryPoint.z());
+        Expansion squaredNorm = ExactArithmetic3D::squaredNormRelative(rows[i][0], rows[i][1], rows[i][2]);
+        rows[i][3] = ExactArithmetic3D::expansionSub(squaredNorm, ExactArithmetic3D::expansionFromDouble(weights[i]));
     }
 
     Expansion minor[4];
-    for (int skipRow = 0; skipRow < 4; ++skipRow)
-    {
-        Expansion sub[3][3];
-        int r = 0;
-        for (int row = 0; row < 4; ++row)
-        {
-            if (row == skipRow)
-                continue;
-            sub[r][0] = d[row][0];
-            sub[r][1] = d[row][1];
-            sub[r][2] = d[row][2];
-            ++r;
-        }
-        minor[skipRow] = ExactArithmetic3D::det3x3(sub);
-    }
+    computeMinors(rows, minor, ExactArithmetic3D::det3x3);
 
     Expansion determinant;
-    for (int i = 0; i < 4; ++i)
+    for (size_t i = 0; i < 4; ++i)
     {
-        Expansion term = ExactArithmetic3D::expansionMul(d[i][3], minor[i]);
-        if (i % 2 == 0)
-            term = ExactArithmetic3D::expansionNegate(term);
+        Expansion term = ExactArithmetic3D::expansionMul(rows[i][3], minor[i]);
+        if (i % 2 == 0) term = ExactArithmetic3D::expansionNegate(term);
         determinant = ExactArithmetic3D::expansionAdd(determinant, term);
     }
     return determinant;
 }
 
 } // namespace
-
-bool RegularPredicates3D::insidePointOrthosphere(const Point3D& p0, double w0,
-                                                 const Point3D& p1, double w1,
-                                                 const Point3D& p2, double w2,
-                                                 const Point3D& p3, double w3,
-                                                 const Point3D& queryPoint, double queryWeight)
-{
-    const int orientation = RobustPredicates3D::orientationSign(p0, p1, p2, p3);
-    if (orientation == 0)
-        return false;
-
-    const std::array<Point3D, 4> p = {p0, p1, p2, p3};
-    const std::array<double, 4> w = {w0, w1, w2, w3};
-
-    int orthosphereSign;
-    if (queryWeight == 0.0)
-    {
-        // det5x5 == M4 exactly when queryWeight is 0 -- skip the orientDet
-        // term entirely (see file comment). This is the common case:
-        // refinement's ordinary Steiner points are always unweighted.
-        const FastResult m4 = fastM4(p, w, queryPoint);
-        if (std::abs(m4.value) > SAFETY_FACTOR * m4.permanent)
-            orthosphereSign = (m4.value > 0.0) ? 1 : -1;
-        else
-            orthosphereSign = ExactArithmetic3D::expansionSign(exactM4(p, w, queryPoint));
-    }
-    else
-    {
-        const FastResult orient = fastOrientDet(p0, p1, p2, p3);
-        const FastResult m4 = fastM4(p, w, queryPoint);
-        const double det = queryWeight * orient.value + m4.value;
-        // Combine each term's own PERMANENT (not its already-cancelled
-        // value -- see FastResult's doc) so the threshold conservatively
-        // bounds the true worst-case rounding error of the combined sum,
-        // not just of each half in isolation.
-        const double bound = SAFETY_FACTOR * (std::abs(queryWeight) * orient.permanent + m4.permanent);
-
-        if (std::abs(det) > bound)
-        {
-            orthosphereSign = det > 0.0 ? 1 : -1;
-        }
-        else
-        {
-            const Expansion exact = ExactArithmetic3D::expansionAdd(
-                ExactArithmetic3D::expansionScale(exactOrientDet(p0, p1, p2, p3), queryWeight),
-                exactM4(p, w, queryPoint));
-            orthosphereSign = ExactArithmetic3D::expansionSign(exact);
-        }
-    }
-
-    if (orthosphereSign == 0)
-        return true;
-    return orthosphereSign == orientation;
-}
 
 } // namespace Meshing

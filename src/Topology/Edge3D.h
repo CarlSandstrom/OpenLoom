@@ -14,8 +14,8 @@ public:
            const std::string& endCornerId,
            const std::vector<std::string>& adjacentSurfaceIds);
 
-    std::string getStartCornerId() const;
-    std::string getEndCornerId() const;
+    const std::string& getStartCornerId() const;
+    const std::string& getEndCornerId() const;
     const std::vector<std::string>& getAdjacentSurfaceIds() const;
 
 private:

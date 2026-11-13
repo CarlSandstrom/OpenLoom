@@ -19,21 +19,21 @@ namespace
 // reads the parameter the discretizer stored for it (one value per interior point).
 std::vector<double> parametersAlongEdge(const std::vector<size_t>& pointIndices,
                                         const DiscretizationResult3D& discretization,
-                                        double tMin,
-                                        double tMax)
+                                        double parameterMin,
+                                        double parameterMax)
 {
-    std::vector<double> tValues;
-    tValues.reserve(pointIndices.size());
+    std::vector<double> parameters;
+    parameters.reserve(pointIndices.size());
     for (size_t position = 0; position < pointIndices.size(); ++position)
     {
         if (position == 0)
-            tValues.push_back(tMin);
+            parameters.push_back(parameterMin);
         else if (position == pointIndices.size() - 1)
-            tValues.push_back(tMax);
+            parameters.push_back(parameterMax);
         else
-            tValues.push_back(discretization.edgeParameters[pointIndices[position]][0]);
+            parameters.push_back(discretization.edgeParameters[pointIndices[position]][0]);
     }
-    return tValues;
+    return parameters;
 }
 
 } // namespace
@@ -44,14 +44,14 @@ CurveSegmentManager CurveSegmentBuilder::build(const Topology3D::Topology3D& top
                                                const std::map<size_t, size_t>& pointIndexToNodeIdMap)
 {
     CurveSegmentManager manager;
-    const auto& seams = topology.getSeamCollection();
+    auto& seams = topology.getSeamCollection();
 
-    for (const auto& edgeId : topology.getAllEdgeIds())
+    for (auto& edgeId : topology.getAllEdgeIds())
     {
         if (seams.isSeamTwin(edgeId))
             continue;
 
-        const Geometry3D::IEdge3D* geometryEdge = geometry.getEdge(edgeId);
+        auto geometryEdge = geometry.getEdge(edgeId);
         if (!geometryEdge)
             continue;
 
@@ -62,31 +62,30 @@ CurveSegmentManager CurveSegmentBuilder::build(const Topology3D::Topology3D& top
         if (geometryEdge->isDegenerate())
             continue;
 
-        const auto sequenceIt = discretization.edgeIdToPointIndicesMap.find(edgeId);
-        if (sequenceIt == discretization.edgeIdToPointIndicesMap.end())
+        auto sequenceIterator = discretization.edgeIdToPointIndicesMap.find(edgeId);
+        if (sequenceIterator == discretization.edgeIdToPointIndicesMap.end())
             continue;
 
-        const auto& pointIndices = sequenceIt->second;
+        auto& pointIndices = sequenceIterator->second;
         if (pointIndices.size() < 2)
             continue;
 
-        const auto [tMin, tMax] = geometryEdge->getParameterBounds();
-        const std::vector<double> tValues = parametersAlongEdge(pointIndices, discretization, tMin, tMax);
+        auto [parameterMin, parameterMax] = geometryEdge->getParameterBounds();
+        auto parameters = parametersAlongEdge(pointIndices, discretization, parameterMin, parameterMax);
 
-        // One segment per consecutive node pair.
-        for (size_t i = 0; i + 1 < pointIndices.size(); ++i)
+        for (size_t index = 0; index + 1 < pointIndices.size(); ++index)
         {
-            const auto nodeIt1 = pointIndexToNodeIdMap.find(pointIndices[i]);
-            const auto nodeIt2 = pointIndexToNodeIdMap.find(pointIndices[i + 1]);
-            if (nodeIt1 == pointIndexToNodeIdMap.end() || nodeIt2 == pointIndexToNodeIdMap.end())
+            auto node0 = pointIndexToNodeIdMap.find(pointIndices[index]);
+            auto node1 = pointIndexToNodeIdMap.find(pointIndices[index + 1]);
+            if (node0 == pointIndexToNodeIdMap.end() || node1 == pointIndexToNodeIdMap.end())
                 continue;
 
             CurveSegment segment;
-            segment.nodeId1 = nodeIt1->second;
-            segment.nodeId2 = nodeIt2->second;
+            segment.nodeId1 = node0->second;
+            segment.nodeId2 = node1->second;
             segment.edgeId = edgeId;
-            segment.tStart = tValues[i];
-            segment.tEnd = tValues[i + 1];
+            segment.tStart = parameters[index];
+            segment.tEnd = parameters[index + 1];
             manager.addSegment(segment);
         }
     }

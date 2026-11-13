@@ -4,6 +4,7 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include <array>
+#include <optional>
 #include <vector>
 
 namespace Meshing
@@ -72,9 +73,9 @@ public:
      * @param faceNode1 First node of the face
      * @param faceNode2 Second node of the face
      * @param faceNode3 Third node of the face
-     * @return Node ID of the opposite vertex, or SIZE_MAX if not found
+     * @return Node ID of the opposite vertex, or std::nullopt if not found
      */
-    size_t findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const;
+    std::optional<size_t> findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const;
 
 private:
     const MeshData3D& meshData_;

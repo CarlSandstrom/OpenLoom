@@ -1,4 +1,4 @@
-#include "Surface3D.h"
+#include "Topology/Surface3D.h"
 
 namespace Topology3D
 {
@@ -16,7 +16,7 @@ Surface3D::Surface3D(const std::string& id,
 {
 }
 
-std::string Surface3D::getId() const
+const std::string& Surface3D::getId() const
 {
     return id_;
 }

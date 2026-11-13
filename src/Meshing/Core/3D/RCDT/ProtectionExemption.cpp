@@ -31,28 +31,28 @@ struct WeightedPoint
 
 /// Squared radius of the smallest sphere orthogonal to both weighted points.
 /// Non-positive exactly when their balls intersect.
-double squaredOrthogonalRadius(const WeightedPoint& a, const WeightedPoint& b)
+double squaredOrthogonalRadius(const WeightedPoint& point0, const WeightedPoint& point1)
 {
-    const double squaredDistance = (b.position - a.position).squaredNorm();
-    const double t = (squaredDistance + a.weight - b.weight) / (2.0 * squaredDistance);
-    return t * t * squaredDistance - a.weight;
+    auto squaredDistance = (point1.position - point0.position).squaredNorm();
+    auto fraction = (squaredDistance + point0.weight - point1.weight) / (2.0 * squaredDistance);
+    return fraction * fraction * squaredDistance - point0.weight;
 }
 
 /// Squared radius of the smallest sphere orthogonal to all three weighted
 /// points: centred in their plane at equal power distance to each.
 /// Non-positive exactly when the three balls have a common point.
-double squaredOrthogonalRadius(const WeightedPoint& a, const WeightedPoint& b, const WeightedPoint& c)
+double squaredOrthogonalRadius(const WeightedPoint& point0, const WeightedPoint& point1, const WeightedPoint& point2)
 {
-    const Point3D u = b.position - a.position;
-    const Point3D v = c.position - a.position;
+    Point3D edge1 = point1.position - point0.position;
+    Point3D edge2 = point2.position - point0.position;
     Eigen::Matrix2d system;
-    system << u.dot(u), u.dot(v), u.dot(v), v.dot(v);
-    const Eigen::Vector2d rightHandSide(0.5 * (u.dot(u) + a.weight - b.weight),
-                                        0.5 * (v.dot(v) + a.weight - c.weight));
+    system << edge1.dot(edge1), edge1.dot(edge2), edge1.dot(edge2), edge2.dot(edge2);
+    Eigen::Vector2d rightHandSide(0.5 * (edge1.dot(edge1) + point0.weight - point1.weight),
+                                  0.5 * (edge2.dot(edge2) + point0.weight - point2.weight));
     if (std::abs(system.determinant()) < 1e-300)
         return std::numeric_limits<double>::max();
-    const Eigen::Vector2d coefficients = system.inverse() * rightHandSide;
-    return (coefficients(0) * u + coefficients(1) * v).squaredNorm() - a.weight;
+    Eigen::Vector2d coefficients = system.inverse() * rightHandSide;
+    return (coefficients(0) * edge1 + coefficients(1) * edge2).squaredNorm() - point0.weight;
 }
 
 } // namespace
@@ -63,10 +63,10 @@ ProtectionExemption protectionExemption(const TriangleElement& triangle, const M
     std::array<WeightedPoint, 3> unweighted;
     size_t weightedCount = 0;
     size_t unweightedCount = 0;
-    for (const size_t nodeId : triangle.getNodeIds())
+    for (auto nodeId : triangle.getNodeIds())
     {
-        const Node3D* node = meshData.getNode(nodeId);
-        const WeightedPoint point{node->getCoordinates(), node->getWeight()};
+        auto node = meshData.getNode(nodeId);
+        WeightedPoint point{node->getCoordinates(), node->getWeight()};
         if (point.weight > 0.0)
             weighted[weightedCount++] = point;
         else
@@ -94,7 +94,7 @@ ProtectionExemption protectionExemption(const TriangleElement& triangle, const M
         return {};
     }
 
-    const bool anchoredToProtection = ballsIntersect || weightedCount == 1;
+    bool anchoredToProtection = ballsIntersect || weightedCount == 1;
     return {anchoredToProtection && ratio < ANGLE_EXEMPTION_RATIO,
             anchoredToProtection && ratio < CHORD_EXEMPTION_RATIO};
 }

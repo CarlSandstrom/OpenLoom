@@ -480,5 +480,5 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
     MeshOperations3D operations(meshData_);
 
     // Invalid tetrahedron ID
-    EXPECT_EQ(operations.getQueries().findOppositeVertex(9999, n0, n1, n2), SIZE_MAX);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(9999, n0, n1, n2), std::nullopt);
 }

@@ -12,28 +12,8 @@ namespace Meshing
 
 namespace
 {
-
-// Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
-// 3 axes. A necessary (not sufficient) condition for the shapes they bound to
-// actually intersect -- see findCrossingNearest().
-bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
-{
-    return aMin.x() <= bMax.x() && bMin.x() <= aMax.x() && aMin.y() <= bMax.y() && bMin.y() <= aMax.y() &&
-           aMin.z() <= bMax.z() && bMin.z() <= aMax.z();
-}
-
-// Number of cells along each axis for a soup of this size, chosen so each cell
-// holds roughly 1-4 triangles on average. The soup typically lies on a 2D
-// surface, not filling a 3D volume, so many cells stay empty -- that's fine; a
-// query only visits cells overlapping its own bounding box, not all cells.
-size_t gridResolutionFor(size_t triangleCount)
-{
-    constexpr size_t MINIMUM_GRID_RESOLUTION = 4;
-    constexpr size_t MAXIMUM_GRID_RESOLUTION = 50;
-    const size_t fromCount = static_cast<size_t>(std::cbrt(static_cast<double>(triangleCount)));
-    return std::clamp(fromCount, MINIMUM_GRID_RESOLUTION, MAXIMUM_GRID_RESOLUTION);
-}
-
+bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax);
+size_t gridResolutionFor(size_t triangleCount);
 } // namespace
 
 void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
@@ -45,19 +25,15 @@ void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
         return;
 
     triangles_.reserve(triangles.size());
-    for (const Triangle& vertices : triangles)
+    Point3D gridMin = triangles[0][0];
+    Point3D gridMax = triangles[0][0];
+    for (auto& vertices : triangles)
     {
-        const Point3D boundsMin = vertices[0].cwiseMin(vertices[1]).cwiseMin(vertices[2]);
-        const Point3D boundsMax = vertices[0].cwiseMax(vertices[1]).cwiseMax(vertices[2]);
+        Point3D boundsMin = vertices[0].cwiseMin(vertices[1]).cwiseMin(vertices[2]);
+        Point3D boundsMax = vertices[0].cwiseMax(vertices[1]).cwiseMax(vertices[2]);
         triangles_.push_back({vertices, boundsMin, boundsMax});
-    }
-
-    Point3D gridMin = triangles_[0].boundsMin;
-    Point3D gridMax = triangles_[0].boundsMax;
-    for (const BoundedTriangle& triangle : triangles_)
-    {
-        gridMin = gridMin.cwiseMin(triangle.boundsMin);
-        gridMax = gridMax.cwiseMax(triangle.boundsMax);
+        gridMin = gridMin.cwiseMin(boundsMin);
+        gridMax = gridMax.cwiseMax(boundsMax);
     }
 
     // Expand slightly so that triangles exactly on the boundary fall inside a
@@ -69,21 +45,19 @@ void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
     resolution_ = gridResolutionFor(triangles_.size());
     gridMin_ = gridMin;
 
-    const Point3D range = gridMax - gridMin;
+    Point3D range = gridMax - gridMin;
     // Floor each component at a small positive value to avoid division by zero
     // for a soup that is flat in one coordinate direction.
     constexpr double MINIMUM_RANGE = 1e-12;
-    const double cellCount = static_cast<double>(resolution_);
-    cellSize_ = Point3D(std::max(range.x() / cellCount, MINIMUM_RANGE), std::max(range.y() / cellCount, MINIMUM_RANGE),
-                        std::max(range.z() / cellCount, MINIMUM_RANGE));
+    cellSize_ = (range / static_cast<double>(resolution_)).cwiseMax(MINIMUM_RANGE);
 
     cells_.resize(resolution_ * resolution_ * resolution_);
 
     for (size_t triangleIndex = 0; triangleIndex < triangles_.size(); ++triangleIndex)
     {
-        const BoundedTriangle& triangle = triangles_[triangleIndex];
-        const CellCoordinates minimumCell = cellContaining(triangle.boundsMin);
-        const CellCoordinates maximumCell = cellContaining(triangle.boundsMax);
+        auto& triangle = triangles_[triangleIndex];
+        auto minimumCell = cellContaining(triangle.boundsMin);
+        auto maximumCell = cellContaining(triangle.boundsMax);
 
         for (size_t x = minimumCell.x; x <= maximumCell.x; ++x)
             for (size_t y = minimumCell.y; y <= maximumCell.y; ++y)
@@ -99,25 +73,26 @@ std::optional<Point3D> TriangleSoupIndex::findCrossingNearest(const Point3D& a,
                                                               const Point3D& b,
                                                               const Point3D& target) const
 {
-    const Point3D boundsMin = a.cwiseMin(b);
-    const Point3D boundsMax = a.cwiseMax(b);
+    Point3D boundsMin = a.cwiseMin(b);
+    Point3D boundsMax = a.cwiseMax(b);
+    Point3D direction = b - a;
 
     std::optional<Point3D> nearest;
     double nearestSquaredDistance = 0.0;
-    for (const size_t cell : cellsAlongSegment(a, b))
-        for (const size_t triangleIndex : cells_[cell])
+    for (auto cell : cellsAlongSegment(a, b))
+        for (auto triangleIndex : cells_[cell])
         {
-            const BoundedTriangle& triangle = triangles_[triangleIndex];
+            auto& triangle = triangles_[triangleIndex];
             if (!boundsOverlap(boundsMin, boundsMax, triangle.boundsMin, triangle.boundsMax))
                 continue;
-            const auto& v = triangle.vertices;
-            if (!RobustPredicates3D::segmentCrossesTriangle(a, b, v[0], v[1], v[2]))
+            auto& vertices = triangle.vertices;
+            if (!RobustPredicates3D::segmentCrossesTriangle(a, b, vertices[0], vertices[1], vertices[2]))
                 continue;
-            const Point3D normal = (v[1] - v[0]).cross(v[2] - v[0]);
-            const double denominator = normal.dot(b - a);
-            const double t = denominator == 0.0 ? 0.0 : normal.dot(v[0] - a) / denominator;
-            const Point3D crossing = a + std::clamp(t, 0.0, 1.0) * (b - a);
-            const double squaredDistance = (crossing - target).squaredNorm();
+            Point3D normal = (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0]);
+            double denominator = normal.dot(direction);
+            double parameter = denominator == 0.0 ? 0.0 : normal.dot(vertices[0] - a) / denominator;
+            Point3D crossing = a + std::clamp(parameter, 0.0, 1.0) * direction;
+            double squaredDistance = (crossing - target).squaredNorm();
             if (!nearest || squaredDistance < nearestSquaredDistance)
             {
                 nearest = crossing;
@@ -133,8 +108,8 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
         return {};
 
     // Clip the segment's parameter range to the grid box (slab method).
-    const Point3D direction = b - a;
-    const Point3D gridMax = gridMin_ + cellSize_ * static_cast<double>(resolution_);
+    Point3D direction = b - a;
+    Point3D gridMax = gridMin_ + cellSize_ * static_cast<double>(resolution_);
     double entry = 0.0;
     double exit = 1.0;
     for (int axis = 0; axis < 3; ++axis)
@@ -156,8 +131,8 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
     }
 
     // Walk the cells the clipped segment passes through (Amanatides-Woo).
-    const Point3D start = a + entry * direction;
-    const CellCoordinates startCell = cellContaining(start);
+    Point3D start = a + entry * direction;
+    auto startCell = cellContaining(start);
     std::array<long long, 3> cell = {static_cast<long long>(startCell.x), static_cast<long long>(startCell.y),
                                      static_cast<long long>(startCell.z)};
     std::array<long long, 3> step{};
@@ -172,17 +147,17 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
             continue;
         }
         step[axis] = direction[axis] > 0.0 ? 1 : -1;
-        const double boundary = gridMin_[axis] + cellSize_[axis] * static_cast<double>(cell[axis] + (step[axis] > 0 ? 1 : 0));
+        double boundary = gridMin_[axis] + cellSize_[axis] * static_cast<double>(cell[axis] + (step[axis] > 0 ? 1 : 0));
         nextBoundary[axis] = (boundary - a[axis]) / direction[axis];
         boundarySpacing[axis] = cellSize_[axis] / std::abs(direction[axis]);
     }
 
-    const auto resolution = static_cast<long long>(resolution_);
+    auto resolution = static_cast<long long>(resolution_);
     std::vector<size_t> visited;
     while (true)
     {
         visited.push_back(cellIndex({static_cast<size_t>(cell[0]), static_cast<size_t>(cell[1]), static_cast<size_t>(cell[2])}));
-        const int axis = static_cast<int>(std::min_element(nextBoundary.begin(), nextBoundary.end()) - nextBoundary.begin());
+        auto axis = static_cast<int>(std::min_element(nextBoundary.begin(), nextBoundary.end()) - nextBoundary.begin());
         if (nextBoundary[axis] > exit)
             break;
         cell[axis] += step[axis];
@@ -195,20 +170,43 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
 
 TriangleSoupIndex::CellCoordinates TriangleSoupIndex::cellContaining(const Point3D& point) const
 {
-    const auto axisIndex = [this](double coordinate, double gridMinCoordinate, double cellSizeCoordinate) -> size_t
+    auto axisIndex = [this, &point](int axis) -> size_t
     {
-        const double normalized = (coordinate - gridMinCoordinate) / cellSizeCoordinate;
-        const long long index = static_cast<long long>(std::floor(normalized));
+        auto index = static_cast<long long>(std::floor((point[axis] - gridMin_[axis]) / cellSize_[axis]));
         return static_cast<size_t>(std::clamp(index, 0LL, static_cast<long long>(resolution_) - 1LL));
     };
 
-    return {axisIndex(point.x(), gridMin_.x(), cellSize_.x()), axisIndex(point.y(), gridMin_.y(), cellSize_.y()),
-            axisIndex(point.z(), gridMin_.z(), cellSize_.z())};
+    return {axisIndex(0), axisIndex(1), axisIndex(2)};
 }
 
 size_t TriangleSoupIndex::cellIndex(const CellCoordinates& cell) const
 {
     return cell.x * resolution_ * resolution_ + cell.y * resolution_ + cell.z;
 }
+
+namespace
+{
+
+// Whether two axis-aligned boxes [aMin, aMax] and [bMin, bMax] overlap in all
+// 3 axes. A necessary (not sufficient) condition for the shapes they bound to
+// actually intersect -- see findCrossingNearest().
+bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
+{
+    return (aMin.array() <= bMax.array()).all() && (bMin.array() <= aMax.array()).all();
+}
+
+// Number of cells along each axis for a soup of this size, chosen so each cell
+// holds roughly 1-4 triangles on average. The soup typically lies on a 2D
+// surface, not filling a 3D volume, so many cells stay empty -- that's fine; a
+// query only visits cells overlapping its own bounding box, not all cells.
+size_t gridResolutionFor(size_t triangleCount)
+{
+    constexpr size_t MINIMUM_GRID_RESOLUTION = 4;
+    constexpr size_t MAXIMUM_GRID_RESOLUTION = 50;
+    auto fromCount = static_cast<size_t>(std::cbrt(static_cast<double>(triangleCount)));
+    return std::clamp(fromCount, MINIMUM_GRID_RESOLUTION, MAXIMUM_GRID_RESOLUTION);
+}
+
+} // namespace
 
 } // namespace Meshing

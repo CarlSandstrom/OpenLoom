@@ -16,8 +16,8 @@ namespace
 
 std::array<EdgeKey, 3> faceEdges(const FaceKey& face)
 {
-    const auto& n = face.nodeIds;
-    return {EdgeKey(n[0], n[1]), EdgeKey(n[0], n[2]), EdgeKey(n[1], n[2])};
+    auto& nodeIds = face.nodeIds;
+    return {EdgeKey(nodeIds[0], nodeIds[1]), EdgeKey(nodeIds[0], nodeIds[2]), EdgeKey(nodeIds[1], nodeIds[2])};
 }
 
 /// One edge's restricted-face coverage set against what the CAD topology
@@ -41,11 +41,11 @@ std::optional<std::unordered_map<std::string, size_t>> expectedIncidentSurfaces(
     const CurveSegmentManager& curveSegmentManager,
     const EdgeToAdjacentSurfacesMap& edgeToAdjacentSurfaces)
 {
-    const auto segmentId = curveSegmentManager.findSegmentId(edge.nodeIds[0], edge.nodeIds[1]);
+    auto segmentId = curveSegmentManager.findSegmentId(edge.nodeIds[0], edge.nodeIds[1]);
     if (!segmentId)
         return std::nullopt;
 
-    const auto adjacentIt = edgeToAdjacentSurfaces.find(curveSegmentManager.getSegment(*segmentId).edgeId);
+    auto adjacentIt = edgeToAdjacentSurfaces.find(curveSegmentManager.getSegment(*segmentId).edgeId);
     if (adjacentIt == edgeToAdjacentSurfaces.end() || adjacentIt->second.empty())
         return std::nullopt;
 
@@ -74,10 +74,10 @@ RestrictedEdgeCoverageMap buildEdgeCoverage(const RestrictedFaceMap& restrictedF
         }
     }
 
-    const auto& curveSegmentManager = meshData.getCurveSegmentManager();
+    auto& curveSegmentManager = meshData.getCurveSegmentManager();
     for (auto& [edge, entry] : coverage)
     {
-        if (const auto fromTopology = expectedIncidentSurfaces(edge, curveSegmentManager, edgeToAdjacentSurfaces))
+        if (auto fromTopology = expectedIncidentSurfaces(edge, curveSegmentManager, edgeToAdjacentSurfaces))
             entry.expectedBySurface = *fromTopology;
         else
         {
@@ -128,8 +128,8 @@ std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(
         std::optional<std::string> excessSurfaceId;
         for (const auto& [surfaceId, expectedCount] : entry.expectedBySurface)
         {
-            const auto actualIt = entry.actualBySurface.find(surfaceId);
-            const size_t actualCount = actualIt == entry.actualBySurface.end() ? 0 : actualIt->second;
+            auto actualIt = entry.actualBySurface.find(surfaceId);
+            size_t actualCount = actualIt == entry.actualBySurface.end() ? 0 : actualIt->second;
             if (actualCount < expectedCount && !missingSurfaceId)
                 missingSurfaceId = surfaceId;
             else if (actualCount > expectedCount && !excessSurfaceId)
@@ -148,7 +148,7 @@ std::vector<NonManifoldRestrictedEdge> findNonManifoldEdges(
             // Short on one surface and long on another is the expected number
             // of faces landing on the wrong surfaces, not a hole beside a
             // duplicate -- repair still projects onto the surface that is short.
-            const auto defect =
+            auto defect =
                 excessSurfaceId ? RestrictedEdgeDefect::SurfaceMismatch : RestrictedEdgeDefect::MissingFace;
             nonManifoldEdges.push_back({edge, *missingSurfaceId, defect});
         }

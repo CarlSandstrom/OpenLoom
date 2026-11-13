@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Corner3D.h"
-#include "Edge3D.h"
-#include "SeamCollection.h"
-#include "Surface3D.h"
-#include "Volume3D.h"
+#include "Topology/Corner3D.h"
+#include "Topology/Edge3D.h"
+#include "Topology/SeamCollection.h"
+#include "Topology/Surface3D.h"
+#include "Topology/Volume3D.h"
 #include <string>
 #include <unordered_map>
 #include <vector>

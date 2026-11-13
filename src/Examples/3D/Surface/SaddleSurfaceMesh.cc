@@ -14,19 +14,18 @@
  *   z(u,v) = L²(2u−1)² − L²(2v−1)²,  x = L(2u−1),  y = L(2v−1)
  *   cᵢⱼ = αᵢ − βⱼ  with  α = β = [L², −L², L²]
  *
- * A single open face cannot be meshed by RCDT: boundary edges (shared by only
- * one restricted triangle) would be flagged as non-manifold defects by
- * Priority 4's repair loop, which can never converge for a genuinely open
- * boundary. The solid is therefore closed by adding a flat bottom and four
- * ruled side faces — each a linear-in-depth Bezier surface whose top row
- * matches the saddle's parabolic boundary arc exactly.
+ * RCDT meshes the boundary of a closed solid, so a single open face cannot be
+ * meshed: its boundary edges would each carry only one restricted triangle.
+ * The solid is therefore closed by adding a flat bottom and four ruled side
+ * faces — each a linear-in-depth Bezier surface whose top row matches the
+ * saddle's parabolic boundary arc exactly.
  *
  * Topology:
  *   - 6 faces  : saddle top, flat bottom, 4 ruled sides
  *   - 12 edges : 4 parabolic top arcs, 4 vertical straight edges, 4 straight bottom edges
  *   - 8 corners: 4 top at (±L, ±L, 0),  4 bottom at (±L, ±L, Z_BOTTOM)
  *
- * Exports:
+ * Exports (each also written as .tsv tables):
  *   - SaddleSurfaceMeshEdges.vtu : discretized boundary edges (color by EdgeID)
  *   - SaddleSurfaceMesh.vtu      : final refined surface mesh (color by SurfaceID)
  */
@@ -35,8 +34,10 @@
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
+#include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
+#include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
@@ -47,12 +48,14 @@
 #include <Precision.hxx>
 #include <TColgp_Array2OfPnt.hxx>
 #include <TopoDS.hxx>
+#include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Shell.hxx>
 #include <gp_Dir.hxx>
 #include <gp_Pln.hxx>
 #include <gp_Pnt.hxx>
 
+#include <array>
 #include <iostream>
 #include <map>
 #include <numbers>
@@ -60,105 +63,110 @@
 namespace
 {
 
-constexpr double LENGTH = 2.0;         // half-extent of the saddle domain in x and y
+constexpr double LENGTH = 2.0;    // half-extent of the saddle domain in x and y
 constexpr double Z_BOTTOM = -5.0; // flat bottom, below the lowest saddle point (z = -L² = -4)
 
-// Builds the saddle solid: a closed shell consisting of the hyperbolic paraboloid
-// z = x²−y² as the top face, a flat bottom, and four ruled side faces.
-//
-// The side faces are Bezier surfaces that are linear in U (depth direction) and
-// quadratic in V (along the saddle's boundary arc). Their top row (u=0) matches
-// the adjacent saddle boundary arc pole-for-pole, so the shared edges are
-// geometrically identical and BRepBuilderAPI_Sewing closes them without gaps.
+// Control grid of the saddle z = x²−y² as a biquadratic Bezier surface.
+// Index i runs along x and j along y; cᵢⱼ = αᵢ − βⱼ with α = β = [L², −L², L²].
+TColgp_Array2OfPnt makeSaddlePoles()
+{
+    double squaredLength = LENGTH * LENGTH;
+
+    TColgp_Array2OfPnt poles(1, 3, 1, 3);
+    poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
+    poles.SetValue(1, 2, gp_Pnt(-LENGTH, 0.0, 2.0 * squaredLength));
+    poles.SetValue(1, 3, gp_Pnt(-LENGTH, LENGTH, 0.0));
+    poles.SetValue(2, 1, gp_Pnt(0.0, -LENGTH, -2.0 * squaredLength));
+    poles.SetValue(2, 2, gp_Pnt(0.0, 0.0, 0.0));
+    poles.SetValue(2, 3, gp_Pnt(0.0, LENGTH, -2.0 * squaredLength));
+    poles.SetValue(3, 1, gp_Pnt(LENGTH, -LENGTH, 0.0));
+    poles.SetValue(3, 2, gp_Pnt(LENGTH, 0.0, 2.0 * squaredLength));
+    poles.SetValue(3, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
+    return poles;
+}
+
+TopoDS_Face makeBezierFace(const TColgp_Array2OfPnt& poles)
+{
+    return BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face();
+}
+
+TopoDS_Face makeBottomFace()
+{
+    gp_Pln plane(gp_Pnt(0.0, 0.0, Z_BOTTOM), gp_Dir(0.0, 0.0, 1.0));
+    return BRepBuilderAPI_MakeFace(plane, -LENGTH, LENGTH, -LENGTH, LENGTH).Face();
+}
+
+// A side face: a Bezier surface linear in U (depth) and quadratic in V (along
+// the arc). Its top row is the saddle's boundary arc pole-for-pole, so the
+// shared edge is geometrically identical and sewing closes it without a gap;
+// its bottom row is the same arc dropped to z = Z_BOTTOM.
+TopoDS_Face makeRuledSideFace(const std::array<gp_Pnt, 3>& arcPoles)
+{
+    TColgp_Array2OfPnt poles(1, 2, 1, 3);
+    for (int column = 1; column <= 3; ++column)
+    {
+        auto& arcPole = arcPoles[column - 1];
+        poles.SetValue(1, column, arcPole);
+        poles.SetValue(2, column, gp_Pnt(arcPole.X(), arcPole.Y(), Z_BOTTOM));
+    }
+    return makeBezierFace(poles);
+}
+
+// Builds the saddle solid: the hyperbolic paraboloid z = x²−y² as the top face,
+// a flat bottom, and four ruled side faces, sewn into a closed shell.
 TopoDS_Shape buildSaddleSolid()
 {
-    const double squaredLength = LENGTH * LENGTH;
+    auto saddlePoles = makeSaddlePoles();
 
     BRepBuilderAPI_Sewing sewing;
-
-    // === Top face: saddle z = x²−y² (biquadratic Bezier, 3×3 control grid) ===
-    // cᵢⱼ = αᵢ − βⱼ  where α = β = [L², −L², L²]
-    {
-        TColgp_Array2OfPnt poles(1, 3, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(-LENGTH, 0.0, 2.0 * squaredLength));
-        poles.SetValue(1, 3, gp_Pnt(-LENGTH, LENGTH, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(0.0, -LENGTH, -2.0 * squaredLength));
-        poles.SetValue(2, 2, gp_Pnt(0.0, 0.0, 0.0));
-        poles.SetValue(2, 3, gp_Pnt(0.0, LENGTH, -2.0 * squaredLength));
-        poles.SetValue(3, 1, gp_Pnt(LENGTH, -LENGTH, 0.0));
-        poles.SetValue(3, 2, gp_Pnt(LENGTH, 0.0, 2.0 * squaredLength));
-        poles.SetValue(3, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
-        sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
-    }
-
-    // === Bottom face: flat rectangle at z = Z_BOTTOM ===
-    {
-        gp_Pln plane(gp_Pnt(0.0, 0.0, Z_BOTTOM), gp_Dir(0.0, 0.0, 1.0));
-        sewing.Add(BRepBuilderAPI_MakeFace(plane, -LENGTH, LENGTH, -LENGTH, LENGTH).Face());
-    }
-
-    // === Left side (x = −L): ruled surface, top arc z = L²−y², bottom edge at z = Z_BOTTOM ===
-    // Top row matches saddle column 1 (u=0) pole-for-pole.
-    {
-        TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(-LENGTH, 0.0, 2.0 * squaredLength));
-        poles.SetValue(1, 3, gp_Pnt(-LENGTH, LENGTH, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(-LENGTH, -LENGTH, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(-LENGTH, 0.0, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(-LENGTH, LENGTH, Z_BOTTOM));
-        sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
-    }
-
-    // === Right side (x = +L): ruled surface, top arc z = L²−y², bottom edge at z = Z_BOTTOM ===
-    // Top row matches saddle column 3 (u=1) pole-for-pole.
-    {
-        TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(LENGTH, -LENGTH, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(LENGTH, 0.0, 2.0 * squaredLength));
-        poles.SetValue(1, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(LENGTH, -LENGTH, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(LENGTH, 0.0, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(LENGTH, LENGTH, Z_BOTTOM));
-        sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
-    }
-
-    // === Front side (y = −L): ruled surface, top arc z = x²−L², bottom edge at z = Z_BOTTOM ===
-    // Top row matches saddle row 1 (v=0) pole-for-pole.
-    {
-        TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-LENGTH, -LENGTH, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(0.0, -LENGTH, -2.0 * squaredLength));
-        poles.SetValue(1, 3, gp_Pnt(LENGTH, -LENGTH, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(-LENGTH, -LENGTH, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(0.0, -LENGTH, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(LENGTH, -LENGTH, Z_BOTTOM));
-        sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
-    }
-
-    // === Back side (y = +L): ruled surface, top arc z = x²−L², bottom edge at z = Z_BOTTOM ===
-    // Top row matches saddle row 3 (v=1) pole-for-pole.
-    {
-        TColgp_Array2OfPnt poles(1, 2, 1, 3);
-        poles.SetValue(1, 1, gp_Pnt(-LENGTH, LENGTH, 0.0));
-        poles.SetValue(1, 2, gp_Pnt(0.0, LENGTH, -2.0 * squaredLength));
-        poles.SetValue(1, 3, gp_Pnt(LENGTH, LENGTH, 0.0));
-        poles.SetValue(2, 1, gp_Pnt(-LENGTH, LENGTH, Z_BOTTOM));
-        poles.SetValue(2, 2, gp_Pnt(0.0, LENGTH, Z_BOTTOM));
-        poles.SetValue(2, 3, gp_Pnt(LENGTH, LENGTH, Z_BOTTOM));
-        sewing.Add(BRepBuilderAPI_MakeFace(new Geom_BezierSurface(poles), Precision::Confusion()).Face());
-    }
-
+    sewing.Add(makeBezierFace(saddlePoles));
+    sewing.Add(makeBottomFace());
+    sewing.Add(makeRuledSideFace({saddlePoles(1, 1), saddlePoles(1, 2), saddlePoles(1, 3)})); // x = −L
+    sewing.Add(makeRuledSideFace({saddlePoles(3, 1), saddlePoles(3, 2), saddlePoles(3, 3)})); // x = +L
+    sewing.Add(makeRuledSideFace({saddlePoles(1, 1), saddlePoles(2, 1), saddlePoles(3, 1)})); // y = −L
+    sewing.Add(makeRuledSideFace({saddlePoles(1, 3), saddlePoles(2, 3), saddlePoles(3, 3)})); // y = +L
     sewing.Perform();
 
     // Sewing only produces a closed TopoDS_Shell -- wrap it into an actual
     // TopoDS_Solid so downstream consumers that need genuine solid topology
     // (e.g. an inside/outside classifier querying the CAD model directly)
     // have one to query, not just a shell that happens to be watertight.
-    const TopoDS_Shell shell = TopoDS::Shell(sewing.SewedShape());
-    BRepBuilderAPI_MakeSolid solidMaker(shell);
-    return solidMaker.Solid();
+    return BRepBuilderAPI_MakeSolid(TopoDS::Shell(sewing.SewedShape())).Solid();
+}
+
+struct NonManifoldEdgeCounts
+{
+    int holeEdgeCount = 0;
+    int excessEdgeCount = 0;
+};
+
+// Edge multiplicity across the restricted face set. An edge shared by
+// exactly 2 triangles is a normal closed-manifold interior edge -- that
+// includes the creases, where the two triangles come from different CAD
+// surfaces.
+//
+// This sees holes and excess faces only. It is blind to the third defect
+// kind, an edge carrying the expected NUMBER of faces but on the wrong
+// surfaces, so it under-reports -- RestrictedFaceAudit, which classifies
+// all three, is the authority for any number quoted from this model.
+NonManifoldEdgeCounts countNonManifoldEdges(const Meshing::SurfaceMesh3D& surfaceMesh)
+{
+    std::map<Meshing::EdgeKey, int> edgeMultiplicity;
+    for (auto& triangle : surfaceMesh.triangles)
+    {
+        for (size_t cornerIndex = 0; cornerIndex < 3; ++cornerIndex)
+            ++edgeMultiplicity[Meshing::EdgeKey(triangle[cornerIndex], triangle[(cornerIndex + 1) % 3])];
+    }
+
+    NonManifoldEdgeCounts counts;
+    for (auto& [edge, faceCount] : edgeMultiplicity)
+    {
+        if (faceCount < 2)
+            ++counts.holeEdgeCount;
+        else if (faceCount > 2)
+            ++counts.excessEdgeCount;
+    }
+    return counts;
 }
 
 } // namespace
@@ -188,8 +196,7 @@ int main()
     Export::TsvExporter::writeDiscretization(*discretizationResult, "SaddleSurfaceMeshEdges");
     std::cout << "Exported edge mesh to SaddleSurfaceMeshEdges.vtu\n";
 
-    // Default quality settings: minAngleDegrees = 30, chordDeviationTolerance
-    // = 0.1.
+    // Default quality settings: minAngleDegrees = 30, chordDeviationTolerance = 0.1.
     //
     // The chord-deviation criterion is the mechanism under test: facets too
     // far from the CAD surface are refined, producing locally finer meshes
@@ -202,8 +209,7 @@ int main()
     // criteria are waived for facets touching a ball, as in CGAL Mesh_3.
     //
     // The restricted surface is closed with no excess faces, here and at 218
-    // boundary points (angle threshold pi/64) -- the densities at which the
-    // replaced RestrictedTriangulation path left holes (OPE-186, OPE-187).
+    // boundary points (angle threshold pi/64).
 
     Meshing::SurfaceMesh3DQualitySettings quality;
 
@@ -221,36 +227,9 @@ int main()
     Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh");
     std::cout << "Exported refined mesh to SaddleSurfaceMesh.vtu\n";
 
-    // Edge multiplicity across the restricted face set. An edge shared by
-    // exactly 2 triangles is a normal closed-manifold interior edge -- that
-    // includes the creases, where the two triangles come from different CAD
-    // surfaces.
-    //
-    // This sees holes and excess faces only. It is blind to the third defect
-    // kind, an edge carrying the expected NUMBER of faces but on the wrong
-    // surfaces, so it under-reports -- RestrictedFaceAudit, which classifies
-    // all three, is the authority for any number quoted from this model.
-    std::map<std::pair<size_t, size_t>, int> edgeMultiplicity;
-    for (const auto& triangle : surfaceMesh.triangles)
-        for (size_t i = 0; i < 3; ++i)
-        {
-            size_t a = triangle[i];
-            size_t b = triangle[(i + 1) % 3];
-            if (a > b)
-                std::swap(a, b);
-            edgeMultiplicity[{a, b}]++;
-        }
-
-    int holeEdgeCount = 0;
-    int excessEdgeCount = 0;
-    for (const auto& [edge, faceCount] : edgeMultiplicity)
-    {
-        if (faceCount < 2)
-            ++holeEdgeCount;
-        else if (faceCount > 2)
-            ++excessEdgeCount;
-    }
-    std::cout << "Non-manifold edges: " << holeEdgeCount << " holes, " << excessEdgeCount
+    auto nonManifoldEdges = countNonManifoldEdges(surfaceMesh);
+    std::cout << "Non-manifold edges: " << nonManifoldEdges.holeEdgeCount << " holes, "
+              << nonManifoldEdges.excessEdgeCount
               << " excess (surface mismatches not visible here -- see the runPipeline log)\n";
 
     return 0;

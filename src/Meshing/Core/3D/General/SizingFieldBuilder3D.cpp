@@ -24,14 +24,16 @@ struct GeometrySamples
 };
 
 double sizeFromCurvature(double curvature, double tolerance);
+double stationParameter(double minimum, double maximum, std::size_t station, std::size_t stationCount);
 double boundingBoxDiagonal(const std::vector<FeatureSample>& samples);
-GeometrySamples sampleCurves(const Geometry3D::GeometryCollection3D& geometry,
-                             const Topology3D::Topology3D& topology,
-                             const SizingFieldSettings3D& settings);
-GeometrySamples sampleSurfaces(const Geometry3D::GeometryCollection3D& geometry,
-                               const Topology3D::Topology3D& topology,
-                               const SizingFieldSettings3D& settings);
-GeometrySamples concatenate(GeometrySamples first, const GeometrySamples& second);
+void appendCurveSamples(const Geometry3D::GeometryCollection3D& geometry,
+                        const Topology3D::Topology3D& topology,
+                        const SizingFieldSettings3D& settings,
+                        GeometrySamples& result);
+void appendSurfaceSamples(const Geometry3D::GeometryCollection3D& geometry,
+                          const Topology3D::Topology3D& topology,
+                          const SizingFieldSettings3D& settings,
+                          GeometrySamples& result);
 std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
                                        const std::vector<double>& featureSizes,
                                        const SizingFieldSettings3D& settings);
@@ -42,8 +44,9 @@ SizingField3D SizingFieldBuilder3D::build(const Geometry3D::GeometryCollection3D
                                           const Topology3D::Topology3D& topology,
                                           const SizingFieldSettings3D& settings)
 {
-    auto geometrySamples = concatenate(sampleCurves(geometry, topology, settings),
-                                       sampleSurfaces(geometry, topology, settings));
+    GeometrySamples geometrySamples;
+    appendCurveSamples(geometry, topology, settings, geometrySamples);
+    appendSurfaceSamples(geometry, topology, settings, geometrySamples);
 
     auto featureSizes = LocalFeatureSize3D::compute(geometrySamples.samples, topology);
 
@@ -59,6 +62,11 @@ double sizeFromCurvature(double curvature, double tolerance)
     if (!(curvature > 0.0) || !std::isfinite(curvature)) return std::numeric_limits<double>::infinity();
 
     return std::sqrt(8.0 * tolerance / curvature);
+}
+
+double stationParameter(double minimum, double maximum, std::size_t station, std::size_t stationCount)
+{
+    return minimum + (maximum - minimum) * static_cast<double>(station) / static_cast<double>(stationCount);
 }
 
 double boundingBoxDiagonal(const std::vector<FeatureSample>& samples)
@@ -77,11 +85,12 @@ double boundingBoxDiagonal(const std::vector<FeatureSample>& samples)
     return (maximum - minimum).norm();
 }
 
-GeometrySamples sampleCurves(const Geometry3D::GeometryCollection3D& geometry,
-                             const Topology3D::Topology3D& topology,
-                             const SizingFieldSettings3D& settings)
+void appendCurveSamples(const Geometry3D::GeometryCollection3D& geometry,
+                        const Topology3D::Topology3D& topology,
+                        const SizingFieldSettings3D& settings,
+                        GeometrySamples& result)
 {
-    GeometrySamples result;
+    auto stations = std::max<std::size_t>(settings.samplesPerCurve, 2);
 
     for (auto& edgeId : topology.getAllEdgeIds())
     {
@@ -93,15 +102,12 @@ GeometrySamples sampleCurves(const Geometry3D::GeometryCollection3D& geometry,
         if (!edge || edge->isDegenerate()) continue;
 
         auto [tMinimum, tMaximum] = edge->getParameterBounds();
-        auto stations = std::max<std::size_t>(settings.samplesPerCurve, 2);
-
         double arcLength = 0.0;
         Point3D previous = edge->getPoint(tMinimum);
 
         for (std::size_t station = 0; station <= stations; ++station)
         {
-            double t = tMinimum + (tMaximum - tMinimum) * static_cast<double>(station) /
-                                      static_cast<double>(stations);
+            double t = stationParameter(tMinimum, tMaximum, station, stations);
             Point3D position = edge->getPoint(t);
             arcLength += (position - previous).norm();
             previous = position;
@@ -111,15 +117,14 @@ GeometrySamples sampleCurves(const Geometry3D::GeometryCollection3D& geometry,
                 sizeFromCurvature(edge->getCurvature(t), settings.chordDeviationTolerance));
         }
     }
-
-    return result;
 }
 
-GeometrySamples sampleSurfaces(const Geometry3D::GeometryCollection3D& geometry,
-                               const Topology3D::Topology3D& topology,
-                               const SizingFieldSettings3D& settings)
+void appendSurfaceSamples(const Geometry3D::GeometryCollection3D& geometry,
+                          const Topology3D::Topology3D& topology,
+                          const SizingFieldSettings3D& settings,
+                          GeometrySamples& result)
 {
-    GeometrySamples result;
+    auto stations = std::max<std::size_t>(settings.samplesPerSurfaceDirection, 2);
 
     for (auto& surfaceId : topology.getAllSurfaceIds())
     {
@@ -127,43 +132,27 @@ GeometrySamples sampleSurfaces(const Geometry3D::GeometryCollection3D& geometry,
         if (!surface) continue;
 
         auto bounds = surface->getParameterBounds();
-        auto stations = std::max<std::size_t>(settings.samplesPerSurfaceDirection, 2);
 
-        for (std::size_t i = 0; i <= stations; ++i)
+        for (std::size_t uStation = 0; uStation <= stations; ++uStation)
         {
-            double u = bounds.getUMin() + (bounds.getUMax() - bounds.getUMin()) *
-                                              static_cast<double>(i) / static_cast<double>(stations);
+            double u = stationParameter(bounds.getUMin(), bounds.getUMax(), uStation, stations);
 
-            for (std::size_t j = 0; j <= stations; ++j)
+            for (std::size_t vStation = 0; vStation <= stations; ++vStation)
             {
-                double v = bounds.getVMin() + (bounds.getVMax() - bounds.getVMin()) *
-                                                  static_cast<double>(j) / static_cast<double>(stations);
+                double v = stationParameter(bounds.getVMin(), bounds.getVMax(), vStation, stations);
 
                 // The untrimmed parameter grid can land in a hole or cutout (OPE-169); such a point
                 // is not on the model and must not seed the field.
                 if (!surface->isUVWithinTrimmedBoundary(u, v)) continue;
 
                 auto curvatures = surface->getPrincipalCurvatures(u, v);
-                double curvature = curvatures.has_value()
-                                       ? std::max(std::abs(curvatures->minimum), std::abs(curvatures->maximum))
-                                       : 0.0;
+                double curvature = curvatures.has_value() ? std::max(std::abs(curvatures->minimum), std::abs(curvatures->maximum)) : 0.0;
 
                 result.samples.push_back({surface->getPoint(u, v), surfaceId, 0.0, false});
                 result.curvatureSizes.push_back(sizeFromCurvature(curvature, settings.chordDeviationTolerance));
             }
         }
     }
-
-    return result;
-}
-
-GeometrySamples concatenate(GeometrySamples first, const GeometrySamples& second)
-{
-    first.samples.insert(first.samples.end(), second.samples.begin(), second.samples.end());
-    first.curvatureSizes.insert(first.curvatureSizes.end(),
-                                second.curvatureSizes.begin(),
-                                second.curvatureSizes.end());
-    return first;
 }
 
 std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
@@ -190,10 +179,7 @@ std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
 
     // The geometry imposes no size limit anywhere: one coarse source at model scale says so and
     // keeps every consumer on the same path. A source too large is safe; too small is not.
-    if (sources.empty())
-    {
-        sources.push_back({Point3D::Zero(), diagonal > 0.0 ? diagonal : 1.0});
-    }
+    if (sources.empty()) sources.push_back({Point3D::Zero(), diagonal > 0.0 ? diagonal : 1.0});
 
     return sources;
 }

@@ -15,7 +15,7 @@ public:
               const std::vector<std::string>& adjacentSurfaceIds = {},
               const std::vector<std::vector<std::string>>& edgeLoops = {});
 
-    std::string getId() const;
+    const std::string& getId() const;
     const std::vector<std::string>& getBoundaryEdgeIds() const;
     const std::vector<std::string>& getCornerIds() const;
 

@@ -33,7 +33,7 @@ namespace Meshing
 
 /**
  * @brief Surface refinement as CGAL Mesh_3 does it (Refine_facets_3), on the
- * weighted tetrahedralization RCDTMesher seeds (OPE-186). When meshing a
+ * weighted tetrahedralization RCDTMesher seeds. When meshing a
  * volume, TetrahedronDelaunayRefiner drives it as the level above its own.
  *
  * The pieces only work together: each was measured to fail when

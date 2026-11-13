@@ -24,16 +24,16 @@ AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
 {
     std::unordered_set<size_t> ambientTetIds;
 
-    const auto& boundingNodeIds = meshData.getBoundingNodeIds();
+    auto& boundingNodeIds = meshData.getBoundingNodeIds();
     if (!boundingNodeIds)
         return ambientTetIds;
 
-    const MeshConnectivity connectivity(meshData);
+    MeshConnectivity connectivity(meshData);
 
     std::queue<size_t> queue;
-    for (const size_t boundingNodeId : *boundingNodeIds)
+    for (auto boundingNodeId : *boundingNodeIds)
     {
-        for (const size_t tetId : connectivity.getNodeElements(boundingNodeId))
+        for (auto tetId : connectivity.getNodeElements(boundingNodeId))
         {
             if (ambientTetIds.insert(tetId).second)
                 queue.push(tetId);
@@ -42,21 +42,21 @@ AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
 
     while (!queue.empty())
     {
-        const size_t tetId = queue.front();
+        auto tetId = queue.front();
         queue.pop();
 
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(tetId));
+        auto tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(tetId));
         if (!tet)
             continue;
 
         for (const auto& faceArray : tet->getFaces())
         {
-            const FaceKey face(faceArray);
+            FaceKey face(faceArray);
             if (restrictedFaces.count(face))
                 continue; // Restricted faces are the object's boundary -- never cross them.
 
-            const auto& [elementId1, elementId2] = connectivity.getFaceElements(face);
-            const size_t neighborId = (elementId1 == tetId) ? elementId2 : elementId1;
+            const auto& [elementId0, elementId1] = connectivity.getFaceElements(face);
+            auto neighborId = (elementId0 == tetId) ? elementId1 : elementId0;
             if (neighborId == INVALID_ID)
                 continue;
 

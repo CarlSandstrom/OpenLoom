@@ -1,5 +1,6 @@
 #include "Meshing/Core/3D/General/ExactArithmetic3D.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace Meshing
@@ -7,18 +8,18 @@ namespace Meshing
 
 ExactArithmetic3D::TwoResult ExactArithmetic3D::twoSum(double a, double b)
 {
-    const double sum = a + b;
-    const double bVirtual = sum - a;
-    const double aVirtual = sum - bVirtual;
-    const double bRoundoff = b - bVirtual;
-    const double aRoundoff = a - aVirtual;
+    double sum = a + b;
+    double bVirtual = sum - a;
+    double aVirtual = sum - bVirtual;
+    double bRoundoff = b - bVirtual;
+    double aRoundoff = a - aVirtual;
     return {sum, aRoundoff + bRoundoff};
 }
 
 ExactArithmetic3D::TwoResult ExactArithmetic3D::twoProduct(double a, double b)
 {
-    const double product = a * b;
-    const double error = std::fma(a, b, -product);
+    double product = a * b;
+    double error = std::fma(a, b, -product);
     return {product, error};
 }
 
@@ -29,27 +30,16 @@ ExactArithmetic3D::Expansion ExactArithmetic3D::expansionFromDouble(double a)
 
 ExactArithmetic3D::Expansion ExactArithmetic3D::expansionFromDifference(double a, double b)
 {
-    const TwoResult r = twoSum(a, -b);
-    return r.error == 0.0 ? Expansion{r.value} : Expansion{r.error, r.value};
+    auto difference = twoSum(a, -b);
+    return difference.error == 0.0 ? Expansion{difference.value} : Expansion{difference.error, difference.value};
 }
 
-ExactArithmetic3D::Expansion ExactArithmetic3D::expansionAdd(const Expansion& e, const Expansion& f)
+ExactArithmetic3D::Expansion ExactArithmetic3D::expansionAdd(const Expansion& first, const Expansion& second)
 {
-    std::vector<double> merged;
-    merged.reserve(e.size() + f.size());
-    size_t i = 0;
-    size_t j = 0;
-    while (i < e.size() && j < f.size())
-    {
-        if (std::abs(e[i]) <= std::abs(f[j]))
-            merged.push_back(e[i++]);
-        else
-            merged.push_back(f[j++]);
-    }
-    while (i < e.size())
-        merged.push_back(e[i++]);
-    while (j < f.size())
-        merged.push_back(f[j++]);
+    Expansion merged(first.size() + second.size());
+    std::merge(first.begin(), first.end(), second.begin(), second.end(), merged.begin(),
+               [](double left, double right)
+               { return std::abs(left) < std::abs(right); });
 
     if (merged.empty())
         return {};
@@ -59,72 +49,72 @@ ExactArithmetic3D::Expansion ExactArithmetic3D::expansionAdd(const Expansion& e,
     double carry = merged[0];
     for (size_t k = 1; k < merged.size(); ++k)
     {
-        const TwoResult r = twoSum(carry, merged[k]);
-        if (r.error != 0.0)
-            result.push_back(r.error);
-        carry = r.value;
+        auto sum = twoSum(carry, merged[k]);
+        if (sum.error != 0.0)
+            result.push_back(sum.error);
+        carry = sum.value;
     }
     if (carry != 0.0)
         result.push_back(carry);
     return result;
 }
 
-ExactArithmetic3D::Expansion ExactArithmetic3D::expansionNegate(const Expansion& e)
+ExactArithmetic3D::Expansion ExactArithmetic3D::expansionNegate(const Expansion& expansion)
 {
-    Expansion result = e;
+    Expansion result = expansion;
     for (double& component : result)
         component = -component;
     return result;
 }
 
-ExactArithmetic3D::Expansion ExactArithmetic3D::expansionSub(const Expansion& e, const Expansion& f)
+ExactArithmetic3D::Expansion ExactArithmetic3D::expansionSub(const Expansion& first, const Expansion& second)
 {
-    return expansionAdd(e, expansionNegate(f));
+    return expansionAdd(first, expansionNegate(second));
 }
 
-ExactArithmetic3D::Expansion ExactArithmetic3D::expansionScale(const Expansion& e, double b)
+ExactArithmetic3D::Expansion ExactArithmetic3D::expansionScale(const Expansion& expansion, double scalar)
 {
     Expansion result;
-    for (double component : e)
+    for (double component : expansion)
     {
-        const TwoResult p = twoProduct(component, b);
-        result = expansionAdd(result, expansionFromDouble(p.error));
-        result = expansionAdd(result, expansionFromDouble(p.value));
+        auto product = twoProduct(component, scalar);
+        result = expansionAdd(result, expansionFromDouble(product.error));
+        result = expansionAdd(result, expansionFromDouble(product.value));
     }
     return result;
 }
 
-ExactArithmetic3D::Expansion ExactArithmetic3D::expansionMul(const Expansion& e, const Expansion& f)
+ExactArithmetic3D::Expansion ExactArithmetic3D::expansionMul(const Expansion& first, const Expansion& second)
 {
     Expansion result;
-    for (double component : f)
-        result = expansionAdd(result, expansionScale(e, component));
+    for (double component : second)
+        result = expansionAdd(result, expansionScale(first, component));
     return result;
 }
 
-int ExactArithmetic3D::expansionSign(const Expansion& e)
+int ExactArithmetic3D::expansionSign(const Expansion& expansion)
 {
-    if (e.empty())
+    if (expansion.empty())
         return 0;
-    return e.back() > 0.0 ? 1 : -1;
+    return expansion.back() > 0.0 ? 1 : -1;
 }
 
 ExactArithmetic3D::Expansion ExactArithmetic3D::det2x2(const Expansion& a, const Expansion& b, const Expansion& c,
-                                                        const Expansion& d)
+                                                       const Expansion& d)
 {
     return expansionSub(expansionMul(a, d), expansionMul(b, c));
 }
 
 ExactArithmetic3D::Expansion ExactArithmetic3D::det3x3(const Expansion m[3][3])
 {
-    const Expansion c0 = det2x2(m[1][1], m[1][2], m[2][1], m[2][2]);
-    const Expansion c1 = det2x2(m[1][0], m[1][2], m[2][0], m[2][2]);
-    const Expansion c2 = det2x2(m[1][0], m[1][1], m[2][0], m[2][1]);
+    Expansion c0 = det2x2(m[1][1], m[1][2], m[2][1], m[2][2]);
+    Expansion c1 = det2x2(m[1][0], m[1][2], m[2][0], m[2][2]);
+    Expansion c2 = det2x2(m[1][0], m[1][1], m[2][0], m[2][1]);
     return expansionSub(expansionAdd(expansionMul(m[0][0], c0), expansionMul(m[0][2], c2)), expansionMul(m[0][1], c1));
 }
 
 ExactArithmetic3D::Expansion ExactArithmetic3D::squaredNormRelative(const Expansion& dx, const Expansion& dy,
-                                                                     const Expansion& dz)
+                                                                    const Expansion& dz)
 {
     return expansionAdd(expansionAdd(expansionMul(dx, dx), expansionMul(dy, dy)), expansionMul(dz, dz));
 }

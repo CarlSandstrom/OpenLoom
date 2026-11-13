@@ -7,13 +7,13 @@
  *     boundary triangles; tetrahedra carry SurfaceID = -1)
  */
 
-#include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Volume/VolumeMesher3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
@@ -24,17 +24,23 @@
 #include <gp_Pnt.hxx>
 #include <iostream>
 
+namespace
+{
+constexpr double BOX_SIDE_LENGTH = 10.0;
+constexpr double HOLE_RADIUS = 2.0;
+} // namespace
+
 int main()
 {
     Common::initializeLogging();
 
-    TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+    TopoDS_Shape box = BRepPrimAPI_MakeBox(BOX_SIDE_LENGTH, BOX_SIDE_LENGTH, BOX_SIDE_LENGTH).Shape();
 
     // Drill a cylindrical hole through the box center using a boolean cut.
-    gp_Pnt center(5.0, 5.0, 0.0);
+    gp_Pnt center(BOX_SIDE_LENGTH / 2.0, BOX_SIDE_LENGTH / 2.0, 0.0);
     gp_Dir axisDirection(0.0, 0.0, 1.0);
     gp_Ax2 axis(center, axisDirection);
-    TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 10.0).Shape();
+    TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, HOLE_RADIUS, BOX_SIDE_LENGTH).Shape();
     TopoDS_Shape boxWithHole = BRepAlgoAPI_Cut(box, cylinder).Shape();
 
     Readers::TopoDS_ShapeConverter converter(boxWithHole);

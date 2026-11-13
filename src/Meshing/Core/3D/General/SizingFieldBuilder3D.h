@@ -52,7 +52,7 @@ struct SizingFieldSettings3D
 };
 
 /**
- * @brief Builds the mesh sizing field h(x) from CAD geometry (OPE-181).
+ * @brief Builds the mesh sizing field h(x) from CAD geometry.
  *
  * Combines the two independent things that force elements to be small:
  *

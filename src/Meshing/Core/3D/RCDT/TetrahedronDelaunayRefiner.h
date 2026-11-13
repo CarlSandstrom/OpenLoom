@@ -27,7 +27,7 @@ namespace Meshing
  *
  *  - A tetrahedron is refined when it lies inside the domain and its weighted
  *    circumradius-to-shortest-edge ratio exceeds
- *    tetCircumradiusToShortestEdgeRatio. Inside is decided by
+ *    tetrahedronCircumradiusToShortestEdgeRatio. Inside is decided by
  *    AmbientTetrahedronClassifier's flood fill from the restricted facets,
  *    recomputed once per round; CGAL asks the domain oracle at the weighted
  *    circumcentre instead.

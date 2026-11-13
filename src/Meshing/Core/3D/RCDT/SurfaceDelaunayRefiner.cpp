@@ -12,12 +12,12 @@
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
 
-#include <algorithm>
-#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -32,6 +32,9 @@ constexpr size_t INVALID_ID = SIZE_MAX;
 std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology);
 std::vector<FaceKey> facesOf(const TetrahedralElement& tetrahedron);
 std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<size_t>& elementIds);
+void removeFromQueue(const FaceKey& face,
+                     std::unordered_map<FaceKey, SurfaceFacetCriteria::Badness, FaceKeyHash>& badness,
+                     std::set<std::pair<SurfaceFacetCriteria::Badness, FaceKey>>& queue);
 } // namespace
 
 SurfaceDelaunayRefiner::SurfaceDelaunayRefiner(MeshingContext3D& context,
@@ -55,7 +58,9 @@ void SurfaceDelaunayRefiner::refine()
     spdlog::info("SurfaceDelaunayRefiner: {} restricted facets, {} bad", facets_.size(), queue_.size());
     writeSnapshot("seeded");
     if (MeshSnapshotWriter::isEnabled())
+    {
         MeshSnapshotWriter::write("balls", SnapshotGridBuilder::fromProtectingBalls(context_->getMeshData()));
+    }
 
     refineQueued();
 
@@ -104,12 +109,7 @@ void SurfaceDelaunayRefiner::classifyAllFaces()
 
 void SurfaceDelaunayRefiner::forget(const FaceKey& face)
 {
-    auto badness = badness_.find(face);
-    if (badness != badness_.end())
-    {
-        queue_.erase({badness->second, face});
-        badness_.erase(badness);
-    }
+    removeFromQueue(face, badness_, queue_);
     facets_.erase(face);
     droppedFaces_.erase(face);
 }
@@ -158,12 +158,7 @@ bool SurfaceDelaunayRefiner::refineFacet(const FaceKey& face)
 
 void SurfaceDelaunayRefiner::drop(const FaceKey& face)
 {
-    auto badness = badness_.find(face);
-    if (badness != badness_.end())
-    {
-        queue_.erase({badness->second, face});
-        badness_.erase(badness);
-    }
+    removeFromQueue(face, badness_, queue_);
     droppedFaces_.insert(face);
 }
 
@@ -258,6 +253,17 @@ std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vect
             faces.push_back(face);
     }
     return faces;
+}
+
+void removeFromQueue(const FaceKey& face,
+                     std::unordered_map<FaceKey, SurfaceFacetCriteria::Badness, FaceKeyHash>& badness,
+                     std::set<std::pair<SurfaceFacetCriteria::Badness, FaceKey>>& queue)
+{
+    auto entry = badness.find(face);
+    if (entry == badness.end()) return;
+
+    queue.erase({entry->second, face});
+    badness.erase(entry);
 }
 
 } // namespace

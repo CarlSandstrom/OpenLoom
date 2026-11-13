@@ -20,23 +20,16 @@ namespace
 // both segment endpoints as sitting ON the surface, and answers with the
 // midpoint instead of bisecting.
 //
-// Provenance, as far as it can be established: the value arrived with this
-// file's first commit (5ad42cc, OPE-128) carrying no derivation, as the
-// near-tangent guard of the since-deleted crossesSurface(). Nothing in the
-// history ties it to a measurement or to a property of any model, and it has
-// never been changed. Note that OPE-150 (f6cb166) did NOT touch this one --
-// the tolerance it removed was projectToSurface()'s separate 1e-3
-// maximumProjectionGap_. Treat 1e-10 as unexplained, not as calibrated.
+// The value has no recorded derivation and has never been measured against a
+// model; treat it as unexplained, not calibrated.
 constexpr double NEAR_TANGENT_RELATIVE_TOLERANCE = 1e-10;
 
 // Halvings findSurfaceCrossing() performs once it has a sign change to bracket.
 //
-// Provenance: arrived with findSurfaceCrossing() itself (7d15542) with no
-// derivation recorded, and has never been changed. What the number buys is at
-// least arithmetically fixed: 30 halvings narrow the bracket to 2^-30, about
-// 1e-9, of the dual edge's length, and cost 30 CAD projections per crossing,
-// which is why WeightedDualRestriction bisects only within a bracket of a few
-// tessellation cells around the tessellation's crossing.
+// 30 halvings narrow the bracket to 2^-30, about 1e-9, of the dual edge's
+// length, at 30 CAD projections per crossing, which is why
+// WeightedDualRestriction bisects only within a few tessellation cells of the
+// tessellation's crossing.
 constexpr int BISECTION_ITERATIONS = 30;
 
 /// The longest distance between any two corners of the surface's untrimmed
@@ -45,13 +38,13 @@ constexpr int BISECTION_ITERATIONS = 30;
 /// degenerate surface whose four corners coincide.
 double computeSurfaceDiameter(const Geometry3D::ISurface3D& surface)
 {
-    const auto bounds = surface.getParameterBounds();
-    const double uMin = bounds.getUMin();
-    const double uMax = bounds.getUMax();
-    const double vMin = bounds.getVMin();
-    const double vMax = bounds.getVMax();
+    auto bounds = surface.getParameterBounds();
+    double uMin = bounds.getUMin();
+    double uMax = bounds.getUMax();
+    double vMin = bounds.getVMin();
+    double vMax = bounds.getVMax();
 
-    const std::array<Point3D, 4> corners = {
+    std::array<Point3D, 4> corners = {
         surface.getPoint(uMin, vMin),
         surface.getPoint(uMax, vMin),
         surface.getPoint(uMin, vMax),
@@ -69,12 +62,12 @@ double computeSurfaceDiameter(const Geometry3D::ISurface3D& surface)
 
 double signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surface)
 {
-    const auto uv = surface.projectPointToUnderlyingSurface(point);
+    auto uv = surface.projectPointToUnderlyingSurface(point);
     if (!uv)
         return 0.0;
 
-    const Point3D surfacePoint = surface.getPoint(uv->x(), uv->y());
-    const Vector3D normal = surface.getNormal(uv->x(), uv->y());
+    Point3D surfacePoint = surface.getPoint(uv->x(), uv->y());
+    Vector3D normal = surface.getNormal(uv->x(), uv->y());
 
     return (point - surfacePoint).dot(normal);
 }
@@ -82,7 +75,7 @@ double signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surfac
 std::optional<Point3D> projectToSurface(const Point3D& point,
                                         const Geometry3D::ISurface3D& surface)
 {
-    const auto uv = surface.projectPointToUnderlyingSurface(point);
+    auto uv = surface.projectPointToUnderlyingSurface(point);
     if (!uv)
         return std::nullopt;
 
@@ -93,10 +86,10 @@ std::optional<Point3D> findSurfaceCrossing(const Point3D& segmentStart,
                                            const Point3D& segmentEnd,
                                            const Geometry3D::ISurface3D& surface)
 {
-    const double distanceAtStart = signedDistance(segmentStart, surface);
-    const double distanceAtEnd = signedDistance(segmentEnd, surface);
+    double distanceAtStart = signedDistance(segmentStart, surface);
+    double distanceAtEnd = signedDistance(segmentEnd, surface);
 
-    const double tangentGuard = NEAR_TANGENT_RELATIVE_TOLERANCE * computeSurfaceDiameter(surface);
+    double tangentGuard = NEAR_TANGENT_RELATIVE_TOLERANCE * computeSurfaceDiameter(surface);
 
     // Already within tangent tolerance of the surface across the whole
     // segment: the midpoint is as good an answer as bisecting further would
@@ -112,7 +105,7 @@ std::optional<Point3D> findSurfaceCrossing(const Point3D& segmentStart,
 
     for (int iteration = 0; iteration < BISECTION_ITERATIONS; ++iteration)
     {
-        const Point3D midpoint = 0.5 * (negativeEnd + positiveEnd);
+        Point3D midpoint = 0.5 * (negativeEnd + positiveEnd);
         if (signedDistance(midpoint, surface) < 0.0)
             negativeEnd = midpoint;
         else

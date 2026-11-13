@@ -1,8 +1,8 @@
 #include "OpenCascadeCorner.h"
 #include <BRep_Tool.hxx>
 #include <TopoDS_Shape.hxx>
-#include <gp_Pnt.hxx>
 #include <functional>
+#include <gp_Pnt.hxx>
 #include <sstream>
 
 namespace Geometry3D
@@ -15,7 +15,7 @@ OpenCascadeCorner::OpenCascadeCorner(const TopoDS_Vertex& vertex) :
 
 Meshing::Point3D OpenCascadeCorner::getPoint() const
 {
-    gp_Pnt point = BRep_Tool::Pnt(vertex_);
+    auto point = BRep_Tool::Pnt(vertex_);
     return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 

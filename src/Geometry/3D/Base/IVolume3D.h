@@ -7,11 +7,7 @@ namespace Geometry3D
 
 /**
  * @brief Abstract interface for geometric volumes (solid bodies / material
- * phases).
- *
- * The point classification it used to offer served only the retired centroid
- * phase test (OPE-186); what remains is the volume's identity in the
- * geometry collection.
+ * phases), identified by its id in the geometry collection.
  */
 class IVolume3D
 {

@@ -4,10 +4,6 @@ namespace Meshing
 {
 class MeshData3D;
 class TriangleElement;
-} // namespace Meshing
-
-namespace Meshing
-{
 
 /// Which criteria a triangle touching protecting balls is exempt from.
 struct ProtectionExemption

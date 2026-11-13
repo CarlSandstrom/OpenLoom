@@ -1,7 +1,9 @@
 #pragma once
-#include "../Base/IElement.h"
+
+#include "Meshing/Data/3D/Node3D.h"
+#include "Meshing/Data/Base/IElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include "Node3D.h"
+
 #include <array>
 #include <memory>
 #include <optional>
@@ -15,7 +17,7 @@ namespace Meshing
 class MeshData3D
 {
 public:
-    MeshData3D();
+    MeshData3D() = default;
 
     // Read-only access to mesh data
     const std::unordered_map<size_t, std::unique_ptr<Node3D>>& getNodes() const;
@@ -36,10 +38,10 @@ public:
     // Node IDs of the bounding (super-)tetrahedron currently resident in the
     // mesh, if any. Set while the bounding tetrahedron is present (see
     // MeshOperations3D::createBoundingTetrahedron and AmbientTetrahedronRemover),
-    // used by VtkExporter to tag those cells for filtering in ParaView.
+    // so meshing stages can tell ambient tetrahedra apart and VtkExporter can
+    // tag them for filtering in ParaView.
     const std::optional<std::array<size_t, 4>>& getBoundingNodeIds() const;
 
-    // Internal access for operations classes (friends)
     friend class MeshMutator3D;
 
 private:
@@ -49,14 +51,13 @@ private:
     std::optional<std::array<size_t, 4>> boundingNodeIds_;
     CurveSegmentManager curveSegmentManager_;
 
-    // Private methods for friend classes
     void addNodeInternal(size_t id, std::unique_ptr<Node3D> node);
     void addElementInternal(size_t id, std::unique_ptr<IElement> element);
     void removeNodeInternal(size_t id);
     void removeElementInternal(size_t id);
     Node3D* getNodeMutable(size_t id);
 
-    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
+    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> geometryIds);
 
     void setBoundingNodeIdsInternal(const std::array<size_t, 4>& boundingNodeIds);
     void clearBoundingNodeIdsInternal();

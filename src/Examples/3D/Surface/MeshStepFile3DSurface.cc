@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 
     Common::initializeLogging();
 
-    const std::string stepFile = argv[1];
+    std::string stepFile = argv[1];
     spdlog::info("Loading 3D STEP file: {}", stepFile);
 
     Readers::StepReader3D reader(stepFile);
@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
     std::cout << "SurfaceMesh3D: " << surfaceMesh.nodes.size() << " nodes, "
               << surfaceMesh.triangles.size() << " triangles\n";
 
-    const std::string outputName = std::filesystem::path(stepFile).stem().string() + "_surface.vtu";
+    std::string outputName = std::filesystem::path(stepFile).stem().string() + "_surface.vtu";
     Export::VtkExporter exporter;
     exporter.writeSurfaceMesh(surfaceMesh, outputName);
     std::cout << "Exported surface mesh to " << outputName << "\n";

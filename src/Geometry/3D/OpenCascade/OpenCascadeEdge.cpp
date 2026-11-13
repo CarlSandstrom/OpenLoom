@@ -9,7 +9,6 @@
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 #include <gp_Vec.hxx>
-#include <limits>
 #include <sstream>
 
 namespace Geometry3D
@@ -20,22 +19,22 @@ OpenCascadeEdge::OpenCascadeEdge(const TopoDS_Edge& edge) :
 {
 }
 
-Meshing::Point3D OpenCascadeEdge::getPoint(double t) const
+Meshing::Point3D OpenCascadeEdge::getPoint(double parameter) const
 {
     BRepAdaptor_Curve curve(edge_);
-    gp_Pnt point = curve.Value(t);
+    gp_Pnt point = curve.Value(parameter);
     return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
-Meshing::Vector3D OpenCascadeEdge::getTangent(double t) const
+Meshing::Vector3D OpenCascadeEdge::getTangent(double parameter) const
 {
     BRepAdaptor_Curve curve(edge_);
-    double tMin, tMax;
-    Handle(Geom_Curve) geometricCurve = BRep_Tool::Curve(edge_, tMin, tMax);
+    double parameterMin, parameterMax;
+    Handle(Geom_Curve) geometricCurve = BRep_Tool::Curve(edge_, parameterMin, parameterMax);
 
     if (!geometricCurve.IsNull())
     {
-        GeomLProp_CLProps properties(geometricCurve, t, 1, Precision::Confusion());
+        GeomLProp_CLProps properties(geometricCurve, parameter, 1, Precision::Confusion());
 
         if (properties.IsTangentDefined())
         {
@@ -45,23 +44,23 @@ Meshing::Vector3D OpenCascadeEdge::getTangent(double t) const
         }
     }
 
-    // Fallback: compute tangent using finite differences
+    // Fallback for a curve without a defined tangent: the first derivative
     gp_Pnt point;
     gp_Vec tangent;
-    curve.D1(t, point, tangent);
+    curve.D1(parameter, point, tangent);
     return {tangent.X(), tangent.Y(), tangent.Z()};
 }
 
 Meshing::Point3D OpenCascadeEdge::getStartPoint() const
 {
-    const auto [tMin, tMax] = getParameterBounds();
-    return getPoint(tMin);
+    auto [parameterMin, parameterMax] = getParameterBounds();
+    return getPoint(parameterMin);
 }
 
 Meshing::Point3D OpenCascadeEdge::getEndPoint() const
 {
-    const auto [tMin, tMax] = getParameterBounds();
-    return getPoint(tMax);
+    auto [parameterMin, parameterMax] = getParameterBounds();
+    return getPoint(parameterMax);
 }
 
 std::pair<double, double> OpenCascadeEdge::getParameterBounds() const
@@ -73,43 +72,41 @@ std::pair<double, double> OpenCascadeEdge::getParameterBounds() const
 double OpenCascadeEdge::getLength() const
 {
     BRepAdaptor_Curve curve(edge_);
-    const auto [tMin, tMax] = getParameterBounds();
+    auto [parameterMin, parameterMax] = getParameterBounds();
 
-    // Use GCPnts_AbscissaPoint to compute the actual arc length
-    double length = GCPnts_AbscissaPoint::Length(curve, tMin, tMax);
+    double length = GCPnts_AbscissaPoint::Length(curve, parameterMin, parameterMax);
 
     if (length > Precision::Confusion())
     {
         return length;
     }
 
-    // Fallback: return parameter range (not ideal but better than 0)
-    return tMax - tMin;
+    // A degenerate arc length falls back to the parameter range rather than 0
+    return parameterMax - parameterMin;
 }
 
-double OpenCascadeEdge::getParameterAtArcLengthFraction(double tStart, double tEnd, double fraction) const
+double OpenCascadeEdge::getParameterAtArcLengthFraction(double parameterStart, double parameterEnd, double fraction) const
 {
     BRepAdaptor_Curve curve(edge_);
-    double totalLength = GCPnts_AbscissaPoint::Length(curve, tStart, tEnd);
+    double totalLength = GCPnts_AbscissaPoint::Length(curve, parameterStart, parameterEnd);
 
     if (totalLength <= Precision::Confusion())
     {
-        return tStart + fraction * (tEnd - tStart);
+        return parameterStart + fraction * (parameterEnd - parameterStart);
     }
 
-    GCPnts_AbscissaPoint solver(curve, fraction * totalLength, tStart);
+    GCPnts_AbscissaPoint solver(curve, fraction * totalLength, parameterStart);
     return solver.Parameter();
 }
 
-double OpenCascadeEdge::getCurvature(double t) const
+double OpenCascadeEdge::getCurvature(double parameter) const
 {
-    BRepAdaptor_Curve curve(edge_);
-    double tMin, tMax;
-    Handle(Geom_Curve) geometricCurve = BRep_Tool::Curve(edge_, tMin, tMax);
+    double parameterMin, parameterMax;
+    Handle(Geom_Curve) geometricCurve = BRep_Tool::Curve(edge_, parameterMin, parameterMax);
 
     if (!geometricCurve.IsNull())
     {
-        GeomLProp_CLProps properties(geometricCurve, t, 2, Precision::Confusion());
+        GeomLProp_CLProps properties(geometricCurve, parameter, 2, Precision::Confusion());
 
         if (properties.IsTangentDefined())
         {
@@ -117,7 +114,6 @@ double OpenCascadeEdge::getCurvature(double t) const
         }
     }
 
-    // Fallback: return 0 if curvature cannot be computed
     return 0.0;
 }
 

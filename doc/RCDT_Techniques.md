@@ -310,7 +310,7 @@ vertex; ours keeps its bad triangles there too.
 `Core/3D/RCDT/TetrahedronDelaunayRefiner`
 
 A tetrahedron inside the domain whose weighted circumradius / shortest edge
-exceeds `tetCircumradiusToShortestEdgeRatio` (default 2.5; Shewchuk's bound only
+exceeds `tetrahedronCircumradiusToShortestEdgeRatio` (default 2.5; Shewchuk's bound only
 guarantees termination above 2.0) is refined at its orthocentre, worst first.
 
 - **Inside** comes from the ambient flood fill (section 6) from the restricted

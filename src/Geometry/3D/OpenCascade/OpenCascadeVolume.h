@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../Base/IVolume3D.h"
+#include "Geometry/3D/Base/IVolume3D.h"
 #include <TopoDS_Solid.hxx>
 
 namespace Geometry3D
 {
 
 /**
- * @brief OpenCASCADE implementation of Volume (a solid body / material phase)
+ * @brief OpenCASCADE implementation of IVolume3D, backed by a TopoDS_Solid
  */
 class OpenCascadeVolume : public IVolume3D
 {

@@ -14,11 +14,10 @@ public:
     void setCoordinates(const Point3D& coordinates);
 
     /// The node's weight for regular-triangulation (weighted Delaunay)
-    /// insertion -- a protecting ball's squared radius (OPE-176's
-    /// crease-protection scheme), 0 for an ordinary (unweighted) node. See
-    /// RegularPredicates3D for how this is used; a mesh where every node has
-    /// weight 0 is mathematically indistinguishable from an ordinary
-    /// Delaunay triangulation.
+    /// insertion -- a protecting ball's squared radius, 0 for an ordinary
+    /// (unweighted) node. See RegularPredicates3D for how this is used; a
+    /// mesh where every node has weight 0 is mathematically indistinguishable
+    /// from an ordinary Delaunay triangulation.
     double getWeight() const;
     void setWeight(double weight);
 

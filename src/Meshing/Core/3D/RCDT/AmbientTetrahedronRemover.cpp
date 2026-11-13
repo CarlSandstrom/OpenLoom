@@ -7,7 +7,6 @@
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "spdlog/spdlog.h"
 
-#include <array>
 #include <vector>
 
 namespace Meshing
@@ -17,21 +16,21 @@ void AmbientTetrahedronRemover::remove(const MeshData3D& meshData,
                                        MeshMutator3D& mutator,
                                        const RestrictedFaceMap& restrictedFaces)
 {
-    if (!meshData.getBoundingNodeIds())
+    auto boundingNodeIds = meshData.getBoundingNodeIds();
+    if (!boundingNodeIds)
         OPENLOOM_THROW_MESH(INVALID_OPERATION, "AmbientTetrahedronRemover::remove: no bounding tetrahedron in the mesh");
-    const std::array<size_t, 4> boundingNodeIds = *meshData.getBoundingNodeIds();
 
     std::vector<size_t> ambientTetrahedronIds;
-    for (const size_t elementId : AmbientTetrahedronClassifier::classify(meshData, restrictedFaces))
+    for (auto elementId : AmbientTetrahedronClassifier::classify(meshData, restrictedFaces))
     {
         if (dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId)))
             ambientTetrahedronIds.push_back(elementId);
     }
 
-    for (const size_t tetrahedronId : ambientTetrahedronIds)
+    for (auto tetrahedronId : ambientTetrahedronIds)
         mutator.removeElement(tetrahedronId);
 
-    for (const size_t nodeId : boundingNodeIds)
+    for (auto nodeId : *boundingNodeIds)
         mutator.removeNode(nodeId);
     mutator.clearBoundingNodeIds();
 

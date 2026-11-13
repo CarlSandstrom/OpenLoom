@@ -43,9 +43,9 @@ int main()
     // each flat face.
     Geometry3D::DiscretizationSettings3D discretizationSettings(std::nullopt, std::numbers::pi / 8.0, 4);
 
-    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                                 converter.getTopology(),
-                                                                                 discretizationSettings);
+    auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                           converter.getTopology(),
+                                                                           discretizationSettings);
 
     std::cout << "Points:         " << discretizationResult->points.size() << "\n";
     std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";

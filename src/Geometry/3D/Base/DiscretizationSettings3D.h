@@ -25,12 +25,7 @@ public:
     /**
      * @brief Default constructor — angle-based with π/4 (45°), 2 surface samples.
      */
-    DiscretizationSettings3D() :
-        numberOfSegmentsPerEdge_(std::nullopt),
-        maxAngleBetweenSegments_(std::numbers::pi / 4.0),
-        numberOfSamplesPerSurfaceDirection_(2)
-    {
-    }
+    DiscretizationSettings3D() = default;
 
     /**
      * @brief Full explicit constructor.
@@ -65,9 +60,9 @@ public:
     size_t getNumberOfSamplesPerSurfaceDirection() const { return numberOfSamplesPerSurfaceDirection_; }
 
 private:
-    std::optional<size_t> numberOfSegmentsPerEdge_;
-    std::optional<double> maxAngleBetweenSegments_;
-    size_t numberOfSamplesPerSurfaceDirection_;
+    std::optional<size_t> numberOfSegmentsPerEdge_ = std::nullopt;
+    std::optional<double> maxAngleBetweenSegments_ = std::numbers::pi / 4.0;
+    size_t numberOfSamplesPerSurfaceDirection_ = 2;
 };
 
 } // namespace Geometry3D

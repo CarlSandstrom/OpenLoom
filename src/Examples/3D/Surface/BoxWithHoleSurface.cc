@@ -2,7 +2,7 @@
  * @file BoxWithHoleSurface.cc
  * @brief Surface mesh of a 10×10×10 box with a cylindrical hole drilled through its center.
  *
- * Geometry matches the BoxWithHole volume example: a unit box cut by a cylinder
+ * Geometry matches the BoxWithHole volume example: a 10x10x10 box cut by a cylinder
  * of radius 2 centred at (5, 5) along Z.
  *
  * Exports:
@@ -10,7 +10,6 @@
  *   - BoxWithHoleSurface3D.vtu    : surface mesh (color by SurfaceID)
  */
 
-#include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
@@ -19,6 +18,7 @@
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
@@ -45,9 +45,9 @@ int main()
 
     Geometry3D::DiscretizationSettings3D settings(std::nullopt, std::numbers::pi / 8.0, 2);
 
-    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                                 converter.getTopology(),
-                                                                                 settings);
+    auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                           converter.getTopology(),
+                                                                           settings);
 
     std::cout << "Points:         " << discretizationResult->points.size() << "\n";
     std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";

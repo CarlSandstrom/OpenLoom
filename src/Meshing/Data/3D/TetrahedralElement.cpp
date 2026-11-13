@@ -1,4 +1,5 @@
-#include "TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedralElement.h"
+
 #include <algorithm>
 
 namespace Meshing
@@ -17,7 +18,7 @@ const std::vector<size_t>& TetrahedralElement::getNodeIds() const
 
 bool TetrahedralElement::hasNode(size_t nodeId) const
 {
-    return nodeIds_[0] == nodeId || nodeIds_[1] == nodeId || nodeIds_[2] == nodeId || nodeIds_[3] == nodeId;
+    return std::find(nodeIds_.begin(), nodeIds_.end(), nodeId) != nodeIds_.end();
 }
 
 std::array<size_t, 3> TetrahedralElement::getFace(size_t faceIndex) const

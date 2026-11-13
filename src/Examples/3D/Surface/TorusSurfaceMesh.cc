@@ -16,7 +16,6 @@
  *   - TorusSurfaceMesh3D.vtu    : surface mesh (color by SurfaceID)
  */
 
-#include "../Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Common/Logging.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
@@ -24,8 +23,8 @@
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
+#include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include <BRepPrimAPI_MakeTorus.hxx>
-#include <TopoDS_Shape.hxx>
 #include <iostream>
 #include <numbers>
 
@@ -33,10 +32,10 @@ int main()
 {
     Common::initializeLogging();
 
-    // Major radius R1 = 5.0 (distance from torus centre to pipe centre)
-    // Minor radius R2 = 1.5 (radius of the pipe / tube)
-    // R1/R2 ≈ 3.3 keeps the inner equator well away from degenerate collapse.
-    TopoDS_Shape shape = BRepPrimAPI_MakeTorus(5.0, 1.5).Shape();
+    // The ratio of major to minor radius (about 3.3) keeps the inner equator well away from degenerate collapse.
+    auto majorRadius = 5.0; // distance from the torus centre to the pipe centre
+    auto minorRadius = 1.5; // radius of the pipe
+    auto shape = BRepPrimAPI_MakeTorus(majorRadius, minorRadius).Shape();
 
     Readers::TopoDS_ShapeConverter converter(shape);
 
@@ -45,9 +44,9 @@ int main()
     Meshing::SurfaceMesh3DQualitySettings quality;
     quality.chordDeviationTolerance = 0.15;
 
-    const auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
-                                                                                 converter.getTopology(),
-                                                                                 settings);
+    auto discretizationResult = Meshing::BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(),
+                                                                           converter.getTopology(),
+                                                                           settings);
 
     std::cout << "Points:         " << discretizationResult->points.size() << "\n";
     std::cout << "Topology edges: " << discretizationResult->edgeIdToPointIndicesMap.size() << "\n";

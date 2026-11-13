@@ -1,156 +1,285 @@
-# BoxWithHoleSurface: meshing flow
+# Tidy checklist
 
-Files in the order `BoxWithHoleSurface` runs them, for working through the meshing code one step at a time. CAD import (`Readers/`, OpenCascade), export and the 2D mesher are left out. Each file is listed once, at the step where it is first used. `[x]` marks files already brought in line with `.claude/rules/cpp-coding-standards.md`.
+Every class under `src/`, one row per header/source pair, grouped by directory. Work through it with `/tidy <ClassName>`; tick the row when the result is green and committed. Line counts are `.h` / source.
 
-Line counts are `.h` / `.cpp` or `.cc`.
+`[x]` marks classes already tidied (from the git history). `WeightedDualRestriction`, `SurfaceDelaunayRefiner` and `MeshConnectivity` had only a partial pass, so they stay open.
 
-## 1. Entry: settings and the public mesher
 
-`BoxWithHoleSurface` builds the settings, constructs `SurfaceMesher3D` and calls `mesh()`, which forwards to `RCDTMesher::meshSurface()`.
+72 of 151 done.
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Geometry/3D/Base/DiscretizationSettings3D` | 73 | - | 73 | Edge angle / segment count / surface samples |
-| [ ] | `Meshing/Data/3D/SurfaceMesh3DQualitySettings` | 53 | - | 53 | Refinement bounds, smoothing iterations, size floor |
-| [ ] | `Meshing/Core/3D/Surface/SurfaceMesher3D` | 73 | 36 | 109 | Thin public wrapper; owns an `ISurfaceMesher3D` |
-| [ ] | `Meshing/Interfaces/ISurfaceMesher3D` | 24 | - | 24 | Strategy interface |
-| [x] | `Meshing/Core/3D/RCDT/RCDTMesher` | 85 | 279 | 364 | The pipeline: orchestrates every step below |
 
-## 2. `meshSurface()` creates the context
+## `Common/`
 
-Owns the geometry and topology references plus the live mesh the whole pipeline mutates.
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `BoundingBox2D` | 23 | 34 |
+| [ ] | `DebugFlags` | 50 | - |
+| [ ] | `Logging` | 15 | - |
+| [ ] | `MathConstants` | 6 | - |
+| [ ] | `TwinManager` | 75 | 38 |
+| [ ] | `Types` | 19 | - |
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/General/MeshingContext3D` | 76 | 77 | 153 | Bundles geometry, topology, mesh data, mutator and operations |
-| [ ] | `Meshing/Data/3D/MeshData3D` | 65 | 105 | 170 | The live tetrahedral mesh |
-| [ ] | `Meshing/Data/3D/Node3D` | 30 | 31 | 61 | A mesh node (coordinates and weight) |
-| [ ] | `Meshing/Data/3D/TetrahedralElement` | 27 | 49 | 76 | A tetrahedron |
-| [ ] | `Meshing/Data/3D/MeshMutator3D` | 55 | 133 | 188 | Controlled mutation of `MeshData3D` |
-| [ ] | `Meshing/Data/Base/MeshConnectivity` | 36 | 112 | 148 | Element adjacency snapshot |
+## `Common/Exceptions/`
 
-## 3. `buildInitialTriangulation`: discretize the boundary
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `Exception` | 77 | - |
+| [ ] | `GeometryException` | 112 | - |
+| [ ] | `MeshException` | 159 | - |
+| [ ] | `TopologyException` | 49 | - |
 
-Samples corners, edge interiors and surface interiors into points. Reads the CAD geometry and topology through their base interfaces.
+## `Examples/2D/`
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [x] | `Meshing/Core/3D/General/BoundaryDiscretizer3D` | 78 | 236 | 314 | Samples the boundary into points |
-| [ ] | `Meshing/Data/3D/DiscretizationResult3D` | 38 | - | 38 | Points plus the edge/surface they belong to |
-| [ ] | `Geometry/3D/Base/GeometryCollection3D` | 39 | 48 | 87 | Lookup of corners, edges and surfaces |
-| [ ] | `Geometry/3D/Base/ICorner3D` | 22 | - | 22 | Corner interface |
-| [ ] | `Geometry/3D/Base/IEdge3D` | 39 | - | 39 | Edge (curve) interface |
-| [ ] | `Geometry/3D/Base/ISurface3D` | 101 | 22 | 123 | Surface interface |
-| [ ] | `Topology/Topology3D` | 43 | 80 | 123 | Connectivity between the geometric entities |
-| [ ] | `Topology/SeamCollection` | 44 | 43 | 87 | Periodic-surface seam twins |
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `FullyPeriodicSquare` | - | 273 |
+| [ ] | `ManyCirclesInSquare` | - | 189 |
+| [ ] | `MeshStepFile2D` | - | 60 |
+| [ ] | `NearCoincidentConstraintEdges` | - | 110 |
+| [ ] | `NestedConcentricRings` | - | 178 |
+| [ ] | `RectangleWithCrack` | - | 97 |
+| [ ] | `RectangleWithHole2D` | - | 104 |
+| [ ] | `SimpleDelaunay2D` | - | 53 |
+| [ ] | `SpiralChannel` | - | 143 |
+| [ ] | `SquareWithCircleAndTwinEdges` | - | 251 |
+| [ ] | `SquareWithCircularHole` | - | 161 |
+| [ ] | `SquareWithInternalCircles` | - | 157 |
+| [ ] | `StarPolygon` | - | 97 |
+| [ ] | `ThinSliverDomain` | - | 112 |
 
-## 4. `buildInitialTriangulation`: size floor
+## `Examples/3D/Surface/`
 
-No explicit floor and no sizing field here, so the floor comes from the point spacing.
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `BoxWithHoleSurface` | - | 76 |
+| [x] | `CylinderSurfaceMesh` | - | 83 |
+| [x] | `HexNutChamferedSurfaceMesh` | - | 149 |
+| [x] | `HexNutSurfaceMesh` | - | 124 |
+| [x] | `MeshStepFile3DSurface` | - | 58 |
+| [x] | `SaddleSurfaceMesh` | - | 257 |
+| [x] | `SharpCreaseBracket` | - | 173 |
+| [x] | `ThinFinSurfaceMesh` | - | 72 |
+| [x] | `TorusSurfaceMesh` | - | 71 |
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [x] | `Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator` | 34 | 67 | 101 | Median nearest-neighbour spacing / 10 |
+## `Examples/3D/Volume/`
 
-## 5. `buildAmbientTriangulation`: protecting balls
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `BoxWithHole` | - | 71 |
+| [x] | `CreateBox` | - | 49 |
+| [x] | `MeshStepFile3DVolume` | - | 60 |
 
-Gives every corner and curve point a weight (protecting-ball radius) so creases survive in the triangulation.
+## `Export/`
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/ProtectingBallPlacer` | 62 | 505 | 567 | Places the protecting balls |
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `IExporter` | 29 | - |
+| [ ] | `TsvExporter` | 56 | 316 |
+| [ ] | `VtkExporter` | 63 | 597 |
+| [ ] | `VtkGrid` | 57 | - |
 
-## 6. `buildAmbientTriangulation`: weighted Delaunay tetrahedralization
+## `Geometry/2D/Base/`
 
-Inserts every point into the live mesh. `MeshOperations3D` and its predicates do the geometric work.
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `Corner2D` | 29 | 12 |
+| [ ] | `DiscretizationSettings2D` | 45 | - |
+| [ ] | `GeometryCollection2D` | 40 | 47 |
+| [ ] | `ICorner2D` | 22 | - |
+| [ ] | `IEdge2D` | 30 | - |
+| [ ] | `LinearEdge2D` | 38 | 32 |
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/Volume/Delaunay3D` | 67 | 56 | 123 | Builds the initial weighted tetrahedralization |
-| [ ] | `Meshing/Core/3D/General/MeshOperations3D` | 168 | 377 | 545 | Insertion and cavity operations on the mesh |
-| [ ] | `Meshing/Core/3D/General/MeshQueries3D` | 83 | 152 | 235 | Point location and adjacency queries |
-| [ ] | `Meshing/Core/3D/General/RegularPredicates3D` | 61 | 248 | 309 | Weighted (regular) in-sphere / orientation tests |
-| [ ] | `Meshing/Core/3D/General/RobustPredicates3D` | 78 | 108 | 186 | Robust floating-point predicates |
-| [ ] | `Meshing/Core/3D/General/ExactArithmetic3D` | 74 | 132 | 206 | Exact-arithmetic fallback |
+## `Geometry/2D/OpenCascade/`
 
-## 7. `buildAmbientTriangulation`: curve segments
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `OpenCascade2DCorner` | 28 | 31 |
+| [ ] | `OpenCascade2DEdge` | 36 | 69 |
 
-Records which mesh nodes form each CAD curve.
+## `Geometry/3D/Base/`
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/CurveSegmentBuilder` | 45 | 96 | 141 | Builds the curve segments from the discretization |
-| [ ] | `Meshing/Data/CurveSegmentManager` | 61 | 123 | 184 | Stores the curve segments |
-| [ ] | `Meshing/Data/ConstraintRole` | 12 | - | 12 | Role tag for a curve segment |
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `DiscretizationSettings3D` | 73 | - |
+| [x] | `GeometryCollection3D` | 39 | 48 |
+| [x] | `ICorner3D` | 22 | - |
+| [x] | `IEdge3D` | 39 | - |
+| [x] | `ISurface3D` | 101 | 22 |
+| [x] | `IVolume3D` | 24 | - |
 
-## 8. `refineSurface`: facet refinement
+## `Geometry/3D/OpenCascade/`
 
-The heart of the mesher. Classifies every face as restricted or not, then inserts points until no facet is bad.
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `OpenCascadeCorner` | 24 | 29 |
+| [x] | `OpenCascadeEdge` | 32 | 136 |
+| [x] | `OpenCascadeSurface` | 69 | 221 |
+| [x] | `OpenCascadeVolume` | 23 | 21 |
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner` | 130 | 223 | 353 | Classification, worst-first queue and insertion |
-| [ ] | `Meshing/Connectivity/FaceKey` | 79 | - | 79 | Face identity |
-| [ ] | `Meshing/Connectivity/EdgeKey` | 48 | - | 48 | Edge identity |
-| [ ] | `Meshing/Core/3D/RCDT/RestrictedFaceTypes` | 51 | - | 51 | Restricted facet records and the map of them |
-| [ ] | `Meshing/Core/3D/RCDT/WeightedDualRestriction` | 83 | 140 | 223 | Restriction test: does the weighted dual edge cross a surface |
-| [ ] | `Meshing/Core/3D/RCDT/SurfaceTessellation` | 67 | 289 | 356 | One CAD surface sampled onto a UV grid |
-| [ ] | `Meshing/Core/3D/RCDT/TriangleSoupIndex` | 88 | 214 | 302 | Uniform grid answering segment-crossing queries |
-| [ ] | `Meshing/Core/3D/RCDT/SurfaceProjector` | 65 | 127 | 192 | Projects points onto a surface |
-| [ ] | `Meshing/Core/3D/General/ElementGeometry3D` | 38 | 77 | 115 | Circumcenters, orthocenters and similar |
-| [ ] | `Meshing/Data/2D/TriangleElement` | 30 | 57 | 87 | Triangle record (shared with 2D) |
-| [ ] | `Meshing/Core/3D/RCDT/SurfaceFacetCriteria` | 54 | 88 | 142 | The three facet criteria |
-| [ ] | `Meshing/Core/3D/RCDT/ProtectionExemption` | 28 | 102 | 130 | Waives the criteria next to protecting balls |
-| [ ] | `Meshing/Core/3D/RCDT/RegularConflictRegion` | 45 | 81 | 126 | The conflict region an insertion removes |
+## `Meshing/Connectivity/`
 
-## 9. `buildSurfaceMesh`: remove the ambient tetrahedra
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `EdgeKey` | 48 | - |
+| [ ] | `FaceKey` | 79 | - |
+| [ ] | `TetrahedronKey` | 66 | - |
 
-Strips the tetrahedra that are not part of the model, keeping the restricted facets.
+## `Meshing/Core/`
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/AmbientTetrahedronRemover` | 26 | 43 | 69 | Removes the ambient tetrahedra |
-| [ ] | `Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier` | 46 | 71 | 117 | Flood fill deciding which tetrahedra are inside |
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `ConstraintStructures` | 45 | - |
 
-## 10. `buildSurfaceMesh`: extract the surface mesh
+## `Meshing/Core/2D/`
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/RCDTMeshExtractor` | 44 | 115 | 159 | Turns the restricted facets into a `SurfaceMesh3D` |
-| [ ] | `Meshing/Data/3D/SurfaceMesh3D` | 37 | - | 37 | The result handed back to the example |
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `BoundaryDiscretizer2D` | 48 | 153 |
+| [ ] | `BoundarySplitSynchronizer` | 51 | 46 |
+| [ ] | `ConstrainedDelaunay2D` | 39 | 74 |
+| [ ] | `ConstraintChecker2D` | 33 | 36 |
+| [ ] | `Delaunay2D` | 26 | 56 |
+| [ ] | `ElementGeometry2D` | 76 | 149 |
+| [ ] | `ElementQuality2D` | 38 | 76 |
+| [ ] | `GeometryStructures2D` | 12 | - |
+| [ ] | `GeometryUtilities2D` | 64 | 205 |
+| [ ] | `MeshDebugUtilities2D` | 27 | 37 |
+| [ ] | `MeshOperations2D` | 71 | 709 |
+| [ ] | `MeshQueries2D` | 91 | 615 |
+| [ ] | `MeshVerifier` | 47 | 184 |
+| [ ] | `MeshingContext2D` | 75 | 73 |
+| [ ] | `PeriodicDomain2D` | 36 | - |
+| [ ] | `PeriodicMeshData2D` | 58 | 82 |
+| [ ] | `PeriodicOffsetTable` | 44 | 50 |
+| [ ] | `Shewchuk2DQualityController` | 34 | 71 |
+| [ ] | `ShewchukRefiner2D` | 103 | 309 |
 
-## 11. `buildSurfaceMesh`: smooth
+## `Meshing/Core/3D/General/`
 
-Moves nodes along the CAD surfaces. No tetrahedra to protect in surface mode.
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `BoundaryDiscretizer3D` | 78 | 344 |
+| [x] | `ElementGeometry3D` | 38 | 80 |
+| [x] | `ExactArithmetic3D` | 74 | 132 |
+| [x] | `LocalFeatureSize3D` | 106 | 292 |
+| [x] | `MeshOperations3D` | 168 | 377 |
+| [x] | `MeshQueries3D` | 83 | 152 |
+| [x] | `MeshSnapshotWriter` | 51 | 96 |
+| [x] | `MeshingContext3D` | 76 | 77 |
+| [x] | `RegularPredicates3D` | 61 | 248 |
+| [x] | `RobustPredicates3D` | 78 | 108 |
+| [x] | `SizingField3D` | 79 | 55 |
+| [x] | `SizingFieldBuilder3D` | 88 | 203 |
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/SurfaceMeshSmoother` | 53 | 138 | 191 | Smooths the surface mesh |
-| [ ] | `Meshing/Core/3D/RCDT/TetrahedronInversionGuard` | 46 | 69 | 115 | Keeps tetrahedra from inverting (inactive in surface mode) |
+## `Meshing/Core/3D/RCDT/`
 
-## Used throughout
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `AmbientTetrahedronClassifier` | 46 | 71 |
+| [x] | `AmbientTetrahedronRemover` | 26 | 43 |
+| [x] | `CurveSegmentBuilder` | 45 | 96 |
+| [x] | `MinimumEdgeLengthEstimator` | 34 | 67 |
+| [x] | `ProtectingBallPlacer` | 62 | 562 |
+| [x] | `ProtectionExemption` | 28 | 102 |
+| [x] | `RCDTMeshExtractor` | 47 | 115 |
+| [x] | `RCDTMesher` | 85 | 284 |
+| [x] | `RegularConflictRegion` | 45 | 86 |
+| [x] | `RestrictedFaceAudit` | 80 | 165 |
+| [x] | `RestrictedFaceTypes` | 51 | - |
+| [x] | `SnapshotGridBuilder` | 53 | 139 |
+| [x] | `SurfaceDelaunayRefiner` | 136 | 265 |
+| [x] | `SurfaceFacetCriteria` | 54 | 96 |
+| [x] | `SurfaceMeshSmoother` | 53 | 138 |
+| [x] | `SurfaceProjector` | 65 | 127 |
+| [x] | `SurfaceTessellation` | 61 | 252 |
+| [x] | `TetrahedronDelaunayRefiner` | 71 | 153 |
+| [x] | `TetrahedronInversionGuard` | 46 | 69 |
+| [x] | `TriangleSoupIndex` | 88 | 214 |
+| [x] | `WeightedDualRestriction` | 81 | 146 |
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Common/Types` | 19 | - | 19 | `Point3D`, `Vector3D` aliases |
-| [ ] | `Common/BoundingBox2D` | 23 | 34 | 57 | UV bounds |
-| [ ] | `Common/DebugFlags` | 50 | - | 50 | Debug switches |
-| [ ] | `Common/Exceptions/Exception` | 77 | - | 77 | Exception base |
-| [ ] | `Common/Exceptions/MeshException` | 159 | - | 159 | `OPENLOOM_THROW_MESH` |
-| [ ] | `Common/Exceptions/GeometryException` | 112 | - | 112 | Geometry errors |
+## `Meshing/Core/3D/Surface/`
 
-## Meshing files this example does not run
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `SurfaceMesher3D` | 73 | 36 |
 
-Not on the `BoxWithHoleSurface` path, so not part of this walk-through.
+## `Meshing/Core/3D/Volume/`
 
-| Done | Class | .h | source | Lines | Role |
-|---|---|---|---|---|---|
-| [ ] | `Meshing/Core/3D/RCDT/TetrahedronDelaunayRefiner` | 71 | 152 | 223 | Volume mode only |
-| [ ] | `Meshing/Core/3D/RCDT/RestrictedFaceAudit` | 80 | 165 | 245 | Volume closed-boundary check only |
-| [ ] | `Meshing/Core/3D/Volume/VolumeMesher3D` | 74 | 36 | 110 | Volume wrapper |
-| [ ] | `Meshing/Interfaces/IVolumeMesher3D` | 24 | - | 24 | Volume interface |
-| [ ] | `Meshing/Data/3D/VolumeMesh3D` | 43 | - | 43 | Volume result |
-| [ ] | `Meshing/Core/3D/General/SizingField3D` | 105 | 54 | 159 | Only with sizing-field settings |
-| [ ] | `Meshing/Core/3D/General/SizingFieldBuilder3D` | 88 | 164 | 252 | Only with sizing-field settings |
-| [ ] | `Meshing/Core/3D/General/LocalFeatureSize3D` | 106 | 292 | 398 | Only with sizing-field settings |
-| [ ] | `Meshing/Core/3D/General/MeshDebugUtilities3D` | 49 | 41 | 90 | End-of-run debug export, not meshing |
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `Delaunay3D` | 67 | 55 |
+| [x] | `VolumeMesher3D` | 74 | 36 |
+
+## `Meshing/Data/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `ConstraintRole` | 12 | - |
+| [ ] | `CurveSegmentManager` | 61 | 123 |
+
+## `Meshing/Data/2D/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `DiscretizationResult2D` | 35 | - |
+| [ ] | `Mesh2DQualitySettings` | 27 | - |
+| [ ] | `MeshData2D` | 53 | 56 |
+| [ ] | `MeshMutator2D` | 37 | 50 |
+| [ ] | `Node2D` | 19 | 11 |
+| [ ] | `TriangleElement` | 30 | 57 |
+
+## `Meshing/Data/3D/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `DiscretizationResult3D` | 38 | - |
+| [x] | `MeshData3D` | 65 | 105 |
+| [x] | `MeshMutator3D` | 55 | 133 |
+| [x] | `Node3D` | 30 | 31 |
+| [x] | `SurfaceMesh3D` | 37 | - |
+| [x] | `SurfaceMesh3DQualitySettings` | 53 | - |
+| [x] | `TetrahedralElement` | 27 | 49 |
+| [x] | `VolumeMesh3D` | 43 | - |
+
+## `Meshing/Data/Base/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `IElement` | 30 | - |
+| [ ] | `MeshConnectivity` | 36 | 110 |
+
+## `Meshing/Interfaces/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `IQualityController2D` | 24 | - |
+| [ ] | `ISurfaceMesher3D` | 24 | - |
+| [ ] | `IVolumeMesher3D` | 24 | - |
+
+## `Readers/OpenCascade/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `OpenCascadeGeometryCollection` | 44 | 130 |
+| [ ] | `StepReader2D` | 56 | 174 |
+| [ ] | `StepReader3D` | 27 | 30 |
+| [ ] | `TopoDS_ShapeConverter` | 47 | 348 |
+
+## `Topology/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `Corner3D` | 22 | 15 |
+| [x] | `Edge3D` | 28 | 32 |
+| [x] | `SeamCollection` | 44 | 43 |
+| [x] | `Surface3D` | 32 | 34 |
+| [x] | `Topology3D` | 43 | 80 |
+| [x] | `Volume3D` | 22 | 15 |
+
+## `Topology2D/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [ ] | `Corner2D` | 27 | 12 |
+| [ ] | `Edge2D` | 30 | 15 |
+| [ ] | `Topology2D` | 50 | 49 |
