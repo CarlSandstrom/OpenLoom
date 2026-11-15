@@ -108,6 +108,7 @@ void RCDTMesher::meshVolume()
     MeshingContext3D context(*geometry_, *topology_);
     double minimumEdgeLength = buildInitialTriangulation(context);
     auto restrictedFaces = refineVolume(context, *topology_, qualitySettings_, minimumEdgeLength);
+    // Meshing step 7, first part: the closed-boundary check
     requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
     buildSurfaceMesh(context, restrictedFaces, true);
 
@@ -131,11 +132,16 @@ void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
                                   const RestrictedFaceMap& restrictedFaces,
                                   bool meshingVolume)
 {
+    // Meshing step 7: remove the ambient tetrahedra (for a volume, meshVolume() has
+    // already checked that the boundary is closed).
     // getOperations()'s mutator, not getMutator(): the latter validates removal
     // against a MeshConnectivity snapshot that refinement never refreshes.
     AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
+
+    // Meshing step 8: extract the surface mesh
     surfaceMesh_ = std::make_unique<SurfaceMesh3D>(
         RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
+    // Meshing step 9: smooth
     smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
     if (qualitySettings_.smoothingIterations > 0 && MeshSnapshotWriter::isEnabled())
         MeshSnapshotWriter::write("smoothed", SnapshotGridBuilder::fromSurfaceMesh(*surfaceMesh_));
@@ -153,6 +159,7 @@ double RCDTMesher::buildInitialTriangulation(MeshingContext3D& context) const
         sizingField = SizingFieldBuilder3D::build(*geometry_, *topology_, sizingFieldSettings_.value());
     }
 
+    // Meshing step 1: sample the corners and curves (doc/Meshing_Walkthrough.md)
     auto discretizationResult = BoundaryDiscretizer3D::discretize(*geometry_, *topology_, discretizationSettings_, sizingField);
 
     spdlog::info("RCDTMesher::buildInitialTriangulation: {} points after discretization", discretizationResult->points.size());
@@ -185,8 +192,10 @@ void buildAmbientTriangulation(MeshingContext3D& context,
                                const Geometry3D::GeometryCollection3D& geometry,
                                const Topology3D::Topology3D& topology)
 {
+    // Meshing step 2: place the protecting balls
     auto pointWeights = ProtectingBallPlacer::place(discretizationResult, topology, geometry);
 
+    // Meshing step 3: build the weighted Delaunay tetrahedralization, then record the curve segments
     auto& meshData = context.getMeshData();
     auto delaunayResult = Delaunay3D::triangulate(context.getOperations(),
                                                   discretizationResult.points,
@@ -236,6 +245,7 @@ RestrictedFaceMap refineSurface(MeshingContext3D& context,
                                 const SurfaceMesh3DQualitySettings& qualitySettings,
                                 double minimumEdgeLength)
 {
+    // Meshing steps 4-5: classify the faces, then refine the bad surface facets
     SurfaceDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
     refiner.refine();
     refiner.writeSnapshot("refined");
@@ -247,6 +257,8 @@ RestrictedFaceMap refineVolume(MeshingContext3D& context,
                                const SurfaceMesh3DQualitySettings& qualitySettings,
                                double minimumEdgeLength)
 {
+    // Meshing steps 4-6: classify the faces, then alternate between refining bad
+    // surface facets (step 5) and bad interior tetrahedra (step 6)
     TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
     refiner.refine();
     return refiner.getRestrictedFaces();
