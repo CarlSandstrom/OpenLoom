@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/Types.h"
+
 #include <map>
 #include <optional>
 #include <string>
@@ -22,7 +24,7 @@ class TwinManager2D
 {
 public:
     /// A directed segment (surfaceId, node0, node1).
-    using SegmentKey = std::tuple<std::string, size_t, size_t>;
+    using SegmentKey = std::tuple<std::string, Meshing::NodeId, Meshing::NodeId>;
 
     /// Surface ID to use for pure-2D (no-surface) contexts.
     static const std::string NO_SURFACE;
@@ -37,13 +39,13 @@ public:
      *
      * Inserts all four directed entries so lookups work in any direction.
      */
-    void registerTwin(const std::string& surfaceId, size_t node0, size_t node1,
-                      const std::string& twinSurfaceId, size_t twinNode0, size_t twinNode1);
+    void registerTwin(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1,
+                      const std::string& twinSurfaceId, Meshing::NodeId twinNode0, Meshing::NodeId twinNode1);
 
     /**
      * @brief Return true if segment {node0,node1} on surfaceId (in either direction) has a twin.
      */
-    bool hasTwin(const std::string& surfaceId, size_t node0, size_t node1) const;
+    bool hasTwin(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1) const;
 
     /**
      * @brief Return the directed twin of segment node0→node1 on surfaceId.
@@ -51,7 +53,7 @@ public:
      * Returns (twinSurfaceId, twinNode0, twinNode1) such that node0↔twinNode0 and
      * node1↔twinNode1. Returns nullopt if the segment is not registered.
      */
-    std::optional<SegmentKey> getTwin(const std::string& surfaceId, size_t node0, size_t node1) const;
+    std::optional<SegmentKey> getTwin(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1) const;
 
     /**
      * @brief Update registry after a split.
@@ -60,9 +62,9 @@ public:
      * and its twin {twinNode0,twinNode1} on twinSurfaceId was split at `twinMidNode`.
      * Removes the old registration and registers the two new sub-segment pairs.
      */
-    void recordSplit(const std::string& surfaceId, size_t node0, size_t node1, size_t midNode,
-                     const std::string& twinSurfaceId, size_t twinNode0, size_t twinNode1,
-                     size_t twinMidNode);
+    void recordSplit(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1, Meshing::NodeId midNode,
+                     const std::string& twinSurfaceId, Meshing::NodeId twinNode0, Meshing::NodeId twinNode1,
+                     Meshing::NodeId twinMidNode);
 
     /**
      * @brief Return all registered directed segment pairs.

@@ -27,7 +27,7 @@ constexpr double COINCIDENT_NODE_TOLERANCE = 1e-8;
 bool isTooSmallToRefine(const ElementGeometry2D& geometry,
                         const ElementQuality2D& quality,
                         const TriangleElement& triangle,
-                        size_t triangleId);
+                        ElementId triangleId);
 bool coincidesWithExistingNode(const MeshData2D& meshData, const Point2D& point);
 bool tryInsertCircumcenter(MeshOperations2D& operations, const Point2D& circumcenter);
 
@@ -124,7 +124,7 @@ bool ShewchukRefiner2D::refineStep()
     ElementQuality2D quality(context_->getMeshData());
     auto worstTriangles = quality.getTrianglesSortedByQuality();
 
-    for (size_t triangleId : worstTriangles)
+    for (ElementId triangleId : worstTriangles)
     {
         if (unrefinableTriangles_.contains(triangleId)) continue;
 
@@ -170,7 +170,7 @@ void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
     }
 }
 
-bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangle, size_t triangleId)
+bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangle, ElementId triangleId)
 {
     ElementGeometry2D geometry(context_->getMeshData(), context_->getPeriodicData());
     ElementQuality2D quality(context_->getMeshData());
@@ -235,7 +235,7 @@ namespace
 bool isTooSmallToRefine(const ElementGeometry2D& geometry,
                         const ElementQuality2D& quality,
                         const TriangleElement& triangle,
-                        size_t triangleId)
+                        ElementId triangleId)
 {
     double area = geometry.computeArea(triangle);
     double shortestEdge = quality.computeShortestEdgeLength(triangle);

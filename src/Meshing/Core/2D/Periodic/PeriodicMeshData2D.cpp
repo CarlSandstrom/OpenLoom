@@ -29,7 +29,7 @@ Point2D PeriodicMeshData2D::applyOffset(const Point2D& coordinate,
     return result;
 }
 
-Point2D PeriodicMeshData2D::getCoordinate(size_t triangleId, int slot) const
+Point2D PeriodicMeshData2D::getCoordinate(ElementId triangleId, int slot) const
 {
     auto triangle = dynamic_cast<const TriangleElement*>(
         meshData_.getElement(triangleId));
@@ -48,7 +48,7 @@ Point2D PeriodicMeshData2D::getCoordinate(size_t triangleId, int slot) const
 }
 
 std::tuple<Point2D, Point2D, Point2D>
-PeriodicMeshData2D::getTriangleCoordinates(size_t triangleId) const
+PeriodicMeshData2D::getTriangleCoordinates(ElementId triangleId) const
 {
     return {getCoordinate(triangleId, 0),
             getCoordinate(triangleId, 1),

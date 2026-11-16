@@ -41,7 +41,7 @@ public:
      * Looks up the twin of segment (node0, node1), splits it, and records the split.
      * If (node0, node1) has no registered twin the call is a no-op.
      */
-    void operator()(size_t node0, size_t node1, size_t midpointNode);
+    void operator()(NodeId node0, NodeId node1, NodeId midpointNode);
 
 private:
     MeshingContext2D* context_;

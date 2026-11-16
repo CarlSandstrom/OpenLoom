@@ -24,7 +24,7 @@ public:
      * @param debugExportFilenamePrefix Prefix for debug export filenames (optional)
      * @return Map from input point index to the node id it became
      */
-    static std::map<size_t, size_t> triangulate(
+    static std::map<size_t, NodeId> triangulate(
         MeshingContext2D& context,
         const DiscretizationResult2D& discretization,
         const std::vector<Point2D>& additionalPoints = {},

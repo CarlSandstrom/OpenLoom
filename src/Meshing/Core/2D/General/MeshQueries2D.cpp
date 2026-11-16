@@ -29,14 +29,14 @@ constexpr double INVERTED_TRIANGLE_AREA_TOLERANCE = 1e-10;
 // The node-to-node and parameter tables a constrained segment's endpoints are read from.
 struct SegmentEndpointLookup
 {
-    const std::map<size_t, size_t>& pointIndexToNodeIdMap;
+    const std::map<size_t, NodeId>& pointIndexToNodeIdMap;
     const std::vector<std::vector<double>>& tParameters;
     const std::vector<std::vector<std::string>>& geometryIds;
 };
 
 bool isInCircumcircleConflict(const MeshData2D& meshData,
                               const ElementGeometry2D& geometry,
-                              size_t triangleId,
+                              ElementId triangleId,
                               const TriangleElement& triangle,
                               const Point2D& point);
 bool isVisibleFromTriangleInterior(const MeshData2D& meshData,
@@ -44,10 +44,10 @@ bool isVisibleFromTriangleInterior(const MeshData2D& meshData,
                                    const Point2D& centroid,
                                    const Point2D& point);
 bool isPointOnSegment(const Point2D& segmentStart, const Point2D& segmentEnd, const Point2D& point);
-void removeStarShapednessViolations(const MeshData2D& meshData, const Point2D& point, std::vector<size_t>& conflicting);
-std::optional<size_t> findInvertingCavityTriangle(const MeshData2D& meshData,
+void removeStarShapednessViolations(const MeshData2D& meshData, const Point2D& point, std::vector<ElementId>& conflicting);
+std::optional<ElementId> findInvertingCavityTriangle(const MeshData2D& meshData,
                                                   const Point2D& point,
-                                                  const std::vector<size_t>& conflicting);
+                                                  const std::vector<ElementId>& conflicting);
 std::unordered_set<std::string> collectBoundaryEdgeIds(const Topology2D::Topology2D& topology);
 CurveSegment createSegment(const SegmentEndpointLookup& endpointLookup,
                            size_t startPointIndex,
@@ -56,13 +56,13 @@ CurveSegment createSegment(const SegmentEndpointLookup& endpointLookup,
                            ConstraintRole role);
 double findParameterOnEdge(const SegmentEndpointLookup& endpointLookup, size_t pointIndex, const std::string& edgeId);
 const char* describeConstraintRole(ConstraintRole role);
-std::optional<size_t> findInteriorSeedTriangle(const MeshQueries2D& queries,
+std::optional<ElementId> findInteriorSeedTriangle(const MeshQueries2D& queries,
                                                const MeshData2D& meshData,
                                                const ElementGeometry2D& geometry);
-std::unordered_set<size_t> floodFillToBoundary(const MeshQueries2D& queries,
+std::unordered_set<ElementId> floodFillToBoundary(const MeshQueries2D& queries,
                                                const MeshData2D& meshData,
                                                const MeshQueries2D::EdgeToTrianglesMap& edgeToTriangles,
-                                               size_t seedTriangleId);
+                                               ElementId seedTriangleId);
 
 } // namespace
 
@@ -77,9 +77,9 @@ MeshQueries2D::MeshQueries2D(const MeshData2D& meshData, PeriodicMeshData2D* per
 {
 }
 
-std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point) const
+std::vector<ElementId> MeshQueries2D::findConflictingTriangles(const Point2D& point) const
 {
-    std::vector<size_t> conflicting;
+    std::vector<ElementId> conflicting;
 
     ElementGeometry2D geometry(meshData_, periodicData_);
 
@@ -106,11 +106,11 @@ std::vector<size_t> MeshQueries2D::findConflictingTriangles(const Point2D& point
     return conflicting;
 }
 
-std::vector<std::array<size_t, 2>> MeshQueries2D::findCavityBoundary(const std::vector<size_t>& conflictingIndices) const
+std::vector<std::array<NodeId, 2>> MeshQueries2D::findCavityBoundary(const std::vector<ElementId>& conflictingIndices) const
 {
     // Count how many times each edge appears
     std::map<EdgeKey, int> edgeCount;
-    std::map<EdgeKey, std::array<size_t, 2>> edgeLookup;
+    std::map<EdgeKey, std::array<NodeId, 2>> edgeLookup;
 
     for (size_t index : conflictingIndices)
     {
@@ -125,7 +125,7 @@ std::vector<std::array<size_t, 2>> MeshQueries2D::findCavityBoundary(const std::
     }
 
     // Boundary edges appear exactly once
-    std::vector<std::array<size_t, 2>> boundary;
+    std::vector<std::array<NodeId, 2>> boundary;
     for (const auto& [key, count] : edgeCount)
     {
         if (count == 1) boundary.push_back(edgeLookup.at(key));
@@ -134,9 +134,9 @@ std::vector<std::array<size_t, 2>> MeshQueries2D::findCavityBoundary(const std::
     return boundary;
 }
 
-std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const
+std::vector<ElementId> MeshQueries2D::findIntersectingTriangles(NodeId nodeId1, NodeId nodeId2) const
 {
-    std::vector<size_t> result;
+    std::vector<ElementId> result;
 
     auto& constraintStart = meshData_.getNode(nodeId1)->getCoordinates();
     auto& constraintEnd = meshData_.getNode(nodeId2)->getCoordinates();
@@ -183,7 +183,7 @@ std::vector<size_t> MeshQueries2D::findIntersectingTriangles(size_t nodeId1, siz
 CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
     const Topology2D::Topology2D& topology,
     const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-    const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+    const std::map<size_t, NodeId>& pointIndexToNodeIdMap,
     const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
     const std::vector<std::vector<double>>& tParameters,
     const std::vector<std::vector<std::string>>& geometryIds) const
@@ -306,9 +306,9 @@ bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const CurveS
     return true;
 }
 
-std::vector<size_t> MeshQueries2D::findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const
+std::vector<ElementId> MeshQueries2D::findTrianglesAdjacentToEdge(NodeId nodeId1, NodeId nodeId2) const
 {
-    std::vector<size_t> adjacent;
+    std::vector<ElementId> adjacent;
     auto edgeKey = makeEdgeKey(nodeId1, nodeId2);
 
     for (const auto& [elementId, element] : meshData_.getElements())
@@ -362,7 +362,7 @@ bool MeshQueries2D::isPointInsideDomain(const Point2D& point) const
     return (crossings % 2) == 1;
 }
 
-std::unordered_set<size_t> MeshQueries2D::classifyTrianglesInteriorExterior() const
+std::unordered_set<ElementId> MeshQueries2D::classifyTrianglesInteriorExterior() const
 {
     if (meshData_.getElements().empty())
     {
@@ -413,7 +413,7 @@ MeshQueries2D::EdgeToTrianglesMap MeshQueries2D::buildEdgeToTrianglesMap() const
     return edgeToTriangles;
 }
 
-bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<size_t, 2>& edge) const
+bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<NodeId, 2>& edge) const
 {
     for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
@@ -434,7 +434,7 @@ namespace
 
 bool isInCircumcircleConflict(const MeshData2D& meshData,
                               const ElementGeometry2D& geometry,
-                              size_t triangleId,
+                              ElementId triangleId,
                               const TriangleElement& triangle,
                               const Point2D& point)
 {
@@ -493,7 +493,7 @@ bool isPointOnSegment(const Point2D& segmentStart, const Point2D& segmentEnd, co
 // Star-shapedness verification: remove cavity triangles whose boundary edges
 // would produce inverted triangles when connected to the insertion point
 // (guards against degenerate cases near constraint boundaries).
-void removeStarShapednessViolations(const MeshData2D& meshData, const Point2D& point, std::vector<size_t>& conflicting)
+void removeStarShapednessViolations(const MeshData2D& meshData, const Point2D& point, std::vector<ElementId>& conflicting)
 {
     while (auto invertingTriangleId = findInvertingCavityTriangle(meshData, point, conflicting))
     {
@@ -501,15 +501,15 @@ void removeStarShapednessViolations(const MeshData2D& meshData, const Point2D& p
     }
 }
 
-std::optional<size_t> findInvertingCavityTriangle(const MeshData2D& meshData,
+std::optional<ElementId> findInvertingCavityTriangle(const MeshData2D& meshData,
                                                   const Point2D& point,
-                                                  const std::vector<size_t>& conflicting)
+                                                  const std::vector<ElementId>& conflicting)
 {
     std::unordered_map<MeshQueries2D::EdgeKey, size_t, MeshQueries2D::EdgeKeyHash> edgeCount;
-    std::unordered_map<MeshQueries2D::EdgeKey, std::array<size_t, 2>, MeshQueries2D::EdgeKeyHash> edgeOriginal;
-    std::unordered_map<MeshQueries2D::EdgeKey, size_t, MeshQueries2D::EdgeKeyHash> edgeOwner;
+    std::unordered_map<MeshQueries2D::EdgeKey, std::array<NodeId, 2>, MeshQueries2D::EdgeKeyHash> edgeOriginal;
+    std::unordered_map<MeshQueries2D::EdgeKey, ElementId, MeshQueries2D::EdgeKeyHash> edgeOwner;
 
-    for (size_t id : conflicting)
+    for (ElementId id : conflicting)
     {
         auto triangle = dynamic_cast<const TriangleElement*>(meshData.getElement(id));
         for (size_t edgeIndex = 0; edgeIndex < 3; ++edgeIndex)
@@ -561,8 +561,8 @@ CurveSegment createSegment(const SegmentEndpointLookup& endpointLookup,
                            const std::string& edgeId,
                            ConstraintRole role)
 {
-    size_t startNodeId = endpointLookup.pointIndexToNodeIdMap.at(startPointIndex);
-    size_t endNodeId = endpointLookup.pointIndexToNodeIdMap.at(endPointIndex);
+    NodeId startNodeId = endpointLookup.pointIndexToNodeIdMap.at(startPointIndex);
+    NodeId endNodeId = endpointLookup.pointIndexToNodeIdMap.at(endPointIndex);
     double tStart = findParameterOnEdge(endpointLookup, startPointIndex, edgeId);
     double tEnd = findParameterOnEdge(endpointLookup, endPointIndex, edgeId);
     return CurveSegment{startNodeId, endNodeId, edgeId, tStart, tEnd, role};
@@ -588,7 +588,7 @@ const char* describeConstraintRole(ConstraintRole role)
 }
 
 // The first triangle, in element order, whose centroid ray casting puts inside the domain.
-std::optional<size_t> findInteriorSeedTriangle(const MeshQueries2D& queries,
+std::optional<ElementId> findInteriorSeedTriangle(const MeshQueries2D& queries,
                                                const MeshData2D& meshData,
                                                const ElementGeometry2D& geometry)
 {
@@ -604,19 +604,19 @@ std::optional<size_t> findInteriorSeedTriangle(const MeshQueries2D& queries,
 }
 
 // Every triangle reachable from the seed without crossing a boundary constraint edge.
-std::unordered_set<size_t> floodFillToBoundary(const MeshQueries2D& queries,
+std::unordered_set<ElementId> floodFillToBoundary(const MeshQueries2D& queries,
                                                const MeshData2D& meshData,
                                                const MeshQueries2D::EdgeToTrianglesMap& edgeToTriangles,
-                                               size_t seedTriangleId)
+                                               ElementId seedTriangleId)
 {
-    std::unordered_set<size_t> insideTriangles;
-    std::queue<size_t> queue;
+    std::unordered_set<ElementId> insideTriangles;
+    std::queue<ElementId> queue;
     queue.push(seedTriangleId);
     insideTriangles.insert(seedTriangleId);
 
     while (!queue.empty())
     {
-        size_t currentTriangleId = queue.front();
+        ElementId currentTriangleId = queue.front();
         queue.pop();
 
         auto element = meshData.getElement(currentTriangleId);
@@ -634,7 +634,7 @@ std::unordered_set<size_t> floodFillToBoundary(const MeshQueries2D& queries,
             auto iterator = edgeToTriangles.find(edgeKey);
             if (iterator == edgeToTriangles.end()) continue;
 
-            for (size_t neighborId : iterator->second)
+            for (ElementId neighborId : iterator->second)
             {
                 if (neighborId != currentTriangleId &&
                     !insideTriangles.contains(neighborId))

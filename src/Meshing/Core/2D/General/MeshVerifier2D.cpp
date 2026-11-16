@@ -21,14 +21,14 @@ constexpr double DEGENERATE_AREA_TOLERANCE = 1e-10;
 // The triangular elements of a mesh, as parallel arrays of element id and vertex coordinates.
 struct TriangleCoordinates
 {
-    std::vector<size_t> elementIds;
+    std::vector<ElementId> elementIds;
     std::vector<std::array<Point2D, 3>> vertices;
 };
 
 TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier2D::VerificationResult& result);
 void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result);
 void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result);
-std::string describeOverlap(size_t elementId1, size_t elementId2);
+std::string describeOverlap(ElementId elementId1, ElementId elementId2);
 bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes, const std::array<Point2D, 3>& triangle2Nodes);
 
 } // namespace
@@ -154,7 +154,7 @@ void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::Verific
 #endif
 }
 
-std::string describeOverlap(size_t elementId1, size_t elementId2)
+std::string describeOverlap(ElementId elementId1, ElementId elementId2)
 {
     return "Elements " + std::to_string(elementId1) + " and " + std::to_string(elementId2) + " overlap";
 }

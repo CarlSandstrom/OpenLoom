@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Common/Types.h"
 #include "Meshing/Core/2D/Periodic/PeriodicDomain2D.h"
 
 #include <array>
@@ -25,21 +26,21 @@ public:
     explicit PeriodicOffsetTable2D(const PeriodicDomainConfiguration& configuration);
 
     /// Register the three per-vertex offsets for a newly created triangle.
-    void setOffsets(size_t triangleId, const std::array<PeriodicOffset, 3>& offsets);
+    void setOffsets(ElementId triangleId, const std::array<PeriodicOffset, 3>& offsets);
 
     /// Remove the entry for a deleted triangle.
-    void removeOffsets(size_t triangleId);
+    void removeOffsets(ElementId triangleId);
 
     /// Returns the stored offsets for a triangle.
     /// Throws if no entry exists for this triangle.
-    const std::array<PeriodicOffset, 3>& getOffsets(size_t triangleId) const;
+    const std::array<PeriodicOffset, 3>& getOffsets(ElementId triangleId) const;
 
     /// Returns true if the table has an entry for this triangle.
-    bool hasOffsets(size_t triangleId) const;
+    bool hasOffsets(ElementId triangleId) const;
 
 private:
     PeriodicDomainConfiguration configuration_;
-    std::unordered_map<size_t, std::array<PeriodicOffset, 3>> table_;
+    std::unordered_map<ElementId, std::array<PeriodicOffset, 3>> table_;
 };
 
 } // namespace Meshing

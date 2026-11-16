@@ -24,7 +24,7 @@ class PeriodicMeshData2D;
 class MeshQueries2D
 {
 public:
-    using EdgeKey = std::pair<size_t, size_t>;
+    using EdgeKey = std::pair<NodeId, NodeId>;
 
     struct EdgeKeyHash
     {
@@ -34,16 +34,16 @@ public:
         }
     };
 
-    using EdgeToTrianglesMap = std::unordered_map<EdgeKey, std::vector<size_t>, EdgeKeyHash>;
+    using EdgeToTrianglesMap = std::unordered_map<EdgeKey, std::vector<ElementId>, EdgeKeyHash>;
 
     explicit MeshQueries2D(const MeshData2D& meshData);
     MeshQueries2D(const MeshData2D& meshData, PeriodicMeshData2D* periodicData);
 
-    std::vector<size_t> findConflictingTriangles(const Point2D& point) const;
+    std::vector<ElementId> findConflictingTriangles(const Point2D& point) const;
 
-    std::vector<std::array<size_t, 2>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
+    std::vector<std::array<NodeId, 2>> findCavityBoundary(const std::vector<ElementId>& conflictingIndices) const;
 
-    std::vector<size_t> findIntersectingTriangles(size_t nodeId1, size_t nodeId2) const;
+    std::vector<ElementId> findIntersectingTriangles(NodeId nodeId1, NodeId nodeId2) const;
 
     /// Extracts constrained edges from topology as a CurveSegmentManager.
     /// tParameters and geometryIds must be parallel to the discretization points array
@@ -51,7 +51,7 @@ public:
     CurveSegmentManager extractConstrainedEdges(
         const Topology2D::Topology2D& topology,
         const std::map<std::string, size_t>& cornerIdToPointIndexMap,
-        const std::map<size_t, size_t>& pointIndexToNodeIdMap,
+        const std::map<size_t, NodeId>& pointIndexToNodeIdMap,
         const std::map<std::string, std::vector<size_t>>& edgeIdToPointIndicesMap,
         const std::vector<std::vector<double>>& tParameters,
         const std::vector<std::vector<std::string>>& geometryIds) const;
@@ -60,20 +60,20 @@ public:
 
     std::vector<CurveSegment> findSegmentsEncroachedByPoint(const Point2D& point) const;
 
-    static EdgeKey makeEdgeKey(size_t nodeId0, size_t nodeId1)
+    static EdgeKey makeEdgeKey(NodeId nodeId0, NodeId nodeId1)
     {
         return (nodeId0 < nodeId1) ? std::make_pair(nodeId0, nodeId1) : std::make_pair(nodeId1, nodeId0);
     }
 
-    std::vector<size_t> findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const;
+    std::vector<ElementId> findTrianglesAdjacentToEdge(NodeId nodeId1, NodeId nodeId2) const;
 
-    bool isBoundaryConstraintEdge(const std::array<size_t, 2>& edge) const;
+    bool isBoundaryConstraintEdge(const std::array<NodeId, 2>& edge) const;
 
     EdgeToTrianglesMap buildEdgeToTrianglesMap() const;
 
     bool isPointInsideDomain(const Point2D& point) const;
 
-    std::unordered_set<size_t> classifyTrianglesInteriorExterior() const;
+    std::unordered_set<ElementId> classifyTrianglesInteriorExterior() const;
 
     bool isPointVisibleFromSegment(const Point2D& point, const CurveSegment& segment) const;
 

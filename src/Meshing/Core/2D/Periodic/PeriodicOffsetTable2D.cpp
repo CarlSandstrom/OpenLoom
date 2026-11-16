@@ -13,7 +13,7 @@ PeriodicOffsetTable2D::PeriodicOffsetTable2D(const PeriodicDomainConfiguration& 
 {
 }
 
-void PeriodicOffsetTable2D::setOffsets(size_t triangleId,
+void PeriodicOffsetTable2D::setOffsets(ElementId triangleId,
                                      const std::array<PeriodicOffset, 3>& offsets)
 {
     for (auto& offset : offsets)
@@ -25,12 +25,12 @@ void PeriodicOffsetTable2D::setOffsets(size_t triangleId,
     table_[triangleId] = offsets;
 }
 
-void PeriodicOffsetTable2D::removeOffsets(size_t triangleId)
+void PeriodicOffsetTable2D::removeOffsets(ElementId triangleId)
 {
     table_.erase(triangleId);
 }
 
-const std::array<PeriodicOffset, 3>& PeriodicOffsetTable2D::getOffsets(size_t triangleId) const
+const std::array<PeriodicOffset, 3>& PeriodicOffsetTable2D::getOffsets(ElementId triangleId) const
 {
     auto entry = table_.find(triangleId);
     if (entry == table_.end())
@@ -40,7 +40,7 @@ const std::array<PeriodicOffset, 3>& PeriodicOffsetTable2D::getOffsets(size_t tr
     return entry->second;
 }
 
-bool PeriodicOffsetTable2D::hasOffsets(size_t triangleId) const
+bool PeriodicOffsetTable2D::hasOffsets(ElementId triangleId) const
 {
     return table_.contains(triangleId);
 }

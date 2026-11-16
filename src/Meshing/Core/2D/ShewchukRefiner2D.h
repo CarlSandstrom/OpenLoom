@@ -62,7 +62,7 @@ public:
      * IDs and the new midpoint node ID. Use this to propagate the split to twin segments
      * (e.g. for periodic boundary conditions via TwinManager2D).
      */
-    using BoundarySplitCallback = std::function<void(size_t nodeId1, size_t nodeId2, size_t midpointNodeId)>;
+    using BoundarySplitCallback = std::function<void(NodeId nodeId1, NodeId nodeId2, NodeId midpointNodeId)>;
 
     /**
      * @brief Register a callback that fires after each boundary segment split.
@@ -96,11 +96,11 @@ private:
      * @param triangleId ID of the triangle to refine
      * @return true if refinement was successful, false otherwise
      */
-    bool handlePoorQualityTriangle(const TriangleElement& triangle, size_t triangleId);
+    bool handlePoorQualityTriangle(const TriangleElement& triangle, ElementId triangleId);
 
     BoundarySplitCallback onBoundarySplit_;
     size_t exportCounter_ = 0;
-    std::unordered_set<size_t> unrefinableTriangles_;
+    std::unordered_set<ElementId> unrefinableTriangles_;
     std::string exportPrefix_;
 };
 

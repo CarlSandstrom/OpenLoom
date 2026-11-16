@@ -57,16 +57,16 @@ public:
     // --- Element ID overloads (use periodic offset-aware coordinates when available) ---
 
     /// Computes the circumcircle using offset-aware coordinates.
-    std::optional<Circle2D> computeCircumcircle(size_t elementId) const;
+    std::optional<Circle2D> computeCircumcircle(ElementId elementId) const;
 
     /// Computes the circumcenter using offset-aware coordinates.
-    std::optional<Point2D> computeCircumcenter(size_t elementId) const;
+    std::optional<Point2D> computeCircumcenter(ElementId elementId) const;
 
     /// Computes the centroid using offset-aware coordinates.
-    Point2D computeCentroid(size_t elementId) const;
+    Point2D computeCentroid(ElementId elementId) const;
 
     /// Gets the offset-aware coordinates of a triangle's three nodes.
-    std::tuple<Point2D, Point2D, Point2D> getElementNodeCoordinates(size_t elementId) const;
+    std::tuple<Point2D, Point2D, Point2D> getElementNodeCoordinates(ElementId elementId) const;
 
 private:
     const MeshData2D& mesh_;

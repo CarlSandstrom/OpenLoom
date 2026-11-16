@@ -27,20 +27,20 @@ public:
     explicit MeshOperations2D(MeshData2D& meshData);
     MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* periodicData);
 
-    size_t insertVertexBowyerWatson(const Point2D& point,
+    NodeId insertVertexBowyerWatson(const Point2D& point,
                                     const std::vector<std::string>& edgeIds = {});
 
-    bool removeTrianglesContainingNode(size_t nodeId);
+    bool removeTrianglesContainingNode(NodeId nodeId);
 
-    bool enforceEdge(size_t nodeId1, size_t nodeId2);
+    bool enforceEdge(NodeId nodeId1, NodeId nodeId2);
 
-    std::optional<size_t> splitConstrainedSegment(
+    std::optional<NodeId> splitConstrainedSegment(
         const CurveSegment& segment,
         const Geometry2D::IEdge2D& parentEdge);
 
-    std::vector<size_t> removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles);
+    std::vector<ElementId> removeExteriorTriangles(const std::unordered_set<ElementId>& interiorTriangles);
 
-    std::vector<size_t> classifyAndRemoveExteriorTriangles();
+    std::vector<ElementId> classifyAndRemoveExteriorTriangles();
 
     MeshMutator2D& getMutator() { return *mutator_; }
     const MeshMutator2D& getMutator() const { return *mutator_; }
@@ -49,8 +49,8 @@ public:
     const MeshQueries2D& getQueries() const { return queries_; }
 
 private:
-    std::vector<size_t> splitTrianglesAtEdge(size_t edgeNode1, size_t edgeNode2, size_t midNodeId);
-    void lawsonFlip(const std::vector<size_t>& newTriangleIds);
+    std::vector<ElementId> splitTrianglesAtEdge(NodeId edgeNode1, NodeId edgeNode2, NodeId midNodeId);
+    void lawsonFlip(const std::vector<ElementId>& newTriangleIds);
 
     MeshData2D& meshData_;
     PeriodicMeshData2D* periodicData_ = nullptr;

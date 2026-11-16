@@ -26,7 +26,7 @@ public:
 
     /// Returns triangle IDs sorted by quality (worst quality first).
     /// Quality is measured by circumradius-to-shortest-edge ratio (higher is worse).
-    std::vector<size_t> getTrianglesSortedByQuality() const;
+    std::vector<ElementId> getTrianglesSortedByQuality() const;
 
 private:
     /// Computes the three edge lengths of a triangle element.

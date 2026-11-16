@@ -38,9 +38,9 @@ std::optional<double> ElementQuality2D::computeCircumradiusToShortestEdgeRatio(c
     return circumcircle->radius / shortestEdge;
 }
 
-std::vector<size_t> ElementQuality2D::getTrianglesSortedByQuality() const
+std::vector<ElementId> ElementQuality2D::getTrianglesSortedByQuality() const
 {
-    std::vector<std::pair<size_t, double>> trianglesWithQuality;
+    std::vector<std::pair<ElementId, double>> trianglesWithQuality;
 
     for (const auto& [elementId, element] : mesh_.getElements())
     {
@@ -56,7 +56,7 @@ std::vector<size_t> ElementQuality2D::getTrianglesSortedByQuality() const
               [](const auto& left, const auto& right)
               { return left.second > right.second; });
 
-    std::vector<size_t> result;
+    std::vector<ElementId> result;
     result.reserve(trianglesWithQuality.size());
     for (const auto& [id, quality] : trianglesWithQuality)
     {

@@ -35,10 +35,10 @@ public:
 
     /// Returns the effective (offset-shifted) coordinate of the vertex at
     /// slot [0, 1, 2] of the triangle with the given ID.
-    Point2D getCoordinate(size_t triangleId, int slot) const;
+    Point2D getCoordinate(ElementId triangleId, int slot) const;
 
     /// Returns all three effective coordinates of a triangle.
-    std::tuple<Point2D, Point2D, Point2D> getTriangleCoordinates(size_t triangleId) const;
+    std::tuple<Point2D, Point2D, Point2D> getTriangleCoordinates(ElementId triangleId) const;
 
     /// Returns the nearest periodic copy of 'point' relative to 'referencePoint'.
     ///

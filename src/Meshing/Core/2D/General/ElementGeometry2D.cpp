@@ -89,7 +89,7 @@ std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinat
     return {node0->getCoordinates(), node1->getCoordinates(), node2->getCoordinates()};
 }
 
-std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(size_t elementId) const
+std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinates(ElementId elementId) const
 {
     if (periodicData_ && periodicData_->getOffsetTable().hasOffsets(elementId))
         return periodicData_->getTriangleCoordinates(elementId);
@@ -99,20 +99,20 @@ std::tuple<Point2D, Point2D, Point2D> ElementGeometry2D::getElementNodeCoordinat
     return getElementNodeCoordinates(*element);
 }
 
-std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(size_t elementId) const
+std::optional<Circle2D> ElementGeometry2D::computeCircumcircle(ElementId elementId) const
 {
     auto [point0, point1, point2] = getElementNodeCoordinates(elementId);
     return computeCircumcircleFromPoints(point0, point1, point2);
 }
 
-std::optional<Point2D> ElementGeometry2D::computeCircumcenter(size_t elementId) const
+std::optional<Point2D> ElementGeometry2D::computeCircumcenter(ElementId elementId) const
 {
     auto circle = computeCircumcircle(elementId);
     if (!circle) return std::nullopt;
     return circle->center;
 }
 
-Point2D ElementGeometry2D::computeCentroid(size_t elementId) const
+Point2D ElementGeometry2D::computeCentroid(ElementId elementId) const
 {
     auto [point0, point1, point2] = getElementNodeCoordinates(elementId);
     return computeCentroidFromPoints(point0, point1, point2);

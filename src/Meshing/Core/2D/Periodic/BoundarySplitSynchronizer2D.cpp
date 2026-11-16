@@ -15,7 +15,7 @@ BoundarySplitSynchronizer2D::BoundarySplitSynchronizer2D(MeshingContext2D& conte
 {
 }
 
-void BoundarySplitSynchronizer2D::operator()(size_t node0, size_t node1, size_t midpointNode)
+void BoundarySplitSynchronizer2D::operator()(NodeId node0, NodeId node1, NodeId midpointNode)
 {
     auto twin = twinManager_->getTwin(TwinManager2D::NO_SURFACE, node0, node1);
     if (!twin)

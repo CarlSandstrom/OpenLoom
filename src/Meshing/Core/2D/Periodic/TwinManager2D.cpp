@@ -2,8 +2,8 @@
 
 const std::string TwinManager2D::NO_SURFACE = "";
 
-void TwinManager2D::registerTwin(const std::string& surfaceId, size_t node0, size_t node1,
-                               const std::string& twinSurfaceId, size_t twinNode0, size_t twinNode1)
+void TwinManager2D::registerTwin(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1,
+                               const std::string& twinSurfaceId, Meshing::NodeId twinNode0, Meshing::NodeId twinNode1)
 {
     twinMap_[{surfaceId, node0, node1}] = {twinSurfaceId, twinNode0, twinNode1};
     twinMap_[{surfaceId, node1, node0}] = {twinSurfaceId, twinNode1, twinNode0};
@@ -11,21 +11,21 @@ void TwinManager2D::registerTwin(const std::string& surfaceId, size_t node0, siz
     twinMap_[{twinSurfaceId, twinNode1, twinNode0}] = {surfaceId, node1, node0};
 }
 
-bool TwinManager2D::hasTwin(const std::string& surfaceId, size_t node0, size_t node1) const
+bool TwinManager2D::hasTwin(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1) const
 {
     return twinMap_.contains({surfaceId, node0, node1});
 }
 
-std::optional<TwinManager2D::SegmentKey> TwinManager2D::getTwin(const std::string& surfaceId, size_t node0, size_t node1) const
+std::optional<TwinManager2D::SegmentKey> TwinManager2D::getTwin(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1) const
 {
     auto twinEntry = twinMap_.find({surfaceId, node0, node1});
     if (twinEntry == twinMap_.end()) return std::nullopt;
     return twinEntry->second;
 }
 
-void TwinManager2D::recordSplit(const std::string& surfaceId, size_t node0, size_t node1, size_t midNode,
-                              const std::string& twinSurfaceId, size_t twinNode0, size_t twinNode1,
-                              size_t twinMidNode)
+void TwinManager2D::recordSplit(const std::string& surfaceId, Meshing::NodeId node0, Meshing::NodeId node1, Meshing::NodeId midNode,
+                              const std::string& twinSurfaceId, Meshing::NodeId twinNode0, Meshing::NodeId twinNode1,
+                              Meshing::NodeId twinMidNode)
 {
     twinMap_.erase({surfaceId, node0, node1});
     twinMap_.erase({surfaceId, node1, node0});

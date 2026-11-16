@@ -36,32 +36,32 @@ using EdgeOffsetMap = std::unordered_map<EdgeKey, std::array<PeriodicOffset, 2>,
 // The two triangles that replace a flipped edge's pair, wound counter-clockwise.
 struct EdgeFlip
 {
-    size_t oppositeNode0;
-    size_t oppositeNode1;
-    std::array<size_t, 3> triangle0;
-    std::array<size_t, 3> triangle1;
+    NodeId oppositeNode0;
+    NodeId oppositeNode1;
+    std::array<NodeId, 3> triangle0;
+    std::array<NodeId, 3> triangle1;
 };
 
 EdgeOffsetMap collectBoundaryEdgeOffsets(const MeshData2D& meshData,
                                          const PeriodicOffsetTable2D& offsetTable,
-                                         const std::vector<size_t>& triangleIds);
-std::array<PeriodicOffset, 2> findEdgeOffsets(const EdgeOffsetMap& edgeOffsets, const std::array<size_t, 2>& edge);
-std::vector<size_t> traceBoundaryLoop(const std::vector<std::array<size_t, 2>>& boundary, size_t startNodeId);
-void triangulatePolygon(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<size_t> polygon);
-void orientCounterClockwise(const MeshData2D& meshData, std::vector<size_t>& polygon);
-bool clipEar(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<size_t>& polygon);
-bool isEar(const MeshData2D& meshData, const std::vector<size_t>& polygon, size_t previous, size_t current, size_t next);
-void addFinalTriangle(const MeshData2D& meshData, MeshMutator2D& mutator, const std::vector<size_t>& polygon);
+                                         const std::vector<ElementId>& triangleIds);
+std::array<PeriodicOffset, 2> findEdgeOffsets(const EdgeOffsetMap& edgeOffsets, const std::array<NodeId, 2>& edge);
+std::vector<NodeId> traceBoundaryLoop(const std::vector<std::array<NodeId, 2>>& boundary, NodeId startNodeId);
+void triangulatePolygon(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<NodeId> polygon);
+void orientCounterClockwise(const MeshData2D& meshData, std::vector<NodeId>& polygon);
+bool clipEar(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<NodeId>& polygon);
+bool isEar(const MeshData2D& meshData, const std::vector<NodeId>& polygon, size_t previous, size_t current, size_t next);
+void addFinalTriangle(const MeshData2D& meshData, MeshMutator2D& mutator, const std::vector<NodeId>& polygon);
 EdgeKeySet collectConstrainedEdgeKeys(const MeshData2D& meshData);
 std::vector<EdgeKey> collectUnconstrainedEdges(const MeshData2D& meshData,
-                                               const std::vector<size_t>& triangleIds,
+                                               const std::vector<ElementId>& triangleIds,
                                                const EdgeKeySet& constrainedEdgeKeys);
 std::optional<EdgeFlip> findDelaunayFlip(const MeshData2D& meshData,
                                          const ElementGeometry2D& elementGeometry,
-                                         size_t edgeNode0,
-                                         size_t edgeNode1,
-                                         const std::vector<size_t>& adjacent);
-std::optional<size_t> findCoincidentNode(const MeshData2D& meshData, const Point2D& point);
+                                         NodeId edgeNode0,
+                                         NodeId edgeNode1,
+                                         const std::vector<ElementId>& adjacent);
+std::optional<NodeId> findCoincidentNode(const MeshData2D& meshData, const Point2D& point);
 bool isOnChord(const Point2D& chordStart, const Point2D& chordEnd, const Point2D& point);
 
 } // namespace
@@ -79,10 +79,10 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* per
 {
 }
 
-size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
+NodeId MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
                                                   const std::vector<std::string>& edgeIds)
 {
-    std::vector<size_t> conflicting = queries_.findConflictingTriangles(point);
+    std::vector<ElementId> conflicting = queries_.findConflictingTriangles(point);
 
     if (conflicting.empty())
     {
@@ -93,7 +93,7 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
                             "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
     }
 
-    std::vector<std::array<size_t, 2>> boundary = queries_.findCavityBoundary(conflicting);
+    std::vector<std::array<NodeId, 2>> boundary = queries_.findCavityBoundary(conflicting);
 
     // In a periodic triangulation the new triangle {newVertex, e0, e1} inherits the offsets
     // the removed triangle assigned to e0 and e1, so they are read before the removal.
@@ -102,7 +102,7 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     {
         auto& offsetTable = periodicData_->getOffsetTable();
         boundaryEdgeOffsets = collectBoundaryEdgeOffsets(meshData_, offsetTable, conflicting);
-        for (size_t conflictId : conflicting)
+        for (ElementId conflictId : conflicting)
             offsetTable.removeOffsets(conflictId);
     }
 
@@ -111,7 +111,7 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         mutator_->removeElement(conflictingElementId);
     }
 
-    size_t newVertex = edgeIds.empty() ? mutator_->addNode(point) : mutator_->addBoundaryNode(point, edgeIds);
+    NodeId newVertex = edgeIds.empty() ? mutator_->addNode(point) : mutator_->addBoundaryNode(point, edgeIds);
     Point2D newPoint = meshData_.getNode(newVertex)->getCoordinates();
 
     for (const auto& edge : boundary)
@@ -135,8 +135,8 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
             continue;
         }
 
-        size_t newTriangleId = mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{newVertex, edge[0], edge[1]}));
+        ElementId newTriangleId = mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<NodeId, 3>{newVertex, edge[0], edge[1]}));
 
         if (periodicData_)
         {
@@ -147,9 +147,9 @@ size_t MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
     return newVertex;
 }
 
-bool MeshOperations2D::removeTrianglesContainingNode(size_t nodeId)
+bool MeshOperations2D::removeTrianglesContainingNode(NodeId nodeId)
 {
-    std::vector<size_t> elementsToRemove;
+    std::vector<ElementId> elementsToRemove;
     for (const auto& [id, element] : meshData_.getElements())
     {
         auto triangle = dynamic_cast<const TriangleElement*>(element.get());
@@ -159,7 +159,7 @@ bool MeshOperations2D::removeTrianglesContainingNode(size_t nodeId)
         }
     }
 
-    for (size_t id : elementsToRemove)
+    for (ElementId id : elementsToRemove)
     {
         mutator_->removeElement(id);
     }
@@ -167,7 +167,7 @@ bool MeshOperations2D::removeTrianglesContainingNode(size_t nodeId)
     return !elementsToRemove.empty();
 }
 
-bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
+bool MeshOperations2D::enforceEdge(NodeId nodeId1, NodeId nodeId2)
 {
     auto existingTriangles = queries_.findTrianglesAdjacentToEdge(nodeId1, nodeId2);
     if (!existingTriangles.empty())
@@ -184,7 +184,7 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         return true; // No triangles to remove, edge might already be enforced
     }
 
-    std::vector<std::array<size_t, 2>> boundary = queries_.findCavityBoundary(intersectingTriangles);
+    std::vector<std::array<NodeId, 2>> boundary = queries_.findCavityBoundary(intersectingTriangles);
 
     for (auto index : intersectingTriangles)
     {
@@ -203,8 +203,8 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
         return false;
     }
 
-    std::vector<size_t> leftPolygon(boundaryLoop.begin(), it + 1);
-    std::vector<size_t> rightPolygon(it, boundaryLoop.end());
+    std::vector<NodeId> leftPolygon(boundaryLoop.begin(), it + 1);
+    std::vector<NodeId> rightPolygon(it, boundaryLoop.end());
     rightPolygon.push_back(nodeId1);
 
     triangulatePolygon(meshData_, *mutator_, std::move(leftPolygon));
@@ -213,12 +213,12 @@ bool MeshOperations2D::enforceEdge(size_t nodeId1, size_t nodeId2)
     return true;
 }
 
-std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, size_t edgeNode2, size_t midNodeId)
+std::vector<ElementId> MeshOperations2D::splitTrianglesAtEdge(NodeId edgeNode1, NodeId edgeNode2, NodeId midNodeId)
 {
     auto adjacentTriangles = queries_.findTrianglesAdjacentToEdge(edgeNode1, edgeNode2);
-    std::vector<size_t> newTriangleIds;
+    std::vector<ElementId> newTriangleIds;
 
-    for (size_t triangleId : adjacentTriangles)
+    for (ElementId triangleId : adjacentTriangles)
     {
         auto triangle = dynamic_cast<const TriangleElement*>(meshData_.getElement(triangleId));
         if (!triangle)
@@ -236,13 +236,13 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
         if (!queries_.isPointInsideDomain((point0 + point1 + point2) / 3.0))
             continue;
 
-        size_t opposite = triangle->getOppositeNode(edgeNode1, edgeNode2);
+        NodeId opposite = triangle->getOppositeNode(edgeNode1, edgeNode2);
 
         // Find the actual direction of the edge in this triangle's winding order.
         // Each of the two adjacent triangles sees the shared edge in opposite directions,
         // so we must use the triangle's stored order to preserve CCW orientation.
-        size_t first = edgeNode1;
-        size_t second = edgeNode2;
+        NodeId first = edgeNode1;
+        NodeId second = edgeNode2;
         for (size_t i = 0; i < 3; ++i)
         {
             auto edge = triangle->getEdge(i);
@@ -255,10 +255,10 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
 
         mutator_->removeElement(triangleId);
 
-        size_t triangleId0 = mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{first, midNodeId, opposite}));
-        size_t triangleId1 = mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{midNodeId, second, opposite}));
+        ElementId triangleId0 = mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<NodeId, 3>{first, midNodeId, opposite}));
+        ElementId triangleId1 = mutator_->addElement(
+            std::make_unique<TriangleElement>(std::array<NodeId, 3>{midNodeId, second, opposite}));
 
         newTriangleIds.push_back(triangleId0);
         newTriangleIds.push_back(triangleId1);
@@ -267,7 +267,7 @@ std::vector<size_t> MeshOperations2D::splitTrianglesAtEdge(size_t edgeNode1, siz
     return newTriangleIds;
 }
 
-void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
+void MeshOperations2D::lawsonFlip(const std::vector<ElementId>& newTriangleIds)
 {
     auto constrainedEdgeKeys = collectConstrainedEdgeKeys(meshData_);
     auto edgeStack = collectUnconstrainedEdges(meshData_, newTriangleIds, constrainedEdgeKeys);
@@ -297,8 +297,8 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
         mutator_->removeElement(adjacent[0]);
         mutator_->removeElement(adjacent[1]);
 
-        size_t flippedTriangleId0 = mutator_->addElement(std::make_unique<TriangleElement>(flip->triangle0));
-        size_t flippedTriangleId1 = mutator_->addElement(std::make_unique<TriangleElement>(flip->triangle1));
+        ElementId flippedTriangleId0 = mutator_->addElement(std::make_unique<TriangleElement>(flip->triangle0));
+        ElementId flippedTriangleId1 = mutator_->addElement(std::make_unique<TriangleElement>(flip->triangle1));
 
         // Register zero offsets for the flipped triangles so they use canonical
         // coordinates until a proper offset propagation pass is done in Phase 3.
@@ -323,7 +323,7 @@ void MeshOperations2D::lawsonFlip(const std::vector<size_t>& newTriangleIds)
     }
 }
 
-std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
+std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     const CurveSegment& segment,
     const Geometry2D::IEdge2D& parentEdge)
 {
@@ -353,7 +353,7 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     {
         // Bowyer-Watson rebuilds the local triangulation from a star-shaped cavity, which
         // handles a midpoint off the chord.
-        size_t newNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
+        NodeId newNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
         enforceEdge(segment.nodeId1, newNodeId);
         enforceEdge(newNodeId, segment.nodeId2);
 
@@ -365,7 +365,7 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     // cavity boundary always contains the old constraint edge, and the triangle it would
     // form with the segment's end nodes is collinear and gets skipped, leaving a mesh hole.
     // Splitting the two adjacent triangles at the midpoint always forms valid triangles.
-    size_t newNodeId = existingNodeId ? *existingNodeId : mutator_->addBoundaryNode(midPoint, {segment.edgeId});
+    NodeId newNodeId = existingNodeId ? *existingNodeId : mutator_->addBoundaryNode(midPoint, {segment.edgeId});
 
     // The sub-segments must be constrained before the Lawson flip, or it flips them away.
     mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
@@ -388,9 +388,9 @@ std::optional<size_t> MeshOperations2D::splitConstrainedSegment(
     return newNodeId;
 }
 
-std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<size_t>& interiorTriangles)
+std::vector<ElementId> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<ElementId>& interiorTriangles)
 {
-    std::vector<size_t> trianglesToRemove;
+    std::vector<ElementId> trianglesToRemove;
     for (const auto& [elementId, element] : meshData_.getElements())
     {
         if (!interiorTriangles.contains(elementId))
@@ -402,7 +402,7 @@ std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unorder
     spdlog::debug("removeExteriorTriangles: Removing {} triangles (outside or in holes)",
                   trianglesToRemove.size());
 
-    for (size_t elementId : trianglesToRemove)
+    for (ElementId elementId : trianglesToRemove)
     {
         mutator_->removeElement(elementId);
     }
@@ -413,7 +413,7 @@ std::vector<size_t> MeshOperations2D::removeExteriorTriangles(const std::unorder
     return trianglesToRemove;
 }
 
-std::vector<size_t> MeshOperations2D::classifyAndRemoveExteriorTriangles()
+std::vector<ElementId> MeshOperations2D::classifyAndRemoveExteriorTriangles()
 {
     auto interiorTriangles = queries_.classifyTrianglesInteriorExterior();
     return removeExteriorTriangles(interiorTriangles);
@@ -424,10 +424,10 @@ namespace
 
 EdgeOffsetMap collectBoundaryEdgeOffsets(const MeshData2D& meshData,
                                          const PeriodicOffsetTable2D& offsetTable,
-                                         const std::vector<size_t>& triangleIds)
+                                         const std::vector<ElementId>& triangleIds)
 {
     EdgeOffsetMap edgeOffsets;
-    for (size_t triangleId : triangleIds)
+    for (ElementId triangleId : triangleIds)
     {
         if (!offsetTable.hasOffsets(triangleId))
             continue;
@@ -452,7 +452,7 @@ EdgeOffsetMap collectBoundaryEdgeOffsets(const MeshData2D& meshData,
 }
 
 // The offsets of the edge's two nodes in the edge's own order; zero when the edge has none.
-std::array<PeriodicOffset, 2> findEdgeOffsets(const EdgeOffsetMap& edgeOffsets, const std::array<size_t, 2>& edge)
+std::array<PeriodicOffset, 2> findEdgeOffsets(const EdgeOffsetMap& edgeOffsets, const std::array<NodeId, 2>& edge)
 {
     auto it = edgeOffsets.find(MeshQueries2D::makeEdgeKey(edge[0], edge[1]));
     if (it == edgeOffsets.end())
@@ -463,24 +463,24 @@ std::array<PeriodicOffset, 2> findEdgeOffsets(const EdgeOffsetMap& edgeOffsets, 
 }
 
 // Walks the closed cavity boundary from startNodeId, always to the first unvisited neighbour.
-std::vector<size_t> traceBoundaryLoop(const std::vector<std::array<size_t, 2>>& boundary, size_t startNodeId)
+std::vector<NodeId> traceBoundaryLoop(const std::vector<std::array<NodeId, 2>>& boundary, NodeId startNodeId)
 {
-    std::unordered_map<size_t, std::vector<size_t>> adjacency;
+    std::unordered_map<NodeId, std::vector<NodeId>> adjacency;
     for (const auto& edge : boundary)
     {
         adjacency[edge[0]].push_back(edge[1]);
         adjacency[edge[1]].push_back(edge[0]);
     }
 
-    std::vector<size_t> boundaryLoop{startNodeId};
-    std::unordered_set<size_t> visited{startNodeId};
+    std::vector<NodeId> boundaryLoop{startNodeId};
+    std::unordered_set<NodeId> visited{startNodeId};
 
-    size_t current = startNodeId;
+    NodeId current = startNodeId;
     while (true)
     {
         auto& neighbors = adjacency[current];
         auto next = std::find_if(neighbors.begin(), neighbors.end(),
-                                 [&](size_t neighbor)
+                                 [&](NodeId neighbor)
                                  { return !visited.contains(neighbor); });
         if (next == neighbors.end())
             break;
@@ -492,7 +492,7 @@ std::vector<size_t> traceBoundaryLoop(const std::vector<std::array<size_t, 2>>& 
     return boundaryLoop;
 }
 
-void triangulatePolygon(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<size_t> polygon)
+void triangulatePolygon(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<NodeId> polygon)
 {
     orientCounterClockwise(meshData, polygon);
 
@@ -509,7 +509,7 @@ void triangulatePolygon(const MeshData2D& meshData, MeshMutator2D& mutator, std:
         addFinalTriangle(meshData, mutator, polygon);
 }
 
-void orientCounterClockwise(const MeshData2D& meshData, std::vector<size_t>& polygon)
+void orientCounterClockwise(const MeshData2D& meshData, std::vector<NodeId>& polygon)
 {
     double totalArea = 0.0;
     for (size_t i = 0; i < polygon.size(); ++i)
@@ -525,7 +525,7 @@ void orientCounterClockwise(const MeshData2D& meshData, std::vector<size_t>& pol
 }
 
 // Cuts off the first ear of the polygon as a triangle; false when the polygon has none.
-bool clipEar(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<size_t>& polygon)
+bool clipEar(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<NodeId>& polygon)
 {
     for (size_t i = 0; i < polygon.size(); ++i)
     {
@@ -535,7 +535,7 @@ bool clipEar(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<siz
             continue;
 
         mutator.addElement(std::make_unique<TriangleElement>(
-            std::array<size_t, 3>{polygon[previous], polygon[i], polygon[next]}));
+            std::array<NodeId, 3>{polygon[previous], polygon[i], polygon[next]}));
         polygon.erase(polygon.begin() + i);
         return true;
     }
@@ -543,7 +543,7 @@ bool clipEar(const MeshData2D& meshData, MeshMutator2D& mutator, std::vector<siz
 }
 
 // An ear is a convex, non-degenerate corner whose triangle contains no other polygon vertex.
-bool isEar(const MeshData2D& meshData, const std::vector<size_t>& polygon, size_t previous, size_t current, size_t next)
+bool isEar(const MeshData2D& meshData, const std::vector<NodeId>& polygon, size_t previous, size_t current, size_t next)
 {
     auto& previousPoint = meshData.getNode(polygon[previous])->getCoordinates();
     auto& currentPoint = meshData.getNode(polygon[current])->getCoordinates();
@@ -564,7 +564,7 @@ bool isEar(const MeshData2D& meshData, const std::vector<size_t>& polygon, size_
     return true;
 }
 
-void addFinalTriangle(const MeshData2D& meshData, MeshMutator2D& mutator, const std::vector<size_t>& polygon)
+void addFinalTriangle(const MeshData2D& meshData, MeshMutator2D& mutator, const std::vector<NodeId>& polygon)
 {
     auto& point0 = meshData.getNode(polygon[0])->getCoordinates();
     auto& point1 = meshData.getNode(polygon[1])->getCoordinates();
@@ -577,12 +577,12 @@ void addFinalTriangle(const MeshData2D& meshData, MeshMutator2D& mutator, const 
     if (area > 0)
     {
         mutator.addElement(std::make_unique<TriangleElement>(
-            std::array<size_t, 3>{polygon[0], polygon[1], polygon[2]}));
+            std::array<NodeId, 3>{polygon[0], polygon[1], polygon[2]}));
     }
     else
     {
         mutator.addElement(std::make_unique<TriangleElement>(
-            std::array<size_t, 3>{polygon[0], polygon[2], polygon[1]}));
+            std::array<NodeId, 3>{polygon[0], polygon[2], polygon[1]}));
     }
 }
 
@@ -597,11 +597,11 @@ EdgeKeySet collectConstrainedEdgeKeys(const MeshData2D& meshData)
 }
 
 std::vector<EdgeKey> collectUnconstrainedEdges(const MeshData2D& meshData,
-                                               const std::vector<size_t>& triangleIds,
+                                               const std::vector<ElementId>& triangleIds,
                                                const EdgeKeySet& constrainedEdgeKeys)
 {
     std::vector<EdgeKey> edges;
-    for (size_t triangleId : triangleIds)
+    for (ElementId triangleId : triangleIds)
     {
         auto triangle = dynamic_cast<const TriangleElement*>(meshData.getElement(triangleId));
         if (!triangle)
@@ -622,17 +622,17 @@ std::vector<EdgeKey> collectUnconstrainedEdges(const MeshData2D& meshData,
 // convex, the edge is not locally Delaunay, and neither replacement triangle is degenerate.
 std::optional<EdgeFlip> findDelaunayFlip(const MeshData2D& meshData,
                                          const ElementGeometry2D& elementGeometry,
-                                         size_t edgeNode0,
-                                         size_t edgeNode1,
-                                         const std::vector<size_t>& adjacent)
+                                         NodeId edgeNode0,
+                                         NodeId edgeNode1,
+                                         const std::vector<ElementId>& adjacent)
 {
     auto triangle0 = dynamic_cast<const TriangleElement*>(meshData.getElement(adjacent[0]));
     auto triangle1 = dynamic_cast<const TriangleElement*>(meshData.getElement(adjacent[1]));
     if (!triangle0 || !triangle1)
         return std::nullopt;
 
-    size_t oppositeNode0 = triangle0->getOppositeNode(edgeNode0, edgeNode1);
-    size_t oppositeNode1 = triangle1->getOppositeNode(edgeNode0, edgeNode1);
+    NodeId oppositeNode0 = triangle0->getOppositeNode(edgeNode0, edgeNode1);
+    NodeId oppositeNode1 = triangle1->getOppositeNode(edgeNode0, edgeNode1);
 
     auto edgeNodeObject0 = meshData.getNode(edgeNode0);
     auto edgeNodeObject1 = meshData.getNode(edgeNode1);
@@ -679,7 +679,7 @@ std::optional<EdgeFlip> findDelaunayFlip(const MeshData2D& meshData,
     return flip;
 }
 
-std::optional<size_t> findCoincidentNode(const MeshData2D& meshData, const Point2D& point)
+std::optional<NodeId> findCoincidentNode(const MeshData2D& meshData, const Point2D& point)
 {
     for (const auto& [nodeId, node] : meshData.getNodes())
     {

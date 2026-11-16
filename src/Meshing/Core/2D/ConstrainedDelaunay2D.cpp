@@ -13,7 +13,7 @@
 namespace Meshing
 {
 
-std::map<size_t, size_t> ConstrainedDelaunay2D::triangulate(
+std::map<size_t, NodeId> ConstrainedDelaunay2D::triangulate(
     MeshingContext2D& context,
     const DiscretizationResult2D& discretization,
     const std::vector<Point2D>& additionalPoints,
@@ -29,7 +29,7 @@ std::map<size_t, size_t> ConstrainedDelaunay2D::triangulate(
     allPoints.insert(allPoints.end(), additionalPoints.begin(), additionalPoints.end());
     allGeometryIds.insert(allGeometryIds.end(), additionalPoints.size(), std::vector<std::string>{});
 
-    std::map<size_t, size_t> pointIndexToNodeIdMap =
+    std::map<size_t, NodeId> pointIndexToNodeIdMap =
         Delaunay2D::triangulate(allPoints, meshData2D, allGeometryIds);
 
     auto curveSegmentManager = meshOperations.getQueries().extractConstrainedEdges(

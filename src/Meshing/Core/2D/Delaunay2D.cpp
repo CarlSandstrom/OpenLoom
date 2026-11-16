@@ -9,7 +9,7 @@
 namespace Meshing
 {
 
-std::map<size_t, size_t> Delaunay2D::triangulate(const std::vector<Point2D>& points,
+std::map<size_t, NodeId> Delaunay2D::triangulate(const std::vector<Point2D>& points,
                                                  MeshData2D& meshData,
                                                  const std::vector<std::vector<std::string>>& geometryIds)
 {
@@ -20,14 +20,14 @@ std::map<size_t, size_t> Delaunay2D::triangulate(const std::vector<Point2D>& poi
     auto [p0, p1, p2] = GeometryUtilities2D::createSuperTriangle(points);
     spdlog::info("Super triangle points: ({:.2f}, {:.2f}), ({:.2f}, {:.2f}), ({:.2f}, {:.2f})",
                  p0.x(), p0.y(), p1.x(), p1.y(), p2.x(), p2.y());
-    size_t superNodeId0 = meshMutator.addNode(p0);
-    size_t superNodeId1 = meshMutator.addNode(p1);
-    size_t superNodeId2 = meshMutator.addNode(p2);
+    NodeId superNodeId0 = meshMutator.addNode(p0);
+    NodeId superNodeId1 = meshMutator.addNode(p1);
+    NodeId superNodeId2 = meshMutator.addNode(p2);
 
-    auto superTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{superNodeId0, superNodeId1, superNodeId2});
+    auto superTriangle = std::make_unique<TriangleElement>(std::array<NodeId, 3>{superNodeId0, superNodeId1, superNodeId2});
     meshMutator.addElement(std::move(superTriangle));
 
-    std::map<size_t, size_t> pointIndexToNodeIdMap;
+    std::map<size_t, NodeId> pointIndexToNodeIdMap;
     for (size_t index = 0; index < points.size(); ++index)
     {
         bool hasGeometryIds = index < geometryIds.size() && !geometryIds[index].empty();
