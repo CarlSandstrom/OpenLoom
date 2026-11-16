@@ -76,7 +76,7 @@ Export::VtkGrid SnapshotGridBuilder::fromRestrictedFacets(
 
 Export::VtkGrid SnapshotGridBuilder::fromProtectingBalls(const MeshData3D& meshData)
 {
-    std::vector<std::size_t> nodeIds;
+    std::vector<NodeId> nodeIds;
     for (auto& [nodeId, node] : meshData.getNodes())
     {
         if (node->getWeight() > 0.0) nodeIds.push_back(nodeId);

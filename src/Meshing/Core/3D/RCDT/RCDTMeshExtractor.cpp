@@ -16,7 +16,7 @@ namespace
 {
 
 void appendRestrictedTriangles(const RestrictedFaceMap& restrictedFaces,
-                               std::vector<std::array<size_t, 3>>& triangles,
+                               std::vector<std::array<NodeId, 3>>& triangles,
                                std::map<std::string, std::vector<size_t>>& triangleIdsBySurface)
 {
     for (const auto& [faceKey, surfaceId] : restrictedFaces)
@@ -26,10 +26,10 @@ void appendRestrictedTriangles(const RestrictedFaceMap& restrictedFaces,
     }
 }
 
-std::map<std::string, std::vector<size_t>> buildEdgeNodeIds(const CurveSegmentManager& curveSegmentManager,
+std::map<std::string, std::vector<NodeId>> buildEdgeNodeIds(const CurveSegmentManager& curveSegmentManager,
                                                             const Topology3D::Topology3D& topology)
 {
-    std::map<std::string, std::vector<size_t>> edgeNodeIds;
+    std::map<std::string, std::vector<NodeId>> edgeNodeIds;
     for (const auto& edgeId : topology.getAllEdgeIds())
     {
         auto nodeIds = curveSegmentManager.getOrderedNodeIdsForEdge(edgeId);
@@ -51,7 +51,7 @@ std::vector<Point3D> RCDTMeshExtractor::extractNodePositions(const MeshData3D& m
     if (meshData.getNodeCount() == 0)
         return nodes;
 
-    size_t maxNodeId = 0;
+    NodeId maxNodeId = 0;
     for (const auto& [nodeId, node] : meshData.getNodes())
         maxNodeId = std::max(maxNodeId, nodeId);
 
@@ -97,9 +97,9 @@ VolumeMesh3D RCDTMeshExtractor::extractVolumeMesh(const MeshData3D& meshData,
     return volumeMesh;
 }
 
-std::vector<std::array<size_t, 4>> RCDTMeshExtractor::extractTetrahedra(const MeshData3D& meshData)
+std::vector<std::array<NodeId, 4>> RCDTMeshExtractor::extractTetrahedra(const MeshData3D& meshData)
 {
-    std::vector<std::array<size_t, 4>> tetrahedra;
+    std::vector<std::array<NodeId, 4>> tetrahedra;
     for (const auto& [elementId, element] : meshData.getElements())
     {
         auto tetrahedron = dynamic_cast<const TetrahedronElement*>(element.get());

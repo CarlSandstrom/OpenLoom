@@ -18,15 +18,15 @@ class MeshMutator2D
 public:
     explicit MeshMutator2D(MeshData2D& meshData2D);
 
-    size_t addNode(const Point2D& coordinates);
-    size_t addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds);
+    NodeId addNode(const Point2D& coordinates);
+    NodeId addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds);
 
-    size_t addElement(std::unique_ptr<IElement> element);
-    void removeElement(size_t id);
+    ElementId addElement(std::unique_ptr<IElement> element);
+    void removeElement(ElementId id);
 
     void setCurveSegmentManager(CurveSegmentManager curveSegmentManager);
-    std::pair<size_t, size_t> splitCurveSegment(size_t nodeId1, size_t nodeId2,
-                                                size_t newNodeId, double tMid);
+    std::pair<SegmentId, SegmentId> splitCurveSegment(NodeId nodeId1, NodeId nodeId2,
+                                                  NodeId newNodeId, double tMid);
 
 private:
     MeshData2D& meshData2D_;

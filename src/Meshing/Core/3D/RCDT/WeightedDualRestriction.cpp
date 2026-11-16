@@ -22,7 +22,7 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID = SIZE_MAX;
 
 // Cells of half the minimum edge length resolve any face at or above that floor.
 constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;

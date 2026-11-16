@@ -16,7 +16,7 @@ class MeshOperations3D;
 struct Delaunay3DResult
 {
     /// Mapping from input point index to mesh node ID.
-    std::map<size_t, size_t> pointIndexToNodeIdMap;
+    std::map<size_t, NodeId> pointIndexToNodeIdMap;
 };
 
 /**

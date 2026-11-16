@@ -24,14 +24,14 @@ struct SurfaceMesh3D
     std::vector<Point3D> nodes;
 
     /// Surface triangles as node ID triplets. Index in vector == triangle ID.
-    std::vector<std::array<size_t, 3>> triangles;
+    std::vector<std::array<NodeId, 3>> triangles;
 
     /// Per-face groups: CAD surface ID → triangle IDs belonging to that face.
     std::map<std::string, std::vector<size_t>> faceTriangleIds;
 
     /// Edge node ordering: CAD edge ID → ordered node IDs along that edge
     /// (includes both endpoints, follows the edge's natural orientation).
-    std::map<std::string, std::vector<size_t>> edgeNodeIds;
+    std::map<std::string, std::vector<NodeId>> edgeNodeIds;
 };
 
 } // namespace Meshing

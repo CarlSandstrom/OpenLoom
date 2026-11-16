@@ -218,8 +218,9 @@ void buildAmbientTriangulation(MeshingContext3D& context,
 void synchronizeNodePositions(MeshingContext3D& context, const SurfaceMesh3D& surfaceMesh)
 {
     auto& mutator = context.getMutator();
-    for (size_t nodeId = 0; nodeId < surfaceMesh.nodes.size(); ++nodeId)
+    for (size_t nodeIndex = 0; nodeIndex < surfaceMesh.nodes.size(); ++nodeIndex)
     {
+        NodeId nodeId = nodeIndex;
         if (context.getMeshData().getNode(nodeId)) mutator.moveNode(nodeId, surfaceMesh.nodes[nodeId]);
     }
 }
@@ -234,7 +235,7 @@ void smoothSurfaceMesh(MeshingContext3D& context,
 
     spdlog::info("RCDTMesher: smoothing surface mesh ({} iterations)", iterations);
     // In volume mode smoothing must not turn the solid's tetrahedra inside out.
-    std::vector<std::array<size_t, 4>> tetrahedra;
+    std::vector<std::array<NodeId, 4>> tetrahedra;
     if (meshingVolume) tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
     SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra);
     synchronizeNodePositions(context, surfaceMesh);

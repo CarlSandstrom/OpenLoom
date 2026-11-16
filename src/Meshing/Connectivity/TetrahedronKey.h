@@ -1,4 +1,7 @@
 #pragma once
+
+#include "Common/Types.h"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -20,15 +23,15 @@ namespace Meshing
  */
 struct TetrahedronKey
 {
-    std::array<size_t, 4> nodeIds; // Always sorted
+    std::array<NodeId, 4> nodeIds; // Always sorted
 
-    TetrahedronKey(size_t n0, size_t n1, size_t n2, size_t n3)
+    TetrahedronKey(NodeId n0, NodeId n1, NodeId n2, NodeId n3)
     {
         nodeIds = {n0, n1, n2, n3};
         std::sort(nodeIds.begin(), nodeIds.end());
     }
 
-    explicit TetrahedronKey(const std::array<size_t, 4>& nodes) :
+    explicit TetrahedronKey(const std::array<NodeId, 4>& nodes) :
         nodeIds(nodes)
     {
         std::sort(nodeIds.begin(), nodeIds.end());
@@ -57,7 +60,7 @@ struct TetrahedronKeyHash
         // integers, so shifting by 1..3 leaves the high bits of four such IDs
         // overlapping almost entirely.
         size_t seed = 0;
-        for (const size_t nodeId : key.nodeIds)
+        for (NodeId nodeId : key.nodeIds)
             seed ^= std::hash<size_t>{}(nodeId) + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
         return seed;
     }

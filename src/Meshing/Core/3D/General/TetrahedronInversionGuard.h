@@ -28,7 +28,7 @@ class TetrahedronInversionGuard
 public:
     /// tetrahedra index into the node vectors passed to revertInvertingMoves()
     /// and must outlive this guard. An empty set makes every call a no-op.
-    explicit TetrahedronInversionGuard(const std::vector<std::array<std::size_t, 4>>& tetrahedra);
+    explicit TetrahedronInversionGuard(const std::vector<std::array<NodeId, 4>>& tetrahedra);
 
     /// Puts every node of every tetrahedron the proposed positions would
     /// invert back to its position in current, until no tetrahedron inverts.
@@ -39,8 +39,8 @@ public:
     void revertInvertingMoves(const std::vector<Point3D>& current, std::vector<Point3D>& proposed) const;
 
 private:
-    const std::vector<std::array<std::size_t, 4>>& tetrahedra_;
-    std::unordered_map<std::size_t, std::vector<std::size_t>> tetrahedraByNode_;
+    const std::vector<std::array<NodeId, 4>>& tetrahedra_;
+    std::unordered_map<NodeId, std::vector<std::size_t>> tetrahedraByNode_;
 };
 
 } // namespace Meshing

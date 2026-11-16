@@ -1,4 +1,7 @@
 #pragma once
+
+#include "Common/Types.h"
+
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -19,16 +22,16 @@ namespace Meshing
  */
 struct FaceKey
 {
-    std::array<size_t, 3> nodeIds; // Always sorted
+    std::array<NodeId, 3> nodeIds; // Always sorted
 
     // Constructor that automatically sorts
-    FaceKey(size_t n0, size_t n1, size_t n2)
+    FaceKey(NodeId n0, NodeId n1, NodeId n2)
     {
         nodeIds = {n0, n1, n2};
         std::sort(nodeIds.begin(), nodeIds.end());
     }
 
-    FaceKey(const std::array<size_t, 3>& nodes) :
+    FaceKey(const std::array<NodeId, 3>& nodes) :
         nodeIds(nodes)
     {
         std::sort(nodeIds.begin(), nodeIds.end());
@@ -66,12 +69,12 @@ struct FaceKeyHash
 /**
  * @brief Helper function to create FaceKey from node IDs
  */
-inline FaceKey makeFaceKey(size_t n0, size_t n1, size_t n2)
+inline FaceKey makeFaceKey(NodeId n0, NodeId n1, NodeId n2)
 {
     return FaceKey(n0, n1, n2);
 }
 
-inline FaceKey makeFaceKey(const std::array<size_t, 3>& nodes)
+inline FaceKey makeFaceKey(const std::array<NodeId, 3>& nodes)
 {
     return FaceKey(nodes);
 }

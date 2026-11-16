@@ -23,18 +23,18 @@ public:
     void setConnectivity(MeshConnectivity* connectivity);
 
     // weight is the node's regular-triangulation weight, 0 for an ordinary node.
-    size_t addNode(const Point3D& coordinates, double weight = 0.0);
-    size_t addBoundaryNode(const Point3D& coordinates,
+    NodeId addNode(const Point3D& coordinates, double weight = 0.0);
+    NodeId addBoundaryNode(const Point3D& coordinates,
                            const std::vector<std::string>& geometryIds,
                            double weight = 0.0);
-    void moveNode(size_t id, const Point3D& newCoordinates);
-    void removeNode(size_t id);
+    void moveNode(NodeId id, const Point3D& newCoordinates);
+    void removeNode(NodeId id);
 
-    size_t addElement(std::unique_ptr<IElement> element);
-    void removeElement(size_t id);
+    ElementId addElement(std::unique_ptr<IElement> element);
+    void removeElement(ElementId id);
 
     // Nodes of the bounding (super-)tetrahedron
-    void setBoundingNodeIds(const std::array<size_t, 4>& boundingNodeIds);
+    void setBoundingNodeIds(const std::array<NodeId, 4>& boundingNodeIds);
     void clearBoundingNodeIds();
 
     void setCurveSegmentManager(CurveSegmentManager curveSegmentManager);
@@ -42,8 +42,8 @@ public:
 private:
     MeshData3D& meshData3D_;
     MeshConnectivity* connectivity_ = nullptr;
-    size_t nextNodeId_ = 0;
-    size_t nextElementId_ = 0;
+    NodeId nextNodeId_ = 0;
+    ElementId nextElementId_ = 0;
 };
 
 } // namespace Meshing

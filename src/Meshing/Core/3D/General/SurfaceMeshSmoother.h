@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/Types.h"
+
 #include <array>
 #include <cstddef>
 #include <vector>
@@ -47,7 +49,7 @@ public:
     static void smooth(const Geometry3D::GeometryCollection3D& geometry,
                        SurfaceMesh3D& mesh,
                        std::size_t iterations,
-                       const std::vector<std::array<std::size_t, 4>>& tetrahedra);
+                       const std::vector<std::array<NodeId, 4>>& tetrahedra);
 };
 
 } // namespace Meshing

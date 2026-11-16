@@ -14,15 +14,15 @@ namespace Meshing
 namespace
 {
 
-constexpr size_t INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID = SIZE_MAX;
 
 } // namespace
 
-std::unordered_set<size_t>
+std::unordered_set<ElementId>
 AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
                                        const RestrictedFaceMap& restrictedFaces)
 {
-    std::unordered_set<size_t> ambientTetIds;
+    std::unordered_set<ElementId> ambientTetIds;
 
     auto& boundingNodeIds = meshData.getBoundingNodeIds();
     if (!boundingNodeIds)
@@ -30,7 +30,7 @@ AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
 
     MeshConnectivity connectivity(meshData);
 
-    std::queue<size_t> queue;
+    std::queue<ElementId> queue;
     for (auto boundingNodeId : *boundingNodeIds)
     {
         for (auto tetId : connectivity.getNodeElements(boundingNodeId))

@@ -3,36 +3,36 @@
 namespace Meshing
 {
 
-const Node2D* MeshData2D::getNode(size_t id) const
+const Node2D* MeshData2D::getNode(NodeId id) const
 {
     auto found = nodes_.find(id);
     return found != nodes_.end() ? found->second.get() : nullptr;
 }
 
-const IElement* MeshData2D::getElement(size_t id) const
+const IElement* MeshData2D::getElement(ElementId id) const
 {
     auto found = elements_.find(id);
     return found != elements_.end() ? found->second.get() : nullptr;
 }
 
-size_t MeshData2D::addNodeInternal(std::unique_ptr<Node2D> node)
+NodeId MeshData2D::addNodeInternal(std::unique_ptr<Node2D> node)
 {
     nodes_[nextNodeId_] = std::move(node);
     return nextNodeId_++;
 }
 
-size_t MeshData2D::addElementInternal(std::unique_ptr<IElement> element)
+ElementId MeshData2D::addElementInternal(std::unique_ptr<IElement> element)
 {
     elements_[nextElementId_] = std::move(element);
     return nextElementId_++;
 }
 
-void MeshData2D::removeElementInternal(size_t id)
+void MeshData2D::removeElementInternal(ElementId id)
 {
     elements_.erase(id);
 }
 
-void MeshData2D::setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> geometryIds)
+void MeshData2D::setNodeGeometryIdsInternal(NodeId nodeId, std::vector<std::string> geometryIds)
 {
     nodeGeometryIds_[nodeId] = std::move(geometryIds);
 }
@@ -42,8 +42,8 @@ void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
     curveSegmentManager_ = std::move(manager);
 }
 
-std::pair<size_t, size_t> MeshData2D::splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
-                                                                size_t newNodeId, double tMid)
+std::pair<SegmentId, SegmentId> MeshData2D::splitCurveSegmentInternal(NodeId nodeId1, NodeId nodeId2,
+                                                                      NodeId newNodeId, double tMid)
 {
     auto optionalSegmentId = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
     if (!optionalSegmentId) return {0, 0};

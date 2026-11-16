@@ -26,26 +26,26 @@ namespace
 // findOppositeVertex() needs both to still exist.
 struct CoplanarFaceSplit
 {
-    std::array<size_t, 3> face;
-    size_t apex0;
-    size_t neighborTetrahedronId;
-    size_t apex1;
+    std::array<NodeId, 3> face;
+    NodeId apex0;
+    ElementId neighborTetrahedronId;
+    NodeId apex1;
 };
 
 // The cavity boundary faces a plain vertex fan covers, and the coplanar
 // faces that need a split instead.
 struct CavityBoundaryPartition
 {
-    std::vector<std::array<size_t, 3>> normalFaces;
+    std::vector<std::array<NodeId, 3>> normalFaces;
     std::vector<CoplanarFaceSplit> splits;
 };
 
 CavityBoundaryPartition partitionCavityBoundary(const Point3D& point,
-                                                const std::vector<size_t>& conflicting,
+                                                const std::vector<ElementId>& conflicting,
                                                 const MeshData3D& meshData,
                                                 const MeshQueries3D& queries);
-bool isCoplanarWithFace(const Point3D& vertex, const std::array<size_t, 3>& face, const MeshData3D& meshData);
-int eulerCharacteristic(const std::vector<std::array<size_t, 3>>& boundary);
+bool isCoplanarWithFace(const Point3D& vertex, const std::array<NodeId, 3>& face, const MeshData3D& meshData);
+int eulerCharacteristic(const std::vector<std::array<NodeId, 3>>& boundary);
 
 } // namespace
 
@@ -56,7 +56,7 @@ MeshOperations3D::MeshOperations3D(MeshData3D& meshData) :
 {
 }
 
-std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vector<Point3D>& points)
+std::array<NodeId, 4> MeshOperations3D::createBoundingTetrahedron(const std::vector<Point3D>& points)
 {
     if (points.empty())
     {
@@ -95,7 +95,7 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     Point3D corner2(minX - margin, maxY + 3.0 * margin, minZ - margin);
     Point3D corner3(minX - margin, minY - margin, maxZ + 3.0 * margin);
 
-    std::array<size_t, 4> nodeIds = {mutator_->addNode(corner0),
+    std::array<NodeId, 4> nodeIds = {mutator_->addNode(corner0),
                                      mutator_->addNode(corner1),
                                      mutator_->addNode(corner2),
                                      mutator_->addNode(corner3)};
@@ -109,21 +109,21 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     return nodeIds;
 }
 
-size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
+NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
                                                   const std::vector<std::string>& geometryIds,
                                                   double weight)
 {
     return insertVertexBowyerWatson(point, queries_.findConflictingTetrahedra(point, weight), geometryIds, weight);
 }
 
-size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
-                                                  std::vector<size_t> conflicting,
+NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
+                                                  std::vector<ElementId> conflicting,
                                                   const std::vector<std::string>& geometryIds,
                                                   double weight)
 {
     if (conflicting.empty())
     {
-        size_t nodeId = mutator_->addNode(point, weight);
+        NodeId nodeId = mutator_->addNode(point, weight);
         spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found (node {}, "
                      "point ({}, {}, {}), weight {})",
                      nodeId, point.x(), point.y(), point.z(), weight);
@@ -135,7 +135,7 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 
     // Remove conflicting tetrahedra, plus each split's neighbor tetrahedron
     // (captured by partitionCavityBoundary() before removal, since it isn't in `conflicting`).
-    for (size_t tetrahedronId : conflicting)
+    for (ElementId tetrahedronId : conflicting)
     {
         mutator_->removeElement(tetrahedronId);
     }
@@ -155,10 +155,10 @@ size_t MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     return nodeId;
 }
 
-std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
-    const Point3D& point, std::vector<size_t> conflicting) const
+std::vector<ElementId> MeshOperations3D::growCavityThroughCoplanarFaces(
+    const Point3D& point, std::vector<ElementId> conflicting) const
 {
-    std::unordered_set<size_t> conflictingSet(conflicting.begin(), conflicting.end());
+    std::unordered_set<ElementId> conflictingSet(conflicting.begin(), conflicting.end());
 
     bool grew = true;
     while (grew)
@@ -172,7 +172,7 @@ std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
 
             auto touching = queries_.findTetrahedraWithFace(face[0], face[1], face[2]);
             auto neighbor = std::find_if(touching.begin(), touching.end(),
-                                         [&conflictingSet](size_t tetrahedronId)
+                                         [&conflictingSet](ElementId tetrahedronId)
                                          { return !conflictingSet.contains(tetrahedronId); });
 
             // Either there's no neighbor to extend into (a genuine domain
@@ -206,7 +206,7 @@ std::vector<size_t> MeshOperations3D::growCavityThroughCoplanarFaces(
     return conflicting;
 }
 
-void MeshOperations3D::addOrientedTetrahedron(const std::array<size_t, 3>& face, size_t apexNodeId)
+void MeshOperations3D::addOrientedTetrahedron(const std::array<NodeId, 3>& face, NodeId apexNodeId)
 {
     auto node0 = meshData_.getNode(face[0]);
     auto node1 = meshData_.getNode(face[1]);
@@ -230,13 +230,13 @@ void MeshOperations3D::addOrientedTetrahedron(const std::array<size_t, 3>& face,
     // really does mean a positive-orientation TetrahedronElement under the
     // usual (face..., apex) sign convention -- storing the apex first
     // instead (an odd permutation) would silently negate it.
-    auto nodeIds = signedVolume >= 0.0 ? std::array<size_t, 4>{face[0], face[1], face[2], apexNodeId} : std::array<size_t, 4>{face[0], face[2], face[1], apexNodeId};
+    auto nodeIds = signedVolume >= 0.0 ? std::array<NodeId, 4>{face[0], face[1], face[2], apexNodeId} : std::array<NodeId, 4>{face[0], face[2], face[1], apexNodeId};
 
     mutator_->addElement(std::make_unique<TetrahedronElement>(nodeIds));
 }
 
-void MeshOperations3D::retriangulate(size_t vertexNodeId,
-                                     const std::vector<std::array<size_t, 3>>& boundary)
+void MeshOperations3D::retriangulate(NodeId vertexNodeId,
+                                     const std::vector<std::array<NodeId, 3>>& boundary)
 {
     for (const auto& face : boundary)
     {
@@ -244,10 +244,10 @@ void MeshOperations3D::retriangulate(size_t vertexNodeId,
     }
 }
 
-void MeshOperations3D::splitCoplanarBoundaryFace(size_t vertexNodeId,
-                                                 const std::array<size_t, 3>& face,
-                                                 size_t apex0,
-                                                 size_t apex1)
+void MeshOperations3D::splitCoplanarBoundaryFace(NodeId vertexNodeId,
+                                                 const std::array<NodeId, 3>& face,
+                                                 NodeId apex0,
+                                                 NodeId apex1)
 {
     // face and vertexNodeId are coplanar (that's why this face reached here
     // instead of retriangulate()): fanning a single tetrahedron onto face
@@ -256,7 +256,7 @@ void MeshOperations3D::splitCoplanarBoundaryFace(size_t vertexNodeId,
     // standard "pyramid subdivision" of the two tetrahedra (face, apex0) and
     // (face, apex1) that used to share this face, now sharing vertexNodeId
     // as an interior point of their common base instead.
-    std::array<std::array<size_t, 3>, 3> subFaces = {{
+    std::array<std::array<NodeId, 3>, 3> subFaces = {{
         {face[0], face[1], vertexNodeId},
         {face[1], face[2], vertexNodeId},
         {face[2], face[0], vertexNodeId},
@@ -275,7 +275,7 @@ namespace
 // whether the tetrahedron (vertex, face...) would have zero volume. Exact, not
 // tolerance-based (see RobustPredicates3D). A face with a missing node counts
 // as not coplanar.
-bool isCoplanarWithFace(const Point3D& vertex, const std::array<size_t, 3>& face, const MeshData3D& meshData)
+bool isCoplanarWithFace(const Point3D& vertex, const std::array<NodeId, 3>& face, const MeshData3D& meshData)
 {
     auto node0 = meshData.getNode(face[0]);
     auto node1 = meshData.getNode(face[1]);
@@ -296,9 +296,9 @@ bool isCoplanarWithFace(const Point3D& vertex, const std::array<size_t, 3>& face
 // wrapping all the way around an axis, or a non-manifold boundary (an odd
 // characteristic; see OPE-173) -- and declines that growth instead of
 // producing a cavity the vertex fan can't validly cover.
-int eulerCharacteristic(const std::vector<std::array<size_t, 3>>& boundary)
+int eulerCharacteristic(const std::vector<std::array<NodeId, 3>>& boundary)
 {
-    std::set<size_t> vertices;
+    std::set<NodeId> vertices;
     std::set<EdgeKey> edges;
     for (const auto& face : boundary)
     {
@@ -316,11 +316,11 @@ int eulerCharacteristic(const std::vector<std::array<size_t, 3>>& boundary)
 // new vertex instead of retriangulate()'s single-point fan, which would
 // otherwise create a zero-volume tetrahedron.
 CavityBoundaryPartition partitionCavityBoundary(const Point3D& point,
-                                                const std::vector<size_t>& conflicting,
+                                                const std::vector<ElementId>& conflicting,
                                                 const MeshData3D& meshData,
                                                 const MeshQueries3D& queries)
 {
-    std::unordered_set<size_t> conflictingSet(conflicting.begin(), conflicting.end());
+    std::unordered_set<ElementId> conflictingSet(conflicting.begin(), conflicting.end());
     CavityBoundaryPartition partition;
     for (const auto& face : queries.findCavityBoundary(conflicting))
     {
@@ -332,10 +332,10 @@ CavityBoundaryPartition partitionCavityBoundary(const Point3D& point,
 
         auto touching = queries.findTetrahedraWithFace(face[0], face[1], face[2]);
         auto conflictingSide = std::find_if(
-            touching.begin(), touching.end(), [&](size_t tetrahedronId)
+            touching.begin(), touching.end(), [&](ElementId tetrahedronId)
             { return conflictingSet.contains(tetrahedronId); });
         auto neighbor = std::find_if(
-            touching.begin(), touching.end(), [&](size_t tetrahedronId)
+            touching.begin(), touching.end(), [&](ElementId tetrahedronId)
             { return !conflictingSet.contains(tetrahedronId); });
 
         if (conflictingSide == touching.end() || neighbor == touching.end())

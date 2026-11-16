@@ -22,7 +22,7 @@ namespace Meshing
 namespace
 {
 
-constexpr std::size_t INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID = SIZE_MAX;
 
 std::optional<double> squaredRadiusEdgeRatio(const TetrahedronElement& tetrahedron, const MeshData3D& meshData);
 
@@ -84,7 +84,7 @@ bool TetrahedronDelaunayRefiner::refineRound()
     return inserted;
 }
 
-bool TetrahedronDelaunayRefiner::refineTetrahedron(std::size_t elementId, const TetrahedronElement& tetrahedron)
+bool TetrahedronDelaunayRefiner::refineTetrahedron(ElementId elementId, const TetrahedronElement& tetrahedron)
 {
     auto& meshData = context_->getMeshData();
     auto orthocenter = ElementGeometry3D(meshData).computeOrthocenter(tetrahedron);

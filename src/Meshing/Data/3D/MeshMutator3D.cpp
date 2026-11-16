@@ -27,7 +27,7 @@ void MeshMutator3D::setConnectivity(MeshConnectivity* connectivity)
     connectivity_ = connectivity;
 }
 
-size_t MeshMutator3D::addNode(const Point3D& coordinates, double weight)
+NodeId MeshMutator3D::addNode(const Point3D& coordinates, double weight)
 {
     auto id = nextNodeId_++;
 
@@ -38,7 +38,7 @@ size_t MeshMutator3D::addNode(const Point3D& coordinates, double weight)
     return id;
 }
 
-size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
+NodeId MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
                                       const std::vector<std::string>& geometryIds,
                                       double weight)
 {
@@ -48,7 +48,7 @@ size_t MeshMutator3D::addBoundaryNode(const Point3D& coordinates,
     return id;
 }
 
-void MeshMutator3D::moveNode(size_t id, const Point3D& newCoordinates)
+void MeshMutator3D::moveNode(NodeId id, const Point3D& newCoordinates)
 {
     auto node = meshData3D_.getNodeMutable(id);
     if (!node)
@@ -59,7 +59,7 @@ void MeshMutator3D::moveNode(size_t id, const Point3D& newCoordinates)
     node->setCoordinates(newCoordinates);
 }
 
-void MeshMutator3D::removeNode(size_t id)
+void MeshMutator3D::removeNode(NodeId id)
 {
     if (!meshData3D_.getNode(id))
     {
@@ -77,7 +77,7 @@ void MeshMutator3D::removeNode(size_t id)
     meshData3D_.removeNodeInternal(id);
 }
 
-size_t MeshMutator3D::addElement(std::unique_ptr<IElement> element)
+ElementId MeshMutator3D::addElement(std::unique_ptr<IElement> element)
 {
     auto id = nextElementId_++;
 
@@ -86,7 +86,7 @@ size_t MeshMutator3D::addElement(std::unique_ptr<IElement> element)
     return id;
 }
 
-void MeshMutator3D::removeElement(size_t id)
+void MeshMutator3D::removeElement(ElementId id)
 {
     if (!meshData3D_.getElement(id))
     {
@@ -96,7 +96,7 @@ void MeshMutator3D::removeElement(size_t id)
     meshData3D_.removeElementInternal(id);
 }
 
-void MeshMutator3D::setBoundingNodeIds(const std::array<size_t, 4>& boundingNodeIds)
+void MeshMutator3D::setBoundingNodeIds(const std::array<NodeId, 4>& boundingNodeIds)
 {
     meshData3D_.setBoundingNodeIdsInternal(boundingNodeIds);
 }

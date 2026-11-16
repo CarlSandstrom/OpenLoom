@@ -10,24 +10,24 @@ MeshMutator2D::MeshMutator2D(MeshData2D& meshData2D) :
 {
 }
 
-size_t MeshMutator2D::addNode(const Point2D& coordinates)
+NodeId MeshMutator2D::addNode(const Point2D& coordinates)
 {
     return meshData2D_.addNodeInternal(std::make_unique<Node2D>(coordinates));
 }
 
-size_t MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds)
+NodeId MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds)
 {
     auto id = addNode(coordinates);
     meshData2D_.setNodeGeometryIdsInternal(id, geometryIds);
     return id;
 }
 
-size_t MeshMutator2D::addElement(std::unique_ptr<IElement> element)
+ElementId MeshMutator2D::addElement(std::unique_ptr<IElement> element)
 {
     return meshData2D_.addElementInternal(std::move(element));
 }
 
-void MeshMutator2D::removeElement(size_t id)
+void MeshMutator2D::removeElement(ElementId id)
 {
     meshData2D_.removeElementInternal(id);
 }
@@ -37,8 +37,8 @@ void MeshMutator2D::setCurveSegmentManager(CurveSegmentManager curveSegmentManag
     meshData2D_.setCurveSegmentManagerInternal(std::move(curveSegmentManager));
 }
 
-std::pair<size_t, size_t> MeshMutator2D::splitCurveSegment(size_t nodeId1, size_t nodeId2,
-                                                           size_t newNodeId, double tMid)
+std::pair<SegmentId, SegmentId> MeshMutator2D::splitCurveSegment(NodeId nodeId1, NodeId nodeId2,
+                                                                 NodeId newNodeId, double tMid)
 {
     return meshData2D_.splitCurveSegmentInternal(nodeId1, nodeId2, newNodeId, tMid);
 }

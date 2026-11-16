@@ -33,7 +33,7 @@ public:
      * @param points The points that must be contained within the tetrahedron
      * @return Array of 4 node IDs for the bounding tetrahedron vertices
      */
-    std::array<size_t, 4> createBoundingTetrahedron(const std::vector<Point3D>& points);
+    std::array<NodeId, 4> createBoundingTetrahedron(const std::vector<Point3D>& points);
 
     /**
      * @brief Insert a vertex using 3D Bowyer-Watson algorithm
@@ -48,7 +48,7 @@ public:
      * RegularPredicates3D)
      * @return Node ID of the inserted vertex
      */
-    size_t insertVertexBowyerWatson(const Point3D& point,
+    NodeId insertVertexBowyerWatson(const Point3D& point,
                                     const std::vector<std::string>& geometryIds = {},
                                     double weight = 0.0);
 
@@ -65,8 +65,8 @@ public:
      * @param weight The vertex's regular-triangulation weight (see the other overload)
      * @return Node ID of the inserted vertex
      */
-    size_t insertVertexBowyerWatson(const Point3D& point,
-                                    std::vector<size_t> conflictingTetrahedra,
+    NodeId insertVertexBowyerWatson(const Point3D& point,
+                                    std::vector<ElementId> conflictingTetrahedra,
                                     const std::vector<std::string>& geometryIds = {},
                                     double weight = 0.0);
 
@@ -95,8 +95,8 @@ private:
      * @param vertexNodeId The newly inserted vertex
      * @param boundary The triangular faces forming the cavity boundary
      */
-    void retriangulate(size_t vertexNodeId,
-                       const std::vector<std::array<size_t, 3>>& boundary);
+    void retriangulate(NodeId vertexNodeId,
+                       const std::vector<std::array<NodeId, 3>>& boundary);
 
     /**
      * @brief Grow the conflicting-tetrahedra cavity through boundary faces
@@ -119,8 +119,8 @@ private:
      * @param conflicting The initial conflicting tetrahedra (by circumsphere test)
      * @return The grown set of conflicting tetrahedra
      */
-    std::vector<size_t> growCavityThroughCoplanarFaces(const Point3D& point,
-                                                       std::vector<size_t> conflicting) const;
+    std::vector<ElementId> growCavityThroughCoplanarFaces(const Point3D& point,
+                                                       std::vector<ElementId> conflicting) const;
 
     /**
      * @brief Build a single positively-oriented tetrahedron from a face and an apex
@@ -133,7 +133,7 @@ private:
      * @param face The three face node IDs
      * @param apexNodeId The fourth (apex) node ID
      */
-    void addOrientedTetrahedron(const std::array<size_t, 3>& face, size_t apexNodeId);
+    void addOrientedTetrahedron(const std::array<NodeId, 3>& face, NodeId apexNodeId);
 
     /**
      * @brief Resolve a coplanar cavity boundary face growCavityThroughCoplanarFaces()
@@ -152,10 +152,10 @@ private:
      * @param apex0 Apex of the tetrahedron on the removed (conflicting) side
      * @param apex1 Apex of the tetrahedron on the kept (neighbor) side
      */
-    void splitCoplanarBoundaryFace(size_t vertexNodeId,
-                                   const std::array<size_t, 3>& face,
-                                   size_t apex0,
-                                   size_t apex1);
+    void splitCoplanarBoundaryFace(NodeId vertexNodeId,
+                                   const std::array<NodeId, 3>& face,
+                                   NodeId apex0,
+                                   NodeId apex1);
 };
 
 } // namespace Meshing

@@ -41,7 +41,7 @@ std::vector<double> parametersAlongEdge(const std::vector<size_t>& pointIndices,
 CurveSegmentManager CurveSegmentBuilder::build(const Topology3D::Topology3D& topology,
                                                const Geometry3D::GeometryCollection3D& geometry,
                                                const DiscretizationResult3D& discretization,
-                                               const std::map<size_t, size_t>& pointIndexToNodeIdMap)
+                                               const std::map<size_t, NodeId>& pointIndexToNodeIdMap)
 {
     CurveSegmentManager manager;
     auto& seams = topology.getSeamCollection();

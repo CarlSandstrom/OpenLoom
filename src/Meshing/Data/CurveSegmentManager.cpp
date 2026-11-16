@@ -5,12 +5,12 @@
 namespace Meshing
 {
 
-size_t CurveSegmentManager::addSegment(const CurveSegment& segment)
+SegmentId CurveSegmentManager::addSegment(const CurveSegment& segment)
 {
     return addSegmentInternal(segment);
 }
 
-std::pair<size_t, size_t> CurveSegmentManager::splitAt(size_t segmentId, size_t newNodeId, double tMid)
+std::pair<SegmentId, SegmentId> CurveSegmentManager::splitAt(SegmentId segmentId, NodeId newNodeId, double tMid)
 {
     auto it = segments_.find(segmentId);
     if (it == segments_.end())
@@ -26,13 +26,13 @@ std::pair<size_t, size_t> CurveSegmentManager::splitAt(size_t segmentId, size_t 
     CurveSegment segment1{original.nodeId1, newNodeId, original.edgeId, original.tStart, tMid, original.role};
     CurveSegment segment2{newNodeId, original.nodeId2, original.edgeId, tMid, original.tEnd, original.role};
 
-    size_t id1 = addSegmentInternal(segment1);
-    size_t id2 = addSegmentInternal(segment2);
+    SegmentId id1 = addSegmentInternal(segment1);
+    SegmentId id2 = addSegmentInternal(segment2);
 
     return {id1, id2};
 }
 
-const CurveSegment& CurveSegmentManager::getSegment(size_t segmentId) const
+const CurveSegment& CurveSegmentManager::getSegment(SegmentId segmentId) const
 {
     auto it = segments_.find(segmentId);
     if (it == segments_.end())
@@ -44,7 +44,7 @@ const CurveSegment& CurveSegmentManager::getSegment(size_t segmentId) const
     return it->second;
 }
 
-std::optional<size_t> CurveSegmentManager::findSegmentId(size_t nodeId1, size_t nodeId2) const
+std::optional<SegmentId> CurveSegmentManager::findSegmentId(NodeId nodeId1, NodeId nodeId2) const
 {
     auto key = (nodeId1 < nodeId2) ? std::make_pair(nodeId1, nodeId2) : std::make_pair(nodeId2, nodeId1);
     auto it = endpointToSegmentId_.find(key);
@@ -53,7 +53,7 @@ std::optional<size_t> CurveSegmentManager::findSegmentId(size_t nodeId1, size_t 
     return it->second;
 }
 
-const std::unordered_map<size_t, CurveSegment>& CurveSegmentManager::getAllSegments() const
+const std::unordered_map<SegmentId, CurveSegment>& CurveSegmentManager::getAllSegments() const
 {
     return segments_;
 }
@@ -72,13 +72,13 @@ std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::str
     return result;
 }
 
-std::vector<size_t> CurveSegmentManager::getOrderedNodeIdsForEdge(const std::string& edgeId) const
+std::vector<NodeId> CurveSegmentManager::getOrderedNodeIdsForEdge(const std::string& edgeId) const
 {
     const auto segments = getSegmentsForEdge(edgeId);
     if (segments.empty())
         return {};
 
-    std::vector<size_t> nodeIds;
+    std::vector<NodeId> nodeIds;
     nodeIds.reserve(segments.size() + 1);
     nodeIds.push_back(segments.front().nodeId1);
     for (const auto& segment : segments)
@@ -96,9 +96,9 @@ bool CurveSegmentManager::empty() const
     return segments_.empty();
 }
 
-size_t CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
+SegmentId CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
 {
-    size_t id = nextId_++;
+    SegmentId id = nextId_++;
     segments_[id] = segment;
     auto key = (segment.nodeId1 < segment.nodeId2) ?
                    std::make_pair(segment.nodeId1, segment.nodeId2) :
@@ -107,7 +107,7 @@ size_t CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
     return id;
 }
 
-void CurveSegmentManager::removeSegmentInternal(size_t segmentId)
+void CurveSegmentManager::removeSegmentInternal(SegmentId segmentId)
 {
     auto it = segments_.find(segmentId);
     if (it == segments_.end())

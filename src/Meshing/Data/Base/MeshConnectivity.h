@@ -1,4 +1,5 @@
 #pragma once
+#include "Common/Types.h"
 #include "../3D/MeshData3D.h"
 #include "../Connectivity/FaceKey.h"
 #include <unordered_map>
@@ -13,24 +14,24 @@ public:
     explicit MeshConnectivity(const MeshData3D& geometry);
 
     // Connectivity queries
-    const std::vector<size_t>& getNodeElements(size_t nodeId) const;
-    const std::pair<size_t, size_t>& getFaceElements(const FaceKey& face) const;
+    const std::vector<ElementId>& getNodeElements(NodeId nodeId) const;
+    const std::pair<ElementId, ElementId>& getFaceElements(const FaceKey& face) const;
 
     // Rebuild connectivity when geometry changes
     void rebuildConnectivity();
 
     // Check if a node can be safely removed
-    bool canRemoveNode(size_t nodeId) const;
+    bool canRemoveNode(NodeId nodeId) const;
 
 private:
     const MeshData3D& geometry_;
 
-    std::unordered_map<size_t, std::vector<size_t>> nodeToElements_;
-    std::unordered_map<FaceKey, std::pair<size_t, size_t>, FaceKeyHash> faceToElements_;
+    std::unordered_map<NodeId, std::vector<ElementId>> nodeToElements_;
+    std::unordered_map<FaceKey, std::pair<ElementId, ElementId>, FaceKeyHash> faceToElements_;
 
     void buildNodeToElementsMap();
     void buildFaceToElementsMap();
-    void addElementToConnectivity(size_t elementId);
+    void addElementToConnectivity(ElementId elementId);
 };
 
 } // namespace Meshing

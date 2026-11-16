@@ -20,7 +20,7 @@ void AmbientTetrahedronRemover::remove(const MeshData3D& meshData,
     if (!boundingNodeIds)
         OPENLOOM_THROW_MESH(INVALID_OPERATION, "AmbientTetrahedronRemover::remove: no bounding tetrahedron in the mesh");
 
-    std::vector<size_t> ambientTetrahedronIds;
+    std::vector<ElementId> ambientTetrahedronIds;
     for (auto elementId : AmbientTetrahedronClassifier::classify(meshData, restrictedFaces))
     {
         if (dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId)))

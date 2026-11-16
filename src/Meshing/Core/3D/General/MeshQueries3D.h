@@ -41,14 +41,14 @@ public:
      * @param pointWeight The point's own weight (0 for an unweighted query)
      * @return IDs of conflicting tetrahedra
      */
-    std::vector<size_t> findConflictingTetrahedra(const Point3D& point, double pointWeight = 0.0) const;
+    std::vector<ElementId> findConflictingTetrahedra(const Point3D& point, double pointWeight = 0.0) const;
 
     /**
      * @brief Find the boundary of the cavity formed by conflicting tetrahedra
      * @param conflictingIndices Indices of conflicting tetrahedra
      * @return Boundary triangular faces of the cavity (as node ID triplets)
      */
-    std::vector<std::array<size_t, 3>> findCavityBoundary(const std::vector<size_t>& conflictingIndices) const;
+    std::vector<std::array<NodeId, 3>> findCavityBoundary(const std::vector<ElementId>& conflictingIndices) const;
 
     /**
      * @brief Find all tetrahedra containing a specific face
@@ -61,7 +61,7 @@ public:
      * @param nodeId3 Third node ID of the face
      * @return Vector of tetrahedron IDs containing the face
      */
-    std::vector<size_t> findTetrahedraWithFace(size_t nodeId1, size_t nodeId2, size_t nodeId3) const;
+    std::vector<ElementId> findTetrahedraWithFace(NodeId nodeId1, NodeId nodeId2, NodeId nodeId3) const;
 
     /**
      * @brief Find the opposite vertex of a face in a tetrahedron
@@ -75,7 +75,7 @@ public:
      * @param faceNode3 Third node of the face
      * @return Node ID of the opposite vertex, or std::nullopt if not found
      */
-    std::optional<size_t> findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const;
+    std::optional<NodeId> findOppositeVertex(ElementId tetId, NodeId faceNode1, NodeId faceNode2, NodeId faceNode3) const;
 
 private:
     const MeshData3D& meshData_;

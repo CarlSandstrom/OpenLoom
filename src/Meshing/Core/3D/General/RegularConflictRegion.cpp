@@ -15,18 +15,18 @@ namespace Meshing::RegularConflictRegion
 
 namespace
 {
-constexpr std::size_t INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID = SIZE_MAX;
 bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
 } // namespace
 
-std::vector<std::size_t> find(const std::array<std::size_t, 2>& seeds,
+std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
                               const Point3D& point,
                               const MeshData3D& meshData,
                               const MeshConnectivity& connectivity)
 {
-    std::vector<std::size_t> region;
-    std::unordered_set<std::size_t> visited;
-    std::deque<std::size_t> pending;
+    std::vector<ElementId> region;
+    std::unordered_set<ElementId> visited;
+    std::deque<ElementId> pending;
     for (auto seed : seeds)
         if (seed != INVALID_ID && visited.insert(seed).second)
             pending.push_back(seed);
@@ -50,7 +50,7 @@ std::vector<std::size_t> find(const std::array<std::size_t, 2>& seeds,
     return region;
 }
 
-bool isHiddenOrDuplicate(const Point3D& point, const std::vector<std::size_t>& region, const MeshData3D& meshData)
+bool isHiddenOrDuplicate(const Point3D& point, const std::vector<ElementId>& region, const MeshData3D& meshData)
 {
     for (auto elementId : region)
     {

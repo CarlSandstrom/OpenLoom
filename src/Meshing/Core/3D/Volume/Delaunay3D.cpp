@@ -29,7 +29,7 @@ Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
         auto weightEntry = pointWeights.find(i);
         auto weight = weightEntry != pointWeights.end() ? weightEntry->second : 0.0;
 
-        size_t nodeId;
+        NodeId nodeId;
         if (hasGeometryIds)
         {
             nodeId = operations.insertVertexBowyerWatson(points[i], geometryIds[i], weight);

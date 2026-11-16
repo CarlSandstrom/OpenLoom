@@ -26,18 +26,18 @@ struct VolumeMesh3D
     std::vector<Point3D> nodes;
 
     /// Tetrahedra as node ID quadruplets. Index in vector == tetrahedron ID.
-    std::vector<std::array<size_t, 4>> tetrahedra;
+    std::vector<std::array<NodeId, 4>> tetrahedra;
 
     /// Boundary surface triangles as node ID triplets (the tetrahedra's outer
     /// faces that lie on a CAD surface). Index in vector == triangle ID.
-    std::vector<std::array<size_t, 3>> boundaryTriangles;
+    std::vector<std::array<NodeId, 3>> boundaryTriangles;
 
     /// Per-face groups: CAD surface ID → boundary triangle IDs belonging to that face.
     std::map<std::string, std::vector<size_t>> boundaryFaceTriangleIds;
 
     /// Edge node ordering: CAD edge ID → ordered node IDs along that edge
     /// (includes both endpoints, follows the edge's natural orientation).
-    std::map<std::string, std::vector<size_t>> boundaryEdgeNodeIds;
+    std::map<std::string, std::vector<NodeId>> boundaryEdgeNodeIds;
 };
 
 } // namespace Meshing

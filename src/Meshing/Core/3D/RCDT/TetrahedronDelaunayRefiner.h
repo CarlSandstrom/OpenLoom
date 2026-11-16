@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Common/Types.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
@@ -60,12 +61,12 @@ private:
     MeshingContext3D* context_;
     SurfaceDelaunayRefiner surfaceRefiner_;
     double ratioBound_;
-    std::unordered_set<std::size_t> unrefinable_;
+    std::unordered_set<ElementId> unrefinable_;
     std::size_t insertionCount_ = 0;
     std::size_t encroachmentCount_ = 0;
 
     bool refineRound();
-    bool refineTetrahedron(std::size_t elementId, const TetrahedronElement& tetrahedron);
+    bool refineTetrahedron(ElementId elementId, const TetrahedronElement& tetrahedron);
 };
 
 } // namespace Meshing

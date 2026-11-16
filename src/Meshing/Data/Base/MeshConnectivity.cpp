@@ -5,7 +5,7 @@
 namespace Meshing
 {
 
-constexpr size_t INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID = SIZE_MAX;
 
 MeshConnectivity::MeshConnectivity(const MeshData3D& geometry) :
     geometry_(geometry)
@@ -13,7 +13,7 @@ MeshConnectivity::MeshConnectivity(const MeshData3D& geometry) :
     rebuildConnectivity();
 }
 
-const std::vector<size_t>& MeshConnectivity::getNodeElements(size_t nodeId) const
+const std::vector<ElementId>& MeshConnectivity::getNodeElements(NodeId nodeId) const
 {
     auto it = nodeToElements_.find(nodeId);
     if (it != nodeToElements_.end())
@@ -24,7 +24,7 @@ const std::vector<size_t>& MeshConnectivity::getNodeElements(size_t nodeId) cons
     return {};
 }
 
-const std::pair<size_t, size_t>& MeshConnectivity::getFaceElements(const FaceKey& face) const
+const std::pair<ElementId, ElementId>& MeshConnectivity::getFaceElements(const FaceKey& face) const
 {
     auto it = faceToElements_.find(face);
     if (it != faceToElements_.end())
@@ -33,7 +33,7 @@ const std::pair<size_t, size_t>& MeshConnectivity::getFaceElements(const FaceKey
     }
 
     // Return a static pair with invalid IDs if face not found
-    static const std::pair<size_t, size_t> invalidPair{INVALID_ID, INVALID_ID};
+    static const std::pair<ElementId, ElementId> invalidPair{INVALID_ID, INVALID_ID};
     return invalidPair;
 }
 
@@ -45,7 +45,7 @@ void MeshConnectivity::rebuildConnectivity()
     // Initialize empty vectors for all nodes
     for (const auto& [nodeId, node] : geometry_.getNodes())
     {
-        nodeToElements_[nodeId] = std::vector<size_t>{};
+        nodeToElements_[nodeId] = std::vector<ElementId>{};
     }
 
     // Build connectivity maps
@@ -53,7 +53,7 @@ void MeshConnectivity::rebuildConnectivity()
     buildFaceToElementsMap();
 }
 
-bool MeshConnectivity::canRemoveNode(size_t nodeId) const
+bool MeshConnectivity::canRemoveNode(NodeId nodeId) const
 {
     auto it = nodeToElements_.find(nodeId);
     return (it == nodeToElements_.end()) || it->second.empty();
@@ -78,7 +78,7 @@ void MeshConnectivity::buildFaceToElementsMap()
             // A tetrahedron has 4 faces
             for (size_t i = 0; i < 4; ++i)
             {
-                std::array<size_t, 3> faceNodes = tet->getFace(i);
+                std::array<NodeId, 3> faceNodes = tet->getFace(i);
 
                 // Create canonical face key (automatically sorted)
                 FaceKey key = makeFaceKey(faceNodes);
@@ -93,7 +93,7 @@ void MeshConnectivity::buildFaceToElementsMap()
     }
 }
 
-void MeshConnectivity::addElementToConnectivity(size_t elementId)
+void MeshConnectivity::addElementToConnectivity(ElementId elementId)
 {
     const IElement* element = geometry_.getElement(elementId);
     if (!element) return;
@@ -101,7 +101,7 @@ void MeshConnectivity::addElementToConnectivity(size_t elementId)
     const auto& nodeIds = element->getNodeIds();
 
     // Update node-to-element connectivity
-    for (size_t nodeId : nodeIds)
+    for (NodeId nodeId : nodeIds)
     {
         nodeToElements_[nodeId].push_back(elementId);
     }

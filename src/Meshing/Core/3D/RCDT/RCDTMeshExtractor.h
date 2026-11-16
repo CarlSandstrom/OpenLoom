@@ -41,7 +41,7 @@ public:
 
     /// Every tetrahedron in meshData as node ID quadruplets, in the same order
     /// extractVolumeMesh() emits them.
-    static std::vector<std::array<size_t, 4>> extractTetrahedra(const MeshData3D& meshData);
+    static std::vector<std::array<NodeId, 4>> extractTetrahedra(const MeshData3D& meshData);
 };
 
 } // namespace Meshing

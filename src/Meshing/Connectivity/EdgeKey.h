@@ -1,4 +1,7 @@
 #pragma once
+
+#include "Common/Types.h"
+
 #include <algorithm>
 #include <array>
 #include <functional>
@@ -16,9 +19,9 @@ namespace Meshing
  */
 struct EdgeKey
 {
-    std::array<size_t, 2> nodeIds; // Always sorted
+    std::array<NodeId, 2> nodeIds; // Always sorted
 
-    EdgeKey(size_t n0, size_t n1)
+    EdgeKey(NodeId n0, NodeId n1)
     {
         nodeIds = {n0, n1};
         std::sort(nodeIds.begin(), nodeIds.end());

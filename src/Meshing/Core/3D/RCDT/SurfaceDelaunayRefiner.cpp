@@ -27,11 +27,11 @@ namespace Meshing
 
 namespace
 {
-constexpr size_t INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID = SIZE_MAX;
 
 std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology);
 std::vector<FaceKey> facesOf(const TetrahedronElement& tetrahedron);
-std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<size_t>& elementIds);
+std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<ElementId>& elementIds);
 void removeFromQueue(const FaceKey& face,
                      std::unordered_map<FaceKey, SurfaceFacetCriteria::Badness, FaceKeyHash>& badness,
                      std::set<std::pair<SurfaceFacetCriteria::Badness, FaceKey>>& queue);
@@ -163,7 +163,7 @@ void SurfaceDelaunayRefiner::drop(const FaceKey& face)
 }
 
 void SurfaceDelaunayRefiner::insert(const Point3D& point,
-                                    std::vector<size_t> conflictRegion,
+                                    std::vector<ElementId> conflictRegion,
                                     std::vector<std::string> geometryIds)
 {
     auto& meshData = context_->getMeshData();
@@ -200,7 +200,7 @@ void SurfaceDelaunayRefiner::writeSnapshot(const std::string& label) const
 }
 
 std::optional<FaceKey> SurfaceDelaunayRefiner::findEncroachedFacet(const Point3D& point,
-                                                                   const std::vector<size_t>& conflictRegion) const
+                                                                   const std::vector<ElementId>& conflictRegion) const
 {
     auto& meshData = context_->getMeshData();
     for (auto elementId : conflictRegion)
@@ -241,7 +241,7 @@ std::vector<FaceKey> facesOf(const TetrahedronElement& tetrahedron)
     return faces;
 }
 
-std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<size_t>& elementIds)
+std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<ElementId>& elementIds)
 {
     std::vector<FaceKey> faces;
     for (auto elementId : elementIds)

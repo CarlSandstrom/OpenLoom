@@ -8,23 +8,23 @@
 namespace Meshing
 {
 
-TriangleElement::TriangleElement(const std::array<size_t, 3>& nodeIds) :
+TriangleElement::TriangleElement(const std::array<NodeId, 3>& nodeIds) :
     nodeIds_(nodeIds),
     nodeIdsVector_(nodeIds_.begin(), nodeIds_.end())
 {
 }
 
-const std::vector<size_t>& TriangleElement::getNodeIds() const
+const std::vector<NodeId>& TriangleElement::getNodeIds() const
 {
     return nodeIdsVector_;
 }
 
-bool TriangleElement::hasNode(size_t nodeId) const
+bool TriangleElement::hasNode(NodeId nodeId) const
 {
     return std::find(nodeIds_.begin(), nodeIds_.end(), nodeId) != nodeIds_.end();
 }
 
-std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
+std::array<NodeId, 2> TriangleElement::getEdge(size_t edgeIndex) const
 {
     switch (edgeIndex)
     {
@@ -41,7 +41,7 @@ std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
     }
 }
 
-size_t TriangleElement::getOppositeNode(size_t edgeNode1, size_t edgeNode2) const
+NodeId TriangleElement::getOppositeNode(NodeId edgeNode1, NodeId edgeNode2) const
 {
     for (auto nodeId : nodeIds_)
     {

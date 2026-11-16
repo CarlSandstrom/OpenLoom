@@ -20,9 +20,9 @@ namespace Meshing
 namespace
 {
 
-std::unordered_map<size_t, std::unordered_set<size_t>> buildAdjacency(const SurfaceMesh3D& mesh)
+std::unordered_map<NodeId, std::unordered_set<NodeId>> buildAdjacency(const SurfaceMesh3D& mesh)
 {
-    std::unordered_map<size_t, std::unordered_set<size_t>> adjacency;
+    std::unordered_map<NodeId, std::unordered_set<NodeId>> adjacency;
     for (const auto& triangle : mesh.triangles)
     {
         for (size_t i = 0; i < 3; ++i)
@@ -36,18 +36,18 @@ std::unordered_map<size_t, std::unordered_set<size_t>> buildAdjacency(const Surf
     return adjacency;
 }
 
-std::unordered_set<size_t> collectFixedNodeIds(const SurfaceMesh3D& mesh)
+std::unordered_set<NodeId> collectFixedNodeIds(const SurfaceMesh3D& mesh)
 {
-    std::unordered_set<size_t> fixed;
+    std::unordered_set<NodeId> fixed;
     for (const auto& [edgeId, nodeIds] : mesh.edgeNodeIds)
         for (auto nodeId : nodeIds)
             fixed.insert(nodeId);
     return fixed;
 }
 
-std::unordered_map<size_t, std::string> buildNodeToFaceMap(const SurfaceMesh3D& mesh)
+std::unordered_map<NodeId, std::string> buildNodeToFaceMap(const SurfaceMesh3D& mesh)
 {
-    std::unordered_map<size_t, std::string> nodeToFace;
+    std::unordered_map<NodeId, std::string> nodeToFace;
     for (const auto& [faceId, triangleIndices] : mesh.faceTriangleIds)
         for (auto triangleIndex : triangleIndices)
             for (auto nodeId : mesh.triangles[triangleIndex])
@@ -61,9 +61,9 @@ std::unordered_map<size_t, std::string> buildNodeToFaceMap(const SurfaceMesh3D& 
 /// every sweep.
 struct SurfaceNeighborhood
 {
-    std::unordered_map<size_t, std::unordered_set<size_t>> adjacency;
-    std::unordered_set<size_t> fixedNodeIds;
-    std::unordered_map<size_t, std::string> nodeToFace;
+    std::unordered_map<NodeId, std::unordered_set<NodeId>> adjacency;
+    std::unordered_set<NodeId> fixedNodeIds;
+    std::unordered_map<NodeId, std::string> nodeToFace;
 };
 
 SurfaceNeighborhood buildNeighborhood(const SurfaceMesh3D& mesh)
@@ -116,7 +116,7 @@ std::vector<Point3D> proposeSmoothedPositions(const Geometry3D::GeometryCollecti
 void SurfaceMeshSmoother::smooth(const Geometry3D::GeometryCollection3D& geometry,
                                  SurfaceMesh3D& mesh,
                                  std::size_t iterations,
-                                 const std::vector<std::array<std::size_t, 4>>& tetrahedra)
+                                 const std::vector<std::array<NodeId, 4>>& tetrahedra)
 {
     if (mesh.nodes.empty() || iterations == 0)
         return;

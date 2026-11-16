@@ -14,9 +14,9 @@ MeshQueries3D::MeshQueries3D(const MeshData3D& meshData) :
 {
 }
 
-std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& point, double pointWeight) const
+std::vector<ElementId> MeshQueries3D::findConflictingTetrahedra(const Point3D& point, double pointWeight) const
 {
-    std::vector<size_t> conflicting;
+    std::vector<ElementId> conflicting;
 
     for (const auto& [tetId, element] : meshData_.getElements())
     {
@@ -52,13 +52,13 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
     return conflicting;
 }
 
-std::vector<std::array<size_t, 3>>
-MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices) const
+std::vector<std::array<NodeId, 3>>
+MeshQueries3D::findCavityBoundary(const std::vector<ElementId>& conflictingIndices) const
 {
     std::map<FaceKey, size_t> faceCount;
-    std::map<FaceKey, std::array<size_t, 3>> faceOrientation;
+    std::map<FaceKey, std::array<NodeId, 3>> faceOrientation;
 
-    for (size_t tetId : conflictingIndices)
+    for (ElementId tetId : conflictingIndices)
     {
         auto element = meshData_.getElement(tetId);
         auto tet = dynamic_cast<const TetrahedronElement*>(element);
@@ -74,7 +74,7 @@ MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices)
     }
 
     // A boundary face is not shared with another conflicting tetrahedron
-    std::vector<std::array<size_t, 3>> boundary;
+    std::vector<std::array<NodeId, 3>> boundary;
     for (const auto& [faceKey, count] : faceCount)
     {
         if (count == 1)
@@ -86,9 +86,9 @@ MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices)
     return boundary;
 }
 
-std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t nodeId2, size_t nodeId3) const
+std::vector<ElementId> MeshQueries3D::findTetrahedraWithFace(NodeId nodeId1, NodeId nodeId2, NodeId nodeId3) const
 {
-    std::vector<size_t> result;
+    std::vector<ElementId> result;
 
     for (const auto& [tetId, element] : meshData_.getElements())
     {
@@ -96,7 +96,7 @@ std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t
         if (!tet) continue;
 
         auto& nodes = tet->getNodeIds();
-        auto hasNode = [&nodes](size_t nodeId)
+        auto hasNode = [&nodes](NodeId nodeId)
         { return std::ranges::find(nodes, nodeId) != nodes.end(); };
         if (hasNode(nodeId1) && hasNode(nodeId2) && hasNode(nodeId3))
         {
@@ -106,13 +106,13 @@ std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t
     return result;
 }
 
-std::optional<size_t> MeshQueries3D::findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const
+std::optional<NodeId> MeshQueries3D::findOppositeVertex(ElementId tetId, NodeId faceNode1, NodeId faceNode2, NodeId faceNode3) const
 {
     auto element = meshData_.getElement(tetId);
     auto tet = dynamic_cast<const TetrahedronElement*>(element);
     if (!tet) return std::nullopt;
 
-    for (size_t nodeId : tet->getNodeIds())
+    for (NodeId nodeId : tet->getNodeIds())
     {
         if (nodeId != faceNode1 && nodeId != faceNode2 && nodeId != faceNode3) return nodeId;
     }

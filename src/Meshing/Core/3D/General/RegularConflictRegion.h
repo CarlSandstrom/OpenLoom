@@ -28,7 +28,7 @@ namespace RegularConflictRegion
 /// faces. In a regular triangulation that region is connected, so this finds
 /// the same set as scanning every tetrahedron, at the cost of the region
 /// alone. Empty when no seed conflicts. A seed of SIZE_MAX is ignored.
-std::vector<std::size_t> find(const std::array<std::size_t, 2>& seeds,
+std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
                               const Point3D& point,
                               const MeshData3D& meshData,
                               const MeshConnectivity& connectivity);
@@ -38,7 +38,7 @@ std::vector<std::size_t> find(const std::array<std::size_t, 2>& seeds,
 /// hidden point is not a vertex of the regular triangulation, so inserting it
 /// breaks the triangulation; a coincident one duplicates a node. CGAL's
 /// insert refuses both.
-bool isHiddenOrDuplicate(const Point3D& point, const std::vector<std::size_t>& region, const MeshData3D& meshData);
+bool isHiddenOrDuplicate(const Point3D& point, const std::vector<ElementId>& region, const MeshData3D& meshData);
 
 } // namespace RegularConflictRegion
 

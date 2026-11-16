@@ -15,8 +15,8 @@ namespace Meshing
 
 struct CurveSegment
 {
-    size_t nodeId1 = 0;
-    size_t nodeId2 = 0;
+    NodeId nodeId1 = 0;
+    NodeId nodeId2 = 0;
     std::string edgeId;
     double tStart = 0.0;
     double tEnd = 0.0;
@@ -26,36 +26,36 @@ struct CurveSegment
 class CurveSegmentManager
 {
 public:
-    size_t addSegment(const CurveSegment& segment);
+    SegmentId addSegment(const CurveSegment& segment);
 
     /// Splits the segment identified by segmentId at tMid, inserting newNodeId between
     /// the original endpoints. Removes the original segment and adds two sub-segments.
     /// Returns the IDs of the two new segments (segment1Id, segment2Id).
-    std::pair<size_t, size_t> splitAt(size_t segmentId, size_t newNodeId, double tMid);
+    std::pair<SegmentId, SegmentId> splitAt(SegmentId segmentId, NodeId newNodeId, double tMid);
 
-    const CurveSegment& getSegment(size_t segmentId) const;
+    const CurveSegment& getSegment(SegmentId segmentId) const;
 
-    std::optional<size_t> findSegmentId(size_t nodeId1, size_t nodeId2) const;
+    std::optional<SegmentId> findSegmentId(NodeId nodeId1, NodeId nodeId2) const;
 
-    const std::unordered_map<size_t, CurveSegment>& getAllSegments() const;
+    const std::unordered_map<SegmentId, CurveSegment>& getAllSegments() const;
 
     /// Returns all segments for a given edge ID, sorted by tStart (ascending).
     std::vector<CurveSegment> getSegmentsForEdge(const std::string& edgeId) const;
 
     /// Returns the node chain along a given edge ID in curve order, both
     /// endpoints included. Empty if the edge has no segments.
-    std::vector<size_t> getOrderedNodeIdsForEdge(const std::string& edgeId) const;
+    std::vector<NodeId> getOrderedNodeIdsForEdge(const std::string& edgeId) const;
 
     size_t size() const;
     bool empty() const;
 
 private:
-    size_t addSegmentInternal(const CurveSegment& segment);
-    void removeSegmentInternal(size_t segmentId);
+    SegmentId addSegmentInternal(const CurveSegment& segment);
+    void removeSegmentInternal(SegmentId segmentId);
 
-    std::unordered_map<size_t, CurveSegment> segments_;
-    std::map<std::pair<size_t, size_t>, size_t> endpointToSegmentId_;
-    size_t nextId_ = 0;
+    std::unordered_map<SegmentId, CurveSegment> segments_;
+    std::map<std::pair<NodeId, NodeId>, SegmentId> endpointToSegmentId_;
+    SegmentId nextId_ = 0;
 };
 
 } // namespace Meshing

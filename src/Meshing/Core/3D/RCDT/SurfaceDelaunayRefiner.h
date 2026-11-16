@@ -81,14 +81,14 @@ public:
 
     /// Inserts point into its conflict region and reclassifies every face the
     /// insertion created or destroyed.
-    void insert(const Point3D& point, std::vector<std::size_t> conflictRegion, std::vector<std::string> geometryIds);
+    void insert(const Point3D& point, std::vector<ElementId> conflictRegion, std::vector<std::string> geometryIds);
 
     /// A restricted facet among the conflict region's faces whose surface
     /// Delaunay ball contains point: CGAL's encroachment, which makes the
     /// tetrahedron level refine that facet instead of inserting point. Every
     /// restricted facet the insertion would destroy is encroached.
     std::optional<FaceKey> findEncroachedFacet(const Point3D& point,
-                                               const std::vector<std::size_t>& conflictRegion) const;
+                                               const std::vector<ElementId>& conflictRegion) const;
 
     bool hasReachedInsertionCap() const;
 
