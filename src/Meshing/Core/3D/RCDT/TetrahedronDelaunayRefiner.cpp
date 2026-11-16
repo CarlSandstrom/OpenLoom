@@ -2,8 +2,8 @@
 
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
+#include "Meshing/Core/3D/General/RegularConflictRegion.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
-#include "Meshing/Core/3D/RCDT/RegularConflictRegion.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
 #include "spdlog/spdlog.h"

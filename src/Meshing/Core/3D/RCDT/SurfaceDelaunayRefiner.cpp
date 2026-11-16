@@ -4,7 +4,7 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "Meshing/Core/3D/General/MeshSnapshotWriter.h"
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
-#include "Meshing/Core/3D/RCDT/RegularConflictRegion.h"
+#include "Meshing/Core/3D/General/RegularConflictRegion.h"
 #include "Meshing/Core/3D/RCDT/SnapshotGridBuilder.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"

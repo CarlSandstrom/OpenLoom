@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/RCDT/RegularConflictRegion.h"
+#include "Meshing/Core/3D/General/RegularConflictRegion.h"
 
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/General/RegularPredicates3D.h"
