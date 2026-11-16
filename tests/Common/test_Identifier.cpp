@@ -1,4 +1,5 @@
 #include "Common/Identifier.h"
+#include "Common/Types.h"
 
 #include <gtest/gtest.h>
 
@@ -12,9 +13,6 @@ using namespace Meshing;
 
 namespace
 {
-
-using NodeId = Identifier<struct NodeTag>;
-using ElementId = Identifier<struct ElementTag>;
 
 static_assert(!std::is_convertible_v<NodeId, ElementId>);
 static_assert(!std::is_convertible_v<size_t, NodeId>);
