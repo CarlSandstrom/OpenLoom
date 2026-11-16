@@ -7,6 +7,7 @@ set(TEST_SOURCES
 
     # Common tests
     Common/Exceptions/test_Exception.cpp
+    Common/test_Identifier.cpp
 
     # Geometry tests
     Geometry/test_Corner.cpp
