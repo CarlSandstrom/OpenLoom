@@ -59,32 +59,6 @@ TEST(SizingFieldBuilder3DTest, CylinderSizeMatchesTheChordDeviationInversion)
     EXPECT_LE(actual, expected * 1.05);
 }
 
-TEST(SizingFieldBuilder3DTest, WithoutCurvatureTheFieldIgnoresTheChordDeviationTerm)
-{
-    // The same cylinder as above. Its wall has no unrelated geometry nearby, so with the
-    // curvature term off nothing constrains the size there and the field must be far coarser
-    // than the chord-deviation inversion.
-    constexpr double RADIUS = 3.0;
-    constexpr double HEIGHT = 8.0;
-    constexpr double TOLERANCE = 0.05;
-
-    auto converter = convert(
-        BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0)),
-                                 RADIUS,
-                                 HEIGHT)
-            .Shape());
-
-    SizingFieldSettings3D settings;
-    settings.chordDeviationTolerance = TOLERANCE;
-    settings.includeCurvature = false;
-
-    auto field = SizingFieldBuilder3D::build(converter->getGeometryCollection(), converter->getTopology(), settings);
-
-    double curvatureSize = std::sqrt(8.0 * TOLERANCE * RADIUS);
-
-    EXPECT_GT(field.evaluate(Point3D(RADIUS, 0.0, HEIGHT / 2.0)), 2.0 * curvatureSize);
-}
-
 TEST(SizingFieldBuilder3DTest, TighterChordToleranceAsksForSmallerElements)
 {
     constexpr double RADIUS = 3.0;

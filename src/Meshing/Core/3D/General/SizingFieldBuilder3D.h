@@ -37,11 +37,6 @@ struct SizingFieldSettings3D
     /// bridging it.
     double elementsAcrossFeatureGap = 2.0;
 
-    /// Whether curvature forces elements small. When false the field is the
-    /// feature-size term alone: the geometry's own demand for resolving gaps
-    /// between unrelated pieces, with no demand to follow curved shapes.
-    bool includeCurvature = true;
-
     /// Stations per curve and per surface parameter direction used to probe
     /// the geometry. Higher costs only build time, and only linearly (the
     /// local-feature-size pass is quadratic in the resulting sample count).
