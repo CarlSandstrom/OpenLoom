@@ -123,7 +123,7 @@ TEST_F(SurfaceDelaunayRefinerTest, RestrictedFacetsFormAClosedGenusZeroSurface)
         vertices.insert(n.begin(), n.end());
     }
     for (const auto& [edge, count] : edgeFaceCount)
-        EXPECT_EQ(count, 2) << "edge " << edge.first << "-" << edge.second;
+        EXPECT_EQ(count, 2) << "edge " << edge.first.value() << "-" << edge.second.value();
     EXPECT_EQ(static_cast<long>(vertices.size()) - static_cast<long>(edgeFaceCount.size()) +
                   static_cast<long>(faces_.size()),
               2);

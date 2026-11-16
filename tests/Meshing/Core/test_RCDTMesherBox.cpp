@@ -115,7 +115,7 @@ TEST_F(RCDTMesherBoxTest, AllEdgeNodesCovered)
     for (const auto& [edgeId, nodeIds] : mesh_.edgeNodeIds)
         for (const NodeId nodeId : nodeIds)
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
-                << "Edge node " << nodeId << " on edge " << edgeId
+                << "Edge node " << nodeId.value() << " on edge " << edgeId
                 << " does not appear in any triangle";
 }
 
@@ -130,8 +130,8 @@ TEST_F(RCDTMesherBoxTest, NoDuplicateTriangles)
     {
         std::sort(triangle.begin(), triangle.end());
         EXPECT_TRUE(seen.insert(triangle).second)
-            << "Duplicate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "}";
+            << "Duplicate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "}";
     }
 }
 
@@ -173,13 +173,13 @@ TEST_F(RCDTMesherBoxTest, NoDegenerateTriangles)
 {
     for (const auto& triangle : mesh_.triangles)
     {
-        const Point3D& a = mesh_.nodes[triangle[0]];
-        const Point3D& b = mesh_.nodes[triangle[1]];
-        const Point3D& c = mesh_.nodes[triangle[2]];
+        const Point3D& a = mesh_.nodes[triangle[0].value()];
+        const Point3D& b = mesh_.nodes[triangle[1].value()];
+        const Point3D& c = mesh_.nodes[triangle[2].value()];
         const double area = 0.5 * (b - a).cross(c - a).norm();
         EXPECT_GT(area, 1e-10)
-            << "Degenerate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "} area=" << area;
+            << "Degenerate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "} area=" << area;
     }
 }
 
@@ -273,12 +273,12 @@ TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHaveDistinctValidNodeIds)
     {
         std::set<NodeId> distinctNodes(tet.begin(), tet.end());
         EXPECT_EQ(distinctNodes.size(), 4u)
-            << "Tetrahedron {" << tet[0] << ", " << tet[1] << ", " << tet[2] << ", " << tet[3]
+            << "Tetrahedron {" << tet[0].value() << ", " << tet[1].value() << ", " << tet[2].value() << ", " << tet[3].value()
             << "} does not have 4 distinct node IDs";
 
         for (const NodeId nodeId : tet)
-            EXPECT_LT(nodeId, mesh_.nodes.size())
-                << "Tetrahedron references out-of-range node " << nodeId;
+            EXPECT_LT(nodeId.value(), mesh_.nodes.size())
+                << "Tetrahedron references out-of-range node " << nodeId.value();
     }
 }
 
@@ -286,13 +286,13 @@ TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHavePositiveVolume)
 {
     for (const auto& tet : mesh_.tetrahedra)
     {
-        const Point3D& p0 = mesh_.nodes[tet[0]];
-        const Point3D& p1 = mesh_.nodes[tet[1]];
-        const Point3D& p2 = mesh_.nodes[tet[2]];
-        const Point3D& p3 = mesh_.nodes[tet[3]];
+        const Point3D& p0 = mesh_.nodes[tet[0].value()];
+        const Point3D& p1 = mesh_.nodes[tet[1].value()];
+        const Point3D& p2 = mesh_.nodes[tet[2].value()];
+        const Point3D& p3 = mesh_.nodes[tet[3].value()];
         const double signedVolume = (p1 - p0).dot((p2 - p0).cross(p3 - p0)) / 6.0;
         EXPECT_GT(signedVolume, 1e-10)
-            << "Tetrahedron {" << tet[0] << ", " << tet[1] << ", " << tet[2] << ", " << tet[3]
+            << "Tetrahedron {" << tet[0].value() << ", " << tet[1].value() << ", " << tet[2].value() << ", " << tet[3].value()
             << "} is degenerate or inverted (signed volume=" << signedVolume << ")";
     }
 }
@@ -307,7 +307,7 @@ TEST_F(RCDTMesherBoxVolumeTest, BoundaryTriangleNodesAppearInSomeTetrahedron)
     for (const auto& triangle : mesh_.boundaryTriangles)
         for (const NodeId nodeId : triangle)
             EXPECT_TRUE(nodesInTetrahedra.count(nodeId))
-                << "Boundary triangle node " << nodeId << " does not appear in any tetrahedron";
+                << "Boundary triangle node " << nodeId.value() << " does not appear in any tetrahedron";
 }
 
 // ============================================================================

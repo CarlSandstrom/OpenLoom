@@ -42,7 +42,7 @@ TEST_F(ShewchukQualityController2DTest, AcceptsEquilateralTriangle)
 
     ShewchukQualityController2D controller(meshData_, std::sqrt(2.0), M_PI / 9.0, 100000);
 
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
     EXPECT_TRUE(controller.isTriangleAcceptable(*element));
 }
 
@@ -55,7 +55,7 @@ TEST_F(ShewchukQualityController2DTest, RejectsSkinnyTriangle)
 
     ShewchukQualityController2D controller(meshData_, std::sqrt(2.0), M_PI / 9.0, 100000);
 
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
     EXPECT_FALSE(controller.isTriangleAcceptable(*element));
 }
 
@@ -68,7 +68,7 @@ TEST_F(ShewchukQualityController2DTest, AcceptsRightTriangle)
 
     ShewchukQualityController2D controller(meshData_, std::sqrt(2.0), M_PI / 9.0, 100000);
 
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
     EXPECT_TRUE(controller.isTriangleAcceptable(*element));
 }
 
@@ -126,7 +126,7 @@ TEST_F(ShewchukQualityController2DTest, StricterAngleThresholdRejectsMoreTriangl
     NodeId n2 = addNode(0.0, 1.0);
     addTriangle(n0, n1, n2);
 
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     ShewchukQualityController2D lenientController(meshData_, std::sqrt(2.0), M_PI / 9.0, 100000);
     ShewchukQualityController2D strictController(meshData_, std::sqrt(2.0), M_PI / 3.0, 100000);

@@ -270,7 +270,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
     const double midAngle = std::numbers::pi / 3.0;
     const Point3D midpoint(RADIUS * std::cos(midAngle), RADIUS * std::sin(midAngle), HEIGHT);
 
-    NodeId midNodeId = 0;
+    NodeId midNodeId{0};
     EXPECT_NO_THROW(midNodeId = operations.insertVertexBowyerWatson(midpoint));
 
     bool participatesInATet = false;
@@ -480,5 +480,5 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
     MeshOperations3D operations(meshData_);
 
     // Invalid tetrahedron ID
-    EXPECT_EQ(operations.getQueries().findOppositeVertex(9999, n0, n1, n2), std::nullopt);
+    EXPECT_EQ(operations.getQueries().findOppositeVertex(ElementId{9999}, n0, n1, n2), std::nullopt);
 }

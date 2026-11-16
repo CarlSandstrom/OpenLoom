@@ -104,7 +104,7 @@ std::array<NodeId, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     mutator_->setBoundingNodeIds(nodeIds);
 
     spdlog::debug("MeshOperations3D::createBoundingTetrahedron: Created with nodes ({}, {}, {}, {})",
-                  nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
+                  nodeIds[0].value(), nodeIds[1].value(), nodeIds[2].value(), nodeIds[3].value());
 
     return nodeIds;
 }
@@ -126,7 +126,7 @@ NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
         NodeId nodeId = mutator_->addNode(point, weight);
         spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found (node {}, "
                      "point ({}, {}, {}), weight {})",
-                     nodeId, point.x(), point.y(), point.z(), weight);
+                     nodeId.value(), point.x(), point.y(), point.z(), weight);
         return nodeId;
     }
 

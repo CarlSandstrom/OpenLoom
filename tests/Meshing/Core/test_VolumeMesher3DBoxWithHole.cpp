@@ -148,10 +148,10 @@ TEST_F(VolumeMesher3DBoxWithHoleTest, BoundaryIsWatertight)
         if (triangleCount == 2)
             continue;
 
-        const Point3D& start = mesh_.nodes[edge[0]];
-        const Point3D& end = mesh_.nodes[edge[1]];
+        const Point3D& start = mesh_.nodes[edge[0].value()];
+        const Point3D& end = mesh_.nodes[edge[1].value()];
         const Point3D midpoint = 0.5 * (start + end);
-        ADD_FAILURE() << "Boundary edge (" << edge[0] << ", " << edge[1] << ") is shared by "
+        ADD_FAILURE() << "Boundary edge (" << edge[0].value() << ", " << edge[1].value() << ") is shared by "
                       << triangleCount << " triangles, expected 2. Midpoint ("
                       << midpoint.x() << ", " << midpoint.y() << ", " << midpoint.z()
                       << "), length " << (end - start).norm();
@@ -170,13 +170,13 @@ TEST_F(VolumeMesher3DBoxWithHoleTest, TetrahedraAreNotInverted)
 {
     for (const auto& tetrahedron : mesh_.tetrahedra)
     {
-        const Point3D& a = mesh_.nodes[tetrahedron[0]];
-        const Point3D& b = mesh_.nodes[tetrahedron[1]];
-        const Point3D& c = mesh_.nodes[tetrahedron[2]];
-        const Point3D& d = mesh_.nodes[tetrahedron[3]];
+        const Point3D& a = mesh_.nodes[tetrahedron[0].value()];
+        const Point3D& b = mesh_.nodes[tetrahedron[1].value()];
+        const Point3D& c = mesh_.nodes[tetrahedron[2].value()];
+        const Point3D& d = mesh_.nodes[tetrahedron[3].value()];
         const double signedVolume = (b - a).cross(c - a).dot(d - a) / 6.0;
-        EXPECT_GT(signedVolume, 0.0) << "Tetrahedron {" << tetrahedron[0] << ", " << tetrahedron[1] << ", "
-                                     << tetrahedron[2] << ", " << tetrahedron[3] << "} is inverted or flat";
+        EXPECT_GT(signedVolume, 0.0) << "Tetrahedron {" << tetrahedron[0].value() << ", " << tetrahedron[1].value() << ", "
+                                     << tetrahedron[2].value() << ", " << tetrahedron[3].value() << "} is inverted or flat";
     }
 }
 
@@ -185,10 +185,10 @@ TEST_F(VolumeMesher3DBoxWithHoleTest, VolumeMatchesAnalyticValue)
     double meshedVolume = 0.0;
     for (const auto& tetrahedron : mesh_.tetrahedra)
     {
-        const Point3D& a = mesh_.nodes[tetrahedron[0]];
-        const Point3D& b = mesh_.nodes[tetrahedron[1]];
-        const Point3D& c = mesh_.nodes[tetrahedron[2]];
-        const Point3D& d = mesh_.nodes[tetrahedron[3]];
+        const Point3D& a = mesh_.nodes[tetrahedron[0].value()];
+        const Point3D& b = mesh_.nodes[tetrahedron[1].value()];
+        const Point3D& c = mesh_.nodes[tetrahedron[2].value()];
+        const Point3D& d = mesh_.nodes[tetrahedron[3].value()];
         meshedVolume += std::abs((b - a).cross(c - a).dot(d - a)) / 6.0;
     }
 

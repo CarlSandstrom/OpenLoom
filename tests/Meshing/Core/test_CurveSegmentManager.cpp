@@ -210,7 +210,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_CylinderLikeTopology_SkipsSeamTwin)
                                                     {"bot_circle", {1, 1}},
                                                     {"seam", {0, 1}}},
                                                    {{}, {}});
-    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, NodeId{0}}, {1, NodeId{1}}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -236,7 +236,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
 
     // Point 0 = c0, point 1 = c1; no interior nodes.
     const auto discretization = makeDiscretization({{"edge_a", {0, 1}}}, {{}, {}});
-    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, 10}, {1, 11}};
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, NodeId{10}}, {1, NodeId{11}}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -245,8 +245,8 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
     const auto& segment = manager.getAllSegments().begin()->second;
     EXPECT_DOUBLE_EQ(segment.tStart, 0.5);
     EXPECT_DOUBLE_EQ(segment.tEnd, 2.0);
-    EXPECT_EQ(segment.nodeId1, 10u);
-    EXPECT_EQ(segment.nodeId2, 11u);
+    EXPECT_EQ(segment.nodeId1, NodeId{10});
+    EXPECT_EQ(segment.nodeId2, NodeId{11});
 }
 
 // ============================================================================
@@ -267,7 +267,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
     const auto discretization = makeDiscretization({{"edge_b", {0, 1, 2, 3}}},
                                                    {{}, {M_PI / 3.0}, {2.0 * M_PI / 3.0}, {}});
     const std::map<size_t, NodeId> pointIndexToNodeIdMap = {
-        {0, 10}, {1, 11}, {2, 12}, {3, 13}};
+        {0, NodeId{10}}, {1, NodeId{11}}, {2, NodeId{12}}, {3, NodeId{13}}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -277,18 +277,18 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
     const auto segments = manager.getSegmentsForEdge("edge_b");
     ASSERT_EQ(segments.size(), 3u);
 
-    EXPECT_EQ(segments[0].nodeId1, 10u);
-    EXPECT_EQ(segments[0].nodeId2, 11u);
+    EXPECT_EQ(segments[0].nodeId1, NodeId{10});
+    EXPECT_EQ(segments[0].nodeId2, NodeId{11});
     EXPECT_DOUBLE_EQ(segments[0].tStart, 0.0);
     EXPECT_DOUBLE_EQ(segments[0].tEnd, M_PI / 3.0);
 
-    EXPECT_EQ(segments[1].nodeId1, 11u);
-    EXPECT_EQ(segments[1].nodeId2, 12u);
+    EXPECT_EQ(segments[1].nodeId1, NodeId{11});
+    EXPECT_EQ(segments[1].nodeId2, NodeId{12});
     EXPECT_DOUBLE_EQ(segments[1].tStart, M_PI / 3.0);
     EXPECT_DOUBLE_EQ(segments[1].tEnd, 2.0 * M_PI / 3.0);
 
-    EXPECT_EQ(segments[2].nodeId1, 12u);
-    EXPECT_EQ(segments[2].nodeId2, 13u);
+    EXPECT_EQ(segments[2].nodeId1, NodeId{12});
+    EXPECT_EQ(segments[2].nodeId2, NodeId{13});
     EXPECT_DOUBLE_EQ(segments[2].tStart, 2.0 * M_PI / 3.0);
     EXPECT_DOUBLE_EQ(segments[2].tEnd, M_PI);
 }
@@ -300,8 +300,8 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
 TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
 {
     CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
+    segment.nodeId1 = NodeId{0};
+    segment.nodeId2 = NodeId{1};
     segment.edgeId = "arc";
     segment.tStart = 0.0;
     segment.tEnd = M_PI;
@@ -311,7 +311,7 @@ TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
 
     // Arc-length midpoint of [0, π] on a uniform circle is π/2
     const double tMid = M_PI / 2.0;
-    const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/2, tMid);
+    const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/NodeId{2}, tMid);
 
     const auto& child1 = manager.getSegment(child1Id);
     const auto& child2 = manager.getSegment(child2Id);
@@ -332,15 +332,15 @@ TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
 TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainInCurveOrder)
 {
     CurveSegment segment;
-    segment.nodeId1 = 0;
-    segment.nodeId2 = 1;
+    segment.nodeId1 = NodeId{0};
+    segment.nodeId2 = NodeId{1};
     segment.edgeId = "arc";
     segment.tStart = 0.0;
     segment.tEnd = 1.0;
 
     CurveSegment otherEdgeSegment;
-    otherEdgeSegment.nodeId1 = 1;
-    otherEdgeSegment.nodeId2 = 5;
+    otherEdgeSegment.nodeId1 = NodeId{1};
+    otherEdgeSegment.nodeId2 = NodeId{5};
     otherEdgeSegment.edgeId = "other";
     otherEdgeSegment.tStart = 0.0;
     otherEdgeSegment.tEnd = 1.0;
@@ -350,11 +350,11 @@ TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainI
     manager.addSegment(otherEdgeSegment);
 
     // Split the right half after the left, so segment IDs are not in curve order
-    const auto [leftId, rightId] = manager.splitAt(segmentId, /*newNodeId=*/2, 0.5);
-    manager.splitAt(rightId, /*newNodeId=*/3, 0.75);
-    manager.splitAt(leftId, /*newNodeId=*/4, 0.25);
+    const auto [leftId, rightId] = manager.splitAt(segmentId, /*newNodeId=*/NodeId{2}, 0.5);
+    manager.splitAt(rightId, /*newNodeId=*/NodeId{3}, 0.75);
+    manager.splitAt(leftId, /*newNodeId=*/NodeId{4}, 0.25);
 
-    EXPECT_EQ(manager.getOrderedNodeIdsForEdge("arc"), (std::vector<NodeId>{0, 4, 2, 3, 1}));
+    EXPECT_EQ(manager.getOrderedNodeIdsForEdge("arc"), (std::vector<NodeId>{NodeId{0}, NodeId{4}, NodeId{2}, NodeId{3}, NodeId{1}}));
     EXPECT_TRUE(manager.getOrderedNodeIdsForEdge("missing").empty());
 }
 
@@ -375,7 +375,7 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
 
     // Point 0 = c_top, point 1 = c_bot; no interior nodes.
     const auto discretization = makeDiscretization({{"seam", {0, 1}}}, {{}, {}});
-    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, NodeId{0}}, {1, NodeId{1}}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -384,7 +384,7 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
     ASSERT_EQ(manager.size(), 1u);
 
     const SegmentId segmentId = manager.getAllSegments().begin()->first;
-    const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/2, 0.5);
+    const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/NodeId{2}, 0.5);
 
     // Two children, original gone
     EXPECT_EQ(manager.size(), 2u);
@@ -393,7 +393,7 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
     const auto& child2 = manager.getSegment(child2Id);
 
     // Children share the new node and each retain one original endpoint
-    EXPECT_EQ(child1.nodeId2, 2u);
-    EXPECT_EQ(child2.nodeId1, 2u);
+    EXPECT_EQ(child1.nodeId2, NodeId{2});
+    EXPECT_EQ(child2.nodeId1, NodeId{2});
     EXPECT_NE(child1.nodeId1, child2.nodeId2);
 }

@@ -49,8 +49,8 @@ NodeId TriangleElement::getOppositeNode(NodeId edgeNode1, NodeId edgeNode2) cons
     }
     OPENLOOM_THROW_CODE(OpenLoom::MeshException,
                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                        "No opposite node found for edge (" + std::to_string(edgeNode1) +
-                            ", " + std::to_string(edgeNode2) + ") in triangle");
+                        "No opposite node found for edge (" + std::to_string(edgeNode1.value()) +
+                            ", " + std::to_string(edgeNode2.value()) + ") in triangle");
 }
 
 } // namespace Meshing

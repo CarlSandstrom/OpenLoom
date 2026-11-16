@@ -39,7 +39,7 @@ std::string SurfaceMeshTopology::describe(const std::vector<SurfaceMeshEdge>& ed
     const size_t shown = std::min(edges.size(), MAXIMUM_EDGES_DESCRIBED);
     for (size_t i = 0; i < shown; ++i)
     {
-        description << "\n  edge (" << edges[i].first << ", " << edges[i].second
+        description << "\n  edge (" << edges[i].first.value() << ", " << edges[i].second.value()
                     << ") is on " << trianglesPerEdge.at(edges[i]) << " triangle(s)";
     }
     if (edges.size() > shown)

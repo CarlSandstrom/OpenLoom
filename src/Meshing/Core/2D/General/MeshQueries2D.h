@@ -30,7 +30,7 @@ public:
     {
         std::size_t operator()(const EdgeKey& key) const
         {
-            return std::hash<size_t>{}(key.first) ^ (std::hash<size_t>{}(key.second) << 1);
+            return std::hash<size_t>{}(key.first.value()) ^ (std::hash<size_t>{}(key.second.value()) << 1);
         }
     };
 

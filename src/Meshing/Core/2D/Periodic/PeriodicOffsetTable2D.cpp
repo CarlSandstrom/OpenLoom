@@ -35,7 +35,7 @@ const std::array<PeriodicOffset, 3>& PeriodicOffsetTable2D::getOffsets(ElementId
     auto entry = table_.find(triangleId);
     if (entry == table_.end())
     {
-        OPENLOOM_THROW_ENTITY_NOT_FOUND("PeriodicOffset", std::to_string(triangleId));
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("PeriodicOffset", std::to_string(triangleId.value()));
     }
     return entry->second;
 }

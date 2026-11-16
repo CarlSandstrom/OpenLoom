@@ -123,7 +123,7 @@ TEST_F(WeightedDualRestrictionTest, RestrictedFacetsFormAClosedGenusZeroSurface)
     }
 
     for (const auto& [edge, count] : edgeFaceCount)
-        EXPECT_EQ(count, 2) << "edge " << edge.first << "-" << edge.second;
+        EXPECT_EQ(count, 2) << "edge " << edge.first.value() << "-" << edge.second.value();
 
     const auto eulerCharacteristic = static_cast<long>(vertices.size()) - static_cast<long>(edgeFaceCount.size()) +
                                      static_cast<long>(facets_.size());

@@ -75,7 +75,7 @@ TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshV
         auto triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
         {
-            result.warnings.push_back("Element " + std::to_string(id) + " is not a triangle, skipping");
+            result.warnings.push_back("Element " + std::to_string(id.value()) + " is not a triangle, skipping");
             continue;
         }
 
@@ -98,13 +98,13 @@ void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier2D::Veri
         if (area < -DEGENERATE_AREA_TOLERANCE)
         {
             result.isValid = false;
-            result.errors.push_back("Element " + std::to_string(id) + " has clockwise orientation (signed area: " +
+            result.errors.push_back("Element " + std::to_string(id.value()) + " has clockwise orientation (signed area: " +
                                     std::to_string(area) + ")");
         }
         else if (std::abs(area) < DEGENERATE_AREA_TOLERANCE)
         {
             result.isValid = false;
-            result.errors.push_back("Element " + std::to_string(id) + " is degenerate (area near zero)");
+            result.errors.push_back("Element " + std::to_string(id.value()) + " is degenerate (area near zero)");
         }
     }
 }
@@ -156,7 +156,7 @@ void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::Verific
 
 std::string describeOverlap(ElementId elementId1, ElementId elementId2)
 {
-    return "Elements " + std::to_string(elementId1) + " and " + std::to_string(elementId2) + " overlap";
+    return "Elements " + std::to_string(elementId1.value()) + " and " + std::to_string(elementId2.value()) + " overlap";
 }
 
 // Two triangles overlap if a vertex of one lies strictly inside the other, or if their edges cross

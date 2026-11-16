@@ -46,7 +46,7 @@ TEST_F(ElementQuality2DTest, ComputeShortestEdgeLengthForEquilateralTriangle)
     addTriangle(n0, n1, n2);
 
     ElementQuality2D quality(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     double shortest = quality.computeShortestEdgeLength(*element);
 
@@ -61,7 +61,7 @@ TEST_F(ElementQuality2DTest, ComputeCircumradiusToShortestEdgeRatioForEquilatera
     addTriangle(n0, n1, n2);
 
     ElementQuality2D quality(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     auto ratio = quality.computeCircumradiusToShortestEdgeRatio(*element);
 
@@ -77,7 +77,7 @@ TEST_F(ElementQuality2DTest, ComputeCircumradiusToShortestEdgeRatioForSkinnyTria
     addTriangle(n0, n1, n2);
 
     ElementQuality2D quality(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     auto ratio = quality.computeCircumradiusToShortestEdgeRatio(*element);
 

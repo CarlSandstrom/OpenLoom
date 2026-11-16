@@ -172,7 +172,10 @@ int main()
     // Node IDs are assigned by the Delaunay inserter and are not guessable
     // ahead of time, so we scan the mesh.
     // -------------------------------------------------------------------------
-    size_t corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
+    NodeId corner0Id = NodeId::INVALID;
+    NodeId corner1Id = NodeId::INVALID;
+    NodeId corner2Id = NodeId::INVALID;
+    NodeId corner3Id = NodeId::INVALID;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
         const Point2D& point = node->getCoordinates();
@@ -181,13 +184,13 @@ int main()
         else if (std::abs(point.x() - 10.0) < 1e-9 && std::abs(point.y() - 10.0) < 1e-9) corner2Id = nodeId;
         else if (std::abs(point.x())        < 1e-9 && std::abs(point.y() - 10.0) < 1e-9) corner3Id = nodeId;
     }
-    if (corner0Id == SIZE_MAX || corner1Id == SIZE_MAX || corner2Id == SIZE_MAX || corner3Id == SIZE_MAX)
+    if (corner0Id == NodeId::INVALID || corner1Id == NodeId::INVALID || corner2Id == NodeId::INVALID || corner3Id == NodeId::INVALID)
     {
         spdlog::error("Could not locate all four corner nodes — aborting");
         return 1;
     }
     spdlog::info("Corner nodes: c0={} (0,0)  c1={} (10,0)  c2={} (10,10)  c3={} (0,10)",
-                 corner0Id, corner1Id, corner2Id, corner3Id);
+                 corner0Id.value(), corner1Id.value(), corner2Id.value(), corner3Id.value());
 
     // -------------------------------------------------------------------------
     // TwinManager2D: top edge (e2: c2→c3) ↔ bottom edge (e0: c0→c1)

@@ -78,10 +78,10 @@ using TopologyEdges = std::unordered_map<std::string, Topology2D::Edge2D>;
 
 struct SquareCornerNodes
 {
-    std::size_t corner0; // (0, 0)
-    std::size_t corner1; // (10, 0)
-    std::size_t corner2; // (10, 10)
-    std::size_t corner3; // (0, 10)
+    NodeId corner0; // (0, 0)
+    NodeId corner1; // (10, 0)
+    NodeId corner2; // (10, 10)
+    NodeId corner3; // (0, 10)
 };
 
 struct BoundaryCoordinates
@@ -191,9 +191,9 @@ MeshingContext2D buildPeriodicSquareContext()
     return MeshingContext2D(std::move(geometry), std::move(topology));
 }
 
-std::optional<std::size_t> findNodeAt(const MeshData2D& meshData, const Point2D& target)
+std::optional<NodeId> findNodeAt(const MeshData2D& meshData, const Point2D& target)
 {
-    std::optional<std::size_t> foundNodeId;
+    std::optional<NodeId> foundNodeId;
     for (auto& [nodeId, node] : meshData.getNodes())
     {
         auto& point = node->getCoordinates();
@@ -302,8 +302,8 @@ int main()
         spdlog::error("Could not locate all four corner nodes — aborting");
         return 1;
     }
-    spdlog::info("Corner nodes: c0={} (0,0)  c1={} (10,0)  c2={} (10,10)  c3={} (0,10)", corners->corner0,
-                 corners->corner1, corners->corner2, corners->corner3);
+    spdlog::info("Corner nodes: c0={} (0,0)  c1={} (10,0)  c2={} (10,10)  c3={} (0,10)", corners->corner0.value(),
+                 corners->corner1.value(), corners->corner2.value(), corners->corner3.value());
 
     auto twinManager = registerPeriodicPairs(*corners);
 

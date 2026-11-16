@@ -9,8 +9,10 @@ namespace
 // Six times the signed volume; only its sign is used.
 double orientation(const std::array<NodeId, 4>& tetrahedron, const std::vector<Point3D>& nodes)
 {
-    auto& first = nodes[tetrahedron[0]];
-    return (nodes[tetrahedron[1]] - first).cross(nodes[tetrahedron[2]] - first).dot(nodes[tetrahedron[3]] - first);
+    auto& first = nodes[tetrahedron[0].value()];
+    return (nodes[tetrahedron[1].value()] - first)
+        .cross(nodes[tetrahedron[2].value()] - first)
+        .dot(nodes[tetrahedron[3].value()] - first);
 }
 
 bool inverts(const std::array<NodeId, 4>& tetrahedron,
@@ -38,7 +40,7 @@ void TetrahedronInversionGuard::revertInvertingMoves(const std::vector<Point3D>&
     std::vector<NodeId> movedNodeIds;
     for (auto& [nodeId, tetrahedronIndices] : tetrahedraByNode_)
     {
-        if (proposed[nodeId] != current[nodeId])
+        if (proposed[nodeId.value()] != current[nodeId.value()])
             movedNodeIds.push_back(nodeId);
     }
 
@@ -48,7 +50,7 @@ void TetrahedronInversionGuard::revertInvertingMoves(const std::vector<Point3D>&
         reverted = false;
         for (auto nodeId : movedNodeIds)
         {
-            if (proposed[nodeId] == current[nodeId])
+            if (proposed[nodeId.value()] == current[nodeId.value()])
                 continue;
 
             for (auto tetrahedronIndex : tetrahedraByNode_.at(nodeId))
@@ -58,7 +60,7 @@ void TetrahedronInversionGuard::revertInvertingMoves(const std::vector<Point3D>&
                     continue;
 
                 for (auto cornerNodeId : tetrahedron)
-                    proposed[cornerNodeId] = current[cornerNodeId];
+                    proposed[cornerNodeId.value()] = current[cornerNodeId.value()];
                 reverted = true;
                 break;
             }

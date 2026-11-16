@@ -36,8 +36,8 @@ private:
     std::unordered_map<ElementId, std::unique_ptr<IElement>> elements_;
     std::unordered_map<NodeId, std::vector<std::string>> nodeGeometryIds_;
     CurveSegmentManager curveSegmentManager_;
-    NodeId nextNodeId_ = 0;
-    ElementId nextElementId_ = 0;
+    size_t nextNodeId_ = 0;
+    size_t nextElementId_ = 0;
 
     NodeId addNodeInternal(std::unique_ptr<Node2D> node);
     ElementId addElementInternal(std::unique_ptr<IElement> element);

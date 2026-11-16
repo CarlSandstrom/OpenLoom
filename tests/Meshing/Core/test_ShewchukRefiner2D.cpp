@@ -303,7 +303,10 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Locate the four corner nodes by coordinate
-    NodeId corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
+    NodeId corner0Id = NodeId::INVALID;
+    NodeId corner1Id = NodeId::INVALID;
+    NodeId corner2Id = NodeId::INVALID;
+    NodeId corner3Id = NodeId::INVALID;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
         const Point2D& point = node->getCoordinates();
@@ -316,10 +319,10 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
         else if (std::abs(point.x()) < 1e-10 && std::abs(point.y() - 1.0) < 1e-10)
             corner3Id = nodeId; // (0,1) top-left
     }
-    ASSERT_NE(corner0Id, SIZE_MAX) << "Corner c0 (0,0) not found";
-    ASSERT_NE(corner1Id, SIZE_MAX) << "Corner c1 (1,0) not found";
-    ASSERT_NE(corner2Id, SIZE_MAX) << "Corner c2 (1,1) not found";
-    ASSERT_NE(corner3Id, SIZE_MAX) << "Corner c3 (0,1) not found";
+    ASSERT_NE(corner0Id, NodeId::INVALID) << "Corner c0 (0,0) not found";
+    ASSERT_NE(corner1Id, NodeId::INVALID) << "Corner c1 (1,0) not found";
+    ASSERT_NE(corner2Id, NodeId::INVALID) << "Corner c2 (1,1) not found";
+    ASSERT_NE(corner3Id, NodeId::INVALID) << "Corner c3 (0,1) not found";
 
     // Insert an interior node very close to the left edge to guarantee two things:
     //  1. The left edge is encroached (distance 0.1 from diametral-circle centre

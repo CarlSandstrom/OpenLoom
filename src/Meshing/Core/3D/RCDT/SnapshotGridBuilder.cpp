@@ -31,7 +31,7 @@ Export::VtkGrid SnapshotGridBuilder::fromSurfaceMesh(const SurfaceMesh3D& surfac
     grid.nodeIds = sequence(surfaceMesh.nodes.size());
 
     for (auto& triangle : surfaceMesh.triangles)
-        grid.cells.push_back({Export::VtkCellType::Triangle, {triangle[0], triangle[1], triangle[2]}});
+        grid.cells.push_back({Export::VtkCellType::Triangle, {triangle[0].value(), triangle[1].value(), triangle[2].value()}});
     grid.cellFields.push_back({"SurfaceID", triangleSurfaceIndices(surfaceMesh)});
     return grid;
 }
@@ -59,7 +59,7 @@ Export::VtkGrid SnapshotGridBuilder::fromRestrictedFacets(
     std::vector<int> dropped;
     for (auto& face : faces)
     {
-        grid.cells.push_back({Export::VtkCellType::Triangle, {face.nodeIds[0], face.nodeIds[1], face.nodeIds[2]}});
+        grid.cells.push_back({Export::VtkCellType::Triangle, {face.nodeIds[0].value(), face.nodeIds[1].value(), face.nodeIds[2].value()}});
         surfaceIds.push_back(surfaceIndices.at(facets.at(face).surfaceId));
 
         auto found = badness.find(face);
@@ -94,7 +94,8 @@ Export::VtkGrid SnapshotGridBuilder::fromProtectingBalls(const MeshData3D& meshD
         radii.push_back(std::sqrt(node->getWeight()));
         weights.push_back(node->getWeight());
     }
-    grid.nodeIds = std::move(nodeIds);
+    for (auto nodeId : nodeIds)
+        grid.nodeIds.push_back(nodeId.value());
     grid.pointFields.push_back({"Radius", std::move(radii)});
     grid.pointFields.push_back({"Weight", std::move(weights)});
     return grid;

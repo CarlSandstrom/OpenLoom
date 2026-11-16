@@ -131,7 +131,7 @@ bool ShewchukRefiner2D::refineStep()
         auto triangle = dynamic_cast<const TriangleElement*>(context_->getMeshData().getElement(triangleId));
         if (triangle == nullptr || qualityController_->isTriangleAcceptable(*triangle)) continue;
 
-        spdlog::debug("ShewchukRefiner2D: Attempting to refine triangle {}", triangleId);
+        spdlog::debug("ShewchukRefiner2D: Attempting to refine triangle {}", triangleId.value());
         if (handlePoorQualityTriangle(*triangle, triangleId)) return true;
 
         // Retrying a triangle that failed once would loop forever.
@@ -144,7 +144,7 @@ bool ShewchukRefiner2D::refineStep()
 void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
 {
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
-                  segment.nodeId1, segment.nodeId2);
+                  segment.nodeId1.value(), segment.nodeId2.value());
 
     auto edge = context_->getGeometry().getEdge(segment.edgeId);
     if (edge == nullptr)
@@ -157,12 +157,12 @@ void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
 
     if (!newNodeId.has_value())
     {
-        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.nodeId1, segment.nodeId2);
+        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.nodeId1.value(), segment.nodeId2.value());
         return;
     }
 
     spdlog::debug("ShewchukRefiner2D: Successfully split segment ({}, {}) at node {}",
-                  segment.nodeId1, segment.nodeId2, newNodeId.value());
+                  segment.nodeId1.value(), segment.nodeId2.value(), newNodeId->value());
 
     if (onBoundarySplit_)
     {
@@ -182,7 +182,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangl
 
     if (!optionalCircumcenter.has_value())
     {
-        spdlog::debug("ShewchukRefiner2D: Cannot compute circumcenter for triangle {} (likely degenerate), skipping", triangleId);
+        spdlog::debug("ShewchukRefiner2D: Cannot compute circumcenter for triangle {} (likely degenerate), skipping", triangleId.value());
         return false;
     }
 
@@ -222,7 +222,7 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangl
     if (context_->getMeshData().getElement(triangleId) != nullptr)
     {
         spdlog::debug("ShewchukRefiner2D: Triangle {} survived circumcenter insertion, marking unrefinable",
-                      triangleId);
+                      triangleId.value());
         unrefinableTriangles_.insert(triangleId);
     }
     return true;
@@ -243,7 +243,7 @@ bool isTooSmallToRefine(const ElementGeometry2D& geometry,
     if (area < MIN_REFINABLE_AREA || shortestEdge < MIN_REFINABLE_EDGE)
     {
         spdlog::debug("ShewchukRefiner2D: Triangle {} too small to refine (area={:.2e}, shortest edge={:.2e}), skipping",
-                      triangleId, area, shortestEdge);
+                      triangleId.value(), area, shortestEdge);
         return true;
     }
     return false;
@@ -258,7 +258,7 @@ bool coincidesWithExistingNode(const MeshData2D& meshData, const Point2D& point)
         {
             spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) coincides with "
                           "existing node {}, skipping",
-                          point.x(), point.y(), nodeId);
+                          point.x(), point.y(), nodeId.value());
             return true;
         }
     }

@@ -17,14 +17,14 @@ const IElement* MeshData2D::getElement(ElementId id) const
 
 NodeId MeshData2D::addNodeInternal(std::unique_ptr<Node2D> node)
 {
-    nodes_[nextNodeId_] = std::move(node);
-    return nextNodeId_++;
+    nodes_[NodeId{nextNodeId_}] = std::move(node);
+    return NodeId{nextNodeId_++};
 }
 
 ElementId MeshData2D::addElementInternal(std::unique_ptr<IElement> element)
 {
-    elements_[nextElementId_] = std::move(element);
-    return nextElementId_++;
+    elements_[ElementId{nextElementId_}] = std::move(element);
+    return ElementId{nextElementId_++};
 }
 
 void MeshData2D::removeElementInternal(ElementId id)
@@ -46,7 +46,7 @@ std::pair<SegmentId, SegmentId> MeshData2D::splitCurveSegmentInternal(NodeId nod
                                                                       NodeId newNodeId, double tMid)
 {
     auto optionalSegmentId = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
-    if (!optionalSegmentId) return {0, 0};
+    if (!optionalSegmentId) return {SegmentId{0}, SegmentId{0}};
     return curveSegmentManager_.splitAt(*optionalSegmentId, newNodeId, tMid);
 }
 

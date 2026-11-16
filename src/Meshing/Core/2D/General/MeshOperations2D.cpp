@@ -131,7 +131,7 @@ NodeId MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         if (std::abs(area) < MIN_TRIANGLE_AREA)
         {
             spdlog::debug("Skipping degenerate triangle in Bowyer-Watson: ({}, {}, {})",
-                          newVertex, edge[0], edge[1]);
+                          newVertex.value(), edge[0].value(), edge[1].value());
             continue;
         }
 
@@ -172,7 +172,7 @@ bool MeshOperations2D::enforceEdge(NodeId nodeId1, NodeId nodeId2)
     auto existingTriangles = queries_.findTrianglesAdjacentToEdge(nodeId1, nodeId2);
     if (!existingTriangles.empty())
     {
-        spdlog::debug("Edge ({}, {}) already exists in mesh (tri {})", nodeId1, nodeId2, existingTriangles[0]);
+        spdlog::debug("Edge ({}, {}) already exists in mesh (tri {})", nodeId1.value(), nodeId2.value(), existingTriangles[0].value());
         return true;
     }
 
@@ -180,7 +180,7 @@ bool MeshOperations2D::enforceEdge(NodeId nodeId1, NodeId nodeId2)
 
     if (intersectingTriangles.empty())
     {
-        spdlog::warn("Edge ({}, {}) does not exist but no intersecting triangles found", nodeId1, nodeId2);
+        spdlog::warn("Edge ({}, {}) does not exist but no intersecting triangles found", nodeId1.value(), nodeId2.value());
         return true; // No triangles to remove, edge might already be enforced
     }
 
@@ -199,7 +199,7 @@ bool MeshOperations2D::enforceEdge(NodeId nodeId1, NodeId nodeId2)
     if (it == boundaryLoop.end())
     {
         spdlog::warn("enforceEdge: nodeId2 ({}) not found in traced boundary for edge ({}, {})",
-                     nodeId2, nodeId1, nodeId2);
+                     nodeId2.value(), nodeId1.value(), nodeId2.value());
         return false;
     }
 
@@ -332,7 +332,7 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
 
     if (node1 == nullptr || node2 == nullptr)
     {
-        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.nodeId1, segment.nodeId2);
+        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.nodeId1.value(), segment.nodeId2.value());
         return std::nullopt;
     }
 

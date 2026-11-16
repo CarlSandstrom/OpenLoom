@@ -5,7 +5,7 @@
 namespace Meshing
 {
 
-constexpr ElementId INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID{SIZE_MAX};
 
 MeshConnectivity::MeshConnectivity(const MeshData3D& geometry) :
     geometry_(geometry)

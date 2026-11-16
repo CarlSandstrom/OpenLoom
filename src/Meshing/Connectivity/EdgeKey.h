@@ -42,8 +42,8 @@ struct EdgeKeyHash
 {
     size_t operator()(const EdgeKey& key) const
     {
-        const size_t h1 = std::hash<size_t>{}(key.nodeIds[0]);
-        const size_t h2 = std::hash<size_t>{}(key.nodeIds[1]);
+        const size_t h1 = std::hash<size_t>{}(key.nodeIds[0].value());
+        const size_t h2 = std::hash<size_t>{}(key.nodeIds[1].value());
         return h1 ^ (h2 << 1);
     }
 };

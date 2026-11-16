@@ -14,7 +14,7 @@ namespace Meshing
 namespace
 {
 
-constexpr ElementId INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID{SIZE_MAX};
 
 } // namespace
 

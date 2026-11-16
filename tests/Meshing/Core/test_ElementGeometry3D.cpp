@@ -63,7 +63,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfUnweightedTetrahedronIsItsCircumcente
     addTetrahedron(n0, n1, n2, n3);
 
     const ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(ElementId{0}));
     const auto orthocenter = geometry.computeOrthocenter(*element);
 
     ASSERT_TRUE(orthocenter.has_value());
@@ -88,7 +88,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTetrahedronHasEqualPowerToAll
     addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
 
     const ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(ElementId{0}));
     const auto orthocenter = geometry.computeOrthocenter(*element);
     ASSERT_TRUE(orthocenter.has_value());
 
@@ -146,7 +146,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfFlatCyclicTetrahedronLiesInItsPlane)
     addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
 
     const ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(ElementId{0}));
     const auto orthocenter = geometry.computeOrthocenter(*element);
     ASSERT_TRUE(orthocenter.has_value());
 

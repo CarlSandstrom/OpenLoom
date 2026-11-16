@@ -88,7 +88,7 @@ std::vector<ElementId> MeshQueries2D::findConflictingTriangles(const Point2D& po
         auto triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (triangle == nullptr)
         {
-            SPDLOG_WARN("MeshQueries2D: Skipping non-triangle element {}", id);
+            SPDLOG_WARN("MeshQueries2D: Skipping non-triangle element {}", id.value());
             continue;
         }
 
@@ -112,7 +112,7 @@ std::vector<std::array<NodeId, 2>> MeshQueries2D::findCavityBoundary(const std::
     std::map<EdgeKey, int> edgeCount;
     std::map<EdgeKey, std::array<NodeId, 2>> edgeLookup;
 
-    for (size_t index : conflictingIndices)
+    for (ElementId index : conflictingIndices)
     {
         auto& triangle = dynamic_cast<const TriangleElement&>(*meshData_.getElement(index));
         for (size_t edgeIndex = 0; edgeIndex < 3; ++edgeIndex)
@@ -146,7 +146,7 @@ std::vector<ElementId> MeshQueries2D::findIntersectingTriangles(NodeId nodeId1, 
         auto triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
         {
-            spdlog::warn("MeshQueries2D: Skipping non-triangle element {}", elementId);
+            spdlog::warn("MeshQueries2D: Skipping non-triangle element {}", elementId.value());
             continue;
         }
 
@@ -206,7 +206,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
             manager.addSegment(segment);
 
             spdlog::debug("Edge {}: Node IDs ({}, {}), t=[{},{}], role: {}",
-                          edgeId, segment.nodeId1, segment.nodeId2, segment.tStart, segment.tEnd,
+                          edgeId, segment.nodeId1.value(), segment.nodeId2.value(), segment.tStart, segment.tEnd,
                           describeConstraintRole(role));
             continue;
         }
@@ -218,7 +218,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
             manager.addSegment(segment);
 
             spdlog::debug("Edge {} segment {}: Node IDs ({}, {}), t=[{},{}], role: {}",
-                          edgeId, segmentIndex, segment.nodeId1, segment.nodeId2, segment.tStart, segment.tEnd,
+                          edgeId, segmentIndex, segment.nodeId1.value(), segment.nodeId2.value(), segment.tStart, segment.tEnd,
                           describeConstraintRole(role));
         }
     }
@@ -384,7 +384,7 @@ std::unordered_set<ElementId> MeshQueries2D::classifyTrianglesInteriorExterior()
         return {};
     }
 
-    spdlog::debug("classifyTrianglesInteriorExterior: Ray casting found interior seed triangle {}", *seedTriangleId);
+    spdlog::debug("classifyTrianglesInteriorExterior: Ray casting found interior seed triangle {}", (*seedTriangleId).value());
 
     auto insideTriangles = floodFillToBoundary(*this, meshData_, buildEdgeToTrianglesMap(), *seedTriangleId);
 

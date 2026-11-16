@@ -170,12 +170,13 @@ template <typename MeshData>
 VtkGrid gridFromMeshData(const MeshData& mesh, std::vector<Meshing::ElementId>& elementIds)
 {
     VtkGrid grid;
-    grid.nodeIds = sortedIds(mesh.getNodes());
+    auto sortedNodeIds = sortedIds(mesh.getNodes());
     std::unordered_map<Meshing::NodeId, std::size_t> indexByNodeId;
-    for (std::size_t i = 0; i < grid.nodeIds.size(); ++i)
+    for (std::size_t i = 0; i < sortedNodeIds.size(); ++i)
     {
-        indexByNodeId[grid.nodeIds[i]] = i;
-        grid.points.push_back(toPoint3D(mesh.getNode(grid.nodeIds[i])->getCoordinates()));
+        indexByNodeId[sortedNodeIds[i]] = i;
+        grid.nodeIds.push_back(sortedNodeIds[i].value());
+        grid.points.push_back(toPoint3D(mesh.getNode(sortedNodeIds[i])->getCoordinates()));
     }
 
     elementIds = sortedIds(mesh.getElements());
@@ -225,7 +226,7 @@ std::unordered_map<Meshing::ElementId, int> computeDomainIds(const Meshing::Mesh
     {
         std::size_t operator()(const EdgeKey& k) const
         {
-            return std::hash<std::size_t>{}(k.first) ^ (std::hash<std::size_t>{}(k.second) << 1);
+            return std::hash<std::size_t>{}(k.first.value()) ^ (std::hash<std::size_t>{}(k.second.value()) << 1);
         }
     };
 
@@ -277,7 +278,7 @@ std::unordered_map<Meshing::ElementId, int> computeDomainIds(const Meshing::Mesh
     };
 
     // Find a seed triangle whose centroid is inside the boundary
-    Meshing::ElementId seedTriangle = 0;
+    Meshing::ElementId seedTriangle{0};
     bool foundSeed = false;
     for (const auto& [elementId, element] : mesh.getElements())
     {
@@ -454,9 +455,11 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     std::vector<Meshing::ElementId> elementIds;
     VtkGrid grid = gridFromMeshData(mesh, elementIds);
 
-    std::vector<std::size_t> cellIds = elementIds;
+    std::vector<std::size_t> cellIds;
+    for (auto elementId : elementIds)
+        cellIds.push_back(elementId.value());
     for (const auto& [segmentId, segment] : mesh.getCurveSegmentManager().getAllSegments())
-        cellIds.push_back(segmentId);
+        cellIds.push_back(segmentId.value());
 
     const auto& boundingNodeIds = mesh.getBoundingNodeIds();
     std::vector<int> isSupertet(grid.cells.size(), 0);
@@ -481,7 +484,8 @@ bool VtkExporter::exportMesh(const Meshing::MeshData2D& mesh, const std::string&
 
     // Constraint segments carry ElementID 0.
     std::vector<std::size_t> cellIds(grid.cells.size(), 0);
-    std::copy(elementIds.begin(), elementIds.end(), cellIds.begin());
+    std::transform(elementIds.begin(), elementIds.end(), cellIds.begin(),
+                   [](Meshing::ElementId elementId) { return elementId.value(); });
     grid.cellFields.push_back({"ElementID", std::move(cellIds)});
     grid.cellFields.push_back({"EdgeRole", flagTrailingCells(elementIds.size(), grid.cells.size())});
 
@@ -526,7 +530,7 @@ bool VtkExporter::writeSurfaceMesh(const Meshing::SurfaceMesh3D& surfaceMesh, co
 {
     VtkGrid grid = gridFromPoints(surfaceMesh.nodes);
     for (const auto& triangle : surfaceMesh.triangles)
-        grid.cells.push_back({VtkCellType::Triangle, {triangle[0], triangle[1], triangle[2]}});
+        grid.cells.push_back({VtkCellType::Triangle, {triangle[0].value(), triangle[1].value(), triangle[2].value()}});
 
     grid.cellFields.push_back(
         {"SurfaceID", triangleSurfaceIndices(surfaceMesh.faceTriangleIds, surfaceMesh.triangles.size())});
@@ -539,10 +543,10 @@ bool VtkExporter::writeVolumeMesh(const Meshing::VolumeMesh3D& volumeMesh, const
     for (const auto& tetrahedron : volumeMesh.tetrahedra)
     {
         grid.cells.push_back(
-            {VtkCellType::Tetrahedron, {tetrahedron[0], tetrahedron[1], tetrahedron[2], tetrahedron[3]}});
+            {VtkCellType::Tetrahedron, {tetrahedron[0].value(), tetrahedron[1].value(), tetrahedron[2].value(), tetrahedron[3].value()}});
     }
     for (const auto& triangle : volumeMesh.boundaryTriangles)
-        grid.cells.push_back({VtkCellType::Triangle, {triangle[0], triangle[1], triangle[2]}});
+        grid.cells.push_back({VtkCellType::Triangle, {triangle[0].value(), triangle[1].value(), triangle[2].value()}});
 
     // Tetrahedra have no surface; boundary triangles follow them.
     const std::size_t tetrahedronCount = volumeMesh.tetrahedra.size();

@@ -38,7 +38,7 @@ Point2D PeriodicMeshData2D::getCoordinate(ElementId triangleId, int slot) const
     {
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
                             OpenLoom::MeshException::ErrorCode::ELEMENT_NOT_FOUND,
-                            "Element " + std::to_string(triangleId) + " is not a TriangleElement");
+                            "Element " + std::to_string(triangleId.value()) + " is not a TriangleElement");
     }
 
     auto nodeId = triangle->getNodeIdArray()[slot];

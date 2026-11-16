@@ -57,9 +57,9 @@ struct FaceKeyHash
     size_t operator()(const FaceKey& key) const
     {
         // Combine hashes of the three node IDs
-        size_t h1 = std::hash<size_t>{}(key.nodeIds[0]);
-        size_t h2 = std::hash<size_t>{}(key.nodeIds[1]);
-        size_t h3 = std::hash<size_t>{}(key.nodeIds[2]);
+        size_t h1 = std::hash<size_t>{}(key.nodeIds[0].value());
+        size_t h2 = std::hash<size_t>{}(key.nodeIds[1].value());
+        size_t h3 = std::hash<size_t>{}(key.nodeIds[2].value());
 
         // Simple hash combining (boost-style)
         return h1 ^ (h2 << 1) ^ (h3 << 2);

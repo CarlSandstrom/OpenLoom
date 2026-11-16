@@ -47,7 +47,7 @@ TEST_F(ElementGeometry2DTest, ComputeCircumcircleForRightTriangle)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     auto circle = geometry.computeCircumcircle(*element);
 
@@ -65,7 +65,7 @@ TEST_F(ElementGeometry2DTest, ComputeCircumcenterReturnsCorrectPoint)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     auto circumcenter = geometry.computeCircumcenter(*element);
 
@@ -82,7 +82,7 @@ TEST_F(ElementGeometry2DTest, ComputeAreaForRightTriangle)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     double area = geometry.computeArea(*element);
 
@@ -97,7 +97,7 @@ TEST_F(ElementGeometry2DTest, ComputeAreaForEquilateralTriangle)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     double area = geometry.computeArea(*element);
 
@@ -112,7 +112,7 @@ TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForRightTriangle)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     auto angles = geometry.computeTriangleAngles(*element);
 
@@ -129,7 +129,7 @@ TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForEquilateral)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     auto angles = geometry.computeTriangleAngles(*element);
 
@@ -146,7 +146,7 @@ TEST_F(ElementGeometry2DTest, ComputeMinAngleForSkinnyTriangle)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     double minAngle = geometry.computeMinAngle(*element);
 
@@ -161,7 +161,7 @@ TEST_F(ElementGeometry2DTest, ComputeMinAngleForEquilateral)
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
-    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
 
     double minAngle = geometry.computeMinAngle(*element);
 

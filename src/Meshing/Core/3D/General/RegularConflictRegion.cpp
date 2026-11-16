@@ -15,7 +15,7 @@ namespace Meshing::RegularConflictRegion
 
 namespace
 {
-constexpr ElementId INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID{SIZE_MAX};
 bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
 } // namespace
 

@@ -20,13 +20,13 @@ TEST(SurfaceMesh3DTest, StoresNodesAndTriangles)
     mesh.nodes.push_back(Point3D(1.0, 0.0, 0.0));
     mesh.nodes.push_back(Point3D(0.0, 1.0, 0.0));
 
-    mesh.triangles.push_back({0, 1, 2});
+    mesh.triangles.push_back({NodeId{0}, NodeId{1}, NodeId{2}});
 
     ASSERT_EQ(mesh.nodes.size(), 3u);
     EXPECT_DOUBLE_EQ(mesh.nodes[1].x(), 1.0);
 
     ASSERT_EQ(mesh.triangles.size(), 1u);
-    EXPECT_EQ(mesh.triangles[0][2], 2u);
+    EXPECT_EQ(mesh.triangles[0][2], NodeId{2});
 }
 
 TEST(SurfaceMesh3DTest, FaceGroupsMapCorrectly)
@@ -43,12 +43,12 @@ TEST(SurfaceMesh3DTest, FaceGroupsMapCorrectly)
 TEST(SurfaceMesh3DTest, EdgeNodesPreserveOrder)
 {
     SurfaceMesh3D mesh;
-    mesh.edgeNodeIds["Edge1"] = {0, 5, 3, 7, 2};
+    mesh.edgeNodeIds["Edge1"] = {NodeId{0}, NodeId{5}, NodeId{3}, NodeId{7}, NodeId{2}};
 
     ASSERT_EQ(mesh.edgeNodeIds.count("Edge1"), 1u);
     const auto& nodes = mesh.edgeNodeIds.at("Edge1");
     ASSERT_EQ(nodes.size(), 5u);
-    EXPECT_EQ(nodes[0], 0u);
-    EXPECT_EQ(nodes[2], 3u);
-    EXPECT_EQ(nodes[4], 2u);
+    EXPECT_EQ(nodes[0], NodeId{0});
+    EXPECT_EQ(nodes[2], NodeId{3});
+    EXPECT_EQ(nodes[4], NodeId{2});
 }

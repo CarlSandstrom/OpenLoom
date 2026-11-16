@@ -220,8 +220,8 @@ void synchronizeNodePositions(MeshingContext3D& context, const SurfaceMesh3D& su
     auto& mutator = context.getMutator();
     for (size_t nodeIndex = 0; nodeIndex < surfaceMesh.nodes.size(); ++nodeIndex)
     {
-        NodeId nodeId = nodeIndex;
-        if (context.getMeshData().getNode(nodeId)) mutator.moveNode(nodeId, surfaceMesh.nodes[nodeId]);
+        NodeId nodeId{nodeIndex};
+        if (context.getMeshData().getNode(nodeId)) mutator.moveNode(nodeId, surfaceMesh.nodes[nodeIndex]);
     }
 }
 

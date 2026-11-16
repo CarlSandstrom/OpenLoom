@@ -42,8 +42,8 @@ public:
 private:
     MeshData3D& meshData3D_;
     MeshConnectivity* connectivity_ = nullptr;
-    NodeId nextNodeId_ = 0;
-    ElementId nextElementId_ = 0;
+    size_t nextNodeId_ = 0;
+    size_t nextElementId_ = 0;
 };
 
 } // namespace Meshing

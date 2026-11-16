@@ -27,7 +27,7 @@ namespace Meshing
 
 namespace
 {
-constexpr ElementId INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID{SIZE_MAX};
 
 std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology);
 std::vector<FaceKey> facesOf(const TetrahedronElement& tetrahedron);

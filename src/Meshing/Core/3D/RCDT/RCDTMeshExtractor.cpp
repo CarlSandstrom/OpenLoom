@@ -51,13 +51,13 @@ std::vector<Point3D> RCDTMeshExtractor::extractNodePositions(const MeshData3D& m
     if (meshData.getNodeCount() == 0)
         return nodes;
 
-    NodeId maxNodeId = 0;
+    NodeId maxNodeId{0};
     for (const auto& [nodeId, node] : meshData.getNodes())
         maxNodeId = std::max(maxNodeId, nodeId);
 
-    nodes.resize(maxNodeId + 1, Point3D::Zero());
+    nodes.resize(maxNodeId.value() + 1, Point3D::Zero());
     for (const auto& [nodeId, node] : meshData.getNodes())
-        nodes[nodeId] = node->getCoordinates();
+        nodes[nodeId.value()] = node->getCoordinates();
     return nodes;
 }
 

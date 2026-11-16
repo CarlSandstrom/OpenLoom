@@ -15,8 +15,8 @@ namespace Meshing
 
 struct CurveSegment
 {
-    NodeId nodeId1 = 0;
-    NodeId nodeId2 = 0;
+    NodeId nodeId1{0};
+    NodeId nodeId2{0};
     std::string edgeId;
     double tStart = 0.0;
     double tEnd = 0.0;
@@ -55,7 +55,7 @@ private:
 
     std::unordered_map<SegmentId, CurveSegment> segments_;
     std::map<std::pair<NodeId, NodeId>, SegmentId> endpointToSegmentId_;
-    SegmentId nextId_ = 0;
+    size_t nextId_ = 0;
 };
 
 } // namespace Meshing

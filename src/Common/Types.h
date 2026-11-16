@@ -1,16 +1,16 @@
 #pragma once
 
+#include "Common/Identifier.h"
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
-#include <cstddef>
 
 namespace Meshing
 {
 
-using NodeId = size_t;
-using ElementId = size_t;
-using SegmentId = size_t;
+using NodeId = Identifier<struct NodeTag>;
+using ElementId = Identifier<struct ElementTag>;
+using SegmentId = Identifier<struct SegmentTag>;
 
 using Point2D = Eigen::Vector2d;
 using Point3D = Eigen::Vector3d;

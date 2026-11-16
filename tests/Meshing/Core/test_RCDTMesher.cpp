@@ -123,7 +123,7 @@ TEST_F(RCDTMesherCylinderTest, AllEdgeNodesCovered)
         for (const NodeId nodeId : nodeIds)
         {
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
-                << "Edge node " << nodeId << " on edge " << edgeId
+                << "Edge node " << nodeId.value() << " on edge " << edgeId
                 << " does not appear in any triangle";
         }
     }
@@ -140,8 +140,8 @@ TEST_F(RCDTMesherCylinderTest, NoDuplicateTriangles)
     {
         std::sort(triangle.begin(), triangle.end());
         EXPECT_TRUE(seen.insert(triangle).second)
-            << "Duplicate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "}";
+            << "Duplicate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "}";
     }
 }
 
@@ -153,13 +153,13 @@ TEST_F(RCDTMesherCylinderTest, NoDegenerateTriangles)
 {
     for (const auto& triangle : mesh_.triangles)
     {
-        const Point3D& a = mesh_.nodes[triangle[0]];
-        const Point3D& b = mesh_.nodes[triangle[1]];
-        const Point3D& c = mesh_.nodes[triangle[2]];
+        const Point3D& a = mesh_.nodes[triangle[0].value()];
+        const Point3D& b = mesh_.nodes[triangle[1].value()];
+        const Point3D& c = mesh_.nodes[triangle[2].value()];
         const double area = 0.5 * (b - a).cross(c - a).norm();
         EXPECT_GT(area, 1e-10)
-            << "Degenerate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "} area=" << area;
+            << "Degenerate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "} area=" << area;
     }
 }
 
@@ -180,9 +180,9 @@ TEST_F(RCDTMesherCylinderTest, AllNodesOnCylinderSurface)
         {
             for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
-                const double gap = surface->getGap(mesh_.nodes[nodeId]);
+                const double gap = surface->getGap(mesh_.nodes[nodeId.value()]);
                 EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
-                    << "Node " << nodeId << " has gap " << gap
+                    << "Node " << nodeId.value() << " has gap " << gap
                     << " > " << NODE_ON_SURFACE_TOLERANCE
                     << " from surface " << faceId;
             }
@@ -310,7 +310,7 @@ TEST_F(RCDTMesherSphereTest, AllEdgeNodesCovered)
         for (const NodeId nodeId : nodeIds)
         {
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
-                << "Edge node " << nodeId << " on edge " << edgeId
+                << "Edge node " << nodeId.value() << " on edge " << edgeId
                 << " does not appear in any triangle";
         }
     }
@@ -323,8 +323,8 @@ TEST_F(RCDTMesherSphereTest, NoDuplicateTriangles)
     {
         std::sort(triangle.begin(), triangle.end());
         EXPECT_TRUE(seen.insert(triangle).second)
-            << "Duplicate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "}";
+            << "Duplicate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "}";
     }
 }
 
@@ -332,13 +332,13 @@ TEST_F(RCDTMesherSphereTest, NoDegenerateTriangles)
 {
     for (const auto& triangle : mesh_.triangles)
     {
-        const Point3D& a = mesh_.nodes[triangle[0]];
-        const Point3D& b = mesh_.nodes[triangle[1]];
-        const Point3D& c = mesh_.nodes[triangle[2]];
+        const Point3D& a = mesh_.nodes[triangle[0].value()];
+        const Point3D& b = mesh_.nodes[triangle[1].value()];
+        const Point3D& c = mesh_.nodes[triangle[2].value()];
         const double area = 0.5 * (b - a).cross(c - a).norm();
         EXPECT_GT(area, 1e-10)
-            << "Degenerate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "} area=" << area;
+            << "Degenerate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "} area=" << area;
     }
 }
 
@@ -355,9 +355,9 @@ TEST_F(RCDTMesherSphereTest, AllNodesOnSphereSurface)
         {
             for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
-                const double gap = surface->getGap(mesh_.nodes[nodeId]);
+                const double gap = surface->getGap(mesh_.nodes[nodeId.value()]);
                 EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
-                    << "Node " << nodeId << " has gap " << gap
+                    << "Node " << nodeId.value() << " has gap " << gap
                     << " > " << NODE_ON_SURFACE_TOLERANCE
                     << " from surface " << faceId;
             }
@@ -467,7 +467,7 @@ TEST_F(RCDTMesherTorusTest, AllEdgeNodesCovered)
         for (const NodeId nodeId : nodeIds)
         {
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
-                << "Edge node " << nodeId << " on edge " << edgeId
+                << "Edge node " << nodeId.value() << " on edge " << edgeId
                 << " does not appear in any triangle";
         }
     }
@@ -480,8 +480,8 @@ TEST_F(RCDTMesherTorusTest, NoDuplicateTriangles)
     {
         std::sort(triangle.begin(), triangle.end());
         EXPECT_TRUE(seen.insert(triangle).second)
-            << "Duplicate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "}";
+            << "Duplicate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "}";
     }
 }
 
@@ -489,13 +489,13 @@ TEST_F(RCDTMesherTorusTest, NoDegenerateTriangles)
 {
     for (const auto& triangle : mesh_.triangles)
     {
-        const Point3D& a = mesh_.nodes[triangle[0]];
-        const Point3D& b = mesh_.nodes[triangle[1]];
-        const Point3D& c = mesh_.nodes[triangle[2]];
+        const Point3D& a = mesh_.nodes[triangle[0].value()];
+        const Point3D& b = mesh_.nodes[triangle[1].value()];
+        const Point3D& c = mesh_.nodes[triangle[2].value()];
         const double area = 0.5 * (b - a).cross(c - a).norm();
         EXPECT_GT(area, 1e-10)
-            << "Degenerate triangle: {" << triangle[0] << ", " << triangle[1]
-            << ", " << triangle[2] << "} area=" << area;
+            << "Degenerate triangle: {" << triangle[0].value() << ", " << triangle[1].value()
+            << ", " << triangle[2].value() << "} area=" << area;
     }
 }
 
@@ -512,9 +512,9 @@ TEST_F(RCDTMesherTorusTest, AllNodesOnTorusSurface)
         {
             for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
-                const double gap = surface->getGap(mesh_.nodes[nodeId]);
+                const double gap = surface->getGap(mesh_.nodes[nodeId.value()]);
                 EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
-                    << "Node " << nodeId << " has gap " << gap
+                    << "Node " << nodeId.value() << " has gap " << gap
                     << " > " << NODE_ON_SURFACE_TOLERANCE
                     << " from surface " << faceId;
             }
@@ -582,7 +582,7 @@ TEST(RCDTMesherThinCapBoxTest, HasNoFacetsAcrossTheCap)
     auto touches = [&](const std::array<NodeId, 3>& triangle, double height)
     {
         return std::ranges::any_of(triangle, [&](NodeId node)
-                                   { return std::abs(mesh.nodes[node].z() - height) < 1e-9; });
+                                   { return std::abs(mesh.nodes[node.value()].z() - height) < 1e-9; });
     };
 
     auto acrossTheCap = std::ranges::count_if(

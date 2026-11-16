@@ -63,10 +63,20 @@ std::string joinWithCommas(const Container& values, Format format)
     return joined;
 }
 
+std::size_t rawValue(std::size_t value)
+{
+    return value;
+}
+
+std::size_t rawValue(Meshing::NodeId nodeId)
+{
+    return nodeId.value();
+}
+
 std::string joinNodeIds(const auto& nodeIds)
 {
-    return joinWithCommas(nodeIds, [](Meshing::NodeId id)
-                          { return std::to_string(id); });
+    return joinWithCommas(nodeIds, [](auto id)
+                          { return std::to_string(rawValue(id)); });
 }
 
 std::string formatRole(Meshing::ConstraintRole role)
@@ -133,8 +143,9 @@ void writeTriangles(std::ostream& os, const std::vector<std::array<Meshing::Node
         writeCellRow(os, "triangle", std::to_string(i), joinNodeIds(triangles[i]), geometryIds[i], NOT_APPLICABLE);
 }
 
+template <typename Id>
 void writeNodeChains(std::ostream& os, const std::string& kind,
-                     const std::map<std::string, std::vector<std::size_t>>& chains)
+                     const std::map<std::string, std::vector<Id>>& chains)
 {
     std::size_t index = 0;
     for (const auto& [geometryId, nodeIds] : chains)
@@ -211,7 +222,7 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
     for (Meshing::NodeId nodeId : sortedKeys(mesh.getNodes()))
     {
         const auto& point = mesh.getNode(nodeId)->getCoordinates();
-        nodes << nodeId << '\t' << formatDouble(point.x()) << '\t' << formatDouble(point.y()) << '\n';
+        nodes << nodeId.value() << '\t' << formatDouble(point.x()) << '\t' << formatDouble(point.y()) << '\n';
     }
 
     auto cells = openTable(stem, "cells");
@@ -219,7 +230,7 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
     for (Meshing::ElementId elementId : sortedKeys(mesh.getElements()))
     {
         const auto* element = mesh.getElement(elementId);
-        writeCellRow(cells, formatElementKind(element->getType()), std::to_string(elementId),
+        writeCellRow(cells, formatElementKind(element->getType()), std::to_string(elementId.value()),
                      joinNodeIds(element->getNodeIds()), NOT_APPLICABLE, NOT_APPLICABLE);
     }
 
@@ -229,7 +240,7 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
         const auto& segment = segments.at(segmentId);
         const std::array<Meshing::NodeId, 2> segmentNodes = {segment.nodeId1, segment.nodeId2};
         const std::string edgeId = segment.edgeId.empty() ? NOT_APPLICABLE : segment.edgeId;
-        writeCellRow(cells, "segment", std::to_string(segmentId), joinNodeIds(segmentNodes), edgeId,
+        writeCellRow(cells, "segment", std::to_string(segmentId.value()), joinNodeIds(segmentNodes), edgeId,
                      formatRole(segment.role));
     }
 }

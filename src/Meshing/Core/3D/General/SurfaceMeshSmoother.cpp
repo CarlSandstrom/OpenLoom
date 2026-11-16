@@ -100,12 +100,12 @@ std::vector<Point3D> proposeSmoothedPositions(const Geometry3D::GeometryCollecti
 
         Point3D centroid = Point3D::Zero();
         for (auto neighborId : neighbors)
-            centroid += mesh.nodes[neighborId];
+            centroid += mesh.nodes[neighborId.value()];
         centroid /= static_cast<double>(neighbors.size());
 
         auto projected = SurfaceProjector::projectToSurface(centroid, *surface);
         if (projected)
-            proposed[nodeId] = *projected;
+            proposed[nodeId.value()] = *projected;
     }
 
     return proposed;

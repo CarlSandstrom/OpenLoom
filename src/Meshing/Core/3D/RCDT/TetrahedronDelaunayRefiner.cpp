@@ -22,7 +22,7 @@ namespace Meshing
 namespace
 {
 
-constexpr ElementId INVALID_ID = SIZE_MAX;
+constexpr ElementId INVALID_ID{SIZE_MAX};
 
 std::optional<double> squaredRadiusEdgeRatio(const TetrahedronElement& tetrahedron, const MeshData3D& meshData);
 
@@ -61,7 +61,7 @@ bool TetrahedronDelaunayRefiner::refineRound()
     auto ambient = AmbientTetrahedronClassifier::classify(meshData, surfaceRefiner_.getRestrictedFaces());
 
     double squaredBound = ratioBound_ * ratioBound_;
-    std::vector<std::pair<double, std::size_t>> badTetrahedra;
+    std::vector<std::pair<double, ElementId>> badTetrahedra;
     for (auto& [elementId, element] : meshData.getElements())
     {
         auto tetrahedron = dynamic_cast<const TetrahedronElement*>(element.get());

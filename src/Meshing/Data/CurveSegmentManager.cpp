@@ -17,7 +17,7 @@ std::pair<SegmentId, SegmentId> CurveSegmentManager::splitAt(SegmentId segmentId
     {
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
                             OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                            "CurveSegment with ID " + std::to_string(segmentId) + " not found");
+                            "CurveSegment with ID " + std::to_string(segmentId.value()) + " not found");
     }
 
     CurveSegment original = it->second;
@@ -39,7 +39,7 @@ const CurveSegment& CurveSegmentManager::getSegment(SegmentId segmentId) const
     {
         OPENLOOM_THROW_CODE(OpenLoom::MeshException,
                             OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                            "CurveSegment with ID " + std::to_string(segmentId) + " not found");
+                            "CurveSegment with ID " + std::to_string(segmentId.value()) + " not found");
     }
     return it->second;
 }
@@ -98,7 +98,7 @@ bool CurveSegmentManager::empty() const
 
 SegmentId CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
 {
-    SegmentId id = nextId_++;
+    SegmentId id{nextId_++};
     segments_[id] = segment;
     auto key = (segment.nodeId1 < segment.nodeId2) ?
                    std::make_pair(segment.nodeId1, segment.nodeId2) :
