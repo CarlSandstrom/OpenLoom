@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
+#include "Meshing/Core/3D/General/SurfaceTessellation.h"
 
 #include "Common/BoundingBox2D.h"
 #include "Common/Types.h"

@@ -2,7 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Connectivity/FaceKey.h"
-#include "Meshing/Core/3D/RCDT/SurfaceTessellation.h"
+#include "Meshing/Core/3D/General/SurfaceTessellation.h"
 
 #include <optional>
 #include <string>

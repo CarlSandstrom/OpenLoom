@@ -27,7 +27,7 @@ namespace Meshing
  *
  * Built from the ISurface3D interface alone (getPoint(), getParameterBounds(),
  * isUVWithinTrimmedBoundary()), so it works the same for a plane or a NURBS
- * patch and does not tie RCDT to OpenCascade.
+ * patch and does not tie the mesher to OpenCascade.
  *
  * This class is the UV sampling half of that job: where to place samples and
  * which cells to emit. The triangles are held in a TriangleSoupIndex, which
