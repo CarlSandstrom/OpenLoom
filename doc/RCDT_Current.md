@@ -66,7 +66,7 @@ A `CurveSegment [a, b]` is a straight mesh edge whose endpoints are consecutive 
 - Surface interiors are populated entirely by Phase 2.
 
 **R1.2 — Place protecting balls** (`ProtectingBallPlacer`) — *new relative to the historical path*
-- Size every corner and curve ball from the discretization's existing point spacing (the size function).
+- Size every corner and curve ball from the discretization's existing point spacing (the size function), capped at the local feature size / 2.75 at its centre, so a ball never reaches a surface its curve does not bound.
 - Repair overlaps iteratively (`refine_balls`): shrink any pair of non-neighbour balls that intersect, to at most their distance / 2.1; repopulate gaps between neighbours; repeat to a fixed point, at most 29 rounds.
 - Produces a weight (squared radius) per protected point, meeting the three conditions in "Protecting ball" above.
 

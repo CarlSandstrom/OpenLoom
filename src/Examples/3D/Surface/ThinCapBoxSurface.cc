@@ -8,9 +8,11 @@
  *
  * Exports:
  *   - ThinCapBoxSurface3D.vtu : surface mesh (color by SurfaceID)
+ *   - ThinCapBoxSurface.nodes.tsv, ThinCapBoxSurface.cells.tsv : the same mesh as tables
  */
 
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
@@ -47,6 +49,7 @@ int main()
     Export::VtkExporter exporter;
     exporter.writeSurfaceMesh(surfaceMesh, "ThinCapBoxSurface3D.vtu");
     std::cout << "Exported surface mesh to ThinCapBoxSurface3D.vtu (color by SurfaceID)\n";
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "ThinCapBoxSurface");
 
     return 0;
 }

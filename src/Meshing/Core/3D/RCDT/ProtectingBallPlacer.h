@@ -43,7 +43,9 @@ namespace Meshing
  *    between; repeated until nothing changes, at most 29 rounds.
  *
  * The size function is the spacing of the existing boundary discretization
- * along each curve.
+ * along each curve. No ball is wider than the local feature size over
+ * elementsAcrossFeatureGap at its centre, so a curve lying close to a surface
+ * it does not bound is protected by balls that stay clear of that surface.
  *
  * Rewrites discretization in place, replacing every protected curve's
  * interior points (corners and surface points are kept), and returns the

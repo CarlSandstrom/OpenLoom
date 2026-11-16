@@ -168,7 +168,8 @@ std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
 
     for (std::size_t i = 0; i < samples.size(); ++i)
     {
-        double size = std::min(geometrySamples.curvatureSizes[i], featureSizes[i] / settings.elementsAcrossFeatureGap);
+        double featureSize = featureSizes[i] / settings.elementsAcrossFeatureGap;
+        double size = settings.includeCurvature ? std::min(geometrySamples.curvatureSizes[i], featureSize) : featureSize;
 
         // Flat geometry with nothing unrelated nearby: no source is the right answer, and the
         // envelope covers the position from its neighbours.

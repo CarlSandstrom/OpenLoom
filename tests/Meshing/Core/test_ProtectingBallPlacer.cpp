@@ -9,9 +9,11 @@
 #include "Topology/SeamCollection.h"
 #include "Topology/Topology3D.h"
 
+#include <BRepAlgoAPI_Cut.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <TopoDS_Shape.hxx>
+#include <gp_Pnt.hxx>
 
 #include <algorithm>
 #include <limits>
@@ -179,4 +181,31 @@ TEST(ProtectingBallPlacerTest, DenseSaddleBallsFollowTheSizeFunction)
                 << "ball at " << point.transpose() << " on " << edgeId;
         }
     }
+}
+
+// A 10x10x10 box with a 6x6x9 pocket leaves a cap 1 mm thick. The pocket
+// ceiling's edges lie 1 mm below the top face, so a ball wider than that
+// reaches through the cap and the facets joining the two faces are exempt
+// from the shape criteria.
+TEST(ProtectingBallPlacerTest, BallsStayClearOfNonIncidentSurfaces)
+{
+    constexpr double CEILING_HEIGHT = 9.0;
+    constexpr double CAP_THICKNESS = 1.0;
+
+    auto box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+    auto pocket = BRepPrimAPI_MakeBox(gp_Pnt(2.0, 2.0, 0.0), 6.0, 6.0, CEILING_HEIGHT).Shape();
+    auto protection = protect(BRepAlgoAPI_Cut(box, pocket).Shape(),
+                              Geometry3D::DiscretizationSettings3D(std::nullopt, std::numbers::pi / 8.0, 2));
+
+    auto ceilingBallCount = 0;
+    for (auto& [index, weight] : protection.weights)
+    {
+        if (std::abs(protection.discretization.points[index].z() - CEILING_HEIGHT) > 1e-9) continue;
+
+        ++ceilingBallCount;
+        EXPECT_LT(std::sqrt(weight), CAP_THICKNESS) << "ball at " << protection.discretization.points[index].transpose();
+    }
+
+    EXPECT_GT(ceilingBallCount, 0);
+    expectCgalProtectionConditions(protection);
 }

@@ -32,6 +32,7 @@ FAST_EXAMPLES=(
     "3D/Volume/CreateBox"          # 3D volume tetrahedralization
     "3D/Surface/CylinderSurfaceMesh"  # single periodic surface, seam handling
     "3D/Surface/HexNutSurfaceMesh"    # planar faces plus a periodic bore
+    "3D/Surface/ThinCapBoxSurface"    # curve 1 mm below a non-incident face (OPE-204)
 )
 
 # Full tier adds the slow models, including the crease-protection benchmark.

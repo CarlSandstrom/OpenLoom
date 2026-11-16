@@ -177,6 +177,17 @@ Placement:
 
 - **Corners**: radius from the size function, capped at a third of the
   distance to the nearest other corner.
+- **Feature-size cap** (OPE-204): every ball radius, corners and interior
+  balls alike, is at most the local feature size over 2.75 at its centre
+  (`LocalFeatureSize3D` through `SizingFieldBuilder3D`, curvature term off).
+  Without it a curve 1 mm below a non-incident face gets balls wider than the
+  gap, the facets joining the two faces are exempt from the shape criteria
+  (section 5), and refinement keeps them. The divisor is 2.75 and not the 2.0
+  one would expect because the feature size is measured between *samples*:
+  the coarse surface grid overstates the gap on the cup model, and 2.0 left
+  278 facets across it. OPE-205 replaces the sampled measure with the exact
+  distance to non-incident faces. Cost: the Saddle goes from 94 to 203 curve
+  points.
 - **Curves** (`insert_balls`): between balls of radii `sp ≤ sq` a curve distance
   `d` apart, `n = round(2(d − sq)/(sp + sq))` balls with radii growing linearly
   from `sp` to `sq`, each spaced from the last by its own radius. The size is

@@ -6,6 +6,8 @@
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "SurfaceMeshTopology.h"
 
+#include <BRepAlgoAPI_Cut.hxx>
+#include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <BRepPrimAPI_MakeSphere.hxx>
 #include <BRepPrimAPI_MakeTorus.hxx>
@@ -556,4 +558,35 @@ TEST_F(RCDTMesherTorusTest, IsAClosedTwoManifold)
     EXPECT_EQ(topology.eulerCharacteristic(), 0)
         << "V=" << topology.vertices.size() << " E=" << topology.trianglesPerEdge.size()
         << " F=" << topology.triangleCount;
+}
+
+// A 10x10x10 box with a 6x6x9 pocket leaves a cap 1 mm thick. Protecting balls
+// that reach through it exempt the facets joining the pocket ceiling (z = 9) to
+// the top face (z = 10) from the shape criteria, and 88 of them were accepted.
+TEST(RCDTMesherThinCapBoxTest, HasNoFacetsAcrossTheCap)
+{
+    constexpr double CEILING_HEIGHT = 9.0;
+    constexpr double TOP_HEIGHT = 10.0;
+
+    auto box = BRepPrimAPI_MakeBox(10.0, 10.0, TOP_HEIGHT).Shape();
+    auto pocket = BRepPrimAPI_MakeBox(gp_Pnt(2.0, 2.0, 0.0), 6.0, 6.0, CEILING_HEIGHT).Shape();
+    Readers::TopoDS_ShapeConverter converter(BRepAlgoAPI_Cut(box, pocket).Shape());
+
+    RCDTMesher mesher(converter.getGeometryCollection(),
+                      converter.getTopology(),
+                      Geometry3D::DiscretizationSettings3D(std::nullopt, std::numbers::pi / 8.0, 2),
+                      SurfaceMesh3DQualitySettings{});
+    mesher.meshSurface();
+    auto& mesh = *mesher.getSurfaceMesh();
+
+    auto touches = [&](const std::array<size_t, 3>& triangle, double height)
+    {
+        return std::ranges::any_of(triangle, [&](size_t node) { return std::abs(mesh.nodes[node].z() - height) < 1e-9; });
+    };
+
+    auto acrossTheCap = std::ranges::count_if(
+        mesh.triangles, [&](auto& triangle) { return touches(triangle, CEILING_HEIGHT) && touches(triangle, TOP_HEIGHT); });
+
+    EXPECT_GT(mesh.triangles.size(), 0u);
+    EXPECT_EQ(acrossTheCap, 0);
 }
