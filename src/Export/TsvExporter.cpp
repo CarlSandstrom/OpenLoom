@@ -1,5 +1,6 @@
 #include "TsvExporter.h"
 
+#include "Common/Types.h"
 #include "Export/VtkGrid.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
@@ -64,7 +65,7 @@ std::string joinWithCommas(const Container& values, Format format)
 
 std::string joinNodeIds(const auto& nodeIds)
 {
-    return joinWithCommas(nodeIds, [](std::size_t id)
+    return joinWithCommas(nodeIds, [](Meshing::NodeId id)
                           { return std::to_string(id); });
 }
 
@@ -124,7 +125,7 @@ std::vector<std::string> triangleGeometryIds(const std::map<std::string, std::ve
     return geometryIds;
 }
 
-void writeTriangles(std::ostream& os, const std::vector<std::array<std::size_t, 3>>& triangles,
+void writeTriangles(std::ostream& os, const std::vector<std::array<Meshing::NodeId, 3>>& triangles,
                     const std::map<std::string, std::vector<std::size_t>>& groups)
 {
     const auto geometryIds = triangleGeometryIds(groups, triangles.size());
@@ -207,7 +208,7 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
 {
     auto nodes = openTable(stem, "nodes");
     nodes << "node_id\tx\ty\n";
-    for (std::size_t nodeId : sortedKeys(mesh.getNodes()))
+    for (Meshing::NodeId nodeId : sortedKeys(mesh.getNodes()))
     {
         const auto& point = mesh.getNode(nodeId)->getCoordinates();
         nodes << nodeId << '\t' << formatDouble(point.x()) << '\t' << formatDouble(point.y()) << '\n';
@@ -215,7 +216,7 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
 
     auto cells = openTable(stem, "cells");
     cells << CELL_HEADER;
-    for (std::size_t elementId : sortedKeys(mesh.getElements()))
+    for (Meshing::ElementId elementId : sortedKeys(mesh.getElements()))
     {
         const auto* element = mesh.getElement(elementId);
         writeCellRow(cells, formatElementKind(element->getType()), std::to_string(elementId),
@@ -223,10 +224,10 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
     }
 
     const auto& segments = mesh.getCurveSegmentManager().getAllSegments();
-    for (std::size_t segmentId : sortedKeys(segments))
+    for (Meshing::SegmentId segmentId : sortedKeys(segments))
     {
         const auto& segment = segments.at(segmentId);
-        const std::array<std::size_t, 2> segmentNodes = {segment.nodeId1, segment.nodeId2};
+        const std::array<Meshing::NodeId, 2> segmentNodes = {segment.nodeId1, segment.nodeId2};
         const std::string edgeId = segment.edgeId.empty() ? NOT_APPLICABLE : segment.edgeId;
         writeCellRow(cells, "segment", std::to_string(segmentId), joinNodeIds(segmentNodes), edgeId,
                      formatRole(segment.role));

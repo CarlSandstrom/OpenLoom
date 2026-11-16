@@ -1,5 +1,6 @@
 #include "VtkExporter.h"
 
+#include "Common/Types.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
@@ -120,9 +121,9 @@ VtkGrid gridFromPoints(const std::vector<Meshing::Point3D>& points)
 }
 
 template <typename Map>
-std::vector<std::size_t> sortedIds(const Map& map)
+std::vector<typename Map::key_type> sortedIds(const Map& map)
 {
-    std::vector<std::size_t> ids;
+    std::vector<typename Map::key_type> ids;
     ids.reserve(map.size());
     for (const auto& entry : map)
         ids.push_back(entry.first);
@@ -166,11 +167,11 @@ std::vector<int> triangleSurfaceIndices(const std::map<std::string, std::vector<
 /// every element sorted by id, then every constraint segment as a line.
 /// elementIds receives the element ids in cell order.
 template <typename MeshData>
-VtkGrid gridFromMeshData(const MeshData& mesh, std::vector<std::size_t>& elementIds)
+VtkGrid gridFromMeshData(const MeshData& mesh, std::vector<Meshing::ElementId>& elementIds)
 {
     VtkGrid grid;
     grid.nodeIds = sortedIds(mesh.getNodes());
-    std::unordered_map<std::size_t, std::size_t> indexByNodeId;
+    std::unordered_map<Meshing::NodeId, std::size_t> indexByNodeId;
     for (std::size_t i = 0; i < grid.nodeIds.size(); ++i)
     {
         indexByNodeId[grid.nodeIds[i]] = i;
@@ -178,11 +179,11 @@ VtkGrid gridFromMeshData(const MeshData& mesh, std::vector<std::size_t>& element
     }
 
     elementIds = sortedIds(mesh.getElements());
-    for (std::size_t elementId : elementIds)
+    for (Meshing::ElementId elementId : elementIds)
     {
         const auto* element = mesh.getElement(elementId);
         VtkCell cell{cellTypeFor(element->getType()), {}};
-        for (std::size_t nodeId : element->getNodeIds())
+        for (Meshing::NodeId nodeId : element->getNodeIds())
             cell.pointIndices.push_back(indexByNodeId.at(nodeId));
         grid.cells.push_back(std::move(cell));
     }
@@ -206,17 +207,17 @@ std::vector<int> flagTrailingCells(std::size_t leadingCount, std::size_t cellCou
 
 // Labels each triangle with the connected region it belongs to, flood-filling
 // between constraint edges; empty when the mesh has no constraints.
-std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D& mesh)
+std::unordered_map<Meshing::ElementId, int> computeDomainIds(const Meshing::MeshData2D& mesh)
 {
-    std::unordered_map<std::size_t, int> domainIds;
+    std::unordered_map<Meshing::ElementId, int> domainIds;
 
     const auto& curveSegmentManager = mesh.getCurveSegmentManager();
     if (curveSegmentManager.empty())
         return domainIds;
 
     // Edge key helper (canonical ordering)
-    using EdgeKey = std::pair<std::size_t, std::size_t>;
-    auto makeEdgeKey = [](std::size_t a, std::size_t b) -> EdgeKey
+    using EdgeKey = std::pair<Meshing::NodeId, Meshing::NodeId>;
+    auto makeEdgeKey = [](Meshing::NodeId a, Meshing::NodeId b) -> EdgeKey
     {
         return a < b ? EdgeKey{a, b} : EdgeKey{b, a};
     };
@@ -241,14 +242,14 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     }
 
     // Build edge-to-triangles adjacency map
-    std::unordered_map<EdgeKey, std::vector<std::size_t>, EdgeKeyHash> edgeToTriangles;
+    std::unordered_map<EdgeKey, std::vector<Meshing::ElementId>, EdgeKeyHash> edgeToTriangles;
     for (const auto& [elementId, element] : mesh.getElements())
     {
         const auto& nodeIds = element->getNodeIds();
         for (std::size_t i = 0; i < nodeIds.size(); ++i)
         {
-            std::size_t a = nodeIds[i];
-            std::size_t b = nodeIds[(i + 1) % nodeIds.size()];
+            Meshing::NodeId a = nodeIds[i];
+            Meshing::NodeId b = nodeIds[(i + 1) % nodeIds.size()];
             edgeToTriangles[makeEdgeKey(a, b)].push_back(elementId);
         }
     }
@@ -276,13 +277,13 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     };
 
     // Find a seed triangle whose centroid is inside the boundary
-    std::size_t seedTriangle = 0;
+    Meshing::ElementId seedTriangle = 0;
     bool foundSeed = false;
     for (const auto& [elementId, element] : mesh.getElements())
     {
         const auto& nodeIds = element->getNodeIds();
         Meshing::Point2D centroid = Meshing::Point2D::Zero();
-        for (std::size_t nodeId : nodeIds)
+        for (Meshing::NodeId nodeId : nodeIds)
         {
             centroid += mesh.getNode(nodeId)->getCoordinates();
         }
@@ -300,15 +301,15 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
         return domainIds;
 
     // Phase 1: BFS flood fill from seed, stopping at BOUNDARY constraints → interior triangles
-    std::unordered_set<std::size_t> interiorTriangles;
+    std::unordered_set<Meshing::ElementId> interiorTriangles;
     {
-        std::queue<std::size_t> queue;
+        std::queue<Meshing::ElementId> queue;
         queue.push(seedTriangle);
         interiorTriangles.insert(seedTriangle);
 
         while (!queue.empty())
         {
-            std::size_t current = queue.front();
+            Meshing::ElementId current = queue.front();
             queue.pop();
 
             const auto& nodeIds = mesh.getElement(current)->getNodeIds();
@@ -323,7 +324,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
                 if (it == edgeToTriangles.end())
                     continue;
 
-                for (std::size_t neighbor : it->second)
+                for (Meshing::ElementId neighbor : it->second)
                 {
                     if (neighbor != current && !interiorTriangles.count(neighbor))
                     {
@@ -336,36 +337,36 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
     }
 
     // Phase 2: BFS flood fill on interior triangles, stopping at ALL constraints → domain IDs
-    std::unordered_map<EdgeKey, std::vector<std::size_t>, EdgeKeyHash> interiorEdgeToTriangles;
-    for (std::size_t elementId : interiorTriangles)
+    std::unordered_map<EdgeKey, std::vector<Meshing::ElementId>, EdgeKeyHash> interiorEdgeToTriangles;
+    for (Meshing::ElementId elementId : interiorTriangles)
     {
         const auto& nodeIds = mesh.getElement(elementId)->getNodeIds();
         for (std::size_t i = 0; i < nodeIds.size(); ++i)
         {
-            std::size_t a = nodeIds[i];
-            std::size_t b = nodeIds[(i + 1) % nodeIds.size()];
+            Meshing::NodeId a = nodeIds[i];
+            Meshing::NodeId b = nodeIds[(i + 1) % nodeIds.size()];
             interiorEdgeToTriangles[makeEdgeKey(a, b)].push_back(elementId);
         }
     }
 
     int nextDomainId = 0;
-    std::unordered_set<std::size_t> assigned;
+    std::unordered_set<Meshing::ElementId> assigned;
 
     // Temporary domain ID assignment (order-dependent, will be remapped below)
-    for (std::size_t elementId : interiorTriangles)
+    for (Meshing::ElementId elementId : interiorTriangles)
     {
         if (assigned.count(elementId))
             continue;
 
         int currentDomain = nextDomainId++;
-        std::queue<std::size_t> queue;
+        std::queue<Meshing::ElementId> queue;
         queue.push(elementId);
         assigned.insert(elementId);
         domainIds[elementId] = currentDomain;
 
         while (!queue.empty())
         {
-            std::size_t current = queue.front();
+            Meshing::ElementId current = queue.front();
             queue.pop();
 
             const auto& nodeIds = mesh.getElement(current)->getNodeIds();
@@ -380,7 +381,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
                 if (it == interiorEdgeToTriangles.end())
                     continue;
 
-                for (std::size_t neighbor : it->second)
+                for (Meshing::ElementId neighbor : it->second)
                 {
                     if (neighbor != current && !assigned.count(neighbor))
                     {
@@ -411,7 +412,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
 
         const auto& nodeIds = mesh.getElement(elementId)->getNodeIds();
         Meshing::Point2D centroid = Meshing::Point2D::Zero();
-        for (std::size_t nodeId : nodeIds)
+        for (Meshing::NodeId nodeId : nodeIds)
             centroid += mesh.getNode(nodeId)->getCoordinates();
         centroid /= static_cast<double>(nodeIds.size());
 
@@ -450,7 +451,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
 
 bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string& filePath) const
 {
-    std::vector<std::size_t> elementIds;
+    std::vector<Meshing::ElementId> elementIds;
     VtkGrid grid = gridFromMeshData(mesh, elementIds);
 
     std::vector<std::size_t> cellIds = elementIds;
@@ -463,7 +464,7 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
     {
         const auto* element = mesh.getElement(elementIds[i]);
         isSupertet[i] = std::any_of(boundingNodeIds->begin(), boundingNodeIds->end(),
-                                    [element](std::size_t nodeId)
+                                    [element](Meshing::NodeId nodeId)
                                     { return element->hasNode(nodeId); });
     }
 
@@ -475,7 +476,7 @@ bool VtkExporter::exportMesh(const Meshing::MeshData3D& mesh, const std::string&
 
 bool VtkExporter::exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const
 {
-    std::vector<std::size_t> elementIds;
+    std::vector<Meshing::ElementId> elementIds;
     VtkGrid grid = gridFromMeshData(mesh, elementIds);
 
     // Constraint segments carry ElementID 0.
