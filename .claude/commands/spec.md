@@ -32,7 +32,7 @@ Save it as `doc/specs/<kebab-case-name>.md`. Two pages at most. Leave out anythi
 5. **Design**: signatures, data flow and the invariants that must hold. Give the decisions and the reasons, not the goal again.
 6. **Acceptance criteria**: executable checks only. Each one is a command to run or a test to add, plus the expected result. Nothing that is only prose.
 7. **Assumptions**: every decision you took that I did not state. Be thorough and direct. The section is required, and "none" is rarely true. Numbered list.
-8. **Open questions**: what I must decide before or during implementation. Numbered list.
+8. **Open questions**: what I must decide before or during implementation. Numbered list. Every question carries your recommendation and the reason for it, in the form "Recommendation: X, because Y". If you cannot recommend, say what information would let you. A question you could settle yourself from the code or from a sensible default is an assumption, not an open question.
 9. **Implementation steps**: small steps, in order, each of which could be committed alone and each with the check that shows it worked. Numbered list.
 
 ## Rules
@@ -42,4 +42,4 @@ Save it as `doc/specs/<kebab-case-name>.md`. Two pages at most. Leave out anythi
 - A refactor step must not carry a bug fix or a tolerance change. If both are needed, split them.
 - If the work is larger than one reviewable change, say so and propose separate specs.
 - Do not commit the spec.
-- After saving the file, print the Assumptions and Open questions sections in chat so I can read them without opening it.
+- After saving the file, print the Assumptions and Open questions sections in chat so I can read them without opening it. The printed Open questions include your recommendations.
