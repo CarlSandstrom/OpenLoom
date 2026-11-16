@@ -13,7 +13,7 @@ namespace Meshing
 {
 
 /**
- * @brief The point-against-one-CAD-surface queries the RCDT module needs: how
+ * @brief The point-against-one-CAD-surface queries a surface mesher needs: how
  * far off a surface a point lies, where it lands when pulled onto that
  * surface, and where a segment crosses it.
  *
