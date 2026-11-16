@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/RCDT/TriangleSoupIndex.h"
+#include "Meshing/Core/3D/General/TriangleSoupIndex.h"
 
 #include "Meshing/Core/3D/General/RobustPredicates3D.h"
 
