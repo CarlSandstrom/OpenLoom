@@ -2,8 +2,7 @@
 
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/IEdge3D.h"
-#include "Meshing/Core/3D/General/SizingField3D.h"
-#include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
+#include "Meshing/Core/3D/General/NonIncidentSurfaceDistance.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Topology3D.h"
@@ -29,6 +28,18 @@ constexpr double DISTANCE_DIVISOR = 2.1;
 constexpr int MAXIMUM_REPAIR_ROUNDS = 29;
 constexpr std::size_t REEVALUATE_SIZE_ABOVE = 10;
 
+// A ball reaches at most half way to the nearest surface sharing no corner
+// with it, so the facets of that surface stay clear of the ball.
+constexpr double SURFACE_DISTANCE_DIVISOR = 2.0;
+
+// Floor on that cap, as a fraction of the model's bounding-box diagonal: a
+// curve lying on a surface it shares no corner with (an invalid B-rep) would
+// otherwise ask for balls of no size, and repair would never settle.
+constexpr double MINIMUM_CAP_FRACTION = 1e-3;
+
+// Relative slack within which a ball's radius counts as sitting at its cap.
+constexpr double AT_CAP_TOLERANCE = 1e-9;
+
 /// One protecting ball on a curve, by arc length from the curve's start.
 struct Ball
 {
@@ -38,14 +49,34 @@ struct Ball
     std::string cornerId; // empty for a ball inside the curve
 };
 
+/// The cap on a ball's radius from the surfaces sharing no corner with it.
+struct SurfaceCap
+{
+    const NonIncidentSurfaceDistance* surfaceDistance;
+    double floor;
+};
+
+/// The largest radius a ball at point may have, for a ball belonging to the
+/// named corners: its own, or the two ends of its curve.
+double capAt(const SurfaceCap& cap, const Point3D& point, const std::vector<std::string>& cornerIds)
+{
+    auto radius = cap.surfaceDistance->distance(point, cornerIds) / SURFACE_DISTANCE_DIVISOR;
+    if (radius >= cap.floor) return radius;
+    spdlog::warn("ProtectingBallPlacer: a surface sharing no corner with the ball at ({}, {}, {}) is {} away; "
+                 "its radius is floored at {}",
+                 point.x(), point.y(), point.z(), radius * SURFACE_DISTANCE_DIVISOR, cap.floor);
+    return cap.floor;
+}
+
 /// A protected curve: its geometry, the size function read from the existing
-/// discretization's spacing, the feature-size cap on any ball's radius, and its
-/// balls in order from start to end.
+/// discretization's spacing, the cap on any of its balls' radii, and its balls
+/// in order from start to end.
 struct Curve
 {
     std::string edgeId;
     const Geometry3D::IEdge3D* edge;
-    const SizingField3D* featureCap;
+    SurfaceCap cap;
+    std::vector<std::string> cornerIds;
     double length;
     std::vector<double> sizeBreaks; // arc positions of the discretization's points
     std::vector<Ball> balls;
@@ -62,13 +93,13 @@ Point3D pointAt(const Curve& curve, double arc)
     return curve.edge->getPoint(parameterAt(curve, arc));
 }
 
-/// The discretization's spacing at an arc position, capped by the feature size there.
+/// The discretization's spacing at an arc position, capped by the surfaces near it.
 double sizeAt(const Curve& curve, double arc)
 {
     auto& breaks = curve.sizeBreaks;
     auto upper = std::upper_bound(breaks.begin(), breaks.end(), arc);
     auto segment = std::clamp<std::size_t>(upper - breaks.begin(), 1, breaks.size() - 1);
-    return std::min(breaks[segment] - breaks[segment - 1], curve.featureCap->evaluate(pointAt(curve, arc)));
+    return std::min(breaks[segment] - breaks[segment - 1], capAt(curve.cap, pointAt(curve, arc), curve.cornerIds));
 }
 
 /// The existing discretization's points along the curve, as arc positions
@@ -130,7 +161,7 @@ std::vector<Ball> spacedBalls(const Curve& curve,
         auto point = pointAt(curve, arc);
         auto radius = std::min({normalizedStep,
                                 smallRadius + distance / span * (largeRadius - smallRadius),
-                                curve.featureCap->evaluate(point)});
+                                capAt(curve.cap, point, curve.cornerIds)});
         balls.push_back({arc, point, radius, {}});
         if (radiusIncrement > 0.0)
         {
@@ -411,11 +442,11 @@ double tangentCornerFloor(const std::string& cornerId,
 /// Corner radius: the size at the corner (the smallest adjacent discretization
 /// segment of its curves), raised to tangentCornerFloor when a tangent curve
 /// pair demands more room (OPE-218), then capped at a third of the nearest
-/// other corner and at the feature size.
+/// other corner and by the surfaces not containing it.
 std::map<std::string, Ball> placeCorners(const std::vector<Curve>& curves,
                                          const std::vector<CurveEnds>& ends,
                                          const DiscretizationResult3D& discretization,
-                                         const SizingField3D& featureCap)
+                                         const SurfaceCap& cap)
 {
     std::map<std::string, double> size;
     for (std::size_t curveIndex = 0; curveIndex < curves.size(); ++curveIndex)
@@ -440,10 +471,38 @@ std::map<std::string, Ball> placeCorners(const std::vector<Curve>& curves,
             if (otherId != cornerId)
                 nearest = std::min(nearest, (discretization.points[otherIndex] - point).norm());
         auto floor = tangentCornerFloor(cornerId, curves, ends, cornerSize);
-        auto radius = std::min({std::max(cornerSize, floor), nearest / 3.0, featureCap.evaluate(point)});
+        auto radius = std::min({std::max(cornerSize, floor), nearest / 3.0, capAt(cap, point, {cornerId})});
         corners[cornerId] = Ball{0.0, point, radius, cornerId};
     }
     return corners;
+}
+
+double boundingBoxDiagonal(const std::vector<Point3D>& points)
+{
+    if (points.empty()) return 0.0;
+    Point3D minimum = points.front();
+    Point3D maximum = points.front();
+    for (auto& point : points)
+    {
+        minimum = minimum.cwiseMin(point);
+        maximum = maximum.cwiseMax(point);
+    }
+    return (maximum - minimum).norm();
+}
+
+/// How many balls, corners included, the surface cap is holding down.
+std::size_t countBallsAtCap(const std::vector<Curve>& curves, const std::map<std::string, Ball>& corners, const SurfaceCap& cap)
+{
+    auto atCap = [&](const Ball& ball, const std::vector<std::string>& cornerIds)
+    { return ball.radius >= capAt(cap, ball.point, cornerIds) * (1.0 - AT_CAP_TOLERANCE); };
+
+    std::size_t count = 0;
+    for (auto& [cornerId, ball] : corners)
+        count += atCap(ball, {cornerId}) ? 1 : 0;
+    for (auto& curve : curves)
+        for (auto& ball : curve.balls)
+            count += atCap(ball, curve.cornerIds) ? 1 : 0;
+    return count;
 }
 
 /// The discretization restricted to what protection leaves alone: corners,
@@ -537,10 +596,8 @@ std::unordered_map<std::size_t, double> ProtectingBallPlacer::place(Discretizati
                                                                     const Topology3D::Topology3D& topology,
                                                                     const Geometry3D::GeometryCollection3D& geometry)
 {
-    SizingFieldSettings3D featureSettings;
-    featureSettings.includeCurvature = false;
-    featureSettings.elementsAcrossFeatureGap = 2.75;
-    auto featureCap = SizingFieldBuilder3D::build(geometry, topology, featureSettings);
+    NonIncidentSurfaceDistance surfaceDistance(geometry, topology);
+    SurfaceCap cap{&surfaceDistance, MINIMUM_CAP_FRACTION * boundingBoxDiagonal(discretization.points)};
 
     std::vector<Curve> curves;
     std::vector<CurveEnds> ends;
@@ -553,11 +610,11 @@ std::unordered_map<std::size_t, double> ProtectingBallPlacer::place(Discretizati
             continue;
         auto& topologyEdge = topology.getEdge(edgeId);
         auto length = edge->getLength();
-        curves.push_back({edgeId, edge, &featureCap, length, sizeBreaksOf(chain, discretization.points, length), {}});
+        curves.push_back({edgeId, edge, cap, {topologyEdge.getStartCornerId(), topologyEdge.getEndCornerId()}, length, sizeBreaksOf(chain, discretization.points, length), {}});
         ends.push_back({topologyEdge.getStartCornerId(), topologyEdge.getEndCornerId()});
     }
 
-    auto corners = placeCorners(curves, ends, discretization, featureCap);
+    auto corners = placeCorners(curves, ends, discretization, cap);
     for (std::size_t curveIndex = 0; curveIndex < curves.size(); ++curveIndex)
     {
         auto closedLoop = ends[curveIndex].startCorner == ends[curveIndex].endCorner;
@@ -569,8 +626,9 @@ std::unordered_map<std::size_t, double> ProtectingBallPlacer::place(Discretizati
     std::size_t curvePoints = 0;
     for (auto& curve : curves)
         curvePoints += curve.balls.size();
-    spdlog::info("ProtectingBallPlacer: {} corners, {} curve points on {} curves after {} repair rounds",
-                 corners.size(), curvePoints, curves.size(), rounds);
+    spdlog::info("ProtectingBallPlacer: {} corners, {} curve points on {} curves after {} repair rounds, "
+                 "{} balls at their surface cap",
+                 corners.size(), curvePoints, curves.size(), rounds, countBallsAtCap(curves, corners, cap));
     return rebuild(discretization, curves, ends, corners, topology);
 }
 

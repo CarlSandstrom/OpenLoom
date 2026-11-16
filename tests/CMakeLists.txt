@@ -46,6 +46,7 @@ set(TEST_SOURCES
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_MeshSnapshotWriter.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
+    Meshing/Core/test_NonIncidentSurfaceDistance.cpp
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
     Meshing/Core/test_RestrictedFaceAudit.cpp
