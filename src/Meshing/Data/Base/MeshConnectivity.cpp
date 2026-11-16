@@ -46,9 +46,10 @@ void MeshConnectivity::rebuildConnectivity()
         nodeToElements_[nodeId] = std::vector<ElementId>{};
     }
 
-    // Build connectivity maps
-    buildNodeToElementsMap();
-    buildFaceToElementsMap();
+    for (const auto& [elementId, element] : geometry_.getElements())
+    {
+        addElement(elementId);
+    }
 }
 
 bool MeshConnectivity::canRemoveNode(NodeId nodeId) const
@@ -57,51 +58,50 @@ bool MeshConnectivity::canRemoveNode(NodeId nodeId) const
     return (it == nodeToElements_.end()) || it->second.empty();
 }
 
-void MeshConnectivity::buildNodeToElementsMap()
+void MeshConnectivity::addElement(ElementId elementId)
 {
-    for (const auto& [elementId, element] : geometry_.getElements())
-    {
-        addElementToConnectivity(elementId);
-    }
-}
-
-void MeshConnectivity::buildFaceToElementsMap()
-{
-    for (const auto& [elementId, element] : geometry_.getElements())
-    {
-        if (element->getType() == ElementType::TETRAHEDRON)
-        {
-            const auto* tet = static_cast<const TetrahedronElement*>(element.get());
-
-            // A tetrahedron has 4 faces
-            for (size_t i = 0; i < 4; ++i)
-            {
-                std::array<NodeId, 3> faceNodes = tet->getFace(i);
-
-                // Create canonical face key (automatically sorted)
-                FaceKey key = makeFaceKey(faceNodes);
-
-                // Add this element to the face
-                auto [it, inserted] =
-                    faceToElements_.emplace(key, std::make_pair(elementId, ElementId::INVALID));
-                if (!inserted)
-                    it->second.second = elementId;
-            }
-        }
-    }
-}
-
-void MeshConnectivity::addElementToConnectivity(ElementId elementId)
-{
-    const IElement* element = geometry_.getElement(elementId);
+    auto element = geometry_.getElement(elementId);
     if (!element) return;
 
-    const auto& nodeIds = element->getNodeIds();
-
-    // Update node-to-element connectivity
-    for (NodeId nodeId : nodeIds)
+    for (auto nodeId : element->getNodeIds())
     {
         nodeToElements_[nodeId].push_back(elementId);
+    }
+
+    if (element->getType() != ElementType::TETRAHEDRON) return;
+
+    auto tetrahedron = static_cast<const TetrahedronElement*>(element);
+    for (size_t i = 0; i < 4; ++i)
+    {
+        auto [entry, inserted] =
+            faceToElements_.emplace(makeFaceKey(tetrahedron->getFace(i)), std::make_pair(elementId, ElementId::INVALID));
+        if (!inserted) entry->second.second = elementId;
+    }
+}
+
+void MeshConnectivity::removeElement(ElementId elementId)
+{
+    auto element = geometry_.getElement(elementId);
+    if (!element) return;
+
+    for (auto nodeId : element->getNodeIds())
+    {
+        auto& elementIds = nodeToElements_[nodeId];
+        elementIds.erase(std::remove(elementIds.begin(), elementIds.end(), elementId), elementIds.end());
+    }
+
+    if (element->getType() != ElementType::TETRAHEDRON) return;
+
+    auto tetrahedron = static_cast<const TetrahedronElement*>(element);
+    for (size_t i = 0; i < 4; ++i)
+    {
+        auto entry = faceToElements_.find(makeFaceKey(tetrahedron->getFace(i)));
+        if (entry == faceToElements_.end()) continue;
+
+        auto& [first, second] = entry->second;
+        if (first == elementId) first = second;
+        second = ElementId::INVALID;
+        if (first == ElementId::INVALID) faceToElements_.erase(entry);
     }
 }
 

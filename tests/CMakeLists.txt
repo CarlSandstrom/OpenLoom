@@ -16,6 +16,7 @@ set(TEST_SOURCES
     Geometry/test_OpenCascadeSurface.cpp
     
     # Meshing Data tests
+    Meshing/Data/test_MeshConnectivity.cpp
     Meshing/Data/test_Node.cpp
     Meshing/Data/test_TetrahedronElement.cpp
     
