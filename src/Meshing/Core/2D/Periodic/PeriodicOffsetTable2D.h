@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Meshing/Core/2D/PeriodicDomain2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicDomain2D.h"
 
 #include <array>
 #include <unordered_map>

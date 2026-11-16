@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
+#include "Meshing/Core/2D/General/GeometryStructures2D.h"
 #include <array>
 #include <optional>
 #include <tuple>

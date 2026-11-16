@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/GeometryStructures2D.h"
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/General/GeometryStructures2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
 
 #include <cmath>
 

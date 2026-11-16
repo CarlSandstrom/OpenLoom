@@ -1,5 +1,5 @@
-#include "Meshing/Core/2D/ElementQuality2D.h"
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/General/ElementQuality2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
 
 #include <algorithm>
 #include <array>

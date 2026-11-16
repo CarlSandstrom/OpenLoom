@@ -1,8 +1,8 @@
-#include "Meshing/Core/2D/MeshVerifier2D.h"
+#include "Meshing/Core/2D/General/MeshVerifier2D.h"
 #include "Common/Types.h"
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "spdlog/spdlog.h"
 #include <array>
 #include <cmath>

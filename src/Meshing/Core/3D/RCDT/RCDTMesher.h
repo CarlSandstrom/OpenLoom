@@ -6,8 +6,8 @@
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
-#include "Meshing/Interfaces/ISurfaceMesher3D.h"
-#include "Meshing/Interfaces/IVolumeMesher3D.h"
+#include "Meshing/Interfaces/3D/ISurfaceMesher3D.h"
+#include "Meshing/Interfaces/3D/IVolumeMesher3D.h"
 
 #include <memory>
 #include <optional>

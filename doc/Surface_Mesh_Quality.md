@@ -37,6 +37,6 @@ After refinement, `SurfaceMeshSmoother` moves interior vertices toward their nei
 
 ## 2D quality controller
 
-`ShewchukRefiner2D` (the 2D mesher) refines against `IQualityController2D` (`src/Meshing/Interfaces/IQualityController2D.h`), implemented by `ShewchukQualityController2D` (`src/Meshing/Core/2D/ShewchukQualityController2D.h/.cpp`). A triangle is acceptable if its circumradius-to-shortest-edge ratio and minimum interior angle both satisfy the bounds in `MeshQualitySettings2D`; refinement also stops once the mesh reaches `elementLimit` triangles.
+`ShewchukRefiner2D` (the 2D mesher) refines against `IQualityController2D` (`src/Meshing/Interfaces/2D/IQualityController2D.h`), implemented by `ShewchukQualityController2D` (`src/Meshing/Core/2D/ShewchukQualityController2D.h/.cpp`). A triangle is acceptable if its circumradius-to-shortest-edge ratio and minimum interior angle both satisfy the bounds in `MeshQualitySettings2D`; refinement also stops once the mesh reaches `elementLimit` triangles.
 
 The per-face UV-space surface mesher, which refined each CAD face in parameter space with this controller and a chord-deviation variant (`SurfaceMeshQualityController`), was deleted in OPE-192.

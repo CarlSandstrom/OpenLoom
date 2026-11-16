@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/PeriodicDomain2D.h"
-#include "Meshing/Core/2D/PeriodicOffsetTable2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicDomain2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicOffsetTable2D.h"
 
 #include <tuple>
 

@@ -1,7 +1,7 @@
-#include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/2D/General/MeshingContext2D.h"
 
-#include "Meshing/Core/2D/MeshOperations2D.h"
-#include "Meshing/Core/2D/PeriodicMeshData2D.h"
+#include "Meshing/Core/2D/General/MeshOperations2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicMeshData2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 

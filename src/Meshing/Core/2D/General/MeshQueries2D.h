@@ -2,7 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <map>

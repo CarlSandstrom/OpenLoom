@@ -1,4 +1,4 @@
-#include "Common/TwinManager2D.h"
+#include "Meshing/Core/2D/Periodic/TwinManager2D.h"
 
 const std::string TwinManager2D::NO_SURFACE = "";
 

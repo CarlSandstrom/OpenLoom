@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "Geometry/2D/Base/GeometryCollection2D.h"
-#include "Meshing/Core/2D/PeriodicDomain2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicDomain2D.h"
 #include "Topology2D/Topology2D.h"
 
 namespace Meshing

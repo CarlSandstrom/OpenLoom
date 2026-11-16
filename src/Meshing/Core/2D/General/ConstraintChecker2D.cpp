@@ -1,7 +1,7 @@
-#include "Meshing/Core/2D/ConstraintChecker2D.h"
+#include "Meshing/Core/2D/General/ConstraintChecker2D.h"
 
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
-#include "Meshing/Core/2D/PeriodicMeshData2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicMeshData2D.h"
 
 namespace Meshing
 {

@@ -1,7 +1,7 @@
 # CMakeLists.txt for 2D Meshing Core
 add_library(MeshingCore2D STATIC)
 
-file(GLOB MESHING_CORE_2D_SOURCES CONFIGURE_DEPENDS "*.cpp")
+file(GLOB MESHING_CORE_2D_SOURCES CONFIGURE_DEPENDS "*.cpp" "General/*.cpp" "Periodic/*.cpp")
 
 target_sources(MeshingCore2D PRIVATE
     ${MESHING_CORE_2D_SOURCES}

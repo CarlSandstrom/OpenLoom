@@ -7,7 +7,7 @@
 #include "Export/VtkExporter.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/TetrahedronElement.h"

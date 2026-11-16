@@ -1,12 +1,12 @@
-#include "Meshing/Core/2D/MeshOperations2D.h"
+#include "Meshing/Core/2D/General/MeshOperations2D.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Meshing/Core/2D/ElementGeometry2D.h"
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
-#include "Meshing/Core/2D/PeriodicMeshData2D.h"
+#include "Meshing/Core/2D/General/ElementGeometry2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicMeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <array>

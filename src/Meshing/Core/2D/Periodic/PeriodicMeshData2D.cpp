@@ -3,7 +3,7 @@
 #include "Common/Exceptions/MeshException.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 
 #include <string>
 

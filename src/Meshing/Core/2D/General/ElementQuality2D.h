@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/ElementGeometry2D.h"
+#include "Meshing/Core/2D/General/ElementGeometry2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include <array>
 #include <optional>
 #include <vector>

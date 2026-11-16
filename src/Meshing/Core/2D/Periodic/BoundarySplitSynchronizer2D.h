@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/TwinManager2D.h"
+#include "Meshing/Core/2D/Periodic/TwinManager2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include <cstddef>
 

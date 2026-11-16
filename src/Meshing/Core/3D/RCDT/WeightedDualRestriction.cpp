@@ -4,7 +4,7 @@
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Core/3D/General/SurfaceProjector.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"

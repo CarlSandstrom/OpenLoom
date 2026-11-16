@@ -1,8 +1,8 @@
-#include "Meshing/Core/2D/MeshDebugUtilities2D.h"
+#include "Meshing/Core/2D/General/MeshDebugUtilities2D.h"
 #include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/2D/MeshVerifier2D.h"
+#include "Meshing/Core/2D/General/MeshVerifier2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "spdlog/spdlog.h"
 

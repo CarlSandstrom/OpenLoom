@@ -1,6 +1,6 @@
 #include "Meshing/Core/2D/Delaunay2D.h"
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
-#include "Meshing/Core/2D/MeshOperations2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/General/MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "spdlog/spdlog.h"
 #include <array>

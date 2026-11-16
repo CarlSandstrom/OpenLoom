@@ -1,9 +1,9 @@
-#include "Meshing/Core/2D/ElementGeometry2D.h"
+#include "Meshing/Core/2D/General/ElementGeometry2D.h"
 #include "Common/Exceptions/GeometryException.h"
-#include "Meshing/Core/2D/GeometryUtilities2D.h"
-#include "Meshing/Core/2D/PeriodicMeshData2D.h"
+#include "Meshing/Core/2D/General/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/Periodic/PeriodicMeshData2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 
 #include <algorithm>
 #include <cmath>

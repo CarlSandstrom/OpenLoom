@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/MeshQueries2D.h"
+#include "Meshing/Core/2D/General/MeshQueries2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <memory>

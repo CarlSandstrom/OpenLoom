@@ -1,9 +1,9 @@
-#include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
+#include "Meshing/Core/2D/General/BoundaryDiscretizer2D.h"
 #include "Common/MathConstants.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Geometry/2D/Base/ICorner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/2D/General/MeshingContext2D.h"
 #include "Topology2D/Topology2D.h"
 #include <algorithm>
 #include <cmath>

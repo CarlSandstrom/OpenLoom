@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Common/TwinManager2D.h"
+#include "Meshing/Core/2D/Periodic/TwinManager2D.h"
 
 // ============================================================================
 // Unit tests for TwinManager2D (surface-aware API)
@@ -9,7 +9,7 @@
 // NO_SURFACE is used for 2D (context-free) registrations.
 // ============================================================================
 
-TEST(TwinManagerTest, RegisterAndLookup)
+TEST(TwinManager2DTest, RegisterAndLookup)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -20,7 +20,7 @@ TEST(TwinManagerTest, RegisterAndLookup)
     EXPECT_EQ(std::get<2>(*twin), 4u);
 }
 
-TEST(TwinManagerTest, ReverseDirectionLookup)
+TEST(TwinManager2DTest, ReverseDirectionLookup)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -31,7 +31,7 @@ TEST(TwinManagerTest, ReverseDirectionLookup)
     EXPECT_EQ(std::get<2>(*twin), 3u);
 }
 
-TEST(TwinManagerTest, SymmetricLookup)
+TEST(TwinManager2DTest, SymmetricLookup)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -42,7 +42,7 @@ TEST(TwinManagerTest, SymmetricLookup)
     EXPECT_EQ(std::get<2>(*twin), 2u);
 }
 
-TEST(TwinManagerTest, SymmetricReverseLookup)
+TEST(TwinManager2DTest, SymmetricReverseLookup)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -53,7 +53,7 @@ TEST(TwinManagerTest, SymmetricReverseLookup)
     EXPECT_EQ(std::get<2>(*twin), 1u);
 }
 
-TEST(TwinManagerTest, HasTwinTrue)
+TEST(TwinManager2DTest, HasTwinTrue)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -64,7 +64,7 @@ TEST(TwinManagerTest, HasTwinTrue)
     EXPECT_TRUE(twinManager.hasTwin(TwinManager2D::NO_SURFACE, 4, 3));
 }
 
-TEST(TwinManagerTest, HasTwinFalse)
+TEST(TwinManager2DTest, HasTwinFalse)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -73,13 +73,13 @@ TEST(TwinManagerTest, HasTwinFalse)
     EXPECT_FALSE(twinManager.hasTwin(TwinManager2D::NO_SURFACE, 1, 3));
 }
 
-TEST(TwinManagerTest, NoTwinReturnsNullopt)
+TEST(TwinManager2DTest, NoTwinReturnsNullopt)
 {
     TwinManager2D twinManager;
     EXPECT_FALSE(twinManager.getTwin(TwinManager2D::NO_SURFACE, 5, 6).has_value());
 }
 
-TEST(TwinManagerTest, RecordSplit)
+TEST(TwinManager2DTest, RecordSplit)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -110,7 +110,7 @@ TEST(TwinManagerTest, RecordSplit)
     EXPECT_EQ(std::get<2>(*twin1FromOtherSide), 9u);
 }
 
-TEST(TwinManagerTest, IndependentPairs)
+TEST(TwinManager2DTest, IndependentPairs)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin(TwinManager2D::NO_SURFACE, 1, 2, TwinManager2D::NO_SURFACE, 3, 4);
@@ -129,7 +129,7 @@ TEST(TwinManagerTest, IndependentPairs)
     EXPECT_FALSE(twinManager.hasTwin(TwinManager2D::NO_SURFACE, 3, 30));
 }
 
-TEST(TwinManagerTest, CrossSurfaceTwins)
+TEST(TwinManager2DTest, CrossSurfaceTwins)
 {
     TwinManager2D twinManager;
     twinManager.registerTwin("S1", 1, 2, "S2", 3, 4);

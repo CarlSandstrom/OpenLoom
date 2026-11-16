@@ -1,4 +1,4 @@
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 
 #include "Common/Exceptions/MeshException.h"
 

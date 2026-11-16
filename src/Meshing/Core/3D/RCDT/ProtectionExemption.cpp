@@ -1,7 +1,7 @@
 #include "Meshing/Core/3D/RCDT/ProtectionExemption.h"
 
 #include "Common/Types.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 

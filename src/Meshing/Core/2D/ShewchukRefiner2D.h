@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Core/2D/General/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include "Meshing/Interfaces/IQualityController2D.h"
+#include "Meshing/Interfaces/2D/IQualityController2D.h"
 #include <functional>
 #include <memory>
 #include <string>

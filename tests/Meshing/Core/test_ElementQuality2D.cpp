@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/ElementQuality2D.h"
+#include "Meshing/Core/2D/General/ElementQuality2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 
 #include <cmath>
 
