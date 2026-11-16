@@ -16,7 +16,6 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 | [x] | `DebugFlags` | 50 | - |
 | [x] | `Logging` | 15 | - |
 | [x] | `MathConstants` | 6 | - |
-| [x] | `TwinManager2D` | 75 | 38 |
 | [x] | `Types` | 19 | - |
 
 ## `Common/Exceptions/`
@@ -134,11 +133,17 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [x] | `BoundaryDiscretizer2D` | 48 | 153 |
-| [x] | `BoundarySplitSynchronizer2D` | 51 | 46 |
 | [x] | `ConstrainedDelaunay2D` | 39 | 74 |
-| [x] | `ConstraintChecker2D` | 33 | 36 |
 | [x] | `Delaunay2D` | 26 | 56 |
+| [x] | `ShewchukQualityController2D` | 34 | 71 |
+| [x] | `ShewchukRefiner2D` | 103 | 309 |
+
+## `Meshing/Core/2D/General/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `BoundaryDiscretizer2D` | 48 | 153 |
+| [x] | `ConstraintChecker2D` | 33 | 36 |
 | [x] | `ElementGeometry2D` | 76 | 149 |
 | [x] | `ElementQuality2D` | 38 | 76 |
 | [x] | `GeometryStructures2D` | 12 | - |
@@ -148,11 +153,16 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 | [x] | `MeshQueries2D` | 91 | 615 |
 | [x] | `MeshVerifier2D` | 47 | 184 |
 | [x] | `MeshingContext2D` | 75 | 73 |
+
+## `Meshing/Core/2D/Periodic/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
+| [x] | `BoundarySplitSynchronizer2D` | 51 | 46 |
 | [x] | `PeriodicDomain2D` | 36 | - |
 | [x] | `PeriodicMeshData2D` | 58 | 82 |
 | [x] | `PeriodicOffsetTable2D` | 44 | 50 |
-| [x] | `ShewchukQualityController2D` | 34 | 71 |
-| [x] | `ShewchukRefiner2D` | 103 | 309 |
+| [x] | `TwinManager2D` | 75 | 38 |
 
 ## `Meshing/Core/3D/General/`
 
@@ -222,11 +232,10 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 | Done | Class | .h | source |
 |---|---|---|---|
 | [x] | `DiscretizationResult2D` | 35 | - |
-| [x] | `MeshQualitySettings2D` | 27 | - |
 | [x] | `MeshData2D` | 53 | 56 |
 | [x] | `MeshMutator2D` | 37 | 50 |
+| [x] | `MeshQualitySettings2D` | 27 | - |
 | [x] | `Node2D` | 19 | 11 |
-| [x] | `TriangleElement` | 30 | 57 |
 
 ## `Meshing/Data/3D/`
 
@@ -247,12 +256,18 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 |---|---|---|---|
 | [ ] | `IElement` | 30 | - |
 | [ ] | `MeshConnectivity` | 36 | 110 |
+| [x] | `TriangleElement` | 30 | 57 |
 
-## `Meshing/Interfaces/`
+## `Meshing/Interfaces/2D/`
 
 | Done | Class | .h | source |
 |---|---|---|---|
 | [ ] | `IQualityController2D` | 24 | - |
+
+## `Meshing/Interfaces/3D/`
+
+| Done | Class | .h | source |
+|---|---|---|---|
 | [ ] | `ISurfaceMesher3D` | 24 | - |
 | [ ] | `IVolumeMesher3D` | 24 | - |
 

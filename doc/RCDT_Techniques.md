@@ -392,7 +392,7 @@ orientation. Only relevant when the surface bounds a volume mesh.
 ## 7. The 2D path — a different algorithm
 
 - **Bowyer-Watson plus explicit constraint recovery** by iterative edge swapping
-  (`Core/2D/ConstrainedDelaunay2D`, `Core/2D/MeshOperations2D`). This is the
+  (`Core/2D/ConstrainedDelaunay2D`, `Core/2D/General/MeshOperations2D`). This is the
   opposite of the 3D approach, where constraints emerge from restriction and are
   never recovered.
 - **Ruppert/Shewchuk refinement** (`Core/2D/ShewchukRefiner2D`): encroached
@@ -400,10 +400,10 @@ orientation. Only relevant when the surface bounds a volume mesh.
   that would encroach a segment splits the segment instead (demotion), which is
   the termination argument.
 - **Diametral-circle encroachment with a periodic frame shift**
-  (`Core/2D/ConstraintChecker2D`): the candidate point is shifted into the
+  (`Core/2D/General/ConstraintChecker2D`): the candidate point is shifted into the
   segment's own periodic frame before the test, so a point near the opposite
   period boundary still registers as encroaching.
-- **Boundary-split callback** (`Core/2D/BoundarySplitSynchronizer2D`): fires after
+- **Boundary-split callback** (`Core/2D/Periodic/BoundarySplitSynchronizer2D`): fires after
   each boundary segment split so a twin segment can be split identically —
   the mechanism a future periodic mesher needs.
 - `CHECK_MESH_EACH_ITERATION=1` enables per-iteration integrity checks. **2D
