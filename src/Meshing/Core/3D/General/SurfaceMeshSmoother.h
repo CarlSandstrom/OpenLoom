@@ -17,7 +17,7 @@ class GeometryCollection3D;
 namespace Meshing
 {
 
-/// Post-processing quality pass for RCDT output surface meshes.
+/// Post-processing quality pass for output surface meshes.
 ///
 /// Moves each interior (non-boundary) vertex toward the centroid of its mesh
 /// neighbors and re-projects it onto its owning CAD surface, repeated for a

@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/RCDT/SurfaceMeshSmoother.h"
+#include "Meshing/Core/3D/General/SurfaceMeshSmoother.h"
 
 #include "Common/Types.h"
 #include "Geometry/3D/Base/GeometryCollection3D.h"
