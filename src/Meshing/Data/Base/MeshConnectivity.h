@@ -20,6 +20,12 @@ public:
     // Rebuild connectivity when geometry changes
     void rebuildConnectivity();
 
+    /// Records an element already in the mesh data.
+    void addElement(ElementId elementId);
+
+    /// Forgets an element. Call before it leaves the mesh data: its nodes are read from there.
+    void removeElement(ElementId elementId);
+
     // Check if a node can be safely removed
     bool canRemoveNode(NodeId nodeId) const;
 
@@ -29,9 +35,6 @@ private:
     std::unordered_map<NodeId, std::vector<ElementId>> nodeToElements_;
     std::unordered_map<FaceKey, std::pair<ElementId, ElementId>, FaceKeyHash> faceToElements_;
 
-    void buildNodeToElementsMap();
-    void buildFaceToElementsMap();
-    void addElementToConnectivity(ElementId elementId);
 };
 
 } // namespace Meshing

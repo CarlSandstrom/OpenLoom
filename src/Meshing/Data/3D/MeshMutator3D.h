@@ -19,7 +19,8 @@ class MeshMutator3D
 public:
     explicit MeshMutator3D(MeshData3D& meshData3D);
 
-    // When set, removeNode() refuses a node still referenced by an element.
+    // When set, it is kept current as elements are added and removed, and
+    // removeNode() refuses a node still referenced by an element.
     void setConnectivity(MeshConnectivity* connectivity);
 
     // weight is the node's regular-triangulation weight, 0 for an ordinary node.

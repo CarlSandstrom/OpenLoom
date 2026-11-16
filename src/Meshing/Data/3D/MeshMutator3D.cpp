@@ -82,6 +82,7 @@ ElementId MeshMutator3D::addElement(std::unique_ptr<IElement> element)
     ElementId id{nextElementId_++};
 
     meshData3D_.addElementInternal(id, std::move(element));
+    if (connectivity_) connectivity_->addElement(id);
 
     return id;
 }
@@ -93,6 +94,7 @@ void MeshMutator3D::removeElement(ElementId id)
         throw OpenLoom::MeshEntityNotFoundException("Element", id.value(), std::string(__FILE__) + ":" + std::to_string(__LINE__));
     }
 
+    if (connectivity_) connectivity_->removeElement(id);
     meshData3D_.removeElementInternal(id);
 }
 

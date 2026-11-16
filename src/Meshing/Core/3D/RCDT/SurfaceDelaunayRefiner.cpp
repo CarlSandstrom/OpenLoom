@@ -51,7 +51,6 @@ SurfaceDelaunayRefiner::~SurfaceDelaunayRefiner() = default;
 
 void SurfaceDelaunayRefiner::refine()
 {
-    connectivity_ = std::make_unique<MeshConnectivity>(context_->getMeshData());
     classifyAllFaces();
     spdlog::info("SurfaceDelaunayRefiner: {} restricted facets, {} bad", facets_.size(), queue_.size());
     writeSnapshot("seeded");
@@ -115,7 +114,7 @@ void SurfaceDelaunayRefiner::forget(const FaceKey& face)
 void SurfaceDelaunayRefiner::reclassify(const FaceKey& face)
 {
     forget(face);
-    auto facet = restriction_.restrict(face, context_->getMeshData(), *connectivity_);
+    auto facet = restriction_.restrict(face, context_->getMeshData(), context_->getConnectivity());
     if (!facet) return;
 
     facets_.emplace(face, *facet);
@@ -143,8 +142,9 @@ bool SurfaceDelaunayRefiner::refineFacet(const FaceKey& face)
     // The point must conflict with a tetrahedron beside the facet, or inserting
     // it would not remove the facet; and it must not be hidden by, or coincide
     // with, an existing vertex.
-    auto [elementId1, elementId2] = connectivity_->getFaceElements(face);
-    auto conflicting = RegularConflictRegion::find({elementId1, elementId2}, facet.surfaceCenter, meshData, *connectivity_);
+    auto& connectivity = context_->getConnectivity();
+    auto [elementId1, elementId2] = connectivity.getFaceElements(face);
+    auto conflicting = RegularConflictRegion::find({elementId1, elementId2}, facet.surfaceCenter, meshData, connectivity);
     if (conflicting.empty() || RegularConflictRegion::isHiddenOrDuplicate(facet.surfaceCenter, conflicting, meshData))
     {
         drop(face);
@@ -172,15 +172,15 @@ void SurfaceDelaunayRefiner::insert(const Point3D& point,
         context_->getOperations().insertVertexBowyerWatson(point, std::move(conflictRegion), std::move(geometryIds));
     ++insertionCount_;
 
-    connectivity_ = std::make_unique<MeshConnectivity>(meshData);
+    auto& connectivity = context_->getConnectivity();
     for (auto& cavityFace : cavityFaces)
     {
-        if (connectivity_->getFaceElements(cavityFace).first == ElementId::INVALID)
+        if (connectivity.getFaceElements(cavityFace).first == ElementId::INVALID)
             forget(cavityFace);
         else
             reclassify(cavityFace);
     }
-    for (auto& newFace : facesOfElements(meshData, connectivity_->getNodeElements(newNodeId)))
+    for (auto& newFace : facesOfElements(meshData, connectivity.getNodeElements(newNodeId)))
     {
         reclassify(newFace);
     }

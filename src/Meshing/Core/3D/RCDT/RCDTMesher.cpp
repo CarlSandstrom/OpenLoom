@@ -134,9 +134,7 @@ void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
 {
     // Meshing step 7: remove the ambient tetrahedra (for a volume, meshVolume() has
     // already checked that the boundary is closed).
-    // getOperations()'s mutator, not getMutator(): the latter validates removal
-    // against a MeshConnectivity snapshot that refinement never refreshes.
-    AmbientTetrahedronRemover::remove(context.getMeshData(), context.getOperations().getMutator(), restrictedFaces);
+    AmbientTetrahedronRemover::remove(context, restrictedFaces);
 
     // Meshing step 8: extract the surface mesh
     surfaceMesh_ = std::make_unique<SurfaceMesh3D>(

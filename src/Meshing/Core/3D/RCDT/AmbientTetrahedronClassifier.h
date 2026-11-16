@@ -8,6 +8,7 @@
 
 namespace Meshing
 {
+class MeshConnectivity;
 class MeshData3D;
 
 /**
@@ -37,7 +38,8 @@ public:
     /// Returns the ids of every ambient tetrahedron (true exterior and hole
     /// interiors alike); test membership with contains().
     static std::unordered_set<ElementId> classify(const MeshData3D& meshData,
-                                               const RestrictedFaceMap& restrictedFaces);
+                                                  const MeshConnectivity& connectivity,
+                                                  const RestrictedFaceMap& restrictedFaces);
 };
 
 } // namespace Meshing

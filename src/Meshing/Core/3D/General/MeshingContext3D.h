@@ -58,6 +58,8 @@ public:
     // Access to mesh data structures
     MeshData3D& getMeshData();
     const MeshData3D& getMeshData() const;
+    /// Element adjacency, kept current by the mutator.
+    const MeshConnectivity& getConnectivity() const { return *connectivity_; }
     MeshMutator3D& getMutator();
     MeshOperations3D& getOperations();
 

@@ -56,7 +56,7 @@ void TetrahedronDelaunayRefiner::refine()
 bool TetrahedronDelaunayRefiner::refineRound()
 {
     auto& meshData = context_->getMeshData();
-    auto ambient = AmbientTetrahedronClassifier::classify(meshData, surfaceRefiner_.getRestrictedFaces());
+    auto ambient = AmbientTetrahedronClassifier::classify(meshData, context_->getConnectivity(), surfaceRefiner_.getRestrictedFaces());
 
     double squaredBound = ratioBound_ * ratioBound_;
     std::vector<std::pair<double, ElementId>> badTetrahedra;
@@ -93,7 +93,7 @@ bool TetrahedronDelaunayRefiner::refineTetrahedron(ElementId elementId, const Te
     }
 
     auto conflicting =
-        RegularConflictRegion::find({elementId, ElementId::INVALID}, *orthocenter, meshData, surfaceRefiner_.getConnectivity());
+        RegularConflictRegion::find({elementId, ElementId::INVALID}, *orthocenter, meshData, context_->getConnectivity());
     if (conflicting.empty())
     {
         unrefinable_.insert(elementId);

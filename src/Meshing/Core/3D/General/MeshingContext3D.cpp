@@ -66,7 +66,7 @@ void MeshingContext3D::ensureInitialized()
     }
     if (!meshOperations_)
     {
-        meshOperations_ = std::make_unique<MeshOperations3D>(*meshData_);
+        meshOperations_ = std::make_unique<MeshOperations3D>(*meshData_, *meshMutator_);
     }
 }
 

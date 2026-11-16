@@ -3,7 +3,6 @@
 #include "Common/Types.h"
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include <array>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -23,7 +22,7 @@ class MeshMutator3D;
 class MeshOperations3D
 {
 public:
-    explicit MeshOperations3D(MeshData3D& meshData);
+    MeshOperations3D(MeshData3D& meshData, MeshMutator3D& mutator);
 
     /**
      * @brief Create a bounding tetrahedron that contains all given points
@@ -73,8 +72,8 @@ public:
     /**
      * @brief Get the mesh mutator for primitive operations
      */
-    MeshMutator3D& getMutator() { return *mutator_; }
-    const MeshMutator3D& getMutator() const { return *mutator_; }
+    MeshMutator3D& getMutator() { return mutator_; }
+    const MeshMutator3D& getMutator() const { return mutator_; }
 
     /**
      * @brief Get the mesh queries for read-only operations
@@ -85,7 +84,7 @@ public:
 private:
     MeshData3D& meshData_;
     MeshQueries3D queries_;
-    std::unique_ptr<MeshMutator3D> mutator_;
+    MeshMutator3D& mutator_;
 
     /**
      * @brief Retriangulate the cavity with the new vertex
