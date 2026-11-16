@@ -1,14 +1,15 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
-#include "PeriodicDomain2D.h"
-#include "PeriodicOffsetTable.h"
+#include "Meshing/Core/2D/PeriodicDomain2D.h"
+#include "Meshing/Core/2D/PeriodicOffsetTable.h"
+
 #include <tuple>
 
 namespace Meshing
 {
+
+class MeshData2D;
 
 /// Wraps MeshData2D to provide offset-aware coordinate lookup for periodic
 /// 2D triangulations.
@@ -25,9 +26,9 @@ namespace Meshing
 class PeriodicMeshData2D
 {
 public:
-    PeriodicMeshData2D(const MeshData2D& meshData, const PeriodicDomainConfig& config);
+    PeriodicMeshData2D(const MeshData2D& meshData, const PeriodicDomainConfiguration& configuration);
 
-    const PeriodicDomainConfig& getConfig() const { return config_; }
+    const PeriodicDomainConfiguration& getConfiguration() const { return configuration_; }
 
     PeriodicOffsetTable& getOffsetTable() { return offsetTable_; }
     const PeriodicOffsetTable& getOffsetTable() const { return offsetTable_; }
@@ -51,7 +52,7 @@ public:
 
 private:
     const MeshData2D& meshData_;
-    PeriodicDomainConfig config_;
+    PeriodicDomainConfiguration configuration_;
     PeriodicOffsetTable offsetTable_;
 };
 

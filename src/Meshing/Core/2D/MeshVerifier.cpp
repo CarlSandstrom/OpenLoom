@@ -1,12 +1,37 @@
-#include "MeshVerifier.h"
-#include "GeometryUtilities2D.h"
+#include "Meshing/Core/2D/MeshVerifier.h"
+#include "Common/Types.h"
+#include "Meshing/Core/2D/GeometryUtilities2D.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "spdlog/spdlog.h"
-#include <algorithm>
+#include <array>
 #include <cmath>
+#include <string>
+#include <vector>
 
 namespace Meshing
 {
+
+namespace
+{
+
+// A signed area below minus this is a clockwise triangle; a magnitude below it is a degenerate one.
+constexpr double DEGENERATE_AREA_TOLERANCE = 1e-10;
+
+// The triangular elements of a mesh, as parallel arrays of element id and vertex coordinates.
+struct TriangleCoordinates
+{
+    std::vector<size_t> elementIds;
+    std::vector<std::array<Point2D, 3>> vertices;
+};
+
+TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier::VerificationResult& result);
+void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result);
+void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result);
+std::string describeOverlap(size_t elementId1, size_t elementId2);
+bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes, const std::array<Point2D, 3>& triangle2Nodes);
+
+} // namespace
 
 MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData)
 {
@@ -23,75 +48,85 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
     VerificationResult result;
     result.isValid = true;
 
-    // Check orientation
+    auto triangles = collectTriangleCoordinates(meshData, result);
+    checkOrientation(triangles, result);
+    checkOverlaps(triangles, result);
+
+    if (result.isValid)
+    {
+        SPDLOG_INFO("Mesh verification passed: {} elements verified", meshData.getElementCount());
+    }
+    else
+    {
+        SPDLOG_ERROR("Mesh verification failed with {} errors", result.errors.size());
+    }
+
+    return result;
+}
+
+namespace
+{
+
+TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier::VerificationResult& result)
+{
+    TriangleCoordinates triangles;
     for (const auto& [id, element] : meshData.getElements())
     {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
+        auto triangle = dynamic_cast<const TriangleElement*>(element.get());
         if (!triangle)
         {
             result.warnings.push_back("Element " + std::to_string(id) + " is not a triangle, skipping");
             continue;
         }
 
-        const auto& nodeIds = triangle->getNodeIdArray();
-        const Point2D& p1 = meshData.getNode(nodeIds[0])->getCoordinates();
-        const Point2D& p2 = meshData.getNode(nodeIds[1])->getCoordinates();
-        const Point2D& p3 = meshData.getNode(nodeIds[2])->getCoordinates();
+        auto& nodeIds = triangle->getNodeIdArray();
+        triangles.elementIds.push_back(id);
+        triangles.vertices.push_back({meshData.getNode(nodeIds[0])->getCoordinates(),
+                                      meshData.getNode(nodeIds[1])->getCoordinates(),
+                                      meshData.getNode(nodeIds[2])->getCoordinates()});
+    }
+    return triangles;
+}
 
-        double area = GeometryUtilities2D::computeSignedArea(p1, p2, p3);
-        if (area < -1e-10)
+void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result)
+{
+    for (size_t i = 0; i < triangles.vertices.size(); ++i)
+    {
+        auto id = triangles.elementIds[i];
+        auto& vertices = triangles.vertices[i];
+        auto area = GeometryUtilities2D::computeSignedArea(vertices[0], vertices[1], vertices[2]);
+        if (area < -DEGENERATE_AREA_TOLERANCE)
         {
             result.isValid = false;
-            result.errors.push_back("Element " + std::to_string(id) +
-                                    " has clockwise orientation (signed area: " +
+            result.errors.push_back("Element " + std::to_string(id) + " has clockwise orientation (signed area: " +
                                     std::to_string(area) + ")");
         }
-        else if (std::abs(area) < 1e-10)
+        else if (std::abs(area) < DEGENERATE_AREA_TOLERANCE)
         {
             result.isValid = false;
-            result.errors.push_back("Element " + std::to_string(id) +
-                                    " is degenerate (area near zero)");
+            result.errors.push_back("Element " + std::to_string(id) + " is degenerate (area near zero)");
         }
     }
+}
 
-    // Check for overlaps
-    std::vector<size_t> elementIds;
-    std::vector<std::array<Point2D, 3>> triangleCoordinates;
+void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result)
+{
+    auto& vertices = triangles.vertices;
+    auto& elementIds = triangles.elementIds;
 
-    for (const auto& [id, element] : meshData.getElements())
-    {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (!triangle)
-        {
-            continue;
-        }
-
-        const auto& nodeIds = triangle->getNodeIdArray();
-        std::array<Point2D, 3> coordinates = {
-            meshData.getNode(nodeIds[0])->getCoordinates(),
-            meshData.getNode(nodeIds[1])->getCoordinates(),
-            meshData.getNode(nodeIds[2])->getCoordinates()};
-
-        elementIds.push_back(id);
-        triangleCoordinates.push_back(coordinates);
-    }
-
-    // Check all pairs of triangles for overlap
 #ifdef OPENLOOM_HAS_OPENMP
 #pragma omp parallel
     {
         std::vector<std::string> localErrors;
 
 #pragma omp for schedule(dynamic)
-        for (size_t i = 0; i < triangleCoordinates.size(); ++i)
+        for (size_t i = 0; i < vertices.size(); ++i)
         {
-            for (size_t j = i + 1; j < triangleCoordinates.size(); ++j)
+            for (size_t j = i + 1; j < vertices.size(); ++j)
             {
-                if (trianglesOverlap(triangleCoordinates[i], triangleCoordinates[j]))
+                if (trianglesOverlap(vertices[i], vertices[j]))
                 {
-                    localErrors.push_back("Elements " + std::to_string(elementIds[i]) +
-                                          " and " + std::to_string(elementIds[j]) +
-                                          " overlap");
+                    localErrors.push_back(describeOverlap(elementIds[i], elementIds[j]));
                 }
             }
         }
@@ -106,41 +141,28 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
         }
     }
 #else
-    for (size_t i = 0; i < triangleCoordinates.size(); ++i)
+    for (size_t i = 0; i < vertices.size(); ++i)
     {
-        for (size_t j = i + 1; j < triangleCoordinates.size(); ++j)
+        for (size_t j = i + 1; j < vertices.size(); ++j)
         {
-            if (trianglesOverlap(triangleCoordinates[i], triangleCoordinates[j]))
-            {
-                result.isValid = false;
-                result.errors.push_back("Elements " + std::to_string(elementIds[i]) +
-                                        " and " + std::to_string(elementIds[j]) +
-                                        " overlap");
-            }
+            if (!trianglesOverlap(vertices[i], vertices[j])) continue;
+
+            result.isValid = false;
+            result.errors.push_back(describeOverlap(elementIds[i], elementIds[j]));
         }
     }
 #endif
-
-    if (result.isValid)
-    {
-        SPDLOG_INFO("Mesh verification passed: {} elements verified", meshData.getElementCount());
-    }
-    else
-    {
-        SPDLOG_ERROR("Mesh verification failed with {} errors", result.errors.size());
-    }
-
-    return result;
 }
 
-bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes,
-                                    const std::array<Point2D, 3>& triangle2Nodes)
+std::string describeOverlap(size_t elementId1, size_t elementId2)
 {
-    // Two triangles overlap if:
-    // 1. Any vertex of one triangle is inside the other triangle
-    // 2. Any edges of the triangles intersect (excluding shared edges/vertices)
+    return "Elements " + std::to_string(elementId1) + " and " + std::to_string(elementId2) + " overlap";
+}
 
-    // Check if any vertex of triangle1 is strictly inside triangle2
+// Two triangles overlap if a vertex of one lies strictly inside the other, or if their edges cross
+// anywhere other than at a shared endpoint.
+bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes, const std::array<Point2D, 3>& triangle2Nodes)
+{
     for (size_t i = 0; i < 3; ++i)
     {
         if (GeometryUtilities2D::isPointStrictlyInsideTriangle(
@@ -150,7 +172,6 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes
         }
     }
 
-    // Check if any vertex of triangle2 is strictly inside triangle1
     for (size_t i = 0; i < 3; ++i)
     {
         if (GeometryUtilities2D::isPointStrictlyInsideTriangle(
@@ -160,18 +181,18 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes
         }
     }
 
-    // Check if any edges intersect (excluding shared endpoints)
     for (size_t i = 0; i < 3; ++i)
     {
-        const Point2D& a1 = triangle1Nodes[i];
-        const Point2D& a2 = triangle1Nodes[(i + 1) % 3];
+        auto& edge1Start = triangle1Nodes[i];
+        auto& edge1End = triangle1Nodes[(i + 1) % 3];
 
         for (size_t j = 0; j < 3; ++j)
         {
-            const Point2D& b1 = triangle2Nodes[j];
-            const Point2D& b2 = triangle2Nodes[(j + 1) % 3];
+            auto& edge2Start = triangle2Nodes[j];
+            auto& edge2End = triangle2Nodes[(j + 1) % 3];
 
-            if (GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(a1, a2, b1, b2))
+            if (GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(edge1Start, edge1End, edge2Start,
+                                                                               edge2End))
             {
                 return true;
             }
@@ -180,5 +201,7 @@ bool MeshVerifier::trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes
 
     return false;
 }
+
+} // namespace
 
 } // namespace Meshing

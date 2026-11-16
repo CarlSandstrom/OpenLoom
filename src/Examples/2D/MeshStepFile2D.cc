@@ -9,15 +9,20 @@
 #include "Readers/OpenCascade/StepReader2D.h"
 #include "spdlog/spdlog.h"
 
-#include <cmath>
 #include <iostream>
 #include <string>
 
 using namespace Meshing;
 
+namespace
+{
+constexpr int MINIMUM_ARGUMENT_COUNT = 2;
+constexpr auto OUTPUT_FILE_NAME = "MeshStepFile2D.vtu";
+} // namespace
+
 int main(int argc, char* argv[])
 {
-    if (argc < 2)
+    if (argc < MINIMUM_ARGUMENT_COUNT)
     {
         std::cerr << "Usage: " << argv[0] << " <step-file>" << std::endl;
         return 1;
@@ -54,7 +59,7 @@ int main(int argc, char* argv[])
     spdlog::info("Mesh generation complete!");
 
     Export::VtkExporter exporter;
-    exporter.exportMesh(context.getMeshData(), "MeshStepFile2D.vtu");
+    exporter.exportMesh(context.getMeshData(), OUTPUT_FILE_NAME);
 
     return 0;
 }

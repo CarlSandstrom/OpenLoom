@@ -1,6 +1,9 @@
 #pragma once
-#include "../Base/IElement.h"
+
+#include "Meshing/Data/Base/IElement.h"
+
 #include <array>
+#include <vector>
 
 namespace Meshing
 {
@@ -25,6 +28,7 @@ public:
 
 private:
     std::array<size_t, 3> nodeIds_;
+    std::vector<size_t> nodeIdsVector_; // Cached vector for IElement interface
 };
 
 } // namespace Meshing

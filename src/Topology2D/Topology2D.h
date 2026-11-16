@@ -1,11 +1,10 @@
 #pragma once
 
+#include "Topology2D/Corner2D.h"
+#include "Topology2D/Edge2D.h"
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "Corner2D.h"
-#include "Edge2D.h"
 
 namespace Topology2D
 {
@@ -34,11 +33,11 @@ public:
 
     std::vector<std::string> getAllEdgeIds() const;
 
-    const std::vector<std::string>& getOuterEdgeLoop() const { return outerEdgeLoop_; }
-    const std::vector<std::vector<std::string>>& getHoleEdgeLoops() const { return holeEdgeLoops_; }
+    const std::vector<std::string>& getOuterEdgeLoop() const;
+    const std::vector<std::vector<std::string>>& getHoleEdgeLoops() const;
 
-    size_t getCornerCount() const { return corners_.size(); }
-    size_t getEdgeCount() const { return edges_.size(); }
+    size_t getCornerCount() const;
+    size_t getEdgeCount() const;
 
 private:
     std::unordered_map<std::string, Corner2D> corners_;

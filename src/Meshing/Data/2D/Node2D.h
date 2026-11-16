@@ -10,7 +10,7 @@ class Node2D
 public:
     explicit Node2D(const Point2D& coordinates);
 
-    const Point2D& getCoordinates() const { return coordinates_; }
+    const Point2D& getCoordinates() const;
 
 private:
     Point2D coordinates_;

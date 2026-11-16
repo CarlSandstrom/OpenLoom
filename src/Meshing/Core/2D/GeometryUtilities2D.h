@@ -13,10 +13,10 @@ class GeometryUtilities2D
 {
 public:
     /// Computes the Euclidean distance between two points.
-    static double computeEdgeLength(const Point2D& p1, const Point2D& p2);
+    static double computeEdgeLength(const Point2D& point0, const Point2D& point1);
 
     /// Creates a diametral circle with the given segment as diameter.
-    static Circle2D createDiametralCircle(const Point2D& p1, const Point2D& p2);
+    static Circle2D createDiametralCircle(const Point2D& point0, const Point2D& point1);
 
     /// Tests if a point is inside the circle.
     static bool isPointInsideCircle(const Circle2D& circle, const Point2D& point);
@@ -27,38 +27,38 @@ public:
 
     /// Computes the signed area of a triangle.
     /// Returns positive for counter-clockwise orientation, negative for clockwise.
-    static double computeSignedArea(const Point2D& p1, const Point2D& p2, const Point2D& p3);
+    static double computeSignedArea(const Point2D& point0, const Point2D& point1, const Point2D& point2);
 
     /// Computes the orientation value (cross product) of three points.
-    /// Returns: positive for CCW, negative for CW, zero for collinear.
-    static double computeOrientation(const Point2D& p, const Point2D& q, const Point2D& r);
+    /// Returns: positive for counter-clockwise, negative for clockwise, zero for collinear.
+    static double computeOrientation(const Point2D& point0, const Point2D& point1, const Point2D& point2);
 
     /// Computes the orientation sign of three points with tolerance.
     /// Returns: 0 for collinear, 1 for clockwise, 2 for counter-clockwise.
-    static int computeOrientationSign(const Point2D& p, const Point2D& q, const Point2D& r,
+    static int computeOrientationSign(const Point2D& point0, const Point2D& point1, const Point2D& point2,
                                       double tolerance = 1e-10);
 
     /// Checks if two line segments intersect.
     /// Returns true if segments properly intersect (including collinear overlap cases).
-    static bool segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                  const Point2D& b1, const Point2D& b2);
+    static bool segmentsIntersect(const Point2D& segment0Start, const Point2D& segment0End,
+                                  const Point2D& segment1Start, const Point2D& segment1End);
 
     /// Checks if two segments intersect in their interiors, excluding shared endpoints.
     /// Adjacent triangle edges that share a vertex are not considered intersecting.
-    static bool segmentsIntersectExcludingSharedEndpoints(const Point2D& a1, const Point2D& a2,
-                                                          const Point2D& b1, const Point2D& b2,
+    static bool segmentsIntersectExcludingSharedEndpoints(const Point2D& segment0Start, const Point2D& segment0End,
+                                                          const Point2D& segment1Start, const Point2D& segment1End,
                                                           double tolerance = 1e-10);
 
     /// Tests if a point is strictly inside a triangle (excluding boundary).
     /// Uses barycentric coordinates with tolerance.
     static bool isPointStrictlyInsideTriangle(const Point2D& point,
-                                              const Point2D& v0, const Point2D& v1, const Point2D& v2,
+                                              const Point2D& vertex0, const Point2D& vertex1, const Point2D& vertex2,
                                               double tolerance = 1e-10);
 
     /// Tests if a point is inside or on a triangle (including boundary).
     /// Uses orientation-based test.
     static bool isPointInsideOrOnTriangle(const Point2D& point,
-                                          const Point2D& v0, const Point2D& v1, const Point2D& v2);
+                                          const Point2D& vertex0, const Point2D& vertex1, const Point2D& vertex2);
 };
 
 } // namespace Meshing

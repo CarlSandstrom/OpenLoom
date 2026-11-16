@@ -1,5 +1,6 @@
 #include "Common/Logging.h"
 #include "Common/TwinManager.h"
+#include "Common/Types.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -13,6 +14,9 @@
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/Mesh2DQualitySettings.h"
 #include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/2D/Node2D.h"
+#include "Topology2D/Corner2D.h"
+#include "Topology2D/Edge2D.h"
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 
@@ -25,246 +29,293 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <memory>
+#include <numbers>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 using namespace Meshing;
 
-static void addSquare(Geometry2D::GeometryCollection2D& geometry,
-                      std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
-                      std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
-                      std::vector<std::string>& edgeLoop,
-                      const std::string& prefix,
-                      double size,
-                      Point2D origin = Point2D(0.0, 0.0))
+// Geometry: 10x10 square with two circular holes and all four boundary
+// edges twinned in two pairs:
+//
+//   y=10  ---- top (sq_e2) <-> bottom (sq_e0) ----
+//         |                                       |
+//         |  [circ_left]          [circ_top]      |
+//         |  center (1.5, 5)      center (5, 8.5) |
+//         |  r=1.0, 12 segments   r=1.0, 12 segments
+//         |                                       |
+//   y=0   ---- bottom (sq_e0) <-> top (sq_e2) ----
+//         x=0                                  x=10
+//
+//   top <-> bottom  (sq_e2: c2->c3) <-> (sq_e0: c0->c1): x-coordinate preserved
+//   left <-> right  (sq_e3: c3->c0) <-> (sq_e1: c1->c2): y-coordinate preserved
+//
+// circ_left forces splits on the left edge, propagated to the right edge.
+// circ_top forces splits on the top edge, propagated to the bottom edge.
+// Both twin pairs are exercised simultaneously, including cross-pair interaction
+// at the four corners shared by both pairs.
+
+namespace
 {
-    std::vector<Point2D> corners = {
-        origin,
-        Point2D(origin.x() + size, origin.y()),
-        Point2D(origin.x() + size, origin.y() + size),
-        Point2D(origin.x(), origin.y() + size)};
+constexpr double SQUARE_SIZE = 10.0;
+constexpr std::size_t SQUARE_CORNER_COUNT = 4;
+constexpr double HOLE_RADIUS = 1.0;
+constexpr std::size_t HOLE_SEGMENT_COUNT = 12;
+constexpr double LEFT_HOLE_CENTER_X = 1.5;
+constexpr double LEFT_HOLE_CENTER_Y = 5.0;
+constexpr double TOP_HOLE_CENTER_X = 5.0;
+constexpr double TOP_HOLE_CENTER_Y = 8.5;
+constexpr double FULL_TURN = 2.0 * std::numbers::pi;
+constexpr double COORDINATE_TOLERANCE = 1e-9;
 
-    for (size_t i = 0; i < 4; ++i)
-    {
-        std::string cornerId       = prefix + "_c" + std::to_string(i);
-        std::string edgeId         = prefix + "_e" + std::to_string(i);
-        std::string previousEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
+using TopologyCorners = std::unordered_map<std::string, Topology2D::Corner2D>;
+using TopologyEdges = std::unordered_map<std::string, Topology2D::Edge2D>;
 
-        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[i]));
-        geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
-            edgeId, corners[i], corners[(i + 1) % 4]));
+struct SquareCornerNodes
+{
+    std::size_t corner0; // (0, 0)
+    std::size_t corner1; // (10, 0)
+    std::size_t corner2; // (10, 10)
+    std::size_t corner3; // (0, 10)
+};
 
-        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
-        topologyEdges.emplace(edgeId, Topology2D::Edge2D(
-            edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
-        edgeLoop.push_back(edgeId);
-    }
+struct BoundaryCoordinates
+{
+    std::vector<double> topX;
+    std::vector<double> bottomX;
+    std::vector<double> leftY;
+    std::vector<double> rightY;
+};
+
+bool isNear(double value, double target)
+{
+    return std::abs(value - target) < COORDINATE_TOLERANCE;
 }
 
-static void addCircularConstraint(Geometry2D::GeometryCollection2D& geometry,
-                                  std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
-                                  std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
-                                  const std::string& prefix,
-                                  double centerX,
-                                  double centerY,
-                                  double radius,
-                                  size_t numberOfSegments)
+// Edges run counter-clockwise: sq_e0 = bottom, sq_e1 = right, sq_e2 = top, sq_e3 = left.
+std::vector<std::string> addSquare(Geometry2D::GeometryCollection2D& geometry,
+                                   TopologyCorners& topologyCorners,
+                                   TopologyEdges& topologyEdges,
+                                   const std::string& prefix)
 {
-    gp_Pnt2d center(centerX, centerY);
-    gp_Ax2d  axis(center, gp_Dir2d(1.0, 0.0));
-    gp_Circ2d circle(axis, radius);
+    std::vector<Point2D> corners = {Point2D(0.0, 0.0),
+                                    Point2D(SQUARE_SIZE, 0.0),
+                                    Point2D(SQUARE_SIZE, SQUARE_SIZE),
+                                    Point2D(0.0, SQUARE_SIZE)};
 
-    for (size_t i = 0; i < numberOfSegments; ++i)
+    std::vector<std::string> edgeLoop;
+    for (std::size_t cornerIndex = 0; cornerIndex < SQUARE_CORNER_COUNT; ++cornerIndex)
     {
-        double angle = 2.0 * M_PI * i / numberOfSegments;
-        double x     = centerX + radius * std::cos(angle);
-        double y     = centerY + radius * std::sin(angle);
+        auto nextIndex = (cornerIndex + 1) % SQUARE_CORNER_COUNT;
+        auto previousIndex = (cornerIndex + SQUARE_CORNER_COUNT - 1) % SQUARE_CORNER_COUNT;
+        std::string cornerId = prefix + "_c" + std::to_string(cornerIndex);
+        std::string edgeId = prefix + "_e" + std::to_string(cornerIndex);
+        std::string previousEdgeId = prefix + "_e" + std::to_string(previousIndex);
 
-        std::string cornerId       = prefix + "_c" + std::to_string(i);
-        std::string edgeId         = prefix + "_e" + std::to_string(i);
-        std::string previousEdgeId = prefix + "_e" + std::to_string((i + numberOfSegments - 1) % numberOfSegments);
+        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[cornerIndex]));
+        geometry.addEdge(
+            std::make_unique<Geometry2D::LinearEdge2D>(edgeId, corners[cornerIndex], corners[nextIndex]));
 
-        geometry.addCorner(
-            std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
+        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        topologyEdges.emplace(edgeId,
+                              Topology2D::Edge2D(edgeId, cornerId, prefix + "_c" + std::to_string(nextIndex)));
+        edgeLoop.push_back(edgeId);
+    }
+    return edgeLoop;
+}
+
+std::vector<std::string> addCircularHole(Geometry2D::GeometryCollection2D& geometry,
+                                         TopologyCorners& topologyCorners,
+                                         TopologyEdges& topologyEdges,
+                                         const std::string& prefix,
+                                         const Point2D& center)
+{
+    gp_Ax2d axis(gp_Pnt2d(center.x(), center.y()), gp_Dir2d(1.0, 0.0));
+    gp_Circ2d circle(axis, HOLE_RADIUS);
+
+    for (std::size_t segmentIndex = 0; segmentIndex < HOLE_SEGMENT_COUNT; ++segmentIndex)
+    {
+        double angle = FULL_TURN * segmentIndex / HOLE_SEGMENT_COUNT;
+        double x = center.x() + HOLE_RADIUS * std::cos(angle);
+        double y = center.y() + HOLE_RADIUS * std::sin(angle);
+
+        std::string cornerId = prefix + "_c" + std::to_string(segmentIndex);
+        std::string edgeId = prefix + "_e" + std::to_string(segmentIndex);
+        std::string previousEdgeId =
+            prefix + "_e" + std::to_string((segmentIndex + HOLE_SEGMENT_COUNT - 1) % HOLE_SEGMENT_COUNT);
+
+        geometry.addCorner(std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
         topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
     }
 
-    for (size_t i = 0; i < numberOfSegments; ++i)
+    std::vector<std::string> edgeLoop;
+    for (std::size_t segmentIndex = 0; segmentIndex < HOLE_SEGMENT_COUNT; ++segmentIndex)
     {
-        double startAngle = 2.0 * M_PI * i / numberOfSegments;
-        double endAngle   = 2.0 * M_PI * (i + 1) / numberOfSegments;
+        double startAngle = FULL_TURN * segmentIndex / HOLE_SEGMENT_COUNT;
+        double endAngle = FULL_TURN * (segmentIndex + 1) / HOLE_SEGMENT_COUNT;
 
-        Handle(Geom2d_Circle)       circleGeometry = new Geom2d_Circle(circle);
-        Handle(Geom2d_TrimmedCurve) arc            = new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
+        Handle(Geom2d_Circle) circleGeometry = new Geom2d_Circle(circle);
+        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
 
-        std::string edgeId        = prefix + "_e" + std::to_string(i);
-        std::string startCornerId = prefix + "_c" + std::to_string(i);
-        std::string endCornerId   = prefix + "_c" + std::to_string((i + 1) % numberOfSegments);
+        std::string edgeId = prefix + "_e" + std::to_string(segmentIndex);
+        std::string startCornerId = prefix + "_c" + std::to_string(segmentIndex);
+        std::string endCornerId = prefix + "_c" + std::to_string((segmentIndex + 1) % HOLE_SEGMENT_COUNT);
 
         geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
         topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
+        edgeLoop.push_back(edgeId);
     }
+    return edgeLoop;
 }
+
+MeshingContext2D buildPeriodicSquareContext()
+{
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    TopologyCorners topologyCorners;
+    TopologyEdges topologyEdges;
+
+    auto outerLoop = addSquare(*geometry, topologyCorners, topologyEdges, "sq");
+    auto holeLeftLoop = addCircularHole(*geometry, topologyCorners, topologyEdges, "circ_left",
+                                        Point2D(LEFT_HOLE_CENTER_X, LEFT_HOLE_CENTER_Y));
+    auto holeTopLoop = addCircularHole(*geometry, topologyCorners, topologyEdges, "circ_top",
+                                       Point2D(TOP_HOLE_CENTER_X, TOP_HOLE_CENTER_Y));
+
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topologyCorners, topologyEdges, outerLoop, std::vector<std::vector<std::string>>{holeLeftLoop, holeTopLoop});
+
+    return MeshingContext2D(std::move(geometry), std::move(topology));
+}
+
+std::optional<std::size_t> findNodeAt(const MeshData2D& meshData, const Point2D& target)
+{
+    std::optional<std::size_t> foundNodeId;
+    for (auto& [nodeId, node] : meshData.getNodes())
+    {
+        auto& point = node->getCoordinates();
+        if (isNear(point.x(), target.x()) && isNear(point.y(), target.y())) foundNodeId = nodeId;
+    }
+    return foundNodeId;
+}
+
+// Node IDs are assigned by the Delaunay inserter and are not predictable
+// ahead of time, so the corners are located by coordinate.
+std::optional<SquareCornerNodes> findSquareCornerNodes(const MeshData2D& meshData)
+{
+    auto corner0 = findNodeAt(meshData, Point2D(0.0, 0.0));
+    auto corner1 = findNodeAt(meshData, Point2D(SQUARE_SIZE, 0.0));
+    auto corner2 = findNodeAt(meshData, Point2D(SQUARE_SIZE, SQUARE_SIZE));
+    auto corner3 = findNodeAt(meshData, Point2D(0.0, SQUARE_SIZE));
+    if (!corner0 || !corner1 || !corner2 || !corner3) return std::nullopt;
+    return SquareCornerNodes{*corner0, *corner1, *corner2, *corner3};
+}
+
+//   Top <-> bottom: top edge (c2->c3, right-to-left) <-> bottom edge (c1->c0)
+//     c2(10,10) <-> c1(10,0)   both at x=10
+//     c3(0,10)  <-> c0(0,0)    both at x=0
+//
+//   Left <-> right: left edge (c3->c0, top-to-bottom) <-> right edge (c2->c1)
+//     c3(0,10)  <-> c2(10,10)  both at y=10
+//     c0(0,0)   <-> c1(10,0)   both at y=0
+TwinManager registerPeriodicPairs(const SquareCornerNodes& corners)
+{
+    TwinManager twinManager;
+    twinManager.registerTwin(TwinManager::NO_SURFACE, corners.corner2, corners.corner3, TwinManager::NO_SURFACE,
+                             corners.corner1, corners.corner0);
+    spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
+
+    twinManager.registerTwin(TwinManager::NO_SURFACE, corners.corner3, corners.corner0, TwinManager::NO_SURFACE,
+                             corners.corner2, corners.corner1);
+    spdlog::info("Registered twin pair: left edge (c3→c0) ↔ right edge (c2→c1)");
+    return twinManager;
+}
+
+// Each list is sorted by the coordinate its twin pair preserves.
+BoundaryCoordinates collectBoundaryCoordinates(const MeshData2D& meshData)
+{
+    BoundaryCoordinates boundary;
+    for (auto& [nodeId, node] : meshData.getNodes())
+    {
+        auto& point = node->getCoordinates();
+        if (isNear(point.y(), SQUARE_SIZE))
+            boundary.topX.push_back(point.x());
+        else if (isNear(point.y(), 0.0))
+            boundary.bottomX.push_back(point.x());
+        if (isNear(point.x(), 0.0))
+            boundary.leftY.push_back(point.y());
+        else if (isNear(point.x(), SQUARE_SIZE))
+            boundary.rightY.push_back(point.y());
+    }
+    std::sort(boundary.topX.begin(), boundary.topX.end());
+    std::sort(boundary.bottomX.begin(), boundary.bottomX.end());
+    std::sort(boundary.leftY.begin(), boundary.leftY.end());
+    std::sort(boundary.rightY.begin(), boundary.rightY.end());
+    return boundary;
+}
+
+bool coordinatesMatch(const std::vector<double>& first, const std::vector<double>& second)
+{
+    return std::equal(first.begin(), first.end(), second.begin(), second.end(),
+                      [](double firstValue, double secondValue)
+                      { return isNear(firstValue, secondValue); });
+}
+
+bool validateTwinPairs(const MeshData2D& meshData)
+{
+    auto boundary = collectBoundaryCoordinates(meshData);
+
+    spdlog::info("Top edge:    {} nodes", boundary.topX.size());
+    spdlog::info("Bottom edge: {} nodes", boundary.bottomX.size());
+    auto topBottomMatch = coordinatesMatch(boundary.topX, boundary.bottomX);
+    spdlog::info("Twin check top/bottom: {}", topBottomMatch ? "PASS — edges match" : "FAIL — edges differ");
+
+    spdlog::info("Left edge:   {} nodes", boundary.leftY.size());
+    spdlog::info("Right edge:  {} nodes", boundary.rightY.size());
+    auto leftRightMatch = coordinatesMatch(boundary.leftY, boundary.rightY);
+    spdlog::info("Twin check left/right: {}", leftRightMatch ? "PASS — edges match" : "FAIL — edges differ");
+
+    return topBottomMatch && leftRightMatch;
+}
+} // namespace
 
 int main()
 {
     Common::initializeLogging();
 
-    // -------------------------------------------------------------------------
-    // Geometry: 10×10 square with two circular holes and all four boundary
-    // edges twinned in two pairs:
-    //
-    //   y=10  ---- top (sq_e2) ↔ bottom (sq_e0) ----
-    //         |                                     |
-    //         |  [circ_left]          [circ_top]    |
-    //         |  center(1.5, 5)       center(5, 8.5)|
-    //         |  r=1.0, 12 segment        r=1.0, 12 segment |
-    //         |                                     |
-    //   y=0   ---- bottom (sq_e0) ↔ top (sq_e2) ---
-    //         x=0                               x=10
-    //
-    //   top ↔ bottom  (sq_e2: c2→c3) ↔ (sq_e0: c0→c1): x-coordinate preserved
-    //   left ↔ right  (sq_e3: c3→c0) ↔ (sq_e1: c1→c2): y-coordinate preserved
-    //
-    // circ_left forces splits on the left edge  → propagated to the right edge.
-    // circ_top  forces splits on the top edge   → propagated to the bottom edge.
-    // Both twin pairs are exercised simultaneously, including cross-pair interaction
-    // at the four corners shared by both pairs.
-    // -------------------------------------------------------------------------
-
     spdlog::info("Building fully periodic square with twin edges on all four sides");
+    auto context = buildPeriodicSquareContext();
 
-    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D>   topologyEdges;
-
-    // Outer square: sq_e0=bottom, sq_e1=right, sq_e2=top, sq_e3=left
-    //   sq_c0=(0,0)  sq_c1=(10,0)  sq_c2=(10,10)  sq_c3=(0,10)
-    std::vector<std::string> outerLoop;
-    addSquare(*geometry, topologyCorners, topologyEdges, outerLoop, "sq", 10.0);
-
-    // Circular hole near the left edge — forces left/right twin pair splits
-    const size_t numberOfSegments = 12;
-    addCircularConstraint(*geometry, topologyCorners, topologyEdges, "circ_left", 1.5, 5.0, 1.0, numberOfSegments);
-    std::vector<std::string> holeLeftLoop;
-    for (size_t i = 0; i < numberOfSegments; ++i)
-        holeLeftLoop.push_back("circ_left_e" + std::to_string(i));
-
-    // Circular hole near the top edge — forces top/bottom twin pair splits
-    addCircularConstraint(*geometry, topologyCorners, topologyEdges, "circ_top", 5.0, 8.5, 1.0, numberOfSegments);
-    std::vector<std::string> holeTopLoop;
-    for (size_t i = 0; i < numberOfSegments; ++i)
-        holeTopLoop.push_back("circ_top_e" + std::to_string(i));
-
-    auto topology = std::make_unique<Topology2D::Topology2D>(
-        topologyCorners, topologyEdges, outerLoop,
-        std::vector<std::vector<std::string>>{holeLeftLoop, holeTopLoop});
-
-    MeshingContext2D context(std::move(geometry), std::move(topology));
-
-    // -------------------------------------------------------------------------
-    // Discretize and triangulate
-    // -------------------------------------------------------------------------
     BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
     spdlog::info("Triangulating...");
     ConstrainedDelaunay2D::triangulate(context, discretization);
-
     spdlog::info("Triangulation complete: {} triangles", context.getMeshData().getElementCount());
 
-    // -------------------------------------------------------------------------
-    // Locate the four corner nodes by coordinate after triangulation.
-    // Node IDs are assigned by the Delaunay inserter and are not predictable
-    // ahead of time, so we scan the mesh.
-    // -------------------------------------------------------------------------
-    size_t corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
-    for (const auto& [nodeId, node] : context.getMeshData().getNodes())
-    {
-        const Point2D& point = node->getCoordinates();
-        if      (std::abs(point.x())        < 1e-9 && std::abs(point.y())        < 1e-9) corner0Id = nodeId;
-        else if (std::abs(point.x() - 10.0) < 1e-9 && std::abs(point.y())        < 1e-9) corner1Id = nodeId;
-        else if (std::abs(point.x() - 10.0) < 1e-9 && std::abs(point.y() - 10.0) < 1e-9) corner2Id = nodeId;
-        else if (std::abs(point.x())        < 1e-9 && std::abs(point.y() - 10.0) < 1e-9) corner3Id = nodeId;
-    }
-    if (corner0Id == SIZE_MAX || corner1Id == SIZE_MAX || corner2Id == SIZE_MAX || corner3Id == SIZE_MAX)
+    auto corners = findSquareCornerNodes(context.getMeshData());
+    if (!corners)
     {
         spdlog::error("Could not locate all four corner nodes — aborting");
         return 1;
     }
-    spdlog::info("Corner nodes: c0={} (0,0)  c1={} (10,0)  c2={} (10,10)  c3={} (0,10)",
-                 corner0Id, corner1Id, corner2Id, corner3Id);
+    spdlog::info("Corner nodes: c0={} (0,0)  c1={} (10,0)  c2={} (10,10)  c3={} (0,10)", corners->corner0,
+                 corners->corner1, corners->corner2, corners->corner3);
 
-    // -------------------------------------------------------------------------
-    // TwinManager: register both periodic pairs.
-    //
-    //   Top ↔ bottom: top edge (c2→c3, right-to-left) ↔ bottom edge (c1→c0)
-    //     c2(10,10) ↔ c1(10,0)   both at x=10
-    //     c3(0,10)  ↔ c0(0,0)    both at x=0
-    //
-    //   Left ↔ right: left edge (c3→c0, top-to-bottom) ↔ right edge (c2→c1)
-    //     c3(0,10)  ↔ c2(10,10)  both at y=10
-    //     c0(0,0)   ↔ c1(10,0)   both at y=0
-    // -------------------------------------------------------------------------
-    TwinManager twinManager;
-    twinManager.registerTwin(TwinManager::NO_SURFACE, corner2Id, corner3Id, TwinManager::NO_SURFACE, corner1Id, corner0Id);
-    spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
+    auto twinManager = registerPeriodicPairs(*corners);
 
-    twinManager.registerTwin(TwinManager::NO_SURFACE, corner3Id, corner0Id, TwinManager::NO_SURFACE, corner2Id, corner1Id);
-    spdlog::info("Registered twin pair: left edge (c3→c0) ↔ right edge (c2→c1)");
-
-    // -------------------------------------------------------------------------
-    // Refine with BoundarySplitSynchronizer
-    // -------------------------------------------------------------------------
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Mesh2DQualitySettings{});
     refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
 
     spdlog::info("Refining...");
     refiner.refine();
-
     spdlog::info("Refinement complete: {} triangles", context.getMeshData().getElementCount());
 
-    // -------------------------------------------------------------------------
-    // Validate both twin pairs: collect nodes on each edge, sort by the
-    // preserved coordinate, and confirm the two edges in each pair match.
-    // -------------------------------------------------------------------------
-    std::vector<double> topX, bottomX, leftY, rightY;
-    for (const auto& [nodeId, node] : context.getMeshData().getNodes())
-    {
-        const Point2D& point = node->getCoordinates();
-        if      (std::abs(point.y() - 10.0) < 1e-9) topX.push_back(point.x());
-        else if (std::abs(point.y())         < 1e-9) bottomX.push_back(point.x());
-        if      (std::abs(point.x())         < 1e-9) leftY.push_back(point.y());
-        else if (std::abs(point.x() - 10.0)  < 1e-9) rightY.push_back(point.y());
-    }
-    std::sort(topX.begin(),    topX.end());
-    std::sort(bottomX.begin(), bottomX.end());
-    std::sort(leftY.begin(),   leftY.end());
-    std::sort(rightY.begin(),  rightY.end());
+    auto twinPairsMatch = validateTwinPairs(context.getMeshData());
+    spdlog::info("Overall: {}", twinPairsMatch ? "PASS" : "FAIL");
 
-    spdlog::info("Top edge:    {} nodes", topX.size());
-    spdlog::info("Bottom edge: {} nodes", bottomX.size());
-    bool topBottomMatch = (topX.size() == bottomX.size());
-    if (topBottomMatch)
-        for (size_t i = 0; i < topX.size() && topBottomMatch; ++i)
-            topBottomMatch = (std::abs(topX[i] - bottomX[i]) < 1e-9);
-    spdlog::info("Twin check top/bottom: {}", topBottomMatch ? "PASS — edges match" : "FAIL — edges differ");
-
-    spdlog::info("Left edge:   {} nodes", leftY.size());
-    spdlog::info("Right edge:  {} nodes", rightY.size());
-    bool leftRightMatch = (leftY.size() == rightY.size());
-    if (leftRightMatch)
-        for (size_t i = 0; i < leftY.size() && leftRightMatch; ++i)
-            leftRightMatch = (std::abs(leftY[i] - rightY[i]) < 1e-9);
-    spdlog::info("Twin check left/right: {}", leftRightMatch ? "PASS — edges match" : "FAIL — edges differ");
-
-    spdlog::info("Overall: {}", (topBottomMatch && leftRightMatch) ? "PASS" : "FAIL");
-
-    // -------------------------------------------------------------------------
-    // Export
-    // -------------------------------------------------------------------------
     Export::VtkExporter exporter;
     exporter.exportMesh(context.getMeshData(), "FullyPeriodicSquare.vtu");
     spdlog::info("Mesh exported to FullyPeriodicSquare.vtu");

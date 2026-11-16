@@ -38,10 +38,10 @@ public:
     /**
      * @brief Callable matching ShewchukRefiner2D::BoundarySplitCallback.
      *
-     * Looks up the twin of segment (n1, n2), splits it, and records the split.
-     * If (n1, n2) has no registered twin the call is a no-op.
+     * Looks up the twin of segment (node0, node1), splits it, and records the split.
+     * If (node0, node1) has no registered twin the call is a no-op.
      */
-    void operator()(size_t n1, size_t n2, size_t mid);
+    void operator()(size_t node0, size_t node1, size_t midpointNode);
 
 private:
     MeshingContext2D* context_;

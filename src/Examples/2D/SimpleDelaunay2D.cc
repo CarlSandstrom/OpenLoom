@@ -1,13 +1,23 @@
+#include "Common/Logging.h"
+#include "Common/Types.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Meshing/Core/2D/Delaunay2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
-#include "Common/Logging.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 #include "spdlog/spdlog.h"
 
+#include <cmath>
+#include <cstddef>
+#include <numbers>
 #include <vector>
 
 using namespace Meshing;
+
+namespace
+{
+constexpr double ANGLE_STEP = std::numbers::pi / 10.0;
+constexpr double FULL_TURN = 2.0 * std::numbers::pi;
+} // namespace
 
 int main()
 {
@@ -18,17 +28,15 @@ int main()
     // Define the nodes on a circle
     std::vector<Point2D> points;
 
-    for (double alpha = 0; alpha < 2 * M_PI; alpha += M_PI / 10.0)
+    for (double angle = 0.0; angle < FULL_TURN; angle += ANGLE_STEP)
     {
-        double x = std::cos(alpha);
-        double y = std::sin(alpha);
-        points.emplace_back(x, y);
+        points.emplace_back(std::cos(angle), std::sin(angle));
     }
 
     spdlog::info("Created {} points forming a rectangle", points.size());
-    for (size_t i = 0; i < points.size(); ++i)
+    for (std::size_t pointIndex = 0; pointIndex < points.size(); ++pointIndex)
     {
-        spdlog::info("  Point {}: ({:.2f}, {:.2f})", i, points[i].x(), points[i].y());
+        spdlog::info("  Point {}: ({:.2f}, {:.2f})", pointIndex, points[pointIndex].x(), points[pointIndex].y());
     }
 
     MeshData2D meshData2D;
@@ -36,8 +44,6 @@ int main()
     // Perform triangulation
     spdlog::info("Running triangulation...");
     Delaunay2D::triangulate(points, meshData2D);
-    const auto& triangles = meshData2D.getElements();
-    const auto& nodes = meshData2D.getNodes();
 
     // Export to VTK
     Export::VtkExporter exporter;

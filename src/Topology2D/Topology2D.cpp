@@ -1,4 +1,4 @@
-#include "Topology2D.h"
+#include "Topology2D/Topology2D.h"
 
 #include "Common/Exceptions/TopologyException.h"
 
@@ -44,6 +44,26 @@ std::vector<std::string> Topology2D::getAllEdgeIds() const
         ids.push_back(id);
     }
     return ids;
+}
+
+const std::vector<std::string>& Topology2D::getOuterEdgeLoop() const
+{
+    return outerEdgeLoop_;
+}
+
+const std::vector<std::vector<std::string>>& Topology2D::getHoleEdgeLoops() const
+{
+    return holeEdgeLoops_;
+}
+
+size_t Topology2D::getCornerCount() const
+{
+    return corners_.size();
+}
+
+size_t Topology2D::getEdgeCount() const
+{
+    return edges_.size();
 }
 
 } // namespace Topology2D

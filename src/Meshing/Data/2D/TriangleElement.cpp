@@ -1,25 +1,27 @@
-#include "TriangleElement.h"
+#include "Meshing/Data/2D/TriangleElement.h"
+
 #include "Common/Exceptions/MeshException.h"
+
 #include <algorithm>
+#include <string>
 
 namespace Meshing
 {
 
 TriangleElement::TriangleElement(const std::array<size_t, 3>& nodeIds) :
-    nodeIds_(nodeIds)
+    nodeIds_(nodeIds),
+    nodeIdsVector_(nodeIds_.begin(), nodeIds_.end())
 {
 }
 
 const std::vector<size_t>& TriangleElement::getNodeIds() const
 {
-    static thread_local std::vector<size_t> nodeVector;
-    nodeVector.assign(nodeIds_.begin(), nodeIds_.end());
-    return nodeVector;
+    return nodeIdsVector_;
 }
 
 bool TriangleElement::hasNode(size_t nodeId) const
 {
-    return nodeIds_[0] == nodeId || nodeIds_[1] == nodeId || nodeIds_[2] == nodeId;
+    return std::find(nodeIds_.begin(), nodeIds_.end(), nodeId) != nodeIds_.end();
 }
 
 std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
@@ -41,12 +43,9 @@ std::array<size_t, 2> TriangleElement::getEdge(size_t edgeIndex) const
 
 size_t TriangleElement::getOppositeNode(size_t edgeNode1, size_t edgeNode2) const
 {
-    for (size_t n : nodeIds_)
+    for (auto nodeId : nodeIds_)
     {
-        if (n != edgeNode1 && n != edgeNode2)
-        {
-            return n;
-        }
+        if (nodeId != edgeNode1 && nodeId != edgeNode2) return nodeId;
     }
     OPENLOOM_THROW_CODE(OpenLoom::MeshException,
                         OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,

@@ -1,4 +1,4 @@
-#include "GeometryUtilities2D.h"
+#include "Meshing/Core/2D/GeometryUtilities2D.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,32 +7,39 @@
 namespace Meshing
 {
 
-double GeometryUtilities2D::computeEdgeLength(const Point2D& p1, const Point2D& p2)
+namespace
 {
-    const double dx = p2.x() - p1.x();
-    const double dy = p2.y() - p1.y();
-    return std::sqrt(dx * dx + dy * dy);
+bool isWithinSegmentBounds(const Point2D& segmentStart, const Point2D& point, const Point2D& segmentEnd,
+                           double tolerance);
+bool isCollinearInteriorPoint(int orientationSign, const Point2D& segmentStart, const Point2D& point,
+                              const Point2D& segmentEnd, double tolerance);
+} // namespace
+
+double GeometryUtilities2D::computeEdgeLength(const Point2D& point0, const Point2D& point1)
+{
+    double deltaX = point1.x() - point0.x();
+    double deltaY = point1.y() - point0.y();
+    return std::sqrt(deltaX * deltaX + deltaY * deltaY);
 }
 
-Circle2D GeometryUtilities2D::createDiametralCircle(const Point2D& p1, const Point2D& p2)
+Circle2D GeometryUtilities2D::createDiametralCircle(const Point2D& point0, const Point2D& point1)
 {
     Circle2D circle;
-    circle.center = Point2D((p1.x() + p2.x()) * 0.5, (p1.y() + p2.y()) * 0.5);
-    circle.radius = computeEdgeLength(p1, p2) * 0.5;
+    circle.center = Point2D((point0.x() + point1.x()) * 0.5, (point0.y() + point1.y()) * 0.5);
+    circle.radius = computeEdgeLength(point0, point1) * 0.5;
     return circle;
 }
 
 bool GeometryUtilities2D::isPointInsideCircle(const Circle2D& circle, const Point2D& point)
 {
-    const double dx = point.x() - circle.center.x();
-    const double dy = point.y() - circle.center.y();
-    const double distanceSquared = dx * dx + dy * dy;
+    double deltaX = point.x() - circle.center.x();
+    double deltaY = point.y() - circle.center.y();
+    double distanceSquared = deltaX * deltaX + deltaY * deltaY;
     return distanceSquared < circle.radius * circle.radius - 1e-10;
 }
 
 std::array<Point2D, 3> GeometryUtilities2D::createSuperTriangle(const std::vector<Point2D>& points)
 {
-    // Find bounding box
     double minX = std::numeric_limits<double>::max();
     double minY = std::numeric_limits<double>::max();
     double maxX = -std::numeric_limits<double>::max();
@@ -46,142 +53,100 @@ std::array<Point2D, 3> GeometryUtilities2D::createSuperTriangle(const std::vecto
         maxY = std::max(maxY, coordinate.y());
     }
 
-    const double dx = maxX - minX;
-    const double dy = maxY - minY;
-    const double maxExtent = std::max(dx, dy);
-    const double midX = (minX + maxX) * 0.5;
-    const double midY = (minY + maxY) * 0.5;
+    double extentX = maxX - minX;
+    double extentY = maxY - minY;
+    double maxExtent = std::max(extentX, extentY);
+    double centerX = (minX + maxX) * 0.5;
+    double centerY = (minY + maxY) * 0.5;
 
-    // Create node points describing a large triangle that contains all points
-    // Use a large scale factor to ensure all points are well within the super triangle
-    // and to avoid numerical precision issues
-    const double scale = 100.0 * maxExtent;
+    // A large margin keeps every point well inside the super triangle and away from its edges.
+    double scale = 100.0 * maxExtent;
 
-    Point2D p0(midX - scale, midY - scale);
-    Point2D p1(midX + scale, midY - scale);
-    Point2D p2(midX, midY + scale);
-    return {p0, p1, p2};
+    Point2D vertex0(centerX - scale, centerY - scale);
+    Point2D vertex1(centerX + scale, centerY - scale);
+    Point2D vertex2(centerX, centerY + scale);
+    return {vertex0, vertex1, vertex2};
 }
 
-double GeometryUtilities2D::computeSignedArea(const Point2D& p1, const Point2D& p2, const Point2D& p3)
+double GeometryUtilities2D::computeSignedArea(const Point2D& point0, const Point2D& point1, const Point2D& point2)
 {
-    return 0.5 * computeOrientation(p1, p2, p3);
+    return 0.5 * computeOrientation(point0, point1, point2);
 }
 
-double GeometryUtilities2D::computeOrientation(const Point2D& p, const Point2D& q, const Point2D& r)
+double GeometryUtilities2D::computeOrientation(const Point2D& point0, const Point2D& point1, const Point2D& point2)
 {
-    return (q.x() - p.x()) * (r.y() - p.y()) - (q.y() - p.y()) * (r.x() - p.x());
+    return (point1.x() - point0.x()) * (point2.y() - point0.y()) - (point1.y() - point0.y()) * (point2.x() - point0.x());
 }
 
-int GeometryUtilities2D::computeOrientationSign(const Point2D& p, const Point2D& q, const Point2D& r,
+int GeometryUtilities2D::computeOrientationSign(const Point2D& point0, const Point2D& point1, const Point2D& point2,
                                                 double tolerance)
 {
-    double value = computeOrientation(p, q, r);
+    double value = computeOrientation(point0, point1, point2);
 
     if (std::abs(value) < tolerance) return 0;
-    // Consistent with computeOrientation: positive = CCW (2), negative = CW (1)
+    // Consistent with computeOrientation: positive = counter-clockwise (2), negative = clockwise (1)
     return (value > 0) ? 2 : 1;
 }
 
-bool GeometryUtilities2D::segmentsIntersect(const Point2D& a1, const Point2D& a2,
-                                            const Point2D& b1, const Point2D& b2)
+bool GeometryUtilities2D::segmentsIntersect(const Point2D& segment0Start, const Point2D& segment0End,
+                                            const Point2D& segment1Start, const Point2D& segment1End)
 {
-    auto onSegment = [](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
-    {
-        return q.x() <= std::max(p.x(), r.x()) && q.x() >= std::min(p.x(), r.x()) &&
-               q.y() <= std::max(p.y(), r.y()) && q.y() >= std::min(p.y(), r.y());
-    };
+    int orientation0 = computeOrientationSign(segment0Start, segment0End, segment1Start);
+    int orientation1 = computeOrientationSign(segment0Start, segment0End, segment1End);
+    int orientation2 = computeOrientationSign(segment1Start, segment1End, segment0Start);
+    int orientation3 = computeOrientationSign(segment1Start, segment1End, segment0End);
 
-    int o1 = computeOrientationSign(a1, a2, b1);
-    int o2 = computeOrientationSign(a1, a2, b2);
-    int o3 = computeOrientationSign(b1, b2, a1);
-    int o4 = computeOrientationSign(b1, b2, a2);
+    if (orientation0 != orientation1 && orientation2 != orientation3) return true;
 
-    // General case
-    if (o1 != o2 && o3 != o4)
-        return true;
-
-    // Special cases for collinear points
-    if (o1 == 0 && onSegment(a1, b1, a2)) return true;
-    if (o2 == 0 && onSegment(a1, b2, a2)) return true;
-    if (o3 == 0 && onSegment(b1, a1, b2)) return true;
-    if (o4 == 0 && onSegment(b1, a2, b2)) return true;
+    // Collinear cases
+    if (orientation0 == 0 && isWithinSegmentBounds(segment0Start, segment1Start, segment0End, 0.0)) return true;
+    if (orientation1 == 0 && isWithinSegmentBounds(segment0Start, segment1End, segment0End, 0.0)) return true;
+    if (orientation2 == 0 && isWithinSegmentBounds(segment1Start, segment0Start, segment1End, 0.0)) return true;
+    if (orientation3 == 0 && isWithinSegmentBounds(segment1Start, segment0End, segment1End, 0.0)) return true;
 
     return false;
 }
 
-bool GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(
-    const Point2D& a1, const Point2D& a2,
-    const Point2D& b1, const Point2D& b2,
-    double tolerance)
+bool GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(const Point2D& segment0Start,
+                                                                    const Point2D& segment0End,
+                                                                    const Point2D& segment1Start,
+                                                                    const Point2D& segment1End, double tolerance)
 {
-    // Check if segments share an endpoint
     bool shareEndpoint =
-        (a1 - b1).norm() < tolerance || (a1 - b2).norm() < tolerance ||
-        (a2 - b1).norm() < tolerance || (a2 - b2).norm() < tolerance;
+        (segment0Start - segment1Start).norm() < tolerance || (segment0Start - segment1End).norm() < tolerance ||
+        (segment0End - segment1Start).norm() < tolerance || (segment0End - segment1End).norm() < tolerance;
 
-    if (!shareEndpoint)
-    {
-        return segmentsIntersect(a1, a2, b1, b2);
-    }
+    if (!shareEndpoint) return segmentsIntersect(segment0Start, segment0End, segment1Start, segment1End);
 
-    // For shared endpoints, only report intersection if segments overlap in interior
-    int o1 = computeOrientationSign(a1, a2, b1);
-    int o2 = computeOrientationSign(a1, a2, b2);
-    int o3 = computeOrientationSign(b1, b2, a1);
-    int o4 = computeOrientationSign(b1, b2, a2);
+    // With a shared endpoint, only a collinear overlap of the interiors counts as an intersection.
+    int orientation0 = computeOrientationSign(segment0Start, segment0End, segment1Start);
+    int orientation1 = computeOrientationSign(segment0Start, segment0End, segment1End);
+    int orientation2 = computeOrientationSign(segment1Start, segment1End, segment0Start);
+    int orientation3 = computeOrientationSign(segment1Start, segment1End, segment0End);
 
-    auto onSegment = [tolerance](const Point2D& p, const Point2D& q, const Point2D& r) -> bool
-    {
-        return q.x() <= std::max(p.x(), r.x()) + tolerance &&
-               q.x() >= std::min(p.x(), r.x()) - tolerance &&
-               q.y() <= std::max(p.y(), r.y()) + tolerance &&
-               q.y() >= std::min(p.y(), r.y()) - tolerance;
-    };
-
-    // Check collinear cases - only interior overlap counts
-    if (o1 == 0 && onSegment(a1, b1, a2) &&
-        (b1 - a1).norm() > tolerance && (b1 - a2).norm() > tolerance)
-    {
-        return true;
-    }
-    if (o2 == 0 && onSegment(a1, b2, a2) &&
-        (b2 - a1).norm() > tolerance && (b2 - a2).norm() > tolerance)
-    {
-        return true;
-    }
-    if (o3 == 0 && onSegment(b1, a1, b2) &&
-        (a1 - b1).norm() > tolerance && (a1 - b2).norm() > tolerance)
-    {
-        return true;
-    }
-    if (o4 == 0 && onSegment(b1, a2, b2) &&
-        (a2 - b1).norm() > tolerance && (a2 - b2).norm() > tolerance)
-    {
-        return true;
-    }
-
-    return false;
+    return isCollinearInteriorPoint(orientation0, segment0Start, segment1Start, segment0End, tolerance) ||
+           isCollinearInteriorPoint(orientation1, segment0Start, segment1End, segment0End, tolerance) ||
+           isCollinearInteriorPoint(orientation2, segment1Start, segment0Start, segment1End, tolerance) ||
+           isCollinearInteriorPoint(orientation3, segment1Start, segment0End, segment1End, tolerance);
 }
 
-bool GeometryUtilities2D::isPointStrictlyInsideTriangle(
-    const Point2D& point,
-    const Point2D& v0, const Point2D& v1, const Point2D& v2,
-    double tolerance)
+bool GeometryUtilities2D::isPointStrictlyInsideTriangle(const Point2D& point, const Point2D& vertex0,
+                                                        const Point2D& vertex1, const Point2D& vertex2,
+                                                        double tolerance)
 {
     // Barycentric coordinates method
-    double e0x = v1.x() - v0.x();
-    double e0y = v1.y() - v0.y();
-    double e1x = v2.x() - v0.x();
-    double e1y = v2.y() - v0.y();
-    double dx = point.x() - v0.x();
-    double dy = point.y() - v0.y();
+    double edge0X = vertex1.x() - vertex0.x();
+    double edge0Y = vertex1.y() - vertex0.y();
+    double edge1X = vertex2.x() - vertex0.x();
+    double edge1Y = vertex2.y() - vertex0.y();
+    double offsetX = point.x() - vertex0.x();
+    double offsetY = point.y() - vertex0.y();
 
-    double dot00 = e0x * e0x + e0y * e0y;
-    double dot01 = e0x * e1x + e0y * e1y;
-    double dot02 = e0x * dx + e0y * dy;
-    double dot11 = e1x * e1x + e1y * e1y;
-    double dot12 = e1x * dx + e1y * dy;
+    double dot00 = edge0X * edge0X + edge0Y * edge0Y;
+    double dot01 = edge0X * edge1X + edge0Y * edge1Y;
+    double dot02 = edge0X * offsetX + edge0Y * offsetY;
+    double dot11 = edge1X * edge1X + edge1Y * edge1Y;
+    double dot12 = edge1X * offsetX + edge1Y * offsetY;
 
     double inverseDenominator = 1.0 / (dot00 * dot11 - dot01 * dot01);
     double u = (dot11 * dot02 - dot01 * dot12) * inverseDenominator;
@@ -190,16 +155,37 @@ bool GeometryUtilities2D::isPointStrictlyInsideTriangle(
     return (u > tolerance) && (v > tolerance) && (u + v < 1.0 - tolerance);
 }
 
-bool GeometryUtilities2D::isPointInsideOrOnTriangle(
-    const Point2D& point,
-    const Point2D& v0, const Point2D& v1, const Point2D& v2)
+bool GeometryUtilities2D::isPointInsideOrOnTriangle(const Point2D& point, const Point2D& vertex0,
+                                                    const Point2D& vertex1, const Point2D& vertex2)
 {
-    double d1 = computeOrientation(v0, v1, point);
-    double d2 = computeOrientation(v1, v2, point);
-    double d3 = computeOrientation(v2, v0, point);
-    bool hasNegative = (d1 < 0) || (d2 < 0) || (d3 < 0);
-    bool hasPositive = (d1 > 0) || (d2 > 0) || (d3 > 0);
+    double orientation0 = computeOrientation(vertex0, vertex1, point);
+    double orientation1 = computeOrientation(vertex1, vertex2, point);
+    double orientation2 = computeOrientation(vertex2, vertex0, point);
+    bool hasNegative = (orientation0 < 0) || (orientation1 < 0) || (orientation2 < 0);
+    bool hasPositive = (orientation0 > 0) || (orientation1 > 0) || (orientation2 > 0);
     return !(hasNegative && hasPositive);
 }
+
+namespace
+{
+/// Tests whether point lies in the bounding box of the segment, widened by tolerance.
+/// Callers have already established that the three points are collinear.
+bool isWithinSegmentBounds(const Point2D& segmentStart, const Point2D& point, const Point2D& segmentEnd,
+                           double tolerance)
+{
+    return point.x() <= std::max(segmentStart.x(), segmentEnd.x()) + tolerance &&
+           point.x() >= std::min(segmentStart.x(), segmentEnd.x()) - tolerance &&
+           point.y() <= std::max(segmentStart.y(), segmentEnd.y()) + tolerance &&
+           point.y() >= std::min(segmentStart.y(), segmentEnd.y()) - tolerance;
+}
+
+/// Tests whether point is collinear with the segment and lies within it, away from both endpoints.
+bool isCollinearInteriorPoint(int orientationSign, const Point2D& segmentStart, const Point2D& point,
+                              const Point2D& segmentEnd, double tolerance)
+{
+    return orientationSign == 0 && isWithinSegmentBounds(segmentStart, point, segmentEnd, tolerance) &&
+           (point - segmentStart).norm() > tolerance && (point - segmentEnd).norm() > tolerance;
+}
+} // namespace
 
 } // namespace Meshing

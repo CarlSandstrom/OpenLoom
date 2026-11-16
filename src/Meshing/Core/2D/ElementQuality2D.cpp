@@ -1,8 +1,10 @@
-#include "ElementQuality2D.h"
-#include "GeometryUtilities2D.h"
+#include "Meshing/Core/2D/ElementQuality2D.h"
+#include "Meshing/Core/2D/GeometryUtilities2D.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
+#include <utility>
 
 namespace Meshing
 {
@@ -30,15 +32,9 @@ double ElementQuality2D::computeShortestEdgeLength(const TriangleElement& elemen
 std::optional<double> ElementQuality2D::computeCircumradiusToShortestEdgeRatio(const TriangleElement& element) const
 {
     auto circumcircle = geometry_.computeCircumcircle(element);
-    if (!circumcircle.has_value())
-    {
-        return std::nullopt;
-    }
-    const double shortestEdge = computeShortestEdgeLength(element);
-    if (shortestEdge < 1e-10)
-    {
-        return std::nullopt;
-    }
+    if (!circumcircle.has_value()) return std::nullopt;
+    auto shortestEdge = computeShortestEdgeLength(element);
+    if (shortestEdge < 1e-10) return std::nullopt;
     return circumcircle->radius / shortestEdge;
 }
 
@@ -48,20 +44,17 @@ std::vector<size_t> ElementQuality2D::getTrianglesSortedByQuality() const
 
     for (const auto& [elementId, element] : mesh_.getElements())
     {
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element.get());
-        if (triangle == nullptr)
-        {
-            continue;
-        }
+        auto triangle = dynamic_cast<const TriangleElement*>(element.get());
+        if (triangle == nullptr) continue;
 
         auto ratio = computeCircumradiusToShortestEdgeRatio(*triangle);
-        double quality = ratio.has_value() ? ratio.value() : std::numeric_limits<double>::max();
+        auto quality = ratio.value_or(std::numeric_limits<double>::max());
         trianglesWithQuality.emplace_back(elementId, quality);
     }
 
     std::sort(trianglesWithQuality.begin(), trianglesWithQuality.end(),
-              [](const auto& a, const auto& b)
-              { return a.second > b.second; });
+              [](const auto& left, const auto& right)
+              { return left.second > right.second; });
 
     std::vector<size_t> result;
     result.reserve(trianglesWithQuality.size());

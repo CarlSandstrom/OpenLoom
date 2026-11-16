@@ -10,20 +10,12 @@ struct PeriodicOffset
     int u = 0;
     int v = 0;
 
-    bool operator==(const PeriodicOffset& other) const
-    {
-        return u == other.u && v == other.v;
-    }
-
-    bool operator!=(const PeriodicOffset& other) const
-    {
-        return !(*this == other);
-    }
+    bool operator==(const PeriodicOffset& other) const = default;
 };
 
 /// Describes which UV directions of a 2D meshing domain are periodic,
 /// and the period length in each direction.
-struct PeriodicDomainConfig
+struct PeriodicDomainConfiguration
 {
     bool uPeriodic = false;
     bool vPeriodic = false;

@@ -1,15 +1,14 @@
 #pragma once
 
-#include "../Base/ICorner2D.h"
+#include "Geometry/2D/Base/ICorner2D.h"
 #include <gp_Pnt2d.hxx>
 
 namespace Geometry2D
 {
 
 /**
- * @brief OpenCASCADE implementation of 2D Corner in parametric space
- *
- * Represents a point in 2D parametric (u,v) space using OpenCASCADE's gp_Pnt2d.
+ * @brief OpenCASCADE implementation of ICorner2D, backed by a gp_Pnt2d in
+ * parametric (u,v) space
  */
 class OpenCascade2DCorner : public ICorner2D
 {

@@ -1,20 +1,16 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Data/2D/DiscretizationResult2D.h"
-#include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
+#include <cstddef>
 #include <map>
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
 namespace Meshing
 {
 
+struct DiscretizationResult2D;
 class MeshingContext2D;
-class MeshOperations2D;
 
 class ConstrainedDelaunay2D
 {

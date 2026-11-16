@@ -1,12 +1,9 @@
-#include "MeshingContext2D.h"
-#include "Geometry/2D/Base/Corner2D.h"
-#include "Geometry/2D/Base/IEdge2D.h"
-#include "Geometry/2D/Base/LinearEdge2D.h"
-#include "MeshOperations2D.h"
+#include "Meshing/Core/2D/MeshingContext2D.h"
+
+#include "Meshing/Core/2D/MeshOperations2D.h"
+#include "Meshing/Core/2D/PeriodicMeshData2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
-#include "PeriodicMeshData2D.h"
-#include <set>
 
 namespace Meshing
 {
@@ -25,7 +22,7 @@ MeshingContext2D::~MeshingContext2D() = default;
 MeshingContext2D::MeshingContext2D(MeshingContext2D&&) noexcept = default;
 MeshingContext2D& MeshingContext2D::operator=(MeshingContext2D&&) noexcept = default;
 
-void MeshingContext2D::setPeriodicConfig(const PeriodicDomainConfig& config)
+void MeshingContext2D::setPeriodicConfig(const PeriodicDomainConfiguration& config)
 {
     periodicConfig_ = config;
     // Reset lazy-initialized objects so they are rebuilt with the new config.

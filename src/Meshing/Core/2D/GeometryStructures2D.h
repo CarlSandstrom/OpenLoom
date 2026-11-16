@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+
 namespace Meshing
 {
 struct Circle2D

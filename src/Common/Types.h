@@ -6,7 +6,6 @@
 namespace Meshing
 {
 
-// Type aliases for clarity
 using Point2D = Eigen::Vector2d;
 using Point3D = Eigen::Vector3d;
 using Vector2D = Eigen::Vector2d;

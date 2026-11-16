@@ -7,7 +7,8 @@ namespace OpenLoom
 {
 
 /// Debug flag identifiers for runtime debugging control.
-/// Enable via environment variables: OPENLOOM_DEBUG_<FLAG_NAME>=1
+/// Each flag is enabled by an environment variable of the same name set to 1,
+/// e.g. CHECK_MESH_EACH_ITERATION=1.
 enum class DebugFlag
 {
     CHECK_MESH_EACH_ITERATION,
@@ -17,7 +18,7 @@ enum class DebugFlag
     LOG_CAVITY_OPERATIONS
 };
 
-/// Check if a debug flag is enabled via environment variable.
+/// True when the flag's environment variable is set to exactly "1".
 inline bool isDebugEnabled(DebugFlag flag)
 {
     const char* environmentVariableName = nullptr;
@@ -46,5 +47,4 @@ inline bool isDebugEnabled(DebugFlag flag)
 
 } // namespace OpenLoom
 
-// Convenience macro for concise debug checks
 #define OPENLOOM_DEBUG_ENABLED(flag) OpenLoom::isDebugEnabled(OpenLoom::DebugFlag::flag)

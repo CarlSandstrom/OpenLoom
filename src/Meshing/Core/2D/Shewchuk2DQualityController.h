@@ -15,7 +15,7 @@ class Shewchuk2DQualityController : public IQualityController2D
 public:
     Shewchuk2DQualityController(const MeshData2D& meshData,
                                 double circumradiusToShortestEdgeRatioBound,
-                                double minAngleThresholdRadians,
+                                double minimumAngleThresholdRadians,
                                 std::size_t elementLimit);
 
     bool isMeshAcceptable(const MeshData2D& data) const override;
@@ -27,7 +27,7 @@ private:
     std::unique_ptr<ElementGeometry2D> geometry_;
     std::unique_ptr<ElementQuality2D> quality_;
     double circumradiusToShortestEdgeRatioBound_;
-    double minAngleThreshold_;
+    double minimumAngleThreshold_;
     std::size_t elementLimit_;
 };
 

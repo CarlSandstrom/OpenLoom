@@ -21,14 +21,15 @@ public:
      *
      * Initializes with 1 segment per edge and max angle of π/4 radians (45°)
      */
-    DiscretizationSettings2D() :
-        numberOfSegmentsPerEdge_(1),
-        maxAngleBetweenSegments_(std::numbers::pi / 4.0)
-    {
-    }
+    DiscretizationSettings2D() = default;
 
-    explicit DiscretizationSettings2D(std::optional<size_t> numberOfSegmentsPerEdge,
-                                      std::optional<double> maxAngleBetweenSegments) :
+    /**
+     * @brief Full explicit constructor.
+     * @param numberOfSegmentsPerEdge  Fixed segment count (nullopt = not used).
+     * @param maxAngleBetweenSegments  Max tangent-angle change per segment (nullopt = not used).
+     */
+    DiscretizationSettings2D(std::optional<size_t> numberOfSegmentsPerEdge,
+                             std::optional<double> maxAngleBetweenSegments) :
         numberOfSegmentsPerEdge_(numberOfSegmentsPerEdge),
         maxAngleBetweenSegments_(maxAngleBetweenSegments)
     {
@@ -38,8 +39,8 @@ public:
     std::optional<double> getMaxAngleBetweenSegments() const { return maxAngleBetweenSegments_; }
 
 private:
-    std::optional<size_t> numberOfSegmentsPerEdge_;
-    std::optional<double> maxAngleBetweenSegments_;
+    std::optional<size_t> numberOfSegmentsPerEdge_ = 1;
+    std::optional<double> maxAngleBetweenSegments_ = std::numbers::pi / 4.0;
 };
 
 } // namespace Geometry2D

@@ -1,16 +1,14 @@
-#include "ConstrainedDelaunay2D.h"
-#include "Delaunay2D.h"
-#include "MeshDebugUtilities2D.h"
-#include "MeshOperations2D.h"
+#include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
+#include "Meshing/Core/2D/Delaunay2D.h"
+#include "Meshing/Core/2D/MeshDebugUtilities2D.h"
+#include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
+#include "Meshing/Data/2D/DiscretizationResult2D.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
-#include "spdlog/spdlog.h"
-#include <algorithm>
-#include <cmath>
-#include <limits>
 #include <map>
-#include <optional>
-#include <queue>
+#include <string>
+#include <vector>
 
 namespace Meshing
 {
@@ -25,18 +23,15 @@ std::map<size_t, size_t> ConstrainedDelaunay2D::triangulate(
     MeshOperations2D& meshOperations = context.getOperations();
     size_t exportCounter = 0;
 
-    // Add additional points to the discretized points
     std::vector<Point2D> allPoints = discretization.points;
     std::vector<std::vector<std::string>> allGeometryIds = discretization.geometryIds;
 
     allPoints.insert(allPoints.end(), additionalPoints.begin(), additionalPoints.end());
     allGeometryIds.insert(allGeometryIds.end(), additionalPoints.size(), std::vector<std::string>{});
 
-    // Create Delaunay triangulation
-    const std::map<size_t, size_t> pointIndexToNodeIdMap =
+    std::map<size_t, size_t> pointIndexToNodeIdMap =
         Delaunay2D::triangulate(allPoints, meshData2D, allGeometryIds);
 
-    // Extract constrained edges and store in MeshData2D
     auto curveSegmentManager = meshOperations.getQueries().extractConstrainedEdges(
         context.getTopology(),
         discretization.cornerIdToPointIndexMap,
@@ -49,7 +44,6 @@ std::map<size_t, size_t> ConstrainedDelaunay2D::triangulate(
 
     exportAndVerifyMesh(meshData2D, debugExportFilenamePrefix, exportCounter);
 
-    // Enforce all constrained edges
     bool allConstrainedEdgesPresent = false;
     while (!allConstrainedEdgesPresent)
     {

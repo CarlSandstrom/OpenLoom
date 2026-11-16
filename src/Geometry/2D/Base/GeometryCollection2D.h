@@ -1,11 +1,11 @@
 #pragma once
 
+#include "Geometry/2D/Base/ICorner2D.h"
+#include "Geometry/2D/Base/IEdge2D.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include "ICorner2D.h"
-#include "IEdge2D.h"
+#include <vector>
 
 namespace Geometry2D
 {

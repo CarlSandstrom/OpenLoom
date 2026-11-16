@@ -18,7 +18,7 @@ class IEdge2D
 public:
     virtual ~IEdge2D() = default;
 
-    virtual Meshing::Point2D getPoint(double t) const = 0;
+    virtual Meshing::Point2D getPoint(double parameter) const = 0;
     virtual Meshing::Point2D getStartPoint() const = 0;
     virtual Meshing::Point2D getEndPoint() const = 0;
     virtual std::pair<double, double> getParameterBounds() const = 0;

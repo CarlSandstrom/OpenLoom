@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "Common/Types.h"
-#include "IEdge2D.h"
+#include "Geometry/2D/Base/IEdge2D.h"
 
 namespace Geometry2D
 {
@@ -21,7 +21,7 @@ public:
                  const Meshing::Point2D& startPoint,
                  const Meshing::Point2D& endPoint);
 
-    Meshing::Point2D getPoint(double t) const override;
+    Meshing::Point2D getPoint(double parameter) const override;
     Meshing::Point2D getStartPoint() const override { return startPoint_; }
     Meshing::Point2D getEndPoint() const override { return endPoint_; }
     std::pair<double, double> getParameterBounds() const override { return {0.0, 1.0}; }

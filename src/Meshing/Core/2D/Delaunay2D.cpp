@@ -1,8 +1,10 @@
-#include "Delaunay2D.h"
-#include "GeometryUtilities2D.h"
+#include "Meshing/Core/2D/Delaunay2D.h"
+#include "Meshing/Core/2D/GeometryUtilities2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "spdlog/spdlog.h"
+#include <array>
+#include <memory>
 
 namespace Meshing
 {
@@ -23,27 +25,17 @@ std::map<size_t, size_t> Delaunay2D::triangulate(const std::vector<Point2D>& poi
     size_t superNodeId2 = meshMutator.addNode(p2);
 
     auto superTriangle = std::make_unique<TriangleElement>(std::array<size_t, 3>{superNodeId0, superNodeId1, superNodeId2});
-    size_t superElementId = meshMutator.addElement(std::move(superTriangle));
+    meshMutator.addElement(std::move(superTriangle));
 
     std::map<size_t, size_t> pointIndexToNodeIdMap;
-    size_t index = 0;
-    for (const auto& point : points)
+    for (size_t index = 0; index < points.size(); ++index)
     {
-        size_t nodeId;
-
         bool hasGeometryIds = index < geometryIds.size() && !geometryIds[index].empty();
-
+        auto& point = points[index];
         if (hasGeometryIds)
-        {
-            nodeId = meshOperations.insertVertexBowyerWatson(point, geometryIds[index]);
-        }
+            pointIndexToNodeIdMap[index] = meshOperations.insertVertexBowyerWatson(point, geometryIds[index]);
         else
-        {
-            nodeId = meshOperations.insertVertexBowyerWatson(point);
-        }
-
-        pointIndexToNodeIdMap[index] = nodeId;
-        ++index;
+            pointIndexToNodeIdMap[index] = meshOperations.insertVertexBowyerWatson(point);
     }
 
     meshOperations.removeTrianglesContainingNode(superNodeId0);

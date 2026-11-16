@@ -2,10 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include <array>
 #include <map>
-#include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 

@@ -17,9 +17,9 @@ public:
            const std::string& startCornerId,
            const std::string& endCornerId);
 
-    std::string getId() const { return id_; }
-    std::string getStartCornerId() const { return startCornerId_; }
-    std::string getEndCornerId() const { return endCornerId_; }
+    const std::string& getId() const;
+    const std::string& getStartCornerId() const;
+    const std::string& getEndCornerId() const;
 
 private:
     std::string id_;

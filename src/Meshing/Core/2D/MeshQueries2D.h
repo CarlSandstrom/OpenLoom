@@ -6,16 +6,10 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <map>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-namespace Geometry2D
-{
-class IEdge2D;
-}
 
 namespace Topology2D
 {
@@ -66,14 +60,14 @@ public:
 
     std::vector<CurveSegment> findSegmentsEncroachedByPoint(const Point2D& point) const;
 
-    static std::pair<size_t, size_t> makeEdgeKey(size_t a, size_t b)
+    static EdgeKey makeEdgeKey(size_t nodeId0, size_t nodeId1)
     {
-        return (a < b) ? std::make_pair(a, b) : std::make_pair(b, a);
+        return (nodeId0 < nodeId1) ? std::make_pair(nodeId0, nodeId1) : std::make_pair(nodeId1, nodeId0);
     }
 
     std::vector<size_t> findTrianglesAdjacentToEdge(size_t nodeId1, size_t nodeId2) const;
 
-    bool isBoundaryConstraintEdge(const std::array<size_t, 2>& edgeId) const;
+    bool isBoundaryConstraintEdge(const std::array<size_t, 2>& edge) const;
 
     EdgeToTrianglesMap buildEdgeToTrianglesMap() const;
 

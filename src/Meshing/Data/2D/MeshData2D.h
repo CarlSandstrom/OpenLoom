@@ -1,11 +1,13 @@
 #pragma once
 
-#include "../Base/IElement.h"
+#include "Meshing/Data/2D/Node2D.h"
+#include "Meshing/Data/Base/IElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include "Node2D.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace Meshing
@@ -16,7 +18,6 @@ class MeshData2D
 public:
     MeshData2D() = default;
 
-    // Read-only access to mesh data
     const std::unordered_map<size_t, std::unique_ptr<Node2D>>& getNodes() const { return nodes_; }
     const std::unordered_map<size_t, std::unique_ptr<IElement>>& getElements() const { return elements_; }
 
@@ -27,7 +28,6 @@ public:
 
     const CurveSegmentManager& getCurveSegmentManager() const { return curveSegmentManager_; }
 
-    // Internal access for operations classes (friends)
     friend class MeshMutator2D;
 
 private:
@@ -38,12 +38,11 @@ private:
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
 
-    // Private methods for friend classes
     size_t addNodeInternal(std::unique_ptr<Node2D> node);
     size_t addElementInternal(std::unique_ptr<IElement> element);
     void removeElementInternal(size_t id);
 
-    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> ids);
+    void setNodeGeometryIdsInternal(size_t nodeId, std::vector<std::string> geometryIds);
 
     void setCurveSegmentManagerInternal(CurveSegmentManager manager);
     std::pair<size_t, size_t> splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,

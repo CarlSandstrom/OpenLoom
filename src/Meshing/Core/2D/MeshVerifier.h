@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Common/Types.h"
-#include "Meshing/Data/2D/MeshData2D.h"
 #include <string>
 #include <vector>
 
 namespace Meshing
 {
+
+class MeshData2D;
 
 /**
  * @brief Verifies the validity of a 2D mesh
@@ -31,16 +31,6 @@ public:
      * @return Verification result with validity status and error/warning messages
      */
     static VerificationResult verify(const MeshData2D& meshData);
-
-private:
-    /**
-     * @brief Check if two triangles overlap
-     * @param triangle1Nodes Coordinates of first triangle's vertices
-     * @param triangle2Nodes Coordinates of second triangle's vertices
-     * @return True if triangles overlap
-     */
-    static bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes,
-                                 const std::array<Point2D, 3>& triangle2Nodes);
 };
 
 } // namespace Meshing

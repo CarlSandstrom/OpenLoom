@@ -1,7 +1,9 @@
 #include "PeriodicMeshData2D.h"
 
 #include "Common/Exceptions/MeshException.h"
+#include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
+#include "Meshing/Data/2D/TriangleElement.h"
 
 #include <string>
 
@@ -9,10 +11,10 @@ namespace Meshing
 {
 
 PeriodicMeshData2D::PeriodicMeshData2D(const MeshData2D& meshData,
-                                       const PeriodicDomainConfig& config) :
+                                       const PeriodicDomainConfiguration& configuration) :
     meshData_(meshData),
-    config_(config),
-    offsetTable_(config)
+    configuration_(configuration),
+    offsetTable_(configuration)
 {
 }
 
@@ -20,16 +22,16 @@ Point2D PeriodicMeshData2D::applyOffset(const Point2D& coordinate,
                                         const PeriodicOffset& offset) const
 {
     Point2D result = coordinate;
-    if (config_.uPeriodic)
-        result.x() += offset.u * config_.uPeriod;
-    if (config_.vPeriodic)
-        result.y() += offset.v * config_.vPeriod;
+    if (configuration_.uPeriodic)
+        result.x() += offset.u * configuration_.uPeriod;
+    if (configuration_.vPeriodic)
+        result.y() += offset.v * configuration_.vPeriod;
     return result;
 }
 
 Point2D PeriodicMeshData2D::getCoordinate(size_t triangleId, int slot) const
 {
-    const auto* triangle = dynamic_cast<const TriangleElement*>(
+    auto triangle = dynamic_cast<const TriangleElement*>(
         meshData_.getElement(triangleId));
 
     if (!triangle)
@@ -39,8 +41,8 @@ Point2D PeriodicMeshData2D::getCoordinate(size_t triangleId, int slot) const
                             "Element " + std::to_string(triangleId) + " is not a TriangleElement");
     }
 
-    const size_t nodeId = triangle->getNodeIdArray()[slot];
-    const Point2D canonical = meshData_.getNode(nodeId)->getCoordinates();
+    auto nodeId = triangle->getNodeIdArray()[slot];
+    auto canonical = meshData_.getNode(nodeId)->getCoordinates();
     const auto& offsets = offsetTable_.getOffsets(triangleId);
     return applyOffset(canonical, offsets[slot]);
 }
@@ -53,30 +55,35 @@ PeriodicMeshData2D::getTriangleCoordinates(size_t triangleId) const
             getCoordinate(triangleId, 2)};
 }
 
-Point2D PeriodicMeshData2D::nearestCopy(const Point2D& point,
-                                        const Point2D& referencePoint) const
+namespace
+{
+double nearestPeriodShift(double delta, double period);
+}
+
+Point2D PeriodicMeshData2D::nearestCopy(const Point2D& point, const Point2D& referencePoint) const
 {
     Point2D result = point;
-
-    if (config_.uPeriodic)
-    {
-        const double delta = point.x() - referencePoint.x();
-        if (delta > config_.uPeriod * 0.5)
-            result.x() -= config_.uPeriod;
-        else if (delta < -config_.uPeriod * 0.5)
-            result.x() += config_.uPeriod;
-    }
-
-    if (config_.vPeriodic)
-    {
-        const double delta = point.y() - referencePoint.y();
-        if (delta > config_.vPeriod * 0.5)
-            result.y() -= config_.vPeriod;
-        else if (delta < -config_.vPeriod * 0.5)
-            result.y() += config_.vPeriod;
-    }
-
+    if (configuration_.uPeriodic)
+        result.x() += nearestPeriodShift(point.x() - referencePoint.x(), configuration_.uPeriod);
+    if (configuration_.vPeriodic)
+        result.y() += nearestPeriodShift(point.y() - referencePoint.y(), configuration_.vPeriod);
     return result;
 }
+
+namespace
+{
+
+/// The shift of one period that brings a point 'delta' away from its reference
+/// to within half a period; zero when it is already that close.
+double nearestPeriodShift(double delta, double period)
+{
+    if (delta > period * 0.5)
+        return -period;
+    if (delta < -period * 0.5)
+        return period;
+    return 0.0;
+}
+
+} // namespace
 
 } // namespace Meshing

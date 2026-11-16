@@ -5,19 +5,19 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 `[x]` marks classes already tidied (from the git history). `WeightedDualRestriction`, `SurfaceDelaunayRefiner` and `MeshConnectivity` had only a partial pass, so they stay open.
 
 
-72 of 151 done.
+119 of 151 done.
 
 
 ## `Common/`
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `BoundingBox2D` | 23 | 34 |
-| [ ] | `DebugFlags` | 50 | - |
-| [ ] | `Logging` | 15 | - |
-| [ ] | `MathConstants` | 6 | - |
-| [ ] | `TwinManager` | 75 | 38 |
-| [ ] | `Types` | 19 | - |
+| [x] | `BoundingBox2D` | 23 | 34 |
+| [x] | `DebugFlags` | 50 | - |
+| [x] | `Logging` | 15 | - |
+| [x] | `MathConstants` | 6 | - |
+| [x] | `TwinManager` | 75 | 38 |
+| [x] | `Types` | 19 | - |
 
 ## `Common/Exceptions/`
 
@@ -32,14 +32,14 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `FullyPeriodicSquare` | - | 273 |
-| [ ] | `ManyCirclesInSquare` | - | 189 |
-| [ ] | `MeshStepFile2D` | - | 60 |
-| [ ] | `NearCoincidentConstraintEdges` | - | 110 |
+| [x] | `FullyPeriodicSquare` | - | 273 |
+| [x] | `ManyCirclesInSquare` | - | 189 |
+| [x] | `MeshStepFile2D` | - | 60 |
+| [x] | `NearCoincidentConstraintEdges` | - | 110 |
 | [ ] | `NestedConcentricRings` | - | 178 |
 | [ ] | `RectangleWithCrack` | - | 97 |
 | [ ] | `RectangleWithHole2D` | - | 104 |
-| [ ] | `SimpleDelaunay2D` | - | 53 |
+| [x] | `SimpleDelaunay2D` | - | 53 |
 | [ ] | `SpiralChannel` | - | 143 |
 | [ ] | `SquareWithCircleAndTwinEdges` | - | 251 |
 | [ ] | `SquareWithCircularHole` | - | 161 |
@@ -82,19 +82,19 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `Corner2D` | 29 | 12 |
-| [ ] | `DiscretizationSettings2D` | 45 | - |
-| [ ] | `GeometryCollection2D` | 40 | 47 |
-| [ ] | `ICorner2D` | 22 | - |
-| [ ] | `IEdge2D` | 30 | - |
-| [ ] | `LinearEdge2D` | 38 | 32 |
+| [x] | `Corner2D` | 29 | 12 |
+| [x] | `DiscretizationSettings2D` | 45 | - |
+| [x] | `GeometryCollection2D` | 40 | 47 |
+| [x] | `ICorner2D` | 22 | - |
+| [x] | `IEdge2D` | 30 | - |
+| [x] | `LinearEdge2D` | 38 | 32 |
 
 ## `Geometry/2D/OpenCascade/`
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `OpenCascade2DCorner` | 28 | 31 |
-| [ ] | `OpenCascade2DEdge` | 36 | 69 |
+| [x] | `OpenCascade2DCorner` | 28 | 31 |
+| [x] | `OpenCascade2DEdge` | 36 | 69 |
 
 ## `Geometry/3D/Base/`
 
@@ -134,25 +134,25 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `BoundaryDiscretizer2D` | 48 | 153 |
-| [ ] | `BoundarySplitSynchronizer` | 51 | 46 |
-| [ ] | `ConstrainedDelaunay2D` | 39 | 74 |
-| [ ] | `ConstraintChecker2D` | 33 | 36 |
-| [ ] | `Delaunay2D` | 26 | 56 |
-| [ ] | `ElementGeometry2D` | 76 | 149 |
-| [ ] | `ElementQuality2D` | 38 | 76 |
-| [ ] | `GeometryStructures2D` | 12 | - |
-| [ ] | `GeometryUtilities2D` | 64 | 205 |
-| [ ] | `MeshDebugUtilities2D` | 27 | 37 |
-| [ ] | `MeshOperations2D` | 71 | 709 |
-| [ ] | `MeshQueries2D` | 91 | 615 |
-| [ ] | `MeshVerifier` | 47 | 184 |
-| [ ] | `MeshingContext2D` | 75 | 73 |
-| [ ] | `PeriodicDomain2D` | 36 | - |
-| [ ] | `PeriodicMeshData2D` | 58 | 82 |
-| [ ] | `PeriodicOffsetTable` | 44 | 50 |
-| [ ] | `Shewchuk2DQualityController` | 34 | 71 |
-| [ ] | `ShewchukRefiner2D` | 103 | 309 |
+| [x] | `BoundaryDiscretizer2D` | 48 | 153 |
+| [x] | `BoundarySplitSynchronizer` | 51 | 46 |
+| [x] | `ConstrainedDelaunay2D` | 39 | 74 |
+| [x] | `ConstraintChecker2D` | 33 | 36 |
+| [x] | `Delaunay2D` | 26 | 56 |
+| [x] | `ElementGeometry2D` | 76 | 149 |
+| [x] | `ElementQuality2D` | 38 | 76 |
+| [x] | `GeometryStructures2D` | 12 | - |
+| [x] | `GeometryUtilities2D` | 64 | 205 |
+| [x] | `MeshDebugUtilities2D` | 27 | 37 |
+| [x] | `MeshOperations2D` | 71 | 709 |
+| [x] | `MeshQueries2D` | 91 | 615 |
+| [x] | `MeshVerifier` | 47 | 184 |
+| [x] | `MeshingContext2D` | 75 | 73 |
+| [x] | `PeriodicDomain2D` | 36 | - |
+| [x] | `PeriodicMeshData2D` | 58 | 82 |
+| [x] | `PeriodicOffsetTable` | 44 | 50 |
+| [x] | `Shewchuk2DQualityController` | 34 | 71 |
+| [x] | `ShewchukRefiner2D` | 103 | 309 |
 
 ## `Meshing/Core/3D/General/`
 
@@ -221,12 +221,12 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `DiscretizationResult2D` | 35 | - |
-| [ ] | `Mesh2DQualitySettings` | 27 | - |
-| [ ] | `MeshData2D` | 53 | 56 |
-| [ ] | `MeshMutator2D` | 37 | 50 |
-| [ ] | `Node2D` | 19 | 11 |
-| [ ] | `TriangleElement` | 30 | 57 |
+| [x] | `DiscretizationResult2D` | 35 | - |
+| [x] | `Mesh2DQualitySettings` | 27 | - |
+| [x] | `MeshData2D` | 53 | 56 |
+| [x] | `MeshMutator2D` | 37 | 50 |
+| [x] | `Node2D` | 19 | 11 |
+| [x] | `TriangleElement` | 30 | 57 |
 
 ## `Meshing/Data/3D/`
 
@@ -280,6 +280,6 @@ Every class under `src/`, one row per header/source pair, grouped by directory. 
 
 | Done | Class | .h | source |
 |---|---|---|---|
-| [ ] | `Corner2D` | 27 | 12 |
-| [ ] | `Edge2D` | 30 | 15 |
-| [ ] | `Topology2D` | 50 | 49 |
+| [x] | `Corner2D` | 27 | 12 |
+| [x] | `Edge2D` | 30 | 15 |
+| [x] | `Topology2D` | 50 | 49 |

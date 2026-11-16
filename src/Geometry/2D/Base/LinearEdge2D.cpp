@@ -1,4 +1,4 @@
-#include "LinearEdge2D.h"
+#include "Geometry/2D/Base/LinearEdge2D.h"
 
 #include <cmath>
 
@@ -14,19 +14,18 @@ LinearEdge2D::LinearEdge2D(const std::string& id,
 {
 }
 
-Meshing::Point2D LinearEdge2D::getPoint(double t) const
+Meshing::Point2D LinearEdge2D::getPoint(double parameter) const
 {
-    // Linear interpolation: P(t) = (1-t)*start + t*end for t in [0,1]
-    double u = (1.0 - t) * startPoint_.x() + t * endPoint_.x();
-    double v = (1.0 - t) * startPoint_.y() + t * endPoint_.y();
-    return Meshing::Point2D(u, v);
+    double x = (1.0 - parameter) * startPoint_.x() + parameter * endPoint_.x();
+    double y = (1.0 - parameter) * startPoint_.y() + parameter * endPoint_.y();
+    return Meshing::Point2D(x, y);
 }
 
 double LinearEdge2D::getLength() const
 {
-    double du = endPoint_.x() - startPoint_.x();
-    double dv = endPoint_.y() - startPoint_.y();
-    return std::sqrt(du * du + dv * dv);
+    double deltaX = endPoint_.x() - startPoint_.x();
+    double deltaY = endPoint_.y() - startPoint_.y();
+    return std::sqrt(deltaX * deltaX + deltaY * deltaY);
 }
 
 } // namespace Geometry2D

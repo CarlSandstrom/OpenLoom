@@ -2,8 +2,6 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/2D/GeometryStructures2D.h"
-#include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
 #include <array>
 #include <optional>
 #include <tuple>
@@ -11,7 +9,9 @@
 namespace Meshing
 {
 
+class MeshData2D;
 class PeriodicMeshData2D;
+class TriangleElement;
 
 /// Helper that provides geometric computations for 2D mesh elements requiring node coordinates.
 ///
@@ -70,7 +70,7 @@ public:
 
 private:
     const MeshData2D& mesh_;
-    PeriodicMeshData2D* periodicData_ = nullptr;
+    PeriodicMeshData2D* periodicData_;
 };
 
 } // namespace Meshing

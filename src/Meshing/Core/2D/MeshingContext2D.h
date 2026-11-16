@@ -2,7 +2,6 @@
 
 #include <memory>
 #include <optional>
-#include <string>
 
 #include "Geometry/2D/Base/GeometryCollection2D.h"
 #include "Meshing/Core/2D/PeriodicDomain2D.h"
@@ -53,7 +52,7 @@ public:
     /// Must be called before the first call to getMeshData() or getOperations().
     /// Nothing calls this yet: it is the entry point to the periodic-offset
     /// layer (PeriodicMeshData2D), kept as groundwork for periodic meshing.
-    void setPeriodicConfig(const PeriodicDomainConfig& config);
+    void setPeriodicConfig(const PeriodicDomainConfiguration& config);
 
     /// Returns the periodic data layer, or nullptr for non-periodic contexts.
     PeriodicMeshData2D* getPeriodicData() const { return periodicData_.get(); }
@@ -62,7 +61,7 @@ private:
     std::unique_ptr<Geometry2D::GeometryCollection2D> geometry_;
     std::unique_ptr<Topology2D::Topology2D> topology_;
 
-    std::optional<PeriodicDomainConfig> periodicConfig_;
+    std::optional<PeriodicDomainConfiguration> periodicConfig_;
 
     std::unique_ptr<MeshData2D> meshData_;
     std::unique_ptr<PeriodicMeshData2D> periodicData_;

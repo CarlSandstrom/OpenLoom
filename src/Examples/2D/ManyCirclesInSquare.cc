@@ -1,4 +1,5 @@
 #include "Common/Logging.h"
+#include "Common/Types.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -10,9 +11,6 @@
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/Mesh2DQualitySettings.h"
-#include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/Node2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 
@@ -24,9 +22,12 @@
 #include <gp_Pnt2d.hxx>
 
 #include <cmath>
+#include <cstddef>
 #include <memory>
+#include <numbers>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 using namespace Meshing;
@@ -40,82 +41,126 @@ using namespace Meshing;
 // hole classifier with many separate excluded regions. The Shewchuk refiner then fills
 // the domain (the channels between circles and the outer boundary) with quality triangles.
 
-void addSquare(Geometry2D::GeometryCollection2D& geometry,
-               std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
-               std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
-               std::vector<std::string>& edgeLoop,
-               const std::string& prefix,
-               double size,
-               Point2D origin = Point2D(0.0, 0.0))
+namespace
 {
+constexpr double SQUARE_SIZE = 100.0;
+constexpr double CIRCLE_RADIUS = 5.0;
+constexpr std::size_t SEGMENTS_PER_CIRCLE = 16;
+constexpr std::size_t GRID_SIZE = 5;
+constexpr double GRID_SPACING = 16.0;
+constexpr std::size_t SQUARE_CORNER_COUNT = 4;
+constexpr double FULL_TURN = 2.0 * std::numbers::pi;
+constexpr double START_OFFSET = (SQUARE_SIZE - (GRID_SIZE - 1) * GRID_SPACING) / 2.0;
+
+struct DomainDescription
+{
+    std::unique_ptr<Geometry2D::GeometryCollection2D> geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+};
+
+std::string cornerIdentifier(const std::string& prefix, std::size_t index)
+{
+    return prefix + "_c" + std::to_string(index);
+}
+
+std::string edgeIdentifier(const std::string& prefix, std::size_t index)
+{
+    return prefix + "_e" + std::to_string(index);
+}
+
+std::vector<std::string> addSquare(DomainDescription& domain, const std::string& prefix, double size)
+{
+    auto origin = Point2D(0.0, 0.0);
     std::vector<Point2D> corners = {
         origin,
         Point2D(origin.x() + size, origin.y()),
         Point2D(origin.x() + size, origin.y() + size),
         Point2D(origin.x(), origin.y() + size)};
 
-    for (size_t i = 0; i < 4; ++i)
+    std::vector<std::string> edgeLoop;
+    for (std::size_t index = 0; index < SQUARE_CORNER_COUNT; ++index)
     {
-        std::string cornerId = prefix + "_c" + std::to_string(i);
-        std::string edgeId = prefix + "_e" + std::to_string(i);
-        std::string previousEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
+        auto nextIndex = (index + 1) % SQUARE_CORNER_COUNT;
+        auto cornerId = cornerIdentifier(prefix, index);
+        auto edgeId = edgeIdentifier(prefix, index);
+        auto previousEdgeId = edgeIdentifier(prefix, (index + SQUARE_CORNER_COUNT - 1) % SQUARE_CORNER_COUNT);
 
-        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[i]));
-        geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
-            edgeId, corners[i], corners[(i + 1) % 4]));
+        domain.geometry->addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[index]));
+        domain.geometry->addEdge(std::make_unique<Geometry2D::LinearEdge2D>(edgeId, corners[index], corners[nextIndex]));
 
-        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
-        topologyEdges.emplace(edgeId, Topology2D::Edge2D(
-                                      edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
+        domain.topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        domain.topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, cornerId, cornerIdentifier(prefix, nextIndex)));
         edgeLoop.push_back(edgeId);
     }
+    return edgeLoop;
 }
 
-void addCircularConstraint(Geometry2D::GeometryCollection2D& geometry,
-                           std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
-                           std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
-                           const std::string& prefix,
-                           double centerX,
-                           double centerY,
-                           double radius,
-                           size_t numberOfSegments)
+std::vector<std::string> addCircularConstraint(DomainDescription& domain,
+                                               const std::string& prefix,
+                                               const Point2D& center,
+                                               double radius,
+                                               std::size_t numberOfSegments)
 {
-    gp_Pnt2d center(centerX, centerY);
-    gp_Ax2d axis(center, gp_Dir2d(1.0, 0.0));
+    gp_Pnt2d circleCenter(center.x(), center.y());
+    gp_Ax2d axis(circleCenter, gp_Dir2d(1.0, 0.0));
     gp_Circ2d circle(axis, radius);
 
-    for (size_t i = 0; i < numberOfSegments; ++i)
+    for (std::size_t index = 0; index < numberOfSegments; ++index)
     {
-        double angle = 2.0 * M_PI * i / numberOfSegments;
-        double x = centerX + radius * std::cos(angle);
-        double y = centerY + radius * std::sin(angle);
+        auto angle = FULL_TURN * index / numberOfSegments;
+        auto x = center.x() + radius * std::cos(angle);
+        auto y = center.y() + radius * std::sin(angle);
 
-        std::string cornerId = prefix + "_c" + std::to_string(i);
-        std::string edgeId = prefix + "_e" + std::to_string(i);
-        std::string previousEdgeId = prefix + "_e" + std::to_string((i + numberOfSegments - 1) % numberOfSegments);
+        auto cornerId = cornerIdentifier(prefix, index);
+        auto edgeId = edgeIdentifier(prefix, index);
+        auto previousEdgeId = edgeIdentifier(prefix, (index + numberOfSegments - 1) % numberOfSegments);
 
-        geometry.addCorner(
-            std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
-        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
+        domain.geometry->addCorner(std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
+        domain.topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
     }
 
-    for (size_t i = 0; i < numberOfSegments; ++i)
+    std::vector<std::string> edgeLoop;
+    for (std::size_t index = 0; index < numberOfSegments; ++index)
     {
-        double startAngle = 2.0 * M_PI * i / numberOfSegments;
-        double endAngle = 2.0 * M_PI * (i + 1) / numberOfSegments;
+        auto startAngle = FULL_TURN * index / numberOfSegments;
+        auto endAngle = FULL_TURN * (index + 1) / numberOfSegments;
 
         Handle(Geom2d_Circle) circleGeometry = new Geom2d_Circle(circle);
-        Handle(Geom2d_TrimmedCurve) arc =
-            new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
+        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
 
-        std::string edgeId = prefix + "_e" + std::to_string(i);
-        std::string startCornerId = prefix + "_c" + std::to_string(i);
-        std::string endCornerId = prefix + "_c" + std::to_string((i + 1) % numberOfSegments);
+        auto edgeId = edgeIdentifier(prefix, index);
+        auto startCornerId = cornerIdentifier(prefix, index);
+        auto endCornerId = cornerIdentifier(prefix, (index + 1) % numberOfSegments);
 
-        geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
-        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
+        domain.geometry->addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
+        domain.topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
+        edgeLoop.push_back(edgeId);
     }
+    return edgeLoop;
 }
+
+std::vector<std::vector<std::string>> addCircleGrid(DomainDescription& domain)
+{
+    std::vector<std::vector<std::string>> holeEdgeLoops;
+    std::size_t circleIndex = 0;
+    for (std::size_t row = 0; row < GRID_SIZE; ++row)
+    {
+        for (std::size_t column = 0; column < GRID_SIZE; ++column)
+        {
+            auto center = Point2D(START_OFFSET + column * GRID_SPACING, START_OFFSET + row * GRID_SPACING);
+            auto prefix = "circle" + std::to_string(circleIndex);
+
+            spdlog::info("Adding circle {}: center ({:.1f}, {:.1f}), radius {:.1f}",
+                         circleIndex, center.x(), center.y(), CIRCLE_RADIUS);
+
+            holeEdgeLoops.push_back(addCircularConstraint(domain, prefix, center, CIRCLE_RADIUS, SEGMENTS_PER_CIRCLE));
+            ++circleIndex;
+        }
+    }
+    return holeEdgeLoops;
+}
+} // namespace
 
 int main()
 {
@@ -123,52 +168,16 @@ int main()
 
     spdlog::info("Creating many circles in square stress test");
 
-    const double squareSize = 100.0;
-    const double circleRadius = 5.0;
-    const size_t numberOfSegments = 16;
-    const size_t gridSize = 5;
-    const double spacing = 16.0;
-    // Center the 5x5 grid: total span = 4 * 16 = 64, start = (100 - 64) / 2 = 18
-    const double startOffset = (squareSize - (gridSize - 1) * spacing) / 2.0;
-
-    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
-    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
-    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
-
-    std::vector<std::string> outerEdgeLoop;
-    addSquare(*geometry, topologyCorners, topologyEdges, outerEdgeLoop, "outer", squareSize);
-
-    std::vector<std::vector<std::string>> holeEdgeLoops;
-    size_t circleIndex = 0;
-    for (size_t row = 0; row < gridSize; ++row)
-    {
-        for (size_t column = 0; column < gridSize; ++column)
-        {
-            double centerX = startOffset + column * spacing;
-            double centerY = startOffset + row * spacing;
-            std::string prefix = "circle" + std::to_string(circleIndex);
-
-            spdlog::info("Adding circle {}: center ({:.1f}, {:.1f}), radius {:.1f}",
-                         circleIndex, centerX, centerY, circleRadius);
-
-            addCircularConstraint(
-                *geometry, topologyCorners, topologyEdges, prefix, centerX, centerY, circleRadius, numberOfSegments);
-
-            std::vector<std::string> holeLoop;
-            for (size_t i = 0; i < numberOfSegments; ++i)
-                holeLoop.push_back(prefix + "_e" + std::to_string(i));
-            holeEdgeLoops.push_back(std::move(holeLoop));
-
-            ++circleIndex;
-        }
-    }
+    DomainDescription domain;
+    auto outerEdgeLoop = addSquare(domain, "outer", SQUARE_SIZE);
+    auto holeEdgeLoops = addCircleGrid(domain);
 
     spdlog::info("Added {} circular holes", holeEdgeLoops.size());
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
-        topologyCorners, topologyEdges, outerEdgeLoop, holeEdgeLoops);
+        domain.topologyCorners, domain.topologyEdges, outerEdgeLoop, holeEdgeLoops);
 
-    MeshingContext2D context(std::move(geometry), std::move(topology));
+    MeshingContext2D context(std::move(domain.geometry), std::move(topology));
 
     BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
@@ -177,7 +186,7 @@ int main()
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
     spdlog::info("Refining mesh with ShewchukRefiner2D...");
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Mesh2DQualitySettings{});
     refiner.refine();
 
     spdlog::info("Many circles in square mesh generation complete!");

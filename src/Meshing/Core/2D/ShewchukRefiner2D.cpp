@@ -1,22 +1,37 @@
-#include "ShewchukRefiner2D.h"
-#include "ElementGeometry2D.h"
-#include "ElementQuality2D.h"
+#include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "MeshDebugUtilities2D.h"
-#include "MeshOperations2D.h"
-#include "MeshQueries2D.h"
+#include "Meshing/Core/2D/ElementGeometry2D.h"
+#include "Meshing/Core/2D/ElementQuality2D.h"
+#include "Meshing/Core/2D/MeshDebugUtilities2D.h"
+#include "Meshing/Core/2D/MeshOperations2D.h"
+#include "Meshing/Core/2D/MeshQueries2D.h"
+#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
-#include "Shewchuk2DQualityController.h"
-#include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
-#include <algorithm>
 #include <numbers>
 
 namespace Meshing
 {
+
+namespace
+{
+
+constexpr size_t MAX_ITERATIONS = 10000;
+constexpr size_t MAX_CONSECUTIVE_NO_PROGRESS = 10;
+constexpr double MIN_REFINABLE_AREA = 1e-12;
+constexpr double MIN_REFINABLE_EDGE = 1e-8;
+constexpr double COINCIDENT_NODE_TOLERANCE = 1e-8;
+
+bool isTooSmallToRefine(const ElementGeometry2D& geometry,
+                        const ElementQuality2D& quality,
+                        const TriangleElement& triangle,
+                        size_t triangleId);
+bool coincidesWithExistingNode(const MeshData2D& meshData, const Point2D& point);
+bool tryInsertCircumcenter(MeshOperations2D& operations, const Point2D& circumcenter);
+
+} // namespace
 
 ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
                                      const Mesh2DQualitySettings& qualitySettings,
@@ -44,54 +59,39 @@ void ShewchukRefiner2D::refine()
 
     size_t iterationCount = 0;
     size_t consecutiveNoProgress = 0;
-    const size_t maxIterations = 10000;         // Safety limit to prevent infinite loops
-    const size_t maxConsecutiveNoProgress = 10; // Exit if no progress for this many iterations
 
     exportAndVerifyMesh(context_->getMeshData(), exportPrefix_ + "ShewchukRefiner2D", exportCounter_);
-    while (true)
+    while (!qualityController_->isMeshAcceptable(context_->getMeshData()))
     {
-        if (qualityController_->isMeshAcceptable(context_->getMeshData()))
-        {
-            break;
-        }
-
-        if (iterationCount >= maxIterations)
+        if (iterationCount >= MAX_ITERATIONS)
         {
             spdlog::warn("ShewchukRefiner2D: Reached maximum iteration limit");
             break;
         }
 
-        bool refined = refineStep();
-        if (!refined)
+        if (!refineStep())
         {
             consecutiveNoProgress++;
             spdlog::debug("ShewchukRefiner2D: No refinement in iteration {} (consecutive: {})",
                           iterationCount, consecutiveNoProgress);
 
-            if (consecutiveNoProgress >= maxConsecutiveNoProgress)
+            if (consecutiveNoProgress >= MAX_CONSECUTIVE_NO_PROGRESS)
             {
                 spdlog::warn("ShewchukRefiner2D: Unable to make progress after {} attempts. "
                              "Mesh may contain triangles too small to refine or quality goals may be unachievable.",
-                             maxConsecutiveNoProgress);
+                             MAX_CONSECUTIVE_NO_PROGRESS);
                 break;
             }
         }
         else
         {
-            consecutiveNoProgress = 0; // Reset counter on successful refinement
+            consecutiveNoProgress = 0;
 
-            // Periodically re-classify triangles to remove any that ended up in holes.
-            // Skipped for periodic domains — no exterior exists.
+            // A periodic domain has no exterior to remove.
             if (!context_->getPeriodicData() && iterationCount % 10 == 0)
             {
                 spdlog::debug("ShewchukRefiner2D: Periodic triangle re-classification at iteration {}", iterationCount);
-                auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
-
-                // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
-                for (size_t id : removedIds)
-                {
-                    unrefinableTriangles_.erase(id);
-                }
+                context_->getOperations().classifyAndRemoveExteriorTriangles();
             }
         }
 
@@ -101,26 +101,17 @@ void ShewchukRefiner2D::refine()
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);
 
-    // In a periodic domain there is no exterior: every triangle is interior.
-    // Skip classification/removal to preserve the full periodic triangulation.
+    // Refinement can create triangles that cross constraint boundaries into holes.
+    // A periodic domain has no exterior, so its triangulation is kept whole.
     if (!context_->getPeriodicData())
     {
-        // Re-classify triangles after refinement to remove any that ended up in holes
-        // Refinement can create triangles that cross constraint boundaries
         spdlog::info("ShewchukRefiner2D: Re-classifying triangles to remove any in holes");
-        auto removedIds = context_->getOperations().classifyAndRemoveExteriorTriangles();
-
-        // Clean up unrefinableTriangles_ - remove IDs of triangles that were removed
-        for (size_t id : removedIds)
-        {
-            unrefinableTriangles_.erase(id);
-        }
+        context_->getOperations().classifyAndRemoveExteriorTriangles();
     }
 }
 
 bool ShewchukRefiner2D::refineStep()
 {
-    // Priority 1: Handle encroached segments first
     auto encroachedSegments = context_->getOperations().getQueries().findEncroachedSegments();
 
     if (!encroachedSegments.empty())
@@ -130,39 +121,21 @@ bool ShewchukRefiner2D::refineStep()
         return true;
     }
 
-    // Priority 2: Refine worst quality triangle
     ElementQuality2D quality(context_->getMeshData());
     auto worstTriangles = quality.getTrianglesSortedByQuality();
 
-    // Try to refine triangles in order of worst quality
-    // Skip any where circumcenter computation fails or are known to be unrefinable
     for (size_t triangleId : worstTriangles)
     {
-        // exportAndVerifyMesh disabled during refinement - flood fill at end will clean up
-        const auto* element = context_->getMeshData().getElement(triangleId);
-        const auto* triangle = dynamic_cast<const TriangleElement*>(element);
+        if (unrefinableTriangles_.contains(triangleId)) continue;
 
-        if (triangle == nullptr)
-            continue;
+        auto triangle = dynamic_cast<const TriangleElement*>(context_->getMeshData().getElement(triangleId));
+        if (triangle == nullptr || qualityController_->isTriangleAcceptable(*triangle)) continue;
 
-        // Skip triangles we've already determined can't be refined
-        if (unrefinableTriangles_.contains(triangleId))
-            continue;
+        spdlog::debug("ShewchukRefiner2D: Attempting to refine triangle {}", triangleId);
+        if (handlePoorQualityTriangle(*triangle, triangleId)) return true;
 
-        // Check if this triangle needs refinement
-        if (!qualityController_->isTriangleAcceptable(*triangle))
-        {
-            spdlog::debug("ShewchukRefiner2D: Attempting to refine triangle {}", triangleId);
-
-            // Try to refine this triangle
-            if (handlePoorQualityTriangle(triangleId))
-            {
-                return true; // Successfully refined
-            }
-            // If refinement failed, mark as unrefinable (likely circumcenter in hole)
-            // This prevents infinite loops trying to refine the same triangle
-            unrefinableTriangles_.insert(triangleId);
-        }
+        // Retrying a triangle that failed once would loop forever.
+        unrefinableTriangles_.insert(triangleId);
     }
 
     return false;
@@ -173,15 +146,13 @@ void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
                   segment.nodeId1, segment.nodeId2);
 
-    // Get the parent edge geometry directly from the segment's edgeId
-    const auto* edge = context_->getGeometry().getEdge(segment.edgeId);
+    auto edge = context_->getGeometry().getEdge(segment.edgeId);
     if (edge == nullptr)
     {
         spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", segment.edgeId);
         return;
     }
 
-    // Split the segment (also updates constrained segments in MeshData2D)
     auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge);
 
     if (!newNodeId.has_value())
@@ -199,36 +170,14 @@ void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
     }
 }
 
-bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
+bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangle, size_t triangleId)
 {
-    const auto* element = context_->getMeshData().getElement(triangleId);
-    const auto* triangle = dynamic_cast<const TriangleElement*>(element);
-
-    if (triangle == nullptr)
-    {
-        spdlog::error("ShewchukRefiner2D: Triangle {} not found", triangleId);
-        return false;
-    }
-
     ElementGeometry2D geometry(context_->getMeshData(), context_->getPeriodicData());
     ElementQuality2D quality(context_->getMeshData());
 
-    // Check if triangle is too small to refine reliably
-    // Attempting to refine very small triangles leads to numerical issues
-    double area = geometry.computeArea(*triangle);
-    double shortestEdge = quality.computeShortestEdgeLength(*triangle);
+    if (isTooSmallToRefine(geometry, quality, triangle, triangleId)) return false;
 
-    const double MIN_REFINABLE_AREA = 1e-12; // Minimum area threshold
-    const double MIN_REFINABLE_EDGE = 1e-8;  // Minimum edge length threshold
-
-    if (area < MIN_REFINABLE_AREA || shortestEdge < MIN_REFINABLE_EDGE)
-    {
-        spdlog::debug("ShewchukRefiner2D: Triangle {} too small to refine (area={:.2e}, shortest edge={:.2e}), skipping",
-                      triangleId, area, shortestEdge);
-        return false;
-    }
-
-    // Compute circumcenter using offset-aware coordinates (no-op for non-periodic meshes)
+    // Offset-aware coordinates; a no-op for a non-periodic mesh.
     auto optionalCircumcenter = geometry.computeCircumcenter(triangleId);
 
     if (!optionalCircumcenter.has_value())
@@ -239,7 +188,6 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
 
     Point2D circumcenter = optionalCircumcenter.value();
 
-    // Check if circumcenter is inside the domain (not in a hole)
     if (!context_->getOperations().getQueries().isPointInsideDomain(circumcenter))
     {
         spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) is outside domain or in hole, skipping",
@@ -247,24 +195,12 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         return false;
     }
 
-    // Check if circumcenter coincides with an existing mesh node.
-    // This happens when the circumcenter lands at a circle center where a
-    // node was already inserted. Bowyer-Watson cannot handle duplicate points.
-    for (const auto& [nodeId, node] : context_->getMeshData().getNodes())
-    {
-        double distance = (node->getCoordinates() - circumcenter).norm();
-        if (distance < MIN_REFINABLE_EDGE)
-        {
-            spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) coincides with "
-                          "existing node {}, skipping",
-                          circumcenter.x(), circumcenter.y(), nodeId);
-            return false;
-        }
-    }
+    // A circumcenter can land on a circle center where a node already sits,
+    // and Bowyer-Watson cannot insert a duplicate point.
+    if (coincidesWithExistingNode(context_->getMeshData(), circumcenter)) return false;
 
-    // Check if circumcenter would encroach any segments (with visibility check).
-    // Per Ruppert: if the circumcenter would encroach a visible subsegment, reject
-    // the circumcenter and split the encroached subsegment instead.
+    // Per Ruppert: a circumcenter that would encroach a visible subsegment is
+    // rejected, and the subsegment is split instead.
     auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
 
     if (!encroachedByCircumcenter.empty())
@@ -276,34 +212,76 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(size_t triangleId)
         return true;
     }
 
-    // Safe to insert circumcenter
     spdlog::debug("ShewchukRefiner2D: Inserting circumcenter at ({:.2f}, {:.2f})",
                   circumcenter.x(), circumcenter.y());
 
+    if (!tryInsertCircumcenter(context_->getOperations(), circumcenter)) return false;
+
+    // A triangle that survives the insertion had its circumcenter on the other
+    // side of a constrained edge; refining it again would loop forever.
+    if (context_->getMeshData().getElement(triangleId) != nullptr)
+    {
+        spdlog::debug("ShewchukRefiner2D: Triangle {} survived circumcenter insertion, marking unrefinable",
+                      triangleId);
+        unrefinableTriangles_.insert(triangleId);
+    }
+    return true;
+}
+
+namespace
+{
+
+// Refining very small triangles runs into numerical trouble.
+bool isTooSmallToRefine(const ElementGeometry2D& geometry,
+                        const ElementQuality2D& quality,
+                        const TriangleElement& triangle,
+                        size_t triangleId)
+{
+    double area = geometry.computeArea(triangle);
+    double shortestEdge = quality.computeShortestEdgeLength(triangle);
+
+    if (area < MIN_REFINABLE_AREA || shortestEdge < MIN_REFINABLE_EDGE)
+    {
+        spdlog::debug("ShewchukRefiner2D: Triangle {} too small to refine (area={:.2e}, shortest edge={:.2e}), skipping",
+                      triangleId, area, shortestEdge);
+        return true;
+    }
+    return false;
+}
+
+bool coincidesWithExistingNode(const MeshData2D& meshData, const Point2D& point)
+{
+    for (auto& [nodeId, node] : meshData.getNodes())
+    {
+        double distance = (node->getCoordinates() - point).norm();
+        if (distance < COINCIDENT_NODE_TOLERANCE)
+        {
+            spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) coincides with "
+                          "existing node {}, skipping",
+                          point.x(), point.y(), nodeId);
+            return true;
+        }
+    }
+    return false;
+}
+
+// Insertion throws, before touching the mesh, when constrained edges leave the
+// point with no conflicting triangles.
+bool tryInsertCircumcenter(MeshOperations2D& operations, const Point2D& circumcenter)
+{
     try
     {
-        context_->getOperations().insertVertexBowyerWatson(circumcenter);
-
-        // If the target triangle still exists after insertion, the circumcenter was
-        // on the other side of a constrained edge and the insertion didn't help.
-        // Mark it unrefinable to avoid an infinite loop.
-        if (context_->getMeshData().getElement(triangleId) != nullptr)
-        {
-            spdlog::debug("ShewchukRefiner2D: Triangle {} survived circumcenter insertion, marking unrefinable",
-                          triangleId);
-            unrefinableTriangles_.insert(triangleId);
-        }
-
-        return true; // Successfully inserted circumcenter
+        operations.insertVertexBowyerWatson(circumcenter);
+        return true;
     }
-    catch (const std::exception& e)
+    catch (const std::exception& exception)
     {
-        // Circumcenter insertion failed (likely because it's inside a hole or creates invalid triangles)
         spdlog::debug("ShewchukRefiner2D: Failed to insert circumcenter at ({:.2f}, {:.2f}): {}",
-                      circumcenter.x(), circumcenter.y(), e.what());
-        // Note: Mesh state might be partially modified. The final flood fill will clean up.
-        return false; // Skip this triangle
+                      circumcenter.x(), circumcenter.y(), exception.what());
+        return false;
     }
 }
+
+} // namespace
 
 } // namespace Meshing

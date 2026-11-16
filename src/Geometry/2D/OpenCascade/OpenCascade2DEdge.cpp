@@ -2,6 +2,7 @@
 #include <GCPnts_AbscissaPoint.hxx>
 #include <Geom2dAdaptor_Curve.hxx>
 #include <Precision.hxx>
+#include <cstdint>
 #include <gp_Pnt2d.hxx>
 #include <sstream>
 
@@ -24,9 +25,9 @@ OpenCascade2DEdge::OpenCascade2DEdge(const Handle(Geom2d_Curve) & curve,
     }
 }
 
-Meshing::Point2D OpenCascade2DEdge::getPoint(double t) const
+Meshing::Point2D OpenCascade2DEdge::getPoint(double parameter) const
 {
-    gp_Pnt2d point = curve_->Value(t);
+    auto point = curve_->Value(parameter);
     return Meshing::Point2D(point.X(), point.Y());
 }
 
@@ -49,15 +50,14 @@ double OpenCascade2DEdge::getLength() const
 {
     Geom2dAdaptor_Curve adaptor(curve_);
 
-    // Use GCPnts_AbscissaPoint to compute the actual arc length
-    double length = GCPnts_AbscissaPoint::Length(adaptor, firstParameter_, lastParameter_);
+    auto length = GCPnts_AbscissaPoint::Length(adaptor, firstParameter_, lastParameter_);
 
     if (length > Precision::Confusion())
     {
         return length;
     }
 
-    // Fallback: return parameter range (not ideal but better than 0)
+    // A degenerate curve has no arc length; fall back to its parameter range
     return lastParameter_ - firstParameter_;
 }
 

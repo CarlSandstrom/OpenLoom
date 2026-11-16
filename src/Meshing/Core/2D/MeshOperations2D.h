@@ -1,13 +1,9 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Core/2D/ElementGeometry2D.h"
 #include "Meshing/Core/2D/MeshQueries2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
-#include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
-#include <array>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -17,11 +13,6 @@
 namespace Geometry2D
 {
 class IEdge2D;
-}
-
-namespace Topology2D
-{
-class Topology2D;
 }
 
 namespace Meshing
@@ -65,7 +56,6 @@ private:
     PeriodicMeshData2D* periodicData_ = nullptr;
     MeshQueries2D queries_;
     std::unique_ptr<MeshMutator2D> mutator_;
-    std::unique_ptr<ElementGeometry2D> geometry_;
 };
 
 } // namespace Meshing

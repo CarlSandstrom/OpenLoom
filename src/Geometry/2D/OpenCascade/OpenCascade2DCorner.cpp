@@ -1,4 +1,5 @@
 #include "OpenCascade2DCorner.h"
+#include <cstdint>
 #include <sstream>
 
 namespace Geometry2D

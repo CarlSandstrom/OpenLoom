@@ -1,6 +1,7 @@
 #pragma once
 
-#include "PeriodicDomain2D.h"
+#include "Meshing/Core/2D/PeriodicDomain2D.h"
+
 #include <array>
 #include <unordered_map>
 
@@ -21,7 +22,7 @@ namespace Meshing
 class PeriodicOffsetTable
 {
 public:
-    explicit PeriodicOffsetTable(const PeriodicDomainConfig& config);
+    explicit PeriodicOffsetTable(const PeriodicDomainConfiguration& configuration);
 
     /// Register the three per-vertex offsets for a newly created triangle.
     void setOffsets(size_t triangleId, const std::array<PeriodicOffset, 3>& offsets);
@@ -37,7 +38,7 @@ public:
     bool hasOffsets(size_t triangleId) const;
 
 private:
-    PeriodicDomainConfig config_;
+    PeriodicDomainConfiguration configuration_;
     std::unordered_map<size_t, std::array<PeriodicOffset, 3>> table_;
 };
 
