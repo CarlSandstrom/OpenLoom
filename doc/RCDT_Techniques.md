@@ -60,7 +60,7 @@ plane. Returning none instead left the faces around such a tetrahedron without
 a dual edge: all 38 of HexNutChamfered's holes (OPE-186).
 
 ### Bowyer-Watson incremental insertion
-`Core/3D/General/MeshOperations3D`, `Core/3D/Volume/Delaunay3D`, `Core/3D/RCDT/RegularConflictRegion`
+`Core/3D/General/MeshOperations3D`, `Core/3D/Volume/Delaunay3D`, `Core/3D/General/RegularConflictRegion`
 
 Find the conflict region (elements whose orthosphere contains the point),
 extract its boundary (faces appearing in exactly one conflicting element),
@@ -248,7 +248,7 @@ planes extended past their faces intersect. The accepted crossing is the centre
 of the facet's **surface Delaunay ball**, the refinement point.
 
 ### Surface tessellation as an exact oracle
-`Core/3D/RCDT/SurfaceTessellation`
+`Core/3D/General/SurfaceTessellation`
 
 One CAD surface's trimmed patch sampled onto a jittered UV grid and emitted as
 triangles. This converts "does this segment cross a curved surface" — inherently
@@ -269,7 +269,7 @@ missed lay in it. The grid now starts before the minimum and ends past the
 maximum.
 
 ### Triangle soup index
-`Core/3D/RCDT/TriangleSoupIndex`
+`Core/3D/General/TriangleSoupIndex`
 
 A uniform 3D grid over an unstructured set of triangles, answering the exact
 segment-crossing query. Each triangle is registered in every cell its bounding
@@ -368,7 +368,7 @@ two without crossing a restricted face. Everything reached is stripped, along
 with the bounding tetrahedron's four nodes.
 
 ### Laplacian smoothing with re-projection
-`Core/3D/RCDT/SurfaceMeshSmoother`
+`Core/3D/General/SurfaceMeshSmoother`
 
 Each interior vertex moves toward the centroid of its mesh neighbours and is
 re-projected onto its owning CAD surface, for a fixed number of sweeps. Vertices
@@ -378,7 +378,7 @@ those improve and a few interior ones appear. Removing it was worse on every
 model.
 
 ### Tetrahedron inversion guard
-`Core/3D/RCDT/TetrahedronInversionGuard`
+`Core/3D/General/TetrahedronInversionGuard`
 
 A sweep proposes every move at once, so two moves each harmless alone can invert
 a tetrahedron they share. Each tetrahedron is judged with **all four** of its

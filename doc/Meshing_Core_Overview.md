@@ -34,6 +34,9 @@ src/Meshing/Core/
 │   │   ├── MeshQueries3D.{h,cpp}
 │   │   ├── ElementGeometry3D.{h,cpp}
 │   │   ├── BoundaryDiscretizer3D.{h,cpp}
+│   │   ├── RegularConflictRegion.{h,cpp}
+│   │   ├── SurfaceTessellation.{h,cpp}, TriangleSoupIndex.{h,cpp}, SurfaceProjector.{h,cpp}
+│   │   ├── SurfaceMeshSmoother.{h,cpp}, TetrahedronInversionGuard.{h,cpp}
 │   │   └── MeshSnapshotWriter.{h,cpp}
 │   ├── Surface/                         # Top-level surface mesher
 │   │   └── SurfaceMesher3D.{h,cpp}
@@ -48,10 +51,7 @@ src/Meshing/Core/
 │       ├── TetrahedronDelaunayRefiner.{h,cpp} # tetrahedron refinement (volume)
 │       ├── WeightedDualRestriction.{h,cpp}   # the restriction test
 │       ├── SurfaceFacetCriteria.{h,cpp}, ProtectionExemption.{h,cpp}
-│       ├── RegularConflictRegion.{h,cpp}
-│       ├── SurfaceTessellation.{h,cpp}, TriangleSoupIndex.{h,cpp}, SurfaceProjector.{h,cpp}
 │       ├── AmbientTetrahedronClassifier/Remover, RCDTMeshExtractor, RestrictedFaceAudit
-│       ├── SurfaceMeshSmoother.{h,cpp}, TetrahedronInversionGuard.{h,cpp}
 │       └── CurveSegmentBuilder.{h,cpp}, MinimumEdgeLengthEstimator.{h,cpp}
 └── ConstraintStructures.h
 ```
