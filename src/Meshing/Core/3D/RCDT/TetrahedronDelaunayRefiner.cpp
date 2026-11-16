@@ -22,8 +22,6 @@ namespace Meshing
 namespace
 {
 
-constexpr ElementId INVALID_ID{SIZE_MAX};
-
 std::optional<double> squaredRadiusEdgeRatio(const TetrahedronElement& tetrahedron, const MeshData3D& meshData);
 
 } // namespace
@@ -95,7 +93,7 @@ bool TetrahedronDelaunayRefiner::refineTetrahedron(ElementId elementId, const Te
     }
 
     auto conflicting =
-        RegularConflictRegion::find({elementId, INVALID_ID}, *orthocenter, meshData, surfaceRefiner_.getConnectivity());
+        RegularConflictRegion::find({elementId, ElementId::INVALID}, *orthocenter, meshData, surfaceRefiner_.getConnectivity());
     if (conflicting.empty())
     {
         unrefinable_.insert(elementId);

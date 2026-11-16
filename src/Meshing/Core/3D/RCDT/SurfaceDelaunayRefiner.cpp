@@ -27,8 +27,6 @@ namespace Meshing
 
 namespace
 {
-constexpr ElementId INVALID_ID{SIZE_MAX};
-
 std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology);
 std::vector<FaceKey> facesOf(const TetrahedronElement& tetrahedron);
 std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<ElementId>& elementIds);
@@ -177,7 +175,7 @@ void SurfaceDelaunayRefiner::insert(const Point3D& point,
     connectivity_ = std::make_unique<MeshConnectivity>(meshData);
     for (auto& cavityFace : cavityFaces)
     {
-        if (connectivity_->getFaceElements(cavityFace).first == INVALID_ID)
+        if (connectivity_->getFaceElements(cavityFace).first == ElementId::INVALID)
             forget(cavityFace);
         else
             reclassify(cavityFace);

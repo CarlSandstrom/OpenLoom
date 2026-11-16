@@ -5,8 +5,6 @@
 namespace Meshing
 {
 
-constexpr ElementId INVALID_ID{SIZE_MAX};
-
 MeshConnectivity::MeshConnectivity(const MeshData3D& geometry) :
     geometry_(geometry)
 {
@@ -33,7 +31,7 @@ const std::pair<ElementId, ElementId>& MeshConnectivity::getFaceElements(const F
     }
 
     // Return a static pair with invalid IDs if face not found
-    static const std::pair<ElementId, ElementId> invalidPair{INVALID_ID, INVALID_ID};
+    static const std::pair<ElementId, ElementId> invalidPair{ElementId::INVALID, ElementId::INVALID};
     return invalidPair;
 }
 
@@ -85,7 +83,7 @@ void MeshConnectivity::buildFaceToElementsMap()
 
                 // Add this element to the face
                 auto [it, inserted] =
-                    faceToElements_.emplace(key, std::make_pair(elementId, INVALID_ID));
+                    faceToElements_.emplace(key, std::make_pair(elementId, ElementId::INVALID));
                 if (!inserted)
                     it->second.second = elementId;
             }

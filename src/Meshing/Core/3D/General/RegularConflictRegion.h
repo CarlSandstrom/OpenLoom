@@ -27,7 +27,7 @@ namespace RegularConflictRegion
 /// The tetrahedra in conflict with point, grown from seeds across shared
 /// faces. In a regular triangulation that region is connected, so this finds
 /// the same set as scanning every tetrahedron, at the cost of the region
-/// alone. Empty when no seed conflicts. A seed of SIZE_MAX is ignored.
+/// alone. Empty when no seed conflicts. A seed of ElementId::INVALID is ignored.
 std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
                               const Point3D& point,
                               const MeshData3D& meshData,

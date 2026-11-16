@@ -22,8 +22,6 @@ namespace Meshing
 namespace
 {
 
-constexpr ElementId INVALID_ID{SIZE_MAX};
-
 // Cells of half the minimum edge length resolve any face at or above that floor.
 constexpr double TESSELLATION_CELL_SIZE_FACTOR = 0.5;
 
@@ -61,7 +59,7 @@ std::optional<RestrictedFacet> WeightedDualRestriction::restrict(const FaceKey& 
     if (touchesBoundingTetrahedron(face, meshData)) return std::nullopt;
 
     auto [elementId1, elementId2] = connectivity.getFaceElements(face);
-    if (elementId1 == INVALID_ID || elementId2 == INVALID_ID) return std::nullopt;
+    if (elementId1 == ElementId::INVALID || elementId2 == ElementId::INVALID) return std::nullopt;
 
     auto tetrahedron1 = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId1));
     auto tetrahedron2 = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId2));

@@ -15,7 +15,6 @@ namespace Meshing::RegularConflictRegion
 
 namespace
 {
-constexpr ElementId INVALID_ID{SIZE_MAX};
 bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
 } // namespace
 
@@ -28,7 +27,7 @@ std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
     std::unordered_set<ElementId> visited;
     std::deque<ElementId> pending;
     for (auto seed : seeds)
-        if (seed != INVALID_ID && visited.insert(seed).second)
+        if (seed != ElementId::INVALID && visited.insert(seed).second)
             pending.push_back(seed);
 
     while (!pending.empty())
@@ -43,7 +42,7 @@ std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
         {
             const auto& [first, second] = connectivity.getFaceElements(FaceKey(faceNodes));
             for (auto neighbour : {first, second})
-                if (neighbour != INVALID_ID && visited.insert(neighbour).second)
+                if (neighbour != ElementId::INVALID && visited.insert(neighbour).second)
                     pending.push_back(neighbour);
         }
     }
