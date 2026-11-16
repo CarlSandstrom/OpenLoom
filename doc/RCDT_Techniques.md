@@ -403,7 +403,7 @@ orientation. Only relevant when the surface bounds a volume mesh.
   (`Core/2D/ConstraintChecker2D`): the candidate point is shifted into the
   segment's own periodic frame before the test, so a point near the opposite
   period boundary still registers as encroaching.
-- **Boundary-split callback** (`Core/2D/BoundarySplitSynchronizer`): fires after
+- **Boundary-split callback** (`Core/2D/BoundarySplitSynchronizer2D`): fires after
   each boundary segment split so a twin segment can be split identically —
   the mechanism a future periodic mesher needs.
 - `CHECK_MESH_EACH_ITERATION=1` enables per-iteration integrity checks. **2D

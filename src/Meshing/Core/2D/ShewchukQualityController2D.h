@@ -10,10 +10,10 @@ namespace Meshing
 {
 class MeshData2D;
 
-class Shewchuk2DQualityController : public IQualityController2D
+class ShewchukQualityController2D : public IQualityController2D
 {
 public:
-    Shewchuk2DQualityController(const MeshData2D& meshData,
+    ShewchukQualityController2D(const MeshData2D& meshData,
                                 double circumradiusToShortestEdgeRatioBound,
                                 double minimumAngleThresholdRadians,
                                 std::size_t elementLimit);

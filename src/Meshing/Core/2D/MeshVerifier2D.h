@@ -15,7 +15,7 @@ class MeshData2D;
  * - All triangular elements have counter-clockwise orientation
  * - No elements overlap
  */
-class MeshVerifier
+class MeshVerifier2D
 {
 public:
     struct VerificationResult

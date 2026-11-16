@@ -5,7 +5,7 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Topology/Topology3D.h"
@@ -76,7 +76,7 @@ protected:
         std::set<FaceKey> seen;
         for (const auto& [elementId, element] : meshData.getElements())
         {
-            const auto* tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+            const auto* tetrahedron = dynamic_cast<const TetrahedronElement*>(element.get());
             if (!tetrahedron)
                 continue;
             for (const auto& faceNodes : tetrahedron->getFaces())

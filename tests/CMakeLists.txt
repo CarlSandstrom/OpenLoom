@@ -16,7 +16,7 @@ set(TEST_SOURCES
     
     # Meshing Data tests
     Meshing/Data/test_Node.cpp
-    Meshing/Data/test_TetrahedralElement.cpp
+    Meshing/Data/test_TetrahedronElement.cpp
     
     # Meshing Core tests
     Meshing/Core/test_ConstrainedDelaunay2D.cpp
@@ -28,7 +28,7 @@ set(TEST_SOURCES
     Meshing/Core/test_RobustPredicates3D.cpp
     Meshing/Core/test_RegularPredicates3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
-    Meshing/Core/test_Shewchuk2DQualityController.cpp
+    Meshing/Core/test_ShewchukQualityController2D.cpp
     Meshing/Core/test_ShewchukRefiner2D.cpp
     Meshing/Core/test_BoundaryDiscretizer3D.cpp
     Meshing/Core/test_MinimumEdgeLengthEstimator.cpp
@@ -48,7 +48,7 @@ set(TEST_SOURCES
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
     Meshing/Core/test_RestrictedFaceAudit.cpp
-    Meshing/Core/test_TwinManager.cpp
+    Meshing/Core/test_TwinManager2D.cpp
 
     # Topology tests
     Topology/test_Edge.cpp

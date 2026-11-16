@@ -1,4 +1,4 @@
-#include "Meshing/Core/2D/MeshVerifier.h"
+#include "Meshing/Core/2D/MeshVerifier2D.h"
 #include "Common/Types.h"
 #include "Meshing/Core/2D/GeometryUtilities2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
@@ -25,21 +25,21 @@ struct TriangleCoordinates
     std::vector<std::array<Point2D, 3>> vertices;
 };
 
-TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier::VerificationResult& result);
-void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result);
-void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result);
+TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier2D::VerificationResult& result);
+void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result);
+void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result);
 std::string describeOverlap(size_t elementId1, size_t elementId2);
 bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes, const std::array<Point2D, 3>& triangle2Nodes);
 
 } // namespace
 
-MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData)
+MeshVerifier2D::VerificationResult MeshVerifier2D::verify(const MeshData2D& meshData)
 {
 #ifndef OPENLOOM_HAS_OPENMP
     static bool warned = false;
     if (!warned)
     {
-        spdlog::warn("MeshVerifier: OpenMP is disabled. Overlap checks will run sequentially. "
+        spdlog::warn("MeshVerifier2D: OpenMP is disabled. Overlap checks will run sequentially. "
                      "Enable with: cmake -DOPENLOOM_USE_OPENMP=ON");
         warned = true;
     }
@@ -67,7 +67,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
 namespace
 {
 
-TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier::VerificationResult& result)
+TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier2D::VerificationResult& result)
 {
     TriangleCoordinates triangles;
     for (const auto& [id, element] : meshData.getElements())
@@ -88,7 +88,7 @@ TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshV
     return triangles;
 }
 
-void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result)
+void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result)
 {
     for (size_t i = 0; i < triangles.vertices.size(); ++i)
     {
@@ -109,7 +109,7 @@ void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier::Verifi
     }
 }
 
-void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier::VerificationResult& result)
+void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result)
 {
     auto& vertices = triangles.vertices;
     auto& elementIds = triangles.elementIds;

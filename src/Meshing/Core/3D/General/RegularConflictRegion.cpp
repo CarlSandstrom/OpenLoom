@@ -3,7 +3,7 @@
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/General/RegularPredicates3D.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 
 #include <cstdint>
@@ -16,7 +16,7 @@ namespace Meshing::RegularConflictRegion
 namespace
 {
 constexpr std::size_t INVALID_ID = SIZE_MAX;
-bool conflicts(const TetrahedralElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
+bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
 } // namespace
 
 std::vector<std::size_t> find(const std::array<std::size_t, 2>& seeds,
@@ -35,7 +35,7 @@ std::vector<std::size_t> find(const std::array<std::size_t, 2>& seeds,
     {
         auto elementId = pending.front();
         pending.pop_front();
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
         if (!tetrahedron || !conflicts(*tetrahedron, point, meshData))
             continue;
         region.push_back(elementId);
@@ -54,7 +54,7 @@ bool isHiddenOrDuplicate(const Point3D& point, const std::vector<std::size_t>& r
 {
     for (auto elementId : region)
     {
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
         for (auto nodeId : tetrahedron->getNodeIds())
         {
             auto node = meshData.getNode(nodeId);
@@ -68,7 +68,7 @@ bool isHiddenOrDuplicate(const Point3D& point, const std::vector<std::size_t>& r
 namespace
 {
 
-bool conflicts(const TetrahedralElement& tetrahedron, const Point3D& point, const MeshData3D& meshData)
+bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData)
 {
     auto& nodeIds = tetrahedron.getNodeIds();
     auto node0 = meshData.getNode(nodeIds[0]);

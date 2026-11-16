@@ -11,7 +11,7 @@ namespace Meshing
  * Passed to ShewchukRefiner2D to control when triangles are acceptable.
  * All angle parameters are in degrees.
  */
-struct Mesh2DQualitySettings
+struct MeshQualitySettings2D
 {
     /// Maximum allowed circumradius / shortest-edge ratio.
     /// A bound of 2.0 corresponds roughly to a 30° minimum angle.

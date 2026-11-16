@@ -4,7 +4,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Readers/OpenCascade/StepReader2D.h"
 #include "spdlog/spdlog.h"
@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
 
     // Refine mesh
     spdlog::info("Refining mesh...");
-    ShewchukRefiner2D refiner(context, Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, MeshQualitySettings2D{});
     refiner.refine();
 
     spdlog::info("Mesh generation complete!");

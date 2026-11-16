@@ -43,7 +43,7 @@ struct EdgeFlip
 };
 
 EdgeOffsetMap collectBoundaryEdgeOffsets(const MeshData2D& meshData,
-                                         const PeriodicOffsetTable& offsetTable,
+                                         const PeriodicOffsetTable2D& offsetTable,
                                          const std::vector<size_t>& triangleIds);
 std::array<PeriodicOffset, 2> findEdgeOffsets(const EdgeOffsetMap& edgeOffsets, const std::array<size_t, 2>& edge);
 std::vector<size_t> traceBoundaryLoop(const std::vector<std::array<size_t, 2>>& boundary, size_t startNodeId);
@@ -423,7 +423,7 @@ namespace
 {
 
 EdgeOffsetMap collectBoundaryEdgeOffsets(const MeshData2D& meshData,
-                                         const PeriodicOffsetTable& offsetTable,
+                                         const PeriodicOffsetTable2D& offsetTable,
                                          const std::vector<size_t>& triangleIds)
 {
     EdgeOffsetMap edgeOffsets;

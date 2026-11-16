@@ -7,7 +7,7 @@
 #include "Meshing/Core/3D/General/RegularConflictRegion.h"
 #include "Meshing/Core/3D/RCDT/SnapshotGridBuilder.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
@@ -30,7 +30,7 @@ namespace
 constexpr size_t INVALID_ID = SIZE_MAX;
 
 std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topology);
-std::vector<FaceKey> facesOf(const TetrahedralElement& tetrahedron);
+std::vector<FaceKey> facesOf(const TetrahedronElement& tetrahedron);
 std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vector<size_t>& elementIds);
 void removeFromQueue(const FaceKey& face,
                      std::unordered_map<FaceKey, SurfaceFacetCriteria::Badness, FaceKeyHash>& badness,
@@ -97,7 +97,7 @@ void SurfaceDelaunayRefiner::classifyAllFaces()
     std::unordered_set<FaceKey, FaceKeyHash> seen;
     for (auto& [elementId, element] : context_->getMeshData().getElements())
     {
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(element.get());
         if (!tetrahedron) continue;
 
         for (auto& face : facesOf(*tetrahedron))
@@ -205,7 +205,7 @@ std::optional<FaceKey> SurfaceDelaunayRefiner::findEncroachedFacet(const Point3D
     auto& meshData = context_->getMeshData();
     for (auto elementId : conflictRegion)
     {
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
         if (!tetrahedron) continue;
 
         for (auto& face : facesOf(*tetrahedron))
@@ -233,7 +233,7 @@ std::unordered_set<std::string> surfaceIdsOf(const Topology3D::Topology3D& topol
     return {surfaceIds.begin(), surfaceIds.end()};
 }
 
-std::vector<FaceKey> facesOf(const TetrahedralElement& tetrahedron)
+std::vector<FaceKey> facesOf(const TetrahedronElement& tetrahedron)
 {
     std::vector<FaceKey> faces;
     for (auto& faceNodes : tetrahedron.getFaces())
@@ -246,7 +246,7 @@ std::vector<FaceKey> facesOfElements(const MeshData3D& meshData, const std::vect
     std::vector<FaceKey> faces;
     for (auto elementId : elementIds)
     {
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
         if (!tetrahedron) continue;
 
         for (auto& face : facesOf(*tetrahedron))

@@ -7,7 +7,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 
@@ -131,7 +131,7 @@ int main()
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
     spdlog::info("Refining mesh with ShewchukRefiner2D...");
-    ShewchukRefiner2D refiner(context, Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, MeshQualitySettings2D{});
     refiner.refine();
 
     spdlog::info("Spiral channel mesh generation complete!");

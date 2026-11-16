@@ -5,7 +5,7 @@
 #include "Meshing/Core/2D/MeshDebugUtilities2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshQueries2D.h"
-#include "Meshing/Core/2D/Shewchuk2DQualityController.h"
+#include "Meshing/Core/2D/ShewchukQualityController2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -34,10 +34,10 @@ bool tryInsertCircumcenter(MeshOperations2D& operations, const Point2D& circumce
 } // namespace
 
 ShewchukRefiner2D::ShewchukRefiner2D(MeshingContext2D& context,
-                                     const Mesh2DQualitySettings& qualitySettings,
+                                     const MeshQualitySettings2D& qualitySettings,
                                      std::string exportPrefix) :
     context_(&context),
-    qualityController_(std::make_unique<Shewchuk2DQualityController>(
+    qualityController_(std::make_unique<ShewchukQualityController2D>(
         context.getMeshData(),
         qualitySettings.circumradiusToEdgeRatio,
         qualitySettings.minAngleDegrees * (std::numbers::pi / 180.0),

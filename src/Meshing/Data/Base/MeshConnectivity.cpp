@@ -1,5 +1,5 @@
 #include "../Base/MeshConnectivity.h"
-#include "../3D/TetrahedralElement.h"
+#include "../3D/TetrahedronElement.h"
 #include <algorithm>
 
 namespace Meshing
@@ -73,7 +73,7 @@ void MeshConnectivity::buildFaceToElementsMap()
     {
         if (element->getType() == ElementType::TETRAHEDRON)
         {
-            const auto* tet = static_cast<const TetrahedralElement*>(element.get());
+            const auto* tet = static_cast<const TetrahedronElement*>(element.get());
 
             // A tetrahedron has 4 faces
             for (size_t i = 0; i < 4; ++i)

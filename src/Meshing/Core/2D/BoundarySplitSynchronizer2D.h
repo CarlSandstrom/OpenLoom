@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Common/TwinManager.h"
+#include "Common/TwinManager2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include <cstddef>
 
@@ -14,26 +14,26 @@ class MeshingContext2D;
  *        for same-context twin-edge synchronisation.
  *
  * When a boundary segment is split during refinement, this class looks up the
- * twin segment in a TwinManager, finds and splits it in the same
+ * twin segment in a TwinManager2D, finds and splits it in the same
  * MeshingContext2D, then records the split so both halves stay registered.
  *
  * Usage:
  * @code
- * TwinManager twins;
+ * TwinManager2D twins;
  * twins.registerTwin(n1, n2, m1, m2);
  *
- * BoundarySplitSynchronizer sync(context, twins);
+ * BoundarySplitSynchronizer2D sync(context, twins);
  * refiner.setOnBoundarySplit(sync);
  * refiner.refine();
  * @endcode
  *
  * The synchroniser holds non-owning references to both the context and the
- * TwinManager, which must outlive the refiner.
+ * TwinManager2D, which must outlive the refiner.
  */
-class BoundarySplitSynchronizer
+class BoundarySplitSynchronizer2D
 {
 public:
-    BoundarySplitSynchronizer(MeshingContext2D& context, TwinManager& twinManager);
+    BoundarySplitSynchronizer2D(MeshingContext2D& context, TwinManager2D& twinManager);
 
     /**
      * @brief Callable matching ShewchukRefiner2D::BoundarySplitCallback.
@@ -45,7 +45,7 @@ public:
 
 private:
     MeshingContext2D* context_;
-    TwinManager* twinManager_;
+    TwinManager2D* twinManager_;
 };
 
 } // namespace Meshing

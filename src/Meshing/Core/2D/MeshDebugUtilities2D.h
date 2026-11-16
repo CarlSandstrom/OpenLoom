@@ -13,7 +13,7 @@ class MeshData2D;
  *
  * When EXPORT_MESH_EACH_ITERATION is enabled, exports the mesh to a VTU file
  * named "{filenamePrefix}_{counter}.vtu" and increments the counter.
- * When CHECK_MESH_EACH_ITERATION is enabled, runs MeshVerifier and throws
+ * When CHECK_MESH_EACH_ITERATION is enabled, runs MeshVerifier2D and throws
  * on failure.
  *
  * @param meshData The mesh data to export/verify

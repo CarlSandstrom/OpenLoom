@@ -19,10 +19,10 @@ namespace Meshing
 ///
 /// Invariant: if the domain has uPeriodic == false, every stored offset must
 /// have u == 0.  Likewise for v.  Violations are caught by assertion.
-class PeriodicOffsetTable
+class PeriodicOffsetTable2D
 {
 public:
-    explicit PeriodicOffsetTable(const PeriodicDomainConfiguration& configuration);
+    explicit PeriodicOffsetTable2D(const PeriodicDomainConfiguration& configuration);
 
     /// Register the three per-vertex offsets for a newly created triangle.
     void setOffsets(size_t triangleId, const std::array<PeriodicOffset, 3>& offsets);

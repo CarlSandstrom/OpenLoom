@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Meshing/Core/2D/MeshingContext2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Interfaces/IQualityController2D.h"
 #include <functional>
@@ -33,7 +33,7 @@ public:
     /**
      * @brief Construct a Shewchuk refiner with quality settings.
      *
-     * Creates a Shewchuk2DQualityController internally from the given settings.
+     * Creates a ShewchukQualityController2D internally from the given settings.
      * This is the primary constructor for application code.
      *
      * @param context The meshing context containing mesh data and operations
@@ -41,7 +41,7 @@ public:
      * @param exportPrefix Prefix for the debug mesh exports written during refinement
      */
     ShewchukRefiner2D(MeshingContext2D& context,
-                      const Mesh2DQualitySettings& qualitySettings,
+                      const MeshQualitySettings2D& qualitySettings,
                       std::string exportPrefix = "");
 
     ~ShewchukRefiner2D();
@@ -60,7 +60,7 @@ public:
      *
      * Parameters: (nodeId1, nodeId2, midpointNodeId) — the two original node
      * IDs and the new midpoint node ID. Use this to propagate the split to twin segments
-     * (e.g. for periodic boundary conditions via TwinManager).
+     * (e.g. for periodic boundary conditions via TwinManager2D).
      */
     using BoundarySplitCallback = std::function<void(size_t nodeId1, size_t nodeId2, size_t midpointNodeId)>;
 

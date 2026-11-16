@@ -5,7 +5,7 @@
 #include "Meshing/Core/3D/General/RegularConflictRegion.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
@@ -24,7 +24,7 @@ namespace
 
 constexpr std::size_t INVALID_ID = SIZE_MAX;
 
-std::optional<double> squaredRadiusEdgeRatio(const TetrahedralElement& tetrahedron, const MeshData3D& meshData);
+std::optional<double> squaredRadiusEdgeRatio(const TetrahedronElement& tetrahedron, const MeshData3D& meshData);
 
 } // namespace
 
@@ -64,7 +64,7 @@ bool TetrahedronDelaunayRefiner::refineRound()
     std::vector<std::pair<double, std::size_t>> badTetrahedra;
     for (auto& [elementId, element] : meshData.getElements())
     {
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(element.get());
         if (!tetrahedron || ambient.contains(elementId) || unrefinable_.contains(elementId))
             continue;
         if (auto ratio = squaredRadiusEdgeRatio(*tetrahedron, meshData); ratio && *ratio > squaredBound)
@@ -77,14 +77,14 @@ bool TetrahedronDelaunayRefiner::refineRound()
     {
         if (surfaceRefiner_.hasReachedInsertionCap())
             break;
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId));
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
         if (tetrahedron && refineTetrahedron(elementId, *tetrahedron))
             inserted = true;
     }
     return inserted;
 }
 
-bool TetrahedronDelaunayRefiner::refineTetrahedron(std::size_t elementId, const TetrahedralElement& tetrahedron)
+bool TetrahedronDelaunayRefiner::refineTetrahedron(std::size_t elementId, const TetrahedronElement& tetrahedron)
 {
     auto& meshData = context_->getMeshData();
     auto orthocenter = ElementGeometry3D(meshData).computeOrthocenter(tetrahedron);
@@ -133,7 +133,7 @@ namespace
 /// Cell_radius_edge_criterion. nullopt for a tetrahedron without an
 /// orthocentre or with a non-positive weighted radius, which no insertion
 /// inside it can improve.
-std::optional<double> squaredRadiusEdgeRatio(const TetrahedralElement& tetrahedron, const MeshData3D& meshData)
+std::optional<double> squaredRadiusEdgeRatio(const TetrahedronElement& tetrahedron, const MeshData3D& meshData)
 {
     auto orthocenter = ElementGeometry3D(meshData).computeOrthocenter(tetrahedron);
     if (!orthocenter)

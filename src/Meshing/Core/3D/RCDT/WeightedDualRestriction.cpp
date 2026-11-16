@@ -6,7 +6,7 @@
 #include "Meshing/Core/3D/General/SurfaceProjector.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 #include "Topology/Topology3D.h"
 
@@ -63,8 +63,8 @@ std::optional<RestrictedFacet> WeightedDualRestriction::restrict(const FaceKey& 
     auto [elementId1, elementId2] = connectivity.getFaceElements(face);
     if (elementId1 == INVALID_ID || elementId2 == INVALID_ID) return std::nullopt;
 
-    auto tetrahedron1 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId1));
-    auto tetrahedron2 = dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId2));
+    auto tetrahedron1 = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId1));
+    auto tetrahedron2 = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId2));
     if (!tetrahedron1 || !tetrahedron2) return std::nullopt;
 
     ElementGeometry3D elementGeometry(meshData);

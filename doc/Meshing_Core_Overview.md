@@ -16,16 +16,16 @@ src/Meshing/Core/
 │   ├── Delaunay2D.{h,cpp}
 │   ├── MeshOperations2D.{h,cpp}
 │   ├── MeshQueries2D.{h,cpp}
-│   ├── MeshVerifier.{h,cpp}
+│   ├── MeshVerifier2D.{h,cpp}
 │   ├── ElementGeometry2D.{h,cpp}
 │   ├── ElementQuality2D.{h,cpp}
 │   ├── GeometryUtilities2D.{h,cpp}
 │   ├── GeometryStructures2D.h
 │   ├── BoundaryDiscretizer2D.{h,cpp}
 │   ├── ConstraintChecker2D.{h,cpp}
-│   ├── BoundarySplitSynchronizer.{h,cpp}
+│   ├── BoundarySplitSynchronizer2D.{h,cpp}
 │   ├── ShewchukRefiner2D.{h,cpp}
-│   ├── Shewchuk2DQualityController.{h,cpp}
+│   ├── ShewchukQualityController2D.{h,cpp}
 │   └── MeshDebugUtilities2D.{h,cpp}
 ├── 3D/
 │   ├── General/                         # Shared 3D context, operations, geometry
@@ -70,11 +70,11 @@ src/Meshing/Core/
 - **ElementGeometry2D**: Geometric computations (circumcircles, orientations)
 - **ElementQuality2D**: Quality metrics for triangle elements
 - **BoundaryDiscretizer2D**: Samples constraint edges into discrete points
-- **BoundarySplitSynchronizer**: Mirrors a boundary split onto its twin segment (periodic 2D meshes, via `TwinManager`)
+- **BoundarySplitSynchronizer2D**: Mirrors a boundary split onto its twin segment (periodic 2D meshes, via `TwinManager2D`)
 - **ShewchukRefiner2D**: Quality-driven refinement (Ruppert's algorithm) for 2D meshes
-- **Shewchuk2DQualityController**: Quality controller for 2D refinement
+- **ShewchukQualityController2D**: Quality controller for 2D refinement
 - **ConstraintChecker2D**: Encroachment checking for constrained edges
-- **MeshVerifier**: Validates mesh orientation and detects overlaps
+- **MeshVerifier2D**: Validates mesh orientation and detects overlaps
 
 ### 3D General (shared infrastructure)
 - **MeshOperations3D**: High-level operations (Bowyer-Watson insertion, cavity finding)
@@ -105,7 +105,7 @@ CGAL Mesh_3's design (OPE-186); `doc/RCDT_Techniques.md` explains each piece.
 ## Design Patterns
 
 ### Strategy Pattern
-`IQualityController2D` is the quality interface `ShewchukRefiner2D` refines against; `Shewchuk2DQualityController` is its only implementation. RCDT reads its bounds directly from `SurfaceMesh3DQualitySettings`. `SurfaceMesher3D`/`VolumeMesher3D` are backed by `ISurfaceMesher3D`/`IVolumeMesher3D` — the extensibility point for a future non-RCDT algorithm.
+`IQualityController2D` is the quality interface `ShewchukRefiner2D` refines against; `ShewchukQualityController2D` is its only implementation. RCDT reads its bounds directly from `SurfaceMesh3DQualitySettings`. `SurfaceMesher3D`/`VolumeMesher3D` are backed by `ISurfaceMesher3D`/`IVolumeMesher3D` — the extensibility point for a future non-RCDT algorithm.
 
 ### Context Pattern
 Contexts (`MeshingContext2D`, `MeshingContext3D`) centralize access to geometry, topology, and mutable mesh data with clear ownership semantics.

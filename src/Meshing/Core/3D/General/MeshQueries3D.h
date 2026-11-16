@@ -2,7 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include <array>
 #include <optional>
 #include <vector>

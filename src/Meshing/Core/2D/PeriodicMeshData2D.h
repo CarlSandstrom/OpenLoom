@@ -2,7 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Core/2D/PeriodicDomain2D.h"
-#include "Meshing/Core/2D/PeriodicOffsetTable.h"
+#include "Meshing/Core/2D/PeriodicOffsetTable2D.h"
 
 #include <tuple>
 
@@ -18,7 +18,7 @@ class MeshData2D;
 /// Their vertices are stored at canonical UV coordinates in [0, period) inside
 /// MeshData2D, but geometric predicates (circumcircle tests, encroachment
 /// checks, etc.) must operate on effective coordinates that are shifted by the
-/// per-triangle offset stored in PeriodicOffsetTable.
+/// per-triangle offset stored in PeriodicOffsetTable2D.
 ///
 /// This class is the single point of truth for "what coordinates do I use for
 /// this vertex in this triangle?".  Non-periodic triangulations never
@@ -30,8 +30,8 @@ public:
 
     const PeriodicDomainConfiguration& getConfiguration() const { return configuration_; }
 
-    PeriodicOffsetTable& getOffsetTable() { return offsetTable_; }
-    const PeriodicOffsetTable& getOffsetTable() const { return offsetTable_; }
+    PeriodicOffsetTable2D& getOffsetTable() { return offsetTable_; }
+    const PeriodicOffsetTable2D& getOffsetTable() const { return offsetTable_; }
 
     /// Returns the effective (offset-shifted) coordinate of the vertex at
     /// slot [0, 1, 2] of the triangle with the given ID.
@@ -53,7 +53,7 @@ public:
 private:
     const MeshData2D& meshData_;
     PeriodicDomainConfiguration configuration_;
-    PeriodicOffsetTable offsetTable_;
+    PeriodicOffsetTable2D offsetTable_;
 };
 
 } // namespace Meshing

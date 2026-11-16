@@ -10,7 +10,7 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 
 using namespace Meshing;
@@ -35,7 +35,7 @@ protected:
 
     size_t addTetrahedron(size_t n0, size_t n1, size_t n2, size_t n3)
     {
-        auto tet = std::make_unique<TetrahedralElement>(
+        auto tet = std::make_unique<TetrahedronElement>(
             std::array<size_t, 4>{n0, n1, n2, n3});
         return mutator_->addElement(std::move(tet));
     }
@@ -168,7 +168,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
     size_t n2 = operations.getMutator().addNode(Point3D(1.0, 2.0, 0.0));
     size_t n3 = operations.getMutator().addNode(Point3D(1.0, 0.5, 2.0));
 
-    auto tet = std::make_unique<TetrahedralElement>(
+    auto tet = std::make_unique<TetrahedronElement>(
         std::array<size_t, 4>{n0, n1, n2, n3});
     operations.getMutator().addElement(std::move(tet));
 
@@ -276,7 +276,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
     bool participatesInATet = false;
     for (const auto& [tetId, element] : meshData_.getElements())
     {
-        const auto* tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        const auto* tet = dynamic_cast<const TetrahedronElement*>(element.get());
         if (!tet)
             continue;
         const auto& ids = tet->getNodeIds();

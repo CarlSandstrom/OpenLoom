@@ -9,7 +9,7 @@ Your current code uses templates and casts without clear constraints:
 
 ```cpp
 // Current: Unsafe casting and no type constraints
-const auto* tet = static_cast<const TetrahedralElement*>(elem);
+const auto* tet = static_cast<const TetrahedronElement*>(elem);
 ```
 
 ### C++20 Solution: Element Concepts

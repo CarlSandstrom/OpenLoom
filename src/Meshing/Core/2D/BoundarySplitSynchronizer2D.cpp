@@ -1,4 +1,4 @@
-#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
@@ -8,16 +8,16 @@
 namespace Meshing
 {
 
-BoundarySplitSynchronizer::BoundarySplitSynchronizer(MeshingContext2D& context,
-                                                     TwinManager& twinManager) :
+BoundarySplitSynchronizer2D::BoundarySplitSynchronizer2D(MeshingContext2D& context,
+                                                     TwinManager2D& twinManager) :
     context_(&context),
     twinManager_(&twinManager)
 {
 }
 
-void BoundarySplitSynchronizer::operator()(size_t node0, size_t node1, size_t midpointNode)
+void BoundarySplitSynchronizer2D::operator()(size_t node0, size_t node1, size_t midpointNode)
 {
-    auto twin = twinManager_->getTwin(TwinManager::NO_SURFACE, node0, node1);
+    auto twin = twinManager_->getTwin(TwinManager2D::NO_SURFACE, node0, node1);
     if (!twin)
         return;
 
@@ -39,9 +39,9 @@ void BoundarySplitSynchronizer::operator()(size_t node0, size_t node1, size_t mi
     if (!twinMidpointNode)
         return;
 
-    // Use TwinManager direction (twinNode0, twinNode1) so endpoint correspondence is preserved
-    twinManager_->recordSplit(TwinManager::NO_SURFACE, node0, node1, midpointNode,
-                              TwinManager::NO_SURFACE, twinNode0, twinNode1, *twinMidpointNode);
+    // Use TwinManager2D direction (twinNode0, twinNode1) so endpoint correspondence is preserved
+    twinManager_->recordSplit(TwinManager2D::NO_SURFACE, node0, node1, midpointNode,
+                              TwinManager2D::NO_SURFACE, twinNode0, twinNode1, *twinMidpointNode);
 }
 
 } // namespace Meshing

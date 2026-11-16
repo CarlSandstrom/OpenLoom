@@ -18,7 +18,7 @@
  * correspondence is preserved across splits. All four lookup directions for
  * any registered pair (A→B)↔(C→D) are stored automatically.
  */
-class TwinManager
+class TwinManager2D
 {
 public:
     /// A directed segment (surfaceId, node0, node1).

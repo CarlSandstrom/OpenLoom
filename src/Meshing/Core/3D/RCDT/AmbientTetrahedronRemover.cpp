@@ -4,7 +4,7 @@
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronClassifier.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "spdlog/spdlog.h"
 
 #include <vector>
@@ -23,7 +23,7 @@ void AmbientTetrahedronRemover::remove(const MeshData3D& meshData,
     std::vector<size_t> ambientTetrahedronIds;
     for (auto elementId : AmbientTetrahedronClassifier::classify(meshData, restrictedFaces))
     {
-        if (dynamic_cast<const TetrahedralElement*>(meshData.getElement(elementId)))
+        if (dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId)))
             ambientTetrahedronIds.push_back(elementId);
     }
 

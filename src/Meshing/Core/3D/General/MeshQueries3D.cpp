@@ -20,7 +20,7 @@ std::vector<size_t> MeshQueries3D::findConflictingTetrahedra(const Point3D& poin
 
     for (const auto& [tetId, element] : meshData_.getElements())
     {
-        auto tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        auto tet = dynamic_cast<const TetrahedronElement*>(element.get());
         if (!tet) continue;
 
         // Weighted in-sphere ("orthosphere") test via a robust exact-
@@ -61,7 +61,7 @@ MeshQueries3D::findCavityBoundary(const std::vector<size_t>& conflictingIndices)
     for (size_t tetId : conflictingIndices)
     {
         auto element = meshData_.getElement(tetId);
-        auto tet = dynamic_cast<const TetrahedralElement*>(element);
+        auto tet = dynamic_cast<const TetrahedronElement*>(element);
         if (!tet) continue;
 
         for (auto& face : tet->getFaces())
@@ -92,7 +92,7 @@ std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t
 
     for (const auto& [tetId, element] : meshData_.getElements())
     {
-        auto tet = dynamic_cast<const TetrahedralElement*>(element.get());
+        auto tet = dynamic_cast<const TetrahedronElement*>(element.get());
         if (!tet) continue;
 
         auto& nodes = tet->getNodeIds();
@@ -109,7 +109,7 @@ std::vector<size_t> MeshQueries3D::findTetrahedraWithFace(size_t nodeId1, size_t
 std::optional<size_t> MeshQueries3D::findOppositeVertex(size_t tetId, size_t faceNode1, size_t faceNode2, size_t faceNode3) const
 {
     auto element = meshData_.getElement(tetId);
-    auto tet = dynamic_cast<const TetrahedralElement*>(element);
+    auto tet = dynamic_cast<const TetrahedronElement*>(element);
     if (!tet) return std::nullopt;
 
     for (size_t nodeId : tet->getNodeIds())

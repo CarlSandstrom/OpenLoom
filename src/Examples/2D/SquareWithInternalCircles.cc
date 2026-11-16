@@ -9,7 +9,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -145,7 +145,7 @@ int main()
 
     // Refine mesh with ShewchukRefiner2D
     spdlog::info("Refining mesh with ShewchukRefiner2D...");
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
     refiner.refine();
 
     spdlog::info("Square with internal circular edges mesh generation complete!");

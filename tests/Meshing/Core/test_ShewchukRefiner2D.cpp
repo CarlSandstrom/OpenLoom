@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "Common/TwinManager.h"
+#include "Common/TwinManager2D.h"
 #include "Common/Types.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -8,13 +8,13 @@
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
 #include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
-#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
-#include "Meshing/Core/2D/MeshVerifier.h"
+#include "Meshing/Core/2D/MeshVerifier2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Topology2D/Topology2D.h"
 
@@ -190,7 +190,7 @@ TEST(ShewchukRefiner2D, TwoCircularHoles_CurvedConstraintSplitProducesValidMesh)
     // immediately and surfaces as an exception rather than silently surviving.
     ScopedEnvironmentOverride checkMeshEachIteration("CHECK_MESH_EACH_ITERATION", "1");
 
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
     ASSERT_NO_THROW(refiner.refine());
 }
 
@@ -232,7 +232,7 @@ TEST(ShewchukRefiner2D, InternalCircularConstraints_CurvedConstraintSplitProduce
     // and surface as an exception rather than hanging the test.
     ScopedEnvironmentOverride checkMeshEachIteration("CHECK_MESH_EACH_ITERATION", "1");
 
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
     ASSERT_NO_THROW(refiner.refine());
 }
 
@@ -263,7 +263,7 @@ TEST(ShewchukRefiner2D, SquareWithInternalCirclesTerminates)
 
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
 
     // This must complete without throwing or running forever.
     // Before the fix, this would enter an infinite encroachment cascade.
@@ -332,11 +332,11 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     // Left edge (sq_e3) goes c3→c0 (top-to-bottom).
     // Right edge (sq_e1) goes c1→c2 (bottom-to-top).
     // Correspondence: c3(y=1)↔c2(y=1)  and  c0(y=0)↔c1(y=0).
-    TwinManager twinManager;
-    twinManager.registerTwin(TwinManager::NO_SURFACE, corner3Id, corner0Id, TwinManager::NO_SURFACE, corner2Id, corner1Id);
+    TwinManager2D twinManager;
+    twinManager.registerTwin(TwinManager2D::NO_SURFACE, corner3Id, corner0Id, TwinManager2D::NO_SURFACE, corner2Id, corner1Id);
 
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
-    refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
+    refiner.setOnBoundarySplit(BoundarySplitSynchronizer2D(context, twinManager));
 
     ASSERT_NO_THROW(refiner.refine());
 

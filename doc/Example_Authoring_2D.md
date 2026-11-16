@@ -23,7 +23,7 @@ Quick reference for writing new 2D stress-test examples. Read this instead of re
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"     // curved edges
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
@@ -81,7 +81,7 @@ int main()
     mesher.triangulate();
 
     // 6. Refine (optional but typical)
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
     refiner.refine();
 
     // 7. Export
@@ -214,7 +214,7 @@ holeEdgeLoops.push_back(std::move(holeLoop));
 
 ## Twin Edges (periodic boundary)
 
-Add after building geometry/topology, before `Topology2D` construction. See `SquareWithCircleAndTwinEdges.cc` for full example. Requires `TwinManager` and `BoundarySplitSynchronizer`; pass the synchronizer to `refiner.setOnBoundarySplit(...)`.
+Add after building geometry/topology, before `Topology2D` construction. See `SquareWithCircleAndTwinEdges.cc` for full example. Requires `TwinManager2D` and `BoundarySplitSynchronizer2D`; pass the synchronizer to `refiner.setOnBoundarySplit(...)`.
 
 ---
 

@@ -1,4 +1,4 @@
-#include "PeriodicOffsetTable.h"
+#include "PeriodicOffsetTable2D.h"
 
 #include "Common/Exceptions/GeometryException.h"
 
@@ -8,12 +8,12 @@
 namespace Meshing
 {
 
-PeriodicOffsetTable::PeriodicOffsetTable(const PeriodicDomainConfiguration& configuration) :
+PeriodicOffsetTable2D::PeriodicOffsetTable2D(const PeriodicDomainConfiguration& configuration) :
     configuration_(configuration)
 {
 }
 
-void PeriodicOffsetTable::setOffsets(size_t triangleId,
+void PeriodicOffsetTable2D::setOffsets(size_t triangleId,
                                      const std::array<PeriodicOffset, 3>& offsets)
 {
     for (auto& offset : offsets)
@@ -25,12 +25,12 @@ void PeriodicOffsetTable::setOffsets(size_t triangleId,
     table_[triangleId] = offsets;
 }
 
-void PeriodicOffsetTable::removeOffsets(size_t triangleId)
+void PeriodicOffsetTable2D::removeOffsets(size_t triangleId)
 {
     table_.erase(triangleId);
 }
 
-const std::array<PeriodicOffset, 3>& PeriodicOffsetTable::getOffsets(size_t triangleId) const
+const std::array<PeriodicOffset, 3>& PeriodicOffsetTable2D::getOffsets(size_t triangleId) const
 {
     auto entry = table_.find(triangleId);
     if (entry == table_.end())
@@ -40,7 +40,7 @@ const std::array<PeriodicOffset, 3>& PeriodicOffsetTable::getOffsets(size_t tria
     return entry->second;
 }
 
-bool PeriodicOffsetTable::hasOffsets(size_t triangleId) const
+bool PeriodicOffsetTable2D::hasOffsets(size_t triangleId) const
 {
     return table_.contains(triangleId);
 }

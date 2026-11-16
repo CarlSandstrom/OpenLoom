@@ -1,7 +1,7 @@
 #include "Meshing/Core/3D/General/ElementGeometry3D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 
 #include <Eigen/LU>
 #include <Eigen/QR>
@@ -16,7 +16,7 @@ ElementGeometry3D::ElementGeometry3D(const MeshData3D& mesh) :
 {
 }
 
-std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TetrahedralElement& element) const
+std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TetrahedronElement& element) const
 {
     auto& nodeIds = element.getNodeIds();
     std::array<const Node3D*, 4> nodes;

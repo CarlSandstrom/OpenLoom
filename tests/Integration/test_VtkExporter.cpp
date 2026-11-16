@@ -10,7 +10,7 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 
 TEST(VtkExporter, WritesBasicVtu)
@@ -26,7 +26,7 @@ TEST(VtkExporter, WritesBasicVtu)
     size_t n3 = mutator.addNode(Meshing::Point3D(0.0, 0.0, 1.0));
 
     // Add a tetrahedral element
-    mutator.addElement(std::make_unique<Meshing::TetrahedralElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
+    mutator.addElement(std::make_unique<Meshing::TetrahedronElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
 
     Export::VtkExporter exporter;
     const std::string filePath = "test_output.vtu";

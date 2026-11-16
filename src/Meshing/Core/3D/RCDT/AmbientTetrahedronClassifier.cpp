@@ -3,7 +3,7 @@
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/MeshConnectivity.h"
 
 #include <queue>
@@ -45,7 +45,7 @@ AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
         auto tetId = queue.front();
         queue.pop();
 
-        auto tet = dynamic_cast<const TetrahedralElement*>(meshData.getElement(tetId));
+        auto tet = dynamic_cast<const TetrahedronElement*>(meshData.getElement(tetId));
         if (!tet)
             continue;
 

@@ -5,7 +5,7 @@
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/Node3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "spdlog/spdlog.h"
 #include <algorithm>
 #include <limits>
@@ -100,7 +100,7 @@ std::array<size_t, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
                                      mutator_->addNode(corner2),
                                      mutator_->addNode(corner3)};
 
-    mutator_->addElement(std::make_unique<TetrahedralElement>(nodeIds));
+    mutator_->addElement(std::make_unique<TetrahedronElement>(nodeIds));
     mutator_->setBoundingNodeIds(nodeIds);
 
     spdlog::debug("MeshOperations3D::createBoundingTetrahedron: Created with nodes ({}, {}, {}, {})",
@@ -227,12 +227,12 @@ void MeshOperations3D::addOrientedTetrahedron(const std::array<size_t, 3>& face,
     // order (by the scalar triple product's cyclic invariance, faceNormal
     // . (apexPoint - point0) == (point1 - point0) . ((point2 - point0) x (apexPoint - point0))). Store the node
     // IDs in that same (face..., apex) order so a >= 0 signedVolume here
-    // really does mean a positive-orientation TetrahedralElement under the
+    // really does mean a positive-orientation TetrahedronElement under the
     // usual (face..., apex) sign convention -- storing the apex first
     // instead (an odd permutation) would silently negate it.
     auto nodeIds = signedVolume >= 0.0 ? std::array<size_t, 4>{face[0], face[1], face[2], apexNodeId} : std::array<size_t, 4>{face[0], face[2], face[1], apexNodeId};
 
-    mutator_->addElement(std::make_unique<TetrahedralElement>(nodeIds));
+    mutator_->addElement(std::make_unique<TetrahedronElement>(nodeIds));
 }
 
 void MeshOperations3D::retriangulate(size_t vertexNodeId,

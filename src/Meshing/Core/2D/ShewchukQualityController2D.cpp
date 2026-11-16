@@ -1,4 +1,4 @@
-#include "Shewchuk2DQualityController.h"
+#include "ShewchukQualityController2D.h"
 
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -6,7 +6,7 @@
 namespace Meshing
 {
 
-Shewchuk2DQualityController::Shewchuk2DQualityController(const MeshData2D& meshData,
+ShewchukQualityController2D::ShewchukQualityController2D(const MeshData2D& meshData,
                                                          double circumradiusToShortestEdgeRatioBound,
                                                          double minimumAngleThresholdRadians,
                                                          std::size_t elementLimit) :
@@ -18,7 +18,7 @@ Shewchuk2DQualityController::Shewchuk2DQualityController(const MeshData2D& meshD
 {
 }
 
-bool Shewchuk2DQualityController::isMeshAcceptable(const MeshData2D& data) const
+bool ShewchukQualityController2D::isMeshAcceptable(const MeshData2D& data) const
 {
     if (data.getElementCount() >= elementLimit_) return true;
 
@@ -30,7 +30,7 @@ bool Shewchuk2DQualityController::isMeshAcceptable(const MeshData2D& data) const
     return true;
 }
 
-bool Shewchuk2DQualityController::isTriangleAcceptable(const TriangleElement& element) const
+bool ShewchukQualityController2D::isTriangleAcceptable(const TriangleElement& element) const
 {
     auto ratio = quality_->computeCircumradiusToShortestEdgeRatio(element);
     if (!ratio.has_value()) return false;
@@ -40,12 +40,12 @@ bool Shewchuk2DQualityController::isTriangleAcceptable(const TriangleElement& el
     return !(minimumAngle < minimumAngleThreshold_);
 }
 
-double Shewchuk2DQualityController::getTargetElementQuality() const
+double ShewchukQualityController2D::getTargetElementQuality() const
 {
     return circumradiusToShortestEdgeRatioBound_;
 }
 
-std::size_t Shewchuk2DQualityController::getElementLimit() const
+std::size_t ShewchukQualityController2D::getElementLimit() const
 {
     return elementLimit_;
 }

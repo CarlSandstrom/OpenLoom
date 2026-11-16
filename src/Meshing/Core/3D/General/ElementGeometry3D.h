@@ -7,7 +7,7 @@ namespace Meshing
 {
 
 class MeshData3D;
-class TetrahedralElement;
+class TetrahedronElement;
 class TriangleElement;
 
 /// Helper that provides geometric computations for 3D mesh elements requiring node coordinates.
@@ -23,7 +23,7 @@ public:
     /// when every weight is 0. A tetrahedron flat to rounding gets the
     /// equal-power point in its plane; nullopt only when three of its vertices
     /// are collinear.
-    std::optional<Point3D> computeOrthocenter(const TetrahedralElement& element) const;
+    std::optional<Point3D> computeOrthocenter(const TetrahedronElement& element) const;
 
     /// The weighted circumcenter of a triangle: the point in its plane with
     /// equal power distance to all three weighted vertices. It lies on the

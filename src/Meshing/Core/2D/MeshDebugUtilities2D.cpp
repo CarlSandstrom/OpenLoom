@@ -2,7 +2,7 @@
 #include "Common/DebugFlags.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Core/2D/MeshVerifier.h"
+#include "Meshing/Core/2D/MeshVerifier2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "spdlog/spdlog.h"
 
@@ -22,7 +22,7 @@ void exportAndVerifyMesh(MeshData2D& meshData,
     if (OPENLOOM_DEBUG_ENABLED(CHECK_MESH_EACH_ITERATION))
     {
         spdlog::info("{}: Verifying mesh at export step {}", filenamePrefix, exportCounter);
-        auto result = MeshVerifier::verify(meshData);
+        auto result = MeshVerifier2D::verify(meshData);
         if (!result.isValid)
         {
             for (const auto& error : result.errors)

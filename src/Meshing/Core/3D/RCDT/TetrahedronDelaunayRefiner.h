@@ -15,7 +15,7 @@ class Topology3D;
 namespace Meshing
 {
 class MeshingContext3D;
-class TetrahedralElement;
+class TetrahedronElement;
 } // namespace Meshing
 
 namespace Meshing
@@ -65,7 +65,7 @@ private:
     std::size_t encroachmentCount_ = 0;
 
     bool refineRound();
-    bool refineTetrahedron(std::size_t elementId, const TetrahedralElement& tetrahedron);
+    bool refineTetrahedron(std::size_t elementId, const TetrahedronElement& tetrahedron);
 };
 
 } // namespace Meshing

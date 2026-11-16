@@ -7,7 +7,7 @@
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
@@ -96,7 +96,7 @@ int main()
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Raise the element limit: a 200x2 domain with 30° quality requires many Steiner points.
-    Meshing::Mesh2DQualitySettings qualitySettings;
+    Meshing::MeshQualitySettings2D qualitySettings;
     qualitySettings.elementLimit = 50000;
 
     spdlog::info("Refining mesh with ShewchukRefiner2D...");

@@ -126,7 +126,7 @@ private:
      * @brief Build a single positively-oriented tetrahedron from a face and an apex
      *
      * Shared by retriangulate() and splitCoplanarBoundaryFace(): picks the
-     * face winding (as stored) that gives the resulting TetrahedralElement a
+     * face winding (as stored) that gives the resulting TetrahedronElement a
      * positive signed volume under the usual (face..., apex) sign
      * convention, regardless of the face's own orientation.
      *

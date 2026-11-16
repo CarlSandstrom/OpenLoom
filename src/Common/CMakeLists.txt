@@ -3,7 +3,7 @@ add_subdirectory(Exceptions)
 
 add_library(Common STATIC
     BoundingBox2D.cpp
-    TwinManager.cpp
+    TwinManager2D.cpp
 )
 
 target_include_directories(Common PUBLIC

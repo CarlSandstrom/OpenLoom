@@ -2,7 +2,7 @@
 
 #include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
 #include "Meshing/Data/3D/MeshData3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "Topology/Topology3D.h"
 #include "spdlog/spdlog.h"
@@ -102,7 +102,7 @@ std::vector<std::array<size_t, 4>> RCDTMeshExtractor::extractTetrahedra(const Me
     std::vector<std::array<size_t, 4>> tetrahedra;
     for (const auto& [elementId, element] : meshData.getElements())
     {
-        auto tetrahedron = dynamic_cast<const TetrahedralElement*>(element.get());
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(element.get());
         if (!tetrahedron) continue;
 
         auto& nodeIds = tetrahedron->getNodeIds();

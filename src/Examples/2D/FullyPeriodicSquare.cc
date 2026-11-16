@@ -1,5 +1,5 @@
 #include "Common/Logging.h"
-#include "Common/TwinManager.h"
+#include "Common/TwinManager2D.h"
 #include "Common/Types.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
@@ -9,11 +9,11 @@
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
 #include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
-#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Corner2D.h"
@@ -221,14 +221,14 @@ std::optional<SquareCornerNodes> findSquareCornerNodes(const MeshData2D& meshDat
 //   Left <-> right: left edge (c3->c0, top-to-bottom) <-> right edge (c2->c1)
 //     c3(0,10)  <-> c2(10,10)  both at y=10
 //     c0(0,0)   <-> c1(10,0)   both at y=0
-TwinManager registerPeriodicPairs(const SquareCornerNodes& corners)
+TwinManager2D registerPeriodicPairs(const SquareCornerNodes& corners)
 {
-    TwinManager twinManager;
-    twinManager.registerTwin(TwinManager::NO_SURFACE, corners.corner2, corners.corner3, TwinManager::NO_SURFACE,
+    TwinManager2D twinManager;
+    twinManager.registerTwin(TwinManager2D::NO_SURFACE, corners.corner2, corners.corner3, TwinManager2D::NO_SURFACE,
                              corners.corner1, corners.corner0);
     spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
 
-    twinManager.registerTwin(TwinManager::NO_SURFACE, corners.corner3, corners.corner0, TwinManager::NO_SURFACE,
+    twinManager.registerTwin(TwinManager2D::NO_SURFACE, corners.corner3, corners.corner0, TwinManager2D::NO_SURFACE,
                              corners.corner2, corners.corner1);
     spdlog::info("Registered twin pair: left edge (c3→c0) ↔ right edge (c2→c1)");
     return twinManager;
@@ -307,8 +307,8 @@ int main()
 
     auto twinManager = registerPeriodicPairs(*corners);
 
-    ShewchukRefiner2D refiner(context, Mesh2DQualitySettings{});
-    refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
+    ShewchukRefiner2D refiner(context, MeshQualitySettings2D{});
+    refiner.setOnBoundarySplit(BoundarySplitSynchronizer2D(context, twinManager));
 
     spdlog::info("Refining...");
     refiner.refine();

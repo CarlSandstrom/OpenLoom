@@ -1,5 +1,5 @@
 #include "Common/Logging.h"
-#include "Common/TwinManager.h"
+#include "Common/TwinManager2D.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
@@ -8,11 +8,11 @@
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
 #include "Meshing/Core/2D/BoundaryDiscretizer2D.h"
-#include "Meshing/Core/2D/BoundarySplitSynchronizer.h"
+#include "Meshing/Core/2D/BoundarySplitSynchronizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
-#include "Meshing/Data/2D/Mesh2DQualitySettings.h"
+#include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Topology2D/Topology2D.h"
@@ -129,7 +129,7 @@ int main()
     //
     // The circle (clearance 0.5 from top) forces the refiner to split the top
     // edge. Every top-edge split is propagated to the bottom edge by the
-    // TwinManager callback, keeping both edges identically discretized.
+    // TwinManager2D callback, keeping both edges identically discretized.
     // -------------------------------------------------------------------------
 
     spdlog::info("Building square with circular hole near top edge");
@@ -190,7 +190,7 @@ int main()
                  corner0Id, corner1Id, corner2Id, corner3Id);
 
     // -------------------------------------------------------------------------
-    // TwinManager: top edge (e2: c2→c3) ↔ bottom edge (e0: c0→c1)
+    // TwinManager2D: top edge (e2: c2→c3) ↔ bottom edge (e0: c0→c1)
     //
     //   c2(x=10) corresponds to c1(x=10)  — both at the right end
     //   c3(x=0)  corresponds to c0(x=0)   — both at the left end
@@ -198,15 +198,15 @@ int main()
     //   registerTwin(c2, c3, c1, c0)  →  getTwin(c2,c3) = (c1,c0)
     //                                     getTwin(c0,c1) = (c3,c2)
     // -------------------------------------------------------------------------
-    TwinManager twinManager;
-    twinManager.registerTwin(TwinManager::NO_SURFACE, corner2Id, corner3Id, TwinManager::NO_SURFACE, corner1Id, corner0Id);
+    TwinManager2D twinManager;
+    twinManager.registerTwin(TwinManager2D::NO_SURFACE, corner2Id, corner3Id, TwinManager2D::NO_SURFACE, corner1Id, corner0Id);
     spdlog::info("Registered twin pair: top edge (c2→c3) ↔ bottom edge (c1→c0)");
 
     // -------------------------------------------------------------------------
-    // Refine with BoundarySplitSynchronizer
+    // Refine with BoundarySplitSynchronizer2D
     // -------------------------------------------------------------------------
-    ShewchukRefiner2D refiner(context, Meshing::Mesh2DQualitySettings{});
-    refiner.setOnBoundarySplit(BoundarySplitSynchronizer(context, twinManager));
+    ShewchukRefiner2D refiner(context, Meshing::MeshQualitySettings2D{});
+    refiner.setOnBoundarySplit(BoundarySplitSynchronizer2D(context, twinManager));
 
     spdlog::info("Refining...");
     refiner.refine();

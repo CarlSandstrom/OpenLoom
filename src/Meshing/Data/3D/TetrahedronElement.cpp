@@ -1,27 +1,27 @@
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 
 #include <algorithm>
 
 namespace Meshing
 {
 
-TetrahedralElement::TetrahedralElement(const std::array<size_t, 4>& nodeIds) :
+TetrahedronElement::TetrahedronElement(const std::array<size_t, 4>& nodeIds) :
     nodeIds_(nodeIds),
     nodeIdsVector_(nodeIds_.begin(), nodeIds_.end())
 {
 }
 
-const std::vector<size_t>& TetrahedralElement::getNodeIds() const
+const std::vector<size_t>& TetrahedronElement::getNodeIds() const
 {
     return nodeIdsVector_;
 }
 
-bool TetrahedralElement::hasNode(size_t nodeId) const
+bool TetrahedronElement::hasNode(size_t nodeId) const
 {
     return std::find(nodeIds_.begin(), nodeIds_.end(), nodeId) != nodeIds_.end();
 }
 
-std::array<size_t, 3> TetrahedralElement::getFace(size_t faceIndex) const
+std::array<size_t, 3> TetrahedronElement::getFace(size_t faceIndex) const
 {
     // Standard tetrahedral face ordering (opposite to node)
     switch (faceIndex)
@@ -39,7 +39,7 @@ std::array<size_t, 3> TetrahedralElement::getFace(size_t faceIndex) const
     }
 }
 
-std::array<std::array<size_t, 3>, 4> TetrahedralElement::getFaces() const
+std::array<std::array<size_t, 3>, 4> TetrahedronElement::getFaces() const
 {
     return {{{nodeIds_[1], nodeIds_[2], nodeIds_[3]},
              {nodeIds_[0], nodeIds_[3], nodeIds_[2]},

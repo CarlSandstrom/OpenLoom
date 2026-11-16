@@ -5,7 +5,7 @@
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
-#include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 
 #include <Eigen/Geometry>
 #include <algorithm>
@@ -34,7 +34,7 @@ protected:
     size_t addTetrahedron(size_t n0, size_t n1, size_t n2, size_t n3)
     {
         return mutator_->addElement(
-            std::make_unique<TetrahedralElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
+            std::make_unique<TetrahedronElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
     }
 
     size_t addTriangle(size_t n0, size_t n1, size_t n2)
@@ -63,7 +63,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfUnweightedTetrahedronIsItsCircumcente
     addTetrahedron(n0, n1, n2, n3);
 
     const ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(0));
     const auto orthocenter = geometry.computeOrthocenter(*element);
 
     ASSERT_TRUE(orthocenter.has_value());
@@ -88,7 +88,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTetrahedronHasEqualPowerToAll
     addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
 
     const ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(0));
     const auto orthocenter = geometry.computeOrthocenter(*element);
     ASSERT_TRUE(orthocenter.has_value());
 
@@ -146,7 +146,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfFlatCyclicTetrahedronLiesInItsPlane)
     addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
 
     const ElementGeometry3D geometry(meshData_);
-    const auto* element = dynamic_cast<const TetrahedralElement*>(meshData_.getElement(0));
+    const auto* element = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(0));
     const auto orthocenter = geometry.computeOrthocenter(*element);
     ASSERT_TRUE(orthocenter.has_value());
 
