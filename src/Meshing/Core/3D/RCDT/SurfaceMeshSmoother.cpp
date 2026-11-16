@@ -4,7 +4,7 @@
 #include "Geometry/3D/Base/GeometryCollection3D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 #include "Meshing/Core/3D/General/SurfaceProjector.h"
-#include "Meshing/Core/3D/RCDT/TetrahedronInversionGuard.h"
+#include "Meshing/Core/3D/General/TetrahedronInversionGuard.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 
 #include <array>

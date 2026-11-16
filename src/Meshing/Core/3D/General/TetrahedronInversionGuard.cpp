@@ -1,4 +1,4 @@
-#include "Meshing/Core/3D/RCDT/TetrahedronInversionGuard.h"
+#include "Meshing/Core/3D/General/TetrahedronInversionGuard.h"
 
 namespace Meshing
 {
