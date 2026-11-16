@@ -65,6 +65,12 @@ if ! $accept && ! "$ROOT/scripts/check-docs.sh"; then
     exit 1
 fi
 
+# Likewise the layering: a refactor must not make the shared layer depend on RCDT.
+if ! $accept && ! "$ROOT/scripts/check-layers.sh"; then
+    echo "(General/ includes RCDT/ -- fix the dependency before continuing)" >&2
+    exit 1
+fi
+
 changed=0
 missing=0
 orphaned=0

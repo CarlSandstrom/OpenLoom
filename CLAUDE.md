@@ -42,6 +42,10 @@ TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
 # Assert the Key Modules table in this file still matches the code.
 # Runs automatically as the first step of refactor-check.sh.
 ./scripts/check-docs.sh
+
+# Assert nothing in Meshing/Core/3D/General/ includes RCDT/ (the shared layer
+# stays algorithm-agnostic). Also runs from refactor-check.sh.
+./scripts/check-layers.sh
 ```
 
 ## Examples
