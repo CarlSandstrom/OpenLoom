@@ -49,10 +49,10 @@ int eulerCharacteristic(const std::vector<std::array<NodeId, 3>>& boundary);
 
 } // namespace
 
-MeshOperations3D::MeshOperations3D(MeshData3D& meshData) :
+MeshOperations3D::MeshOperations3D(MeshData3D& meshData, MeshMutator3D& mutator) :
     meshData_(meshData),
     queries_(meshData),
-    mutator_(std::make_unique<MeshMutator3D>(meshData))
+    mutator_(mutator)
 {
 }
 
@@ -95,13 +95,13 @@ std::array<NodeId, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     Point3D corner2(minX - margin, maxY + 3.0 * margin, minZ - margin);
     Point3D corner3(minX - margin, minY - margin, maxZ + 3.0 * margin);
 
-    std::array<NodeId, 4> nodeIds = {mutator_->addNode(corner0),
-                                     mutator_->addNode(corner1),
-                                     mutator_->addNode(corner2),
-                                     mutator_->addNode(corner3)};
+    std::array<NodeId, 4> nodeIds = {mutator_.addNode(corner0),
+                                     mutator_.addNode(corner1),
+                                     mutator_.addNode(corner2),
+                                     mutator_.addNode(corner3)};
 
-    mutator_->addElement(std::make_unique<TetrahedronElement>(nodeIds));
-    mutator_->setBoundingNodeIds(nodeIds);
+    mutator_.addElement(std::make_unique<TetrahedronElement>(nodeIds));
+    mutator_.setBoundingNodeIds(nodeIds);
 
     spdlog::debug("MeshOperations3D::createBoundingTetrahedron: Created with nodes ({}, {}, {}, {})",
                   nodeIds[0].value(), nodeIds[1].value(), nodeIds[2].value(), nodeIds[3].value());
@@ -123,7 +123,7 @@ NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 {
     if (conflicting.empty())
     {
-        NodeId nodeId = mutator_->addNode(point, weight);
+        NodeId nodeId = mutator_.addNode(point, weight);
         spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found (node {}, "
                      "point ({}, {}, {}), weight {})",
                      nodeId.value(), point.x(), point.y(), point.z(), weight);
@@ -137,14 +137,14 @@ NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     // (captured by partitionCavityBoundary() before removal, since it isn't in `conflicting`).
     for (ElementId tetrahedronId : conflicting)
     {
-        mutator_->removeElement(tetrahedronId);
+        mutator_.removeElement(tetrahedronId);
     }
     for (const auto& split : partition.splits)
     {
-        mutator_->removeElement(split.neighborTetrahedronId);
+        mutator_.removeElement(split.neighborTetrahedronId);
     }
 
-    auto nodeId = geometryIds.empty() ? mutator_->addNode(point, weight) : mutator_->addBoundaryNode(point, geometryIds, weight);
+    auto nodeId = geometryIds.empty() ? mutator_.addNode(point, weight) : mutator_.addBoundaryNode(point, geometryIds, weight);
 
     retriangulate(nodeId, partition.normalFaces);
     for (const auto& split : partition.splits)
@@ -232,7 +232,7 @@ void MeshOperations3D::addOrientedTetrahedron(const std::array<NodeId, 3>& face,
     // instead (an odd permutation) would silently negate it.
     auto nodeIds = signedVolume >= 0.0 ? std::array<NodeId, 4>{face[0], face[1], face[2], apexNodeId} : std::array<NodeId, 4>{face[0], face[2], face[1], apexNodeId};
 
-    mutator_->addElement(std::make_unique<TetrahedronElement>(nodeIds));
+    mutator_.addElement(std::make_unique<TetrahedronElement>(nodeIds));
 }
 
 void MeshOperations3D::retriangulate(NodeId vertexNodeId,

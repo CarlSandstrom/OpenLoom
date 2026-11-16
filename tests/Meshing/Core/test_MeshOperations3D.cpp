@@ -58,7 +58,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraFindsContainingTet)
 
     addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Point inside the tetrahedron should be in its circumsphere
     Point3D centroid(1.0, 0.625, 0.5);
@@ -77,7 +77,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraReturnsEmptyForFarPoint)
 
     addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Point far from tetrahedron
     Point3D farPoint(100.0, 100.0, 100.0);
@@ -98,7 +98,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraMultipleTets)
     addTetrahedron(n0, n1, n2, n3); // Above XY plane
     addTetrahedron(n0, n1, n2, n4); // Below XY plane
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Point at the shared face centroid - might conflict with both
     Point3D sharedFaceCentroid(1.0, 0.67, 0.0);
@@ -122,7 +122,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundarySingleTet)
 
     ElementId tetId = addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<ElementId> conflicting = {tetId};
     auto boundary = operations.getQueries().findCavityBoundary(conflicting);
@@ -143,7 +143,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundaryTwoAdjacentTets)
     ElementId tetId1 = addTetrahedron(n0, n1, n2, n3);
     ElementId tetId2 = addTetrahedron(n0, n1, n2, n4);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<ElementId> conflicting = {tetId1, tetId2};
     auto boundary = operations.getQueries().findCavityBoundary(conflicting);
@@ -160,7 +160,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
 {
     // Create MeshOperations first so it owns the mutator from the start
     // This avoids ID conflicts with the test fixture's mutator
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Create initial tetrahedron using the operations' mutator
     NodeId n0 = operations.getMutator().addNode(Point3D(0.0, 0.0, 0.0));
@@ -200,7 +200,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonCreatesNewTetrahedra)
 
     addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Insert point at centroid
     Point3D centroid(1.0, 0.625, 0.5);
@@ -220,7 +220,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMesh)
 
     addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Insert point far outside - should just add node
     Point3D farPoint(100.0, 100.0, 100.0);
@@ -258,7 +258,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
         points.emplace_back(RADIUS * std::cos(angle), RADIUS * std::sin(angle), 0.0);
     }
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
     operations.createBoundingTetrahedron(points);
     for (const auto& p : points)
     {
@@ -296,7 +296,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
 
 TEST_F(MeshOperations3DTest, FindConflictingTetrahedraEmptyMesh)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     Point3D anyPoint(1.0, 1.0, 1.0);
     auto conflicting = operations.getQueries().findConflictingTetrahedra(anyPoint);
@@ -306,7 +306,7 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraEmptyMesh)
 
 TEST_F(MeshOperations3DTest, FindCavityBoundaryEmptyList)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<ElementId> empty;
     auto boundary = operations.getQueries().findCavityBoundary(empty);
@@ -316,7 +316,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundaryEmptyList)
 
 TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonEmptyMesh)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Insert into empty mesh - should just add node
     Point3D point(1.0, 1.0, 1.0);
@@ -335,7 +335,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonEmptyMesh)
 
 TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronCreatesValidTet)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<Point3D> points = {
         Point3D(0.0, 0.0, 0.0),
@@ -358,7 +358,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronCreatesValidTet)
 
 TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronContainsAllPoints)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<Point3D> points = {
         Point3D(1.0, 2.0, 3.0),
@@ -395,7 +395,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronContainsAllPoints)
 
 TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesEmptyInput)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<Point3D> emptyPoints;
 
@@ -405,7 +405,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesEmptyInput)
 
 TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesSinglePoint)
 {
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     std::vector<Point3D> points = {Point3D(5.0, 5.0, 5.0)};
 
@@ -431,7 +431,7 @@ TEST_F(MeshOperations3DTest, FindTetrahedraWithFaceReturnsCorrectTets)
     addTetrahedron(n0, n1, n2, n3); // Tet above
     addTetrahedron(n0, n1, n2, n4); // Tet below
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Face n0-n1-n2 is shared by both tetrahedra
     auto tets = operations.getQueries().findTetrahedraWithFace(n0, n1, n2);
@@ -454,7 +454,7 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexReturnsCorrectNode)
     NodeId n3 = addNode(0.5, 0.5, 1.0);
     ElementId tetId = addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // n3 is opposite to face n0-n1-n2
     EXPECT_EQ(operations.getQueries().findOppositeVertex(tetId, n0, n1, n2), n3);
@@ -477,7 +477,7 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
     NodeId n3 = addNode(0.5, 0.5, 1.0);
     addTetrahedron(n0, n1, n2, n3);
 
-    MeshOperations3D operations(meshData_);
+    MeshOperations3D operations(meshData_, *mutator_);
 
     // Invalid tetrahedron ID
     EXPECT_EQ(operations.getQueries().findOppositeVertex(ElementId{9999}, n0, n1, n2), std::nullopt);
