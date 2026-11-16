@@ -113,8 +113,8 @@ TEST_F(SurfaceDelaunayRefinerTest, TerminatesWithoutDroppingAnyFacet)
 TEST_F(SurfaceDelaunayRefinerTest, RestrictedFacetsFormAClosedGenusZeroSurface)
 {
     ASSERT_FALSE(faces_.empty());
-    std::map<std::pair<size_t, size_t>, int> edgeFaceCount;
-    std::set<size_t> vertices;
+    std::map<std::pair<NodeId, NodeId>, int> edgeFaceCount;
+    std::set<NodeId> vertices;
     for (const auto& [face, surfaceId] : faces_)
     {
         const auto& n = face.nodeIds;
@@ -157,10 +157,10 @@ TEST(SurfaceFacetCriteriaTest, SamePatchRuleFlagsOnlySurfaceInteriorVerticesOnDi
 {
     MeshData3D meshData;
     MeshMutator3D mutator(meshData);
-    const size_t onTop = mutator.addBoundaryNode(Point3D(0.0, 0.0, 1.0), {"top"});
-    const size_t onSide = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {"side"});
-    const size_t onCurve = mutator.addBoundaryNode(Point3D(0.0, 1.0, 0.0), {"crease"});
-    const size_t alsoOnTop = mutator.addBoundaryNode(Point3D(1.0, 1.0, 1.0), {"top"});
+    const NodeId onTop = mutator.addBoundaryNode(Point3D(0.0, 0.0, 1.0), {"top"});
+    const NodeId onSide = mutator.addBoundaryNode(Point3D(1.0, 0.0, 0.0), {"side"});
+    const NodeId onCurve = mutator.addBoundaryNode(Point3D(0.0, 1.0, 0.0), {"crease"});
+    const NodeId alsoOnTop = mutator.addBoundaryNode(Point3D(1.0, 1.0, 1.0), {"top"});
 
     SurfaceMesh3DQualitySettings settings;
     settings.minAngleDegrees = 0.0;

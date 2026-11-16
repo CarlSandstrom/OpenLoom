@@ -28,10 +28,10 @@ constexpr const char* SURFACE_ID = "surface";
 struct SquareSetup
 {
     MeshData3D meshData;
-    size_t n0 = 0;
-    size_t n1 = 0;
-    size_t n2 = 0;
-    size_t n3 = 0;
+    NodeId n0 = 0;
+    NodeId n1 = 0;
+    NodeId n2 = 0;
+    NodeId n3 = 0;
 
     SquareSetup()
     {

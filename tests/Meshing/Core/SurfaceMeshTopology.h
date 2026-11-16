@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/Types.h"
+
 #include <cstddef>
 #include <map>
 #include <string>
@@ -15,7 +17,7 @@ struct SurfaceMesh3D;
 namespace TestSupport
 {
 
-using SurfaceMeshEdge = std::pair<size_t, size_t>;
+using SurfaceMeshEdge = std::pair<Meshing::NodeId, Meshing::NodeId>;
 
 /**
  * @brief The triangle-level topology of an exported surface mesh: which
@@ -35,7 +37,7 @@ using SurfaceMeshEdge = std::pair<size_t, size_t>;
  */
 struct SurfaceMeshTopology
 {
-    std::unordered_set<size_t> vertices;
+    std::unordered_set<Meshing::NodeId> vertices;
     std::map<SurfaceMeshEdge, size_t> trianglesPerEdge;
     size_t triangleCount = 0;
 

@@ -28,15 +28,15 @@ protected:
         mutator_ = std::make_unique<MeshMutator3D>(meshData_);
     }
 
-    size_t addNode(double x, double y, double z)
+    NodeId addNode(double x, double y, double z)
     {
         return mutator_->addNode(Point3D(x, y, z));
     }
 
-    size_t addTetrahedron(size_t n0, size_t n1, size_t n2, size_t n3)
+    ElementId addTetrahedron(NodeId n0, NodeId n1, NodeId n2, NodeId n3)
     {
         auto tet = std::make_unique<TetrahedronElement>(
-            std::array<size_t, 4>{n0, n1, n2, n3});
+            std::array<NodeId, 4>{n0, n1, n2, n3});
         return mutator_->addElement(std::move(tet));
     }
 
@@ -51,10 +51,10 @@ protected:
 TEST_F(MeshOperations3DTest, FindConflictingTetrahedraFindsContainingTet)
 {
     // Create a simple tetrahedron
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 2.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(1.0, 2.0, 0.0);
+    NodeId n3 = addNode(1.0, 0.5, 2.0);
 
     addTetrahedron(n0, n1, n2, n3);
 
@@ -70,10 +70,10 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraFindsContainingTet)
 TEST_F(MeshOperations3DTest, FindConflictingTetrahedraReturnsEmptyForFarPoint)
 {
     // Create a simple tetrahedron at origin
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, 1.0, 0.0);
-    size_t n3 = addNode(0.5, 0.5, 1.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0, 0.0);
+    NodeId n2 = addNode(0.5, 1.0, 0.0);
+    NodeId n3 = addNode(0.5, 0.5, 1.0);
 
     addTetrahedron(n0, n1, n2, n3);
 
@@ -89,11 +89,11 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraReturnsEmptyForFarPoint)
 TEST_F(MeshOperations3DTest, FindConflictingTetrahedraMultipleTets)
 {
     // Create two adjacent tetrahedra sharing a face
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 2.0);
-    size_t n4 = addNode(1.0, 0.5, -2.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(1.0, 2.0, 0.0);
+    NodeId n3 = addNode(1.0, 0.5, 2.0);
+    NodeId n4 = addNode(1.0, 0.5, -2.0);
 
     addTetrahedron(n0, n1, n2, n3); // Above XY plane
     addTetrahedron(n0, n1, n2, n4); // Below XY plane
@@ -115,16 +115,16 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraMultipleTets)
 TEST_F(MeshOperations3DTest, FindCavityBoundarySingleTet)
 {
     // Create a single tetrahedron
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 2.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(1.0, 2.0, 0.0);
+    NodeId n3 = addNode(1.0, 0.5, 2.0);
 
-    size_t tetId = addTetrahedron(n0, n1, n2, n3);
+    ElementId tetId = addTetrahedron(n0, n1, n2, n3);
 
     MeshOperations3D operations(meshData_);
 
-    std::vector<size_t> conflicting = {tetId};
+    std::vector<ElementId> conflicting = {tetId};
     auto boundary = operations.getQueries().findCavityBoundary(conflicting);
 
     // A single tetrahedron has 4 faces, all on boundary
@@ -134,18 +134,18 @@ TEST_F(MeshOperations3DTest, FindCavityBoundarySingleTet)
 TEST_F(MeshOperations3DTest, FindCavityBoundaryTwoAdjacentTets)
 {
     // Create two tetrahedra sharing one face
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 2.0);
-    size_t n4 = addNode(1.0, 0.5, -2.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(1.0, 2.0, 0.0);
+    NodeId n3 = addNode(1.0, 0.5, 2.0);
+    NodeId n4 = addNode(1.0, 0.5, -2.0);
 
-    size_t tetId1 = addTetrahedron(n0, n1, n2, n3);
-    size_t tetId2 = addTetrahedron(n0, n1, n2, n4);
+    ElementId tetId1 = addTetrahedron(n0, n1, n2, n3);
+    ElementId tetId2 = addTetrahedron(n0, n1, n2, n4);
 
     MeshOperations3D operations(meshData_);
 
-    std::vector<size_t> conflicting = {tetId1, tetId2};
+    std::vector<ElementId> conflicting = {tetId1, tetId2};
     auto boundary = operations.getQueries().findCavityBoundary(conflicting);
 
     // Two tets share one face, so boundary = 4 + 4 - 2 = 6 faces
@@ -163,13 +163,13 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
     MeshOperations3D operations(meshData_);
 
     // Create initial tetrahedron using the operations' mutator
-    size_t n0 = operations.getMutator().addNode(Point3D(0.0, 0.0, 0.0));
-    size_t n1 = operations.getMutator().addNode(Point3D(2.0, 0.0, 0.0));
-    size_t n2 = operations.getMutator().addNode(Point3D(1.0, 2.0, 0.0));
-    size_t n3 = operations.getMutator().addNode(Point3D(1.0, 0.5, 2.0));
+    NodeId n0 = operations.getMutator().addNode(Point3D(0.0, 0.0, 0.0));
+    NodeId n1 = operations.getMutator().addNode(Point3D(2.0, 0.0, 0.0));
+    NodeId n2 = operations.getMutator().addNode(Point3D(1.0, 2.0, 0.0));
+    NodeId n3 = operations.getMutator().addNode(Point3D(1.0, 0.5, 2.0));
 
     auto tet = std::make_unique<TetrahedronElement>(
-        std::array<size_t, 4>{n0, n1, n2, n3});
+        std::array<NodeId, 4>{n0, n1, n2, n3});
     operations.getMutator().addElement(std::move(tet));
 
     size_t initialNodes = meshData_.getNodeCount();
@@ -177,7 +177,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
 
     // Insert point at centroid
     Point3D centroid(1.0, 0.625, 0.5);
-    size_t newNodeId = operations.insertVertexBowyerWatson(centroid);
+    NodeId newNodeId = operations.insertVertexBowyerWatson(centroid);
 
     // Should have one more node
     EXPECT_EQ(meshData_.getNodeCount(), initialNodes + 1);
@@ -193,10 +193,10 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
 TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonCreatesNewTetrahedra)
 {
     // Create initial tetrahedron
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 2.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(1.0, 2.0, 0.0);
+    NodeId n3 = addNode(1.0, 0.5, 2.0);
 
     addTetrahedron(n0, n1, n2, n3);
 
@@ -213,10 +213,10 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonCreatesNewTetrahedra)
 TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMesh)
 {
     // Create initial tetrahedron
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, 1.0, 0.0);
-    size_t n3 = addNode(0.5, 0.5, 1.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0, 0.0);
+    NodeId n2 = addNode(0.5, 1.0, 0.0);
+    NodeId n3 = addNode(0.5, 0.5, 1.0);
 
     addTetrahedron(n0, n1, n2, n3);
 
@@ -224,7 +224,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMesh)
 
     // Insert point far outside - should just add node
     Point3D farPoint(100.0, 100.0, 100.0);
-    size_t newNodeId = operations.insertVertexBowyerWatson(farPoint);
+    NodeId newNodeId = operations.insertVertexBowyerWatson(farPoint);
 
     // Node should be added
     const auto* newNode = meshData_.getNode(newNodeId);
@@ -270,7 +270,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
     const double midAngle = std::numbers::pi / 3.0;
     const Point3D midpoint(RADIUS * std::cos(midAngle), RADIUS * std::sin(midAngle), HEIGHT);
 
-    size_t midNodeId = 0;
+    NodeId midNodeId = 0;
     EXPECT_NO_THROW(midNodeId = operations.insertVertexBowyerWatson(midpoint));
 
     bool participatesInATet = false;
@@ -308,7 +308,7 @@ TEST_F(MeshOperations3DTest, FindCavityBoundaryEmptyList)
 {
     MeshOperations3D operations(meshData_);
 
-    std::vector<size_t> empty;
+    std::vector<ElementId> empty;
     auto boundary = operations.getQueries().findCavityBoundary(empty);
 
     EXPECT_TRUE(boundary.empty());
@@ -320,7 +320,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonEmptyMesh)
 
     // Insert into empty mesh - should just add node
     Point3D point(1.0, 1.0, 1.0);
-    size_t nodeId = operations.insertVertexBowyerWatson(point);
+    NodeId nodeId = operations.insertVertexBowyerWatson(point);
 
     EXPECT_EQ(meshData_.getNodeCount(), 1);
 
@@ -350,7 +350,7 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronCreatesValidTet)
     EXPECT_EQ(meshData_.getElementCount(), 1);
 
     // All 4 bounding node IDs should be valid
-    for (size_t id : boundingIds)
+    for (NodeId id : boundingIds)
     {
         EXPECT_NE(meshData_.getNode(id), nullptr);
     }
@@ -422,11 +422,11 @@ TEST_F(MeshOperations3DTest, CreateBoundingTetrahedronHandlesSinglePoint)
 
 TEST_F(MeshOperations3DTest, FindTetrahedraWithFaceReturnsCorrectTets)
 {
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(2.0, 0.0, 0.0);
-    size_t n2 = addNode(1.0, 2.0, 0.0);
-    size_t n3 = addNode(1.0, 0.5, 2.0);
-    size_t n4 = addNode(1.0, 0.5, -2.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(1.0, 2.0, 0.0);
+    NodeId n3 = addNode(1.0, 0.5, 2.0);
+    NodeId n4 = addNode(1.0, 0.5, -2.0);
 
     addTetrahedron(n0, n1, n2, n3); // Tet above
     addTetrahedron(n0, n1, n2, n4); // Tet below
@@ -448,11 +448,11 @@ TEST_F(MeshOperations3DTest, FindTetrahedraWithFaceReturnsCorrectTets)
 
 TEST_F(MeshOperations3DTest, FindOppositeVertexReturnsCorrectNode)
 {
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, 1.0, 0.0);
-    size_t n3 = addNode(0.5, 0.5, 1.0);
-    size_t tetId = addTetrahedron(n0, n1, n2, n3);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0, 0.0);
+    NodeId n2 = addNode(0.5, 1.0, 0.0);
+    NodeId n3 = addNode(0.5, 0.5, 1.0);
+    ElementId tetId = addTetrahedron(n0, n1, n2, n3);
 
     MeshOperations3D operations(meshData_);
 
@@ -471,10 +471,10 @@ TEST_F(MeshOperations3DTest, FindOppositeVertexReturnsCorrectNode)
 
 TEST_F(MeshOperations3DTest, FindOppositeVertexInvalidTetReturnsSizeMax)
 {
-    size_t n0 = addNode(0.0, 0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0, 0.0);
-    size_t n2 = addNode(0.5, 1.0, 0.0);
-    size_t n3 = addNode(0.5, 0.5, 1.0);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0, 0.0);
+    NodeId n2 = addNode(0.5, 1.0, 0.0);
+    NodeId n3 = addNode(0.5, 0.5, 1.0);
     addTetrahedron(n0, n1, n2, n3);
 
     MeshOperations3D operations(meshData_);

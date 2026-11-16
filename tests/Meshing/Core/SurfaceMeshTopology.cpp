@@ -58,8 +58,8 @@ SurfaceMeshTopology computeSurfaceMeshTopology(const Meshing::SurfaceMesh3D& sur
         {
             topology.vertices.insert(triangle[i]);
 
-            size_t first = triangle[i];
-            size_t second = triangle[(i + 1) % 3];
+            Meshing::NodeId first = triangle[i];
+            Meshing::NodeId second = triangle[(i + 1) % 3];
             if (first > second)
                 std::swap(first, second);
             ++topology.trianglesPerEdge[{first, second}];

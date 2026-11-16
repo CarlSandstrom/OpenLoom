@@ -131,12 +131,12 @@ TEST_F(VolumeMesher3DBoxWithHoleTest, BoundaryIsWatertight)
     // triangles. Multiplicity 1 is a hole (a triangle the mesher failed to
     // accept), multiplicity 3 or more is over-acceptance (a triangle it
     // accepted that should not be there). Both break the flood fill.
-    std::map<std::array<size_t, 2>, size_t> trianglesPerEdge;
+    std::map<std::array<NodeId, 2>, size_t> trianglesPerEdge;
     for (const auto& triangle : mesh_.boundaryTriangles)
     {
         for (const auto& [first, second] : {std::pair{0, 1}, std::pair{1, 2}, std::pair{0, 2}})
         {
-            std::array<size_t, 2> edge = {triangle[first], triangle[second]};
+            std::array<NodeId, 2> edge = {triangle[first], triangle[second]};
             if (edge[0] > edge[1])
                 std::swap(edge[0], edge[1]);
             ++trianglesPerEdge[edge];

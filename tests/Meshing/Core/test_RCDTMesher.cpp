@@ -113,14 +113,14 @@ TEST_F(RCDTMesherCylinderTest, Completes)
 TEST_F(RCDTMesherCylinderTest, AllEdgeNodesCovered)
 {
     // Build the set of all node IDs that appear in at least one triangle.
-    std::unordered_set<size_t> nodesInTriangles;
+    std::unordered_set<NodeId> nodesInTriangles;
     for (const auto& triangle : mesh_.triangles)
-        for (const size_t nodeId : triangle)
+        for (const NodeId nodeId : triangle)
             nodesInTriangles.insert(nodeId);
 
     for (const auto& [edgeId, nodeIds] : mesh_.edgeNodeIds)
     {
-        for (const size_t nodeId : nodeIds)
+        for (const NodeId nodeId : nodeIds)
         {
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
                 << "Edge node " << nodeId << " on edge " << edgeId
@@ -135,7 +135,7 @@ TEST_F(RCDTMesherCylinderTest, AllEdgeNodesCovered)
 
 TEST_F(RCDTMesherCylinderTest, NoDuplicateTriangles)
 {
-    std::set<std::array<size_t, 3>> seen;
+    std::set<std::array<NodeId, 3>> seen;
     for (auto triangle : mesh_.triangles)
     {
         std::sort(triangle.begin(), triangle.end());
@@ -178,7 +178,7 @@ TEST_F(RCDTMesherCylinderTest, AllNodesOnCylinderSurface)
 
         for (const size_t triangleIndex : triangleIndices)
         {
-            for (const size_t nodeId : mesh_.triangles[triangleIndex])
+            for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
                 const double gap = surface->getGap(mesh_.nodes[nodeId]);
                 EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
@@ -300,14 +300,14 @@ TEST_F(RCDTMesherSphereTest, Completes)
 
 TEST_F(RCDTMesherSphereTest, AllEdgeNodesCovered)
 {
-    std::unordered_set<size_t> nodesInTriangles;
+    std::unordered_set<NodeId> nodesInTriangles;
     for (const auto& triangle : mesh_.triangles)
-        for (const size_t nodeId : triangle)
+        for (const NodeId nodeId : triangle)
             nodesInTriangles.insert(nodeId);
 
     for (const auto& [edgeId, nodeIds] : mesh_.edgeNodeIds)
     {
-        for (const size_t nodeId : nodeIds)
+        for (const NodeId nodeId : nodeIds)
         {
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
                 << "Edge node " << nodeId << " on edge " << edgeId
@@ -318,7 +318,7 @@ TEST_F(RCDTMesherSphereTest, AllEdgeNodesCovered)
 
 TEST_F(RCDTMesherSphereTest, NoDuplicateTriangles)
 {
-    std::set<std::array<size_t, 3>> seen;
+    std::set<std::array<NodeId, 3>> seen;
     for (auto triangle : mesh_.triangles)
     {
         std::sort(triangle.begin(), triangle.end());
@@ -353,7 +353,7 @@ TEST_F(RCDTMesherSphereTest, AllNodesOnSphereSurface)
 
         for (const size_t triangleIndex : triangleIndices)
         {
-            for (const size_t nodeId : mesh_.triangles[triangleIndex])
+            for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
                 const double gap = surface->getGap(mesh_.nodes[nodeId]);
                 EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
@@ -457,14 +457,14 @@ TEST_F(RCDTMesherTorusTest, Completes)
 
 TEST_F(RCDTMesherTorusTest, AllEdgeNodesCovered)
 {
-    std::unordered_set<size_t> nodesInTriangles;
+    std::unordered_set<NodeId> nodesInTriangles;
     for (const auto& triangle : mesh_.triangles)
-        for (const size_t nodeId : triangle)
+        for (const NodeId nodeId : triangle)
             nodesInTriangles.insert(nodeId);
 
     for (const auto& [edgeId, nodeIds] : mesh_.edgeNodeIds)
     {
-        for (const size_t nodeId : nodeIds)
+        for (const NodeId nodeId : nodeIds)
         {
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
                 << "Edge node " << nodeId << " on edge " << edgeId
@@ -475,7 +475,7 @@ TEST_F(RCDTMesherTorusTest, AllEdgeNodesCovered)
 
 TEST_F(RCDTMesherTorusTest, NoDuplicateTriangles)
 {
-    std::set<std::array<size_t, 3>> seen;
+    std::set<std::array<NodeId, 3>> seen;
     for (auto triangle : mesh_.triangles)
     {
         std::sort(triangle.begin(), triangle.end());
@@ -510,7 +510,7 @@ TEST_F(RCDTMesherTorusTest, AllNodesOnTorusSurface)
 
         for (const size_t triangleIndex : triangleIndices)
         {
-            for (const size_t nodeId : mesh_.triangles[triangleIndex])
+            for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
                 const double gap = surface->getGap(mesh_.nodes[nodeId]);
                 EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
@@ -538,7 +538,7 @@ TEST_F(RCDTMesherTorusTest, BothSeamEdgesPresentWithNoDuplicateNodes)
         const bool isClosedLoop = nodeIds.front() == nodeIds.back();
         EXPECT_TRUE(isClosedLoop) << "Seam edge " << edgeId << " does not close back on itself";
 
-        std::unordered_set<size_t> distinctNodes(nodeIds.begin(), std::prev(nodeIds.end()));
+        std::unordered_set<NodeId> distinctNodes(nodeIds.begin(), std::prev(nodeIds.end()));
         EXPECT_EQ(distinctNodes.size(), nodeIds.size() - 1)
             << "Seam edge " << edgeId << " has a duplicate node other than its closing point";
     }
@@ -579,9 +579,9 @@ TEST(RCDTMesherThinCapBoxTest, HasNoFacetsAcrossTheCap)
     mesher.meshSurface();
     auto& mesh = *mesher.getSurfaceMesh();
 
-    auto touches = [&](const std::array<size_t, 3>& triangle, double height)
+    auto touches = [&](const std::array<NodeId, 3>& triangle, double height)
     {
-        return std::ranges::any_of(triangle, [&](size_t node)
+        return std::ranges::any_of(triangle, [&](NodeId node)
                                    { return std::abs(mesh.nodes[node].z() - height) < 1e-9; });
     };
 

@@ -20,13 +20,13 @@ TEST(VtkExporter, WritesBasicVtu)
     Meshing::MeshMutator3D mutator(meshData);
 
     // Add 4 nodes forming a tetrahedron
-    size_t n0 = mutator.addNode(Meshing::Point3D(0.0, 0.0, 0.0));
-    size_t n1 = mutator.addNode(Meshing::Point3D(1.0, 0.0, 0.0));
-    size_t n2 = mutator.addNode(Meshing::Point3D(0.0, 1.0, 0.0));
-    size_t n3 = mutator.addNode(Meshing::Point3D(0.0, 0.0, 1.0));
+    Meshing::NodeId n0 = mutator.addNode(Meshing::Point3D(0.0, 0.0, 0.0));
+    Meshing::NodeId n1 = mutator.addNode(Meshing::Point3D(1.0, 0.0, 0.0));
+    Meshing::NodeId n2 = mutator.addNode(Meshing::Point3D(0.0, 1.0, 0.0));
+    Meshing::NodeId n3 = mutator.addNode(Meshing::Point3D(0.0, 0.0, 1.0));
 
     // Add a tetrahedral element
-    mutator.addElement(std::make_unique<Meshing::TetrahedronElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
+    mutator.addElement(std::make_unique<Meshing::TetrahedronElement>(std::array<Meshing::NodeId, 4>{n0, n1, n2, n3}));
 
     Export::VtkExporter exporter;
     const std::string filePath = "test_output.vtu";
@@ -64,24 +64,24 @@ protected:
         mutator_ = std::make_unique<Meshing::MeshMutator2D>(meshData_);
 
         // Nodes for a rectangle divided by an interior edge
-        size_t n0 = mutator_->addNode(Meshing::Point2D(0.0, 0.0));
-        size_t n1 = mutator_->addNode(Meshing::Point2D(1.0, 0.0));
-        size_t n2 = mutator_->addNode(Meshing::Point2D(1.0, 1.0));
-        size_t n3 = mutator_->addNode(Meshing::Point2D(0.0, 1.0));
-        size_t n4 = mutator_->addNode(Meshing::Point2D(2.0, 0.0));
-        size_t n5 = mutator_->addNode(Meshing::Point2D(2.0, 1.0));
+        Meshing::NodeId n0 = mutator_->addNode(Meshing::Point2D(0.0, 0.0));
+        Meshing::NodeId n1 = mutator_->addNode(Meshing::Point2D(1.0, 0.0));
+        Meshing::NodeId n2 = mutator_->addNode(Meshing::Point2D(1.0, 1.0));
+        Meshing::NodeId n3 = mutator_->addNode(Meshing::Point2D(0.0, 1.0));
+        Meshing::NodeId n4 = mutator_->addNode(Meshing::Point2D(2.0, 0.0));
+        Meshing::NodeId n5 = mutator_->addNode(Meshing::Point2D(2.0, 1.0));
 
         // Left domain: two triangles
         mutator_->addElement(std::make_unique<Meshing::TriangleElement>(
-            std::array<size_t, 3>{n0, n1, n2}));
+            std::array<Meshing::NodeId, 3>{n0, n1, n2}));
         mutator_->addElement(std::make_unique<Meshing::TriangleElement>(
-            std::array<size_t, 3>{n0, n2, n3}));
+            std::array<Meshing::NodeId, 3>{n0, n2, n3}));
 
         // Right domain: two triangles
         mutator_->addElement(std::make_unique<Meshing::TriangleElement>(
-            std::array<size_t, 3>{n1, n4, n5}));
+            std::array<Meshing::NodeId, 3>{n1, n4, n5}));
         mutator_->addElement(std::make_unique<Meshing::TriangleElement>(
-            std::array<size_t, 3>{n1, n5, n2}));
+            std::array<Meshing::NodeId, 3>{n1, n5, n2}));
 
         // Outer boundary constraints (role defaults to Boundary)
         Meshing::CurveSegmentManager curveSegments;
@@ -130,11 +130,11 @@ TEST(VtkExporter2D, NoDomainIDWithoutConstraints)
     Meshing::MeshMutator2D mutator(meshData);
 
     // Simple triangle with no constraints
-    size_t n0 = mutator.addNode(Meshing::Point2D(0.0, 0.0));
-    size_t n1 = mutator.addNode(Meshing::Point2D(1.0, 0.0));
-    size_t n2 = mutator.addNode(Meshing::Point2D(0.0, 1.0));
+    Meshing::NodeId n0 = mutator.addNode(Meshing::Point2D(0.0, 0.0));
+    Meshing::NodeId n1 = mutator.addNode(Meshing::Point2D(1.0, 0.0));
+    Meshing::NodeId n2 = mutator.addNode(Meshing::Point2D(0.0, 1.0));
     mutator.addElement(std::make_unique<Meshing::TriangleElement>(
-        std::array<size_t, 3>{n0, n1, n2}));
+        std::array<Meshing::NodeId, 3>{n0, n1, n2}));
 
     Export::VtkExporter exporter;
     const std::string filePath = "test_no_domain_ids.vtu";

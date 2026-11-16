@@ -26,21 +26,21 @@ protected:
         mutator_ = std::make_unique<MeshMutator3D>(meshData_);
     }
 
-    size_t addNode(double x, double y, double z)
+    NodeId addNode(double x, double y, double z)
     {
         return mutator_->addNode(Point3D(x, y, z));
     }
 
-    size_t addTetrahedron(size_t n0, size_t n1, size_t n2, size_t n3)
+    ElementId addTetrahedron(NodeId n0, NodeId n1, NodeId n2, NodeId n3)
     {
         return mutator_->addElement(
-            std::make_unique<TetrahedronElement>(std::array<size_t, 4>{n0, n1, n2, n3}));
+            std::make_unique<TetrahedronElement>(std::array<NodeId, 4>{n0, n1, n2, n3}));
     }
 
-    size_t addTriangle(size_t n0, size_t n1, size_t n2)
+    ElementId addTriangle(NodeId n0, NodeId n1, NodeId n2)
     {
         return mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{n0, n1, n2}));
+            std::make_unique<TriangleElement>(std::array<NodeId, 3>{n0, n1, n2}));
     }
 
     MeshData3D meshData_;
@@ -56,10 +56,10 @@ protected:
 // four vertices.
 TEST_F(ElementGeometry3DTest, OrthocenterOfUnweightedTetrahedronIsItsCircumcenter)
 {
-    const size_t n0 = addNode(0.0, 0.0, 0.0);
-    const size_t n1 = addNode(2.0, 0.0, 0.0);
-    const size_t n2 = addNode(0.3, 1.7, 0.0);
-    const size_t n3 = addNode(0.4, 0.5, 1.9);
+    NodeId n0 = addNode(0.0, 0.0, 0.0);
+    NodeId n1 = addNode(2.0, 0.0, 0.0);
+    NodeId n2 = addNode(0.3, 1.7, 0.0);
+    NodeId n3 = addNode(0.4, 0.5, 1.9);
     addTetrahedron(n0, n1, n2, n3);
 
     const ElementGeometry3D geometry(meshData_);
@@ -68,7 +68,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfUnweightedTetrahedronIsItsCircumcente
 
     ASSERT_TRUE(orthocenter.has_value());
     const double radius = (*orthocenter - meshData_.getNode(n0)->getCoordinates()).norm();
-    for (const size_t nodeId : {n1, n2, n3})
+    for (const NodeId nodeId : {n1, n2, n3})
     {
         EXPECT_NEAR((*orthocenter - meshData_.getNode(nodeId)->getCoordinates()).norm(), radius, TOLERANCE);
     }
@@ -82,7 +82,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTetrahedronHasEqualPowerToAll
     const std::array<Point3D, 4> points = {Point3D(0.0, 0.0, 0.0), Point3D(2.0, 0.0, 0.0), Point3D(0.3, 1.7, 0.0),
                                            Point3D(0.4, 0.5, 1.9)};
     const std::array<double, 4> weights = {0.25, 0.09, 0.0, 0.16};
-    std::array<size_t, 4> nodeIds;
+    std::array<NodeId, 4> nodeIds;
     for (size_t i = 0; i < 4; ++i)
         nodeIds[i] = mutator_->addNode(points[i], weights[i]);
     addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);
@@ -112,7 +112,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfWeightedTriangleLiesInPlaneAtEqualPow
 {
     const std::array<Point3D, 3> points = {Point3D(0.0, 0.0, 1.0), Point3D(2.0, 0.5, 1.0), Point3D(0.5, 1.8, 1.0)};
     const std::array<double, 3> weights = {0.2, 0.0, 0.05};
-    std::array<size_t, 3> nodeIds;
+    std::array<NodeId, 3> nodeIds;
     for (size_t i = 0; i < 3; ++i)
         nodeIds[i] = mutator_->addNode(points[i], weights[i]);
 
@@ -140,7 +140,7 @@ TEST_F(ElementGeometry3DTest, OrthocenterOfFlatCyclicTetrahedronLiesInItsPlane)
     const std::array<Point3D, 4> points = {tilt * Point3D(-2.0, -1.0, 0.0), tilt * Point3D(2.0, -1.0, 0.0),
                                            tilt * Point3D(1.0, 1.5, 0.0), tilt * Point3D(-1.0, 1.5, 0.0)};
     const std::array<double, 4> weights = {0.1, 0.1, 0.05, 0.05};
-    std::array<size_t, 4> nodeIds;
+    std::array<NodeId, 4> nodeIds;
     for (size_t i = 0; i < 4; ++i)
         nodeIds[i] = mutator_->addNode(points[i], weights[i]);
     addTetrahedron(nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]);

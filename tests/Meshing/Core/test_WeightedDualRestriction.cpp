@@ -112,8 +112,8 @@ TEST_F(WeightedDualRestrictionTest, RestrictedFacetsFormAClosedGenusZeroSurface)
 {
     ASSERT_FALSE(facets_.empty());
 
-    std::map<std::pair<size_t, size_t>, int> edgeFaceCount;
-    std::set<size_t> vertices;
+    std::map<std::pair<NodeId, NodeId>, int> edgeFaceCount;
+    std::set<NodeId> vertices;
     for (const auto& [face, facet] : facets_)
     {
         const auto& n = face.nodeIds;

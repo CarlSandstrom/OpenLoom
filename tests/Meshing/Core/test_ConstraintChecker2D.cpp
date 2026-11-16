@@ -21,7 +21,7 @@ protected:
         mutator_ = std::make_unique<MeshMutator2D>(meshData_);
     }
 
-    size_t addNode(double x, double y)
+    NodeId addNode(double x, double y)
     {
         return mutator_->addNode(Point2D(x, y));
     }
@@ -32,8 +32,8 @@ protected:
 
 TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedDetectsPointInDiametralCircle)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(4.0, 0.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(4.0, 0.0);
 
     ConstraintChecker2D checker(meshData_);
     CurveSegment segment{n0, n1};
@@ -47,8 +47,8 @@ TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedDetectsPointInDiametralCircle
 
 TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedReturnsFalseForEndpoints)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(4.0, 0.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(4.0, 0.0);
 
     ConstraintChecker2D checker(meshData_);
     CurveSegment segment{n0, n1};
@@ -63,8 +63,8 @@ TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedReturnsFalseForEndpoints)
 
 TEST_F(ConstraintChecker2DTest, IsSegmentEncroachedForDiagonalSegment)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(2.0, 2.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(2.0, 2.0);
 
     ConstraintChecker2D checker(meshData_);
     CurveSegment segment{n0, n1};

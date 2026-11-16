@@ -107,13 +107,13 @@ TEST_F(RCDTMesherBoxTest, AllSixFacesCovered)
 
 TEST_F(RCDTMesherBoxTest, AllEdgeNodesCovered)
 {
-    std::unordered_set<size_t> nodesInTriangles;
+    std::unordered_set<NodeId> nodesInTriangles;
     for (const auto& triangle : mesh_.triangles)
-        for (const size_t nodeId : triangle)
+        for (const NodeId nodeId : triangle)
             nodesInTriangles.insert(nodeId);
 
     for (const auto& [edgeId, nodeIds] : mesh_.edgeNodeIds)
-        for (const size_t nodeId : nodeIds)
+        for (const NodeId nodeId : nodeIds)
             EXPECT_TRUE(nodesInTriangles.count(nodeId))
                 << "Edge node " << nodeId << " on edge " << edgeId
                 << " does not appear in any triangle";
@@ -125,7 +125,7 @@ TEST_F(RCDTMesherBoxTest, AllEdgeNodesCovered)
 
 TEST_F(RCDTMesherBoxTest, NoDuplicateTriangles)
 {
-    std::set<std::array<size_t, 3>> seen;
+    std::set<std::array<NodeId, 3>> seen;
     for (auto triangle : mesh_.triangles)
     {
         std::sort(triangle.begin(), triangle.end());
@@ -144,18 +144,18 @@ TEST_F(RCDTMesherBoxTest, NoDuplicateTriangles)
 
 TEST_F(RCDTMesherBoxTest, EachFaceIsATriangulatedDisk)
 {
-    std::map<size_t, std::set<std::string>> nodeFaces;
+    std::map<NodeId, std::set<std::string>> nodeFaces;
     for (const auto& [faceId, triangleIndices] : mesh_.faceTriangleIds)
         for (const size_t triangleIndex : triangleIndices)
-            for (const size_t nodeId : mesh_.triangles[triangleIndex])
+            for (const NodeId nodeId : mesh_.triangles[triangleIndex])
                 nodeFaces[nodeId].insert(faceId);
 
     for (const auto& [faceId, triangleIndices] : mesh_.faceTriangleIds)
     {
-        std::set<size_t> nodes;
+        std::set<NodeId> nodes;
         for (const size_t triangleIndex : triangleIndices)
             nodes.insert(mesh_.triangles[triangleIndex].begin(), mesh_.triangles[triangleIndex].end());
-        const auto isOnAnotherFace = [&](size_t nodeId)
+        const auto isOnAnotherFace = [&](NodeId nodeId)
         { return nodeFaces[nodeId].size() > 1; };
         const auto boundaryNodes = static_cast<size_t>(std::count_if(nodes.begin(), nodes.end(), isOnAnotherFace));
         const size_t interiorNodes = nodes.size() - boundaryNodes;
@@ -271,12 +271,12 @@ TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHaveDistinctValidNodeIds)
 {
     for (const auto& tet : mesh_.tetrahedra)
     {
-        std::set<size_t> distinctNodes(tet.begin(), tet.end());
+        std::set<NodeId> distinctNodes(tet.begin(), tet.end());
         EXPECT_EQ(distinctNodes.size(), 4u)
             << "Tetrahedron {" << tet[0] << ", " << tet[1] << ", " << tet[2] << ", " << tet[3]
             << "} does not have 4 distinct node IDs";
 
-        for (const size_t nodeId : tet)
+        for (const NodeId nodeId : tet)
             EXPECT_LT(nodeId, mesh_.nodes.size())
                 << "Tetrahedron references out-of-range node " << nodeId;
     }
@@ -299,13 +299,13 @@ TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHavePositiveVolume)
 
 TEST_F(RCDTMesherBoxVolumeTest, BoundaryTriangleNodesAppearInSomeTetrahedron)
 {
-    std::unordered_set<size_t> nodesInTetrahedra;
+    std::unordered_set<NodeId> nodesInTetrahedra;
     for (const auto& tet : mesh_.tetrahedra)
-        for (const size_t nodeId : tet)
+        for (const NodeId nodeId : tet)
             nodesInTetrahedra.insert(nodeId);
 
     for (const auto& triangle : mesh_.boundaryTriangles)
-        for (const size_t nodeId : triangle)
+        for (const NodeId nodeId : triangle)
             EXPECT_TRUE(nodesInTetrahedra.count(nodeId))
                 << "Boundary triangle node " << nodeId << " does not appear in any tetrahedron";
 }

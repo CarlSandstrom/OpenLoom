@@ -303,7 +303,7 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
     ConstrainedDelaunay2D::triangulate(context, discretization);
 
     // Locate the four corner nodes by coordinate
-    size_t corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
+    NodeId corner0Id = SIZE_MAX, corner1Id = SIZE_MAX, corner2Id = SIZE_MAX, corner3Id = SIZE_MAX;
     for (const auto& [nodeId, node] : context.getMeshData().getNodes())
     {
         const Point2D& point = node->getCoordinates();

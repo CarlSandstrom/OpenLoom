@@ -24,15 +24,15 @@ protected:
         mutator_ = std::make_unique<MeshMutator2D>(meshData_);
     }
 
-    size_t addNode(double x, double y)
+    NodeId addNode(double x, double y)
     {
         return mutator_->addNode(Point2D(x, y));
     }
 
-    size_t addTriangle(size_t n0, size_t n1, size_t n2)
+    ElementId addTriangle(NodeId n0, NodeId n1, NodeId n2)
     {
         return mutator_->addElement(
-            std::make_unique<TriangleElement>(std::array<size_t, 3>{n0, n1, n2}));
+            std::make_unique<TriangleElement>(std::array<NodeId, 3>{n0, n1, n2}));
     }
 
     MeshData2D meshData_;
@@ -41,9 +41,9 @@ protected:
 
 TEST_F(ElementGeometry2DTest, ComputeCircumcircleForRightTriangle)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0);
+    NodeId n2 = addNode(0.0, 1.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -59,9 +59,9 @@ TEST_F(ElementGeometry2DTest, ComputeCircumcircleForRightTriangle)
 
 TEST_F(ElementGeometry2DTest, ComputeCircumcenterReturnsCorrectPoint)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0);
+    NodeId n2 = addNode(0.0, 1.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -76,9 +76,9 @@ TEST_F(ElementGeometry2DTest, ComputeCircumcenterReturnsCorrectPoint)
 
 TEST_F(ElementGeometry2DTest, ComputeAreaForRightTriangle)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(3.0, 0.0);
-    size_t n2 = addNode(0.0, 4.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(3.0, 0.0);
+    NodeId n2 = addNode(0.0, 4.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -91,9 +91,9 @@ TEST_F(ElementGeometry2DTest, ComputeAreaForRightTriangle)
 
 TEST_F(ElementGeometry2DTest, ComputeAreaForEquilateralTriangle)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0);
-    size_t n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0);
+    NodeId n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -106,9 +106,9 @@ TEST_F(ElementGeometry2DTest, ComputeAreaForEquilateralTriangle)
 
 TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForRightTriangle)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0);
-    size_t n2 = addNode(0.0, 1.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0);
+    NodeId n2 = addNode(0.0, 1.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -123,9 +123,9 @@ TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForRightTriangle)
 
 TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForEquilateral)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0);
-    size_t n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0);
+    NodeId n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -140,9 +140,9 @@ TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForEquilateral)
 
 TEST_F(ElementGeometry2DTest, ComputeMinAngleForSkinnyTriangle)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(10.0, 0.0);
-    size_t n2 = addNode(5.0, 0.5);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(10.0, 0.0);
+    NodeId n2 = addNode(5.0, 0.5);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);
@@ -155,9 +155,9 @@ TEST_F(ElementGeometry2DTest, ComputeMinAngleForSkinnyTriangle)
 
 TEST_F(ElementGeometry2DTest, ComputeMinAngleForEquilateral)
 {
-    size_t n0 = addNode(0.0, 0.0);
-    size_t n1 = addNode(1.0, 0.0);
-    size_t n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1.0, 0.0);
+    NodeId n2 = addNode(0.5, std::sqrt(3.0) / 2.0);
     addTriangle(n0, n1, n2);
 
     ElementGeometry2D geometry(meshData_);

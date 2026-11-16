@@ -210,7 +210,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_CylinderLikeTopology_SkipsSeamTwin)
                                                     {"bot_circle", {1, 1}},
                                                     {"seam", {0, 1}}},
                                                    {{}, {}});
-    const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -236,7 +236,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
 
     // Point 0 = c0, point 1 = c1; no interior nodes.
     const auto discretization = makeDiscretization({{"edge_a", {0, 1}}}, {{}, {}});
-    const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 10}, {1, 11}};
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, 10}, {1, 11}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -266,7 +266,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
     // Points: 0=c0 corner, 1=interior@π/3, 2=interior@2π/3, 3=c1 corner
     const auto discretization = makeDiscretization({{"edge_b", {0, 1, 2, 3}}},
                                                    {{}, {M_PI / 3.0}, {2.0 * M_PI / 3.0}, {}});
-    const std::map<size_t, size_t> pointIndexToNodeIdMap = {
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {
         {0, 10}, {1, 11}, {2, 12}, {3, 13}};
 
     auto manager =
@@ -307,7 +307,7 @@ TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
     segment.tEnd = M_PI;
 
     CurveSegmentManager manager;
-    const size_t segmentId = manager.addSegment(segment);
+    const SegmentId segmentId = manager.addSegment(segment);
 
     // Arc-length midpoint of [0, π] on a uniform circle is π/2
     const double tMid = M_PI / 2.0;
@@ -346,7 +346,7 @@ TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainI
     otherEdgeSegment.tEnd = 1.0;
 
     CurveSegmentManager manager;
-    const size_t segmentId = manager.addSegment(segment);
+    const SegmentId segmentId = manager.addSegment(segment);
     manager.addSegment(otherEdgeSegment);
 
     // Split the right half after the left, so segment IDs are not in curve order
@@ -354,7 +354,7 @@ TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainI
     manager.splitAt(rightId, /*newNodeId=*/3, 0.75);
     manager.splitAt(leftId, /*newNodeId=*/4, 0.25);
 
-    EXPECT_EQ(manager.getOrderedNodeIdsForEdge("arc"), (std::vector<size_t>{0, 4, 2, 3, 1}));
+    EXPECT_EQ(manager.getOrderedNodeIdsForEdge("arc"), (std::vector<NodeId>{0, 4, 2, 3, 1}));
     EXPECT_TRUE(manager.getOrderedNodeIdsForEdge("missing").empty());
 }
 
@@ -375,7 +375,7 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
 
     // Point 0 = c_top, point 1 = c_bot; no interior nodes.
     const auto discretization = makeDiscretization({{"seam", {0, 1}}}, {{}, {}});
-    const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
+    const std::map<size_t, NodeId> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
 
     auto manager =
         CurveSegmentBuilder::build(topology, geometry, discretization, pointIndexToNodeIdMap);
@@ -383,7 +383,7 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
     // Only one segment (seam), not two
     ASSERT_EQ(manager.size(), 1u);
 
-    const size_t segmentId = manager.getAllSegments().begin()->first;
+    const SegmentId segmentId = manager.getAllSegments().begin()->first;
     const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/2, 0.5);
 
     // Two children, original gone
