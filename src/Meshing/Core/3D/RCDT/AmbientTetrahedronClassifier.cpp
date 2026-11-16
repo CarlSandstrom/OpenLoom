@@ -13,6 +13,7 @@ namespace Meshing
 
 std::unordered_set<ElementId>
 AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
+                                       const MeshConnectivity& connectivity,
                                        const RestrictedFaceMap& restrictedFaces)
 {
     std::unordered_set<ElementId> ambientTetIds;
@@ -20,8 +21,6 @@ AmbientTetrahedronClassifier::classify(const MeshData3D& meshData,
     auto& boundingNodeIds = meshData.getBoundingNodeIds();
     if (!boundingNodeIds)
         return ambientTetIds;
-
-    MeshConnectivity connectivity(meshData);
 
     std::queue<ElementId> queue;
     for (auto boundingNodeId : *boundingNodeIds)

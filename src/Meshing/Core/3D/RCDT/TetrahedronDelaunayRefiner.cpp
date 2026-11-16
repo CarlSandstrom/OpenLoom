@@ -56,7 +56,7 @@ void TetrahedronDelaunayRefiner::refine()
 bool TetrahedronDelaunayRefiner::refineRound()
 {
     auto& meshData = context_->getMeshData();
-    auto ambient = AmbientTetrahedronClassifier::classify(meshData, surfaceRefiner_.getRestrictedFaces());
+    auto ambient = AmbientTetrahedronClassifier::classify(meshData, context_->getConnectivity(), surfaceRefiner_.getRestrictedFaces());
 
     double squaredBound = ratioBound_ * ratioBound_;
     std::vector<std::pair<double, ElementId>> badTetrahedra;
