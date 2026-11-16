@@ -1,5 +1,6 @@
 #include "Common/Logging.h"
 #include "Common/TwinManager.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -245,6 +246,7 @@ int main()
     // -------------------------------------------------------------------------
     Export::VtkExporter exporter;
     exporter.exportMesh(context.getMeshData(), "SquareWithCircleAndTwinEdges.vtu");
+    Export::TsvExporter::writeMesh(context.getMeshData(), "SquareWithCircleAndTwinEdges");
     spdlog::info("Mesh exported to SquareWithCircleAndTwinEdges.vtu");
 
     return 0;

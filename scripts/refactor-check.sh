@@ -29,6 +29,8 @@ GOLDEN_DIR="$ROOT/tests/golden"
 FAST_EXAMPLES=(
     "2D/SimpleDelaunay2D"          # 2D Delaunay core
     "2D/SquareWithCircularHole"    # 2D constraints and holes
+    "2D/FullyPeriodicSquare"       # periodic boundaries, all four edges twinned
+    "2D/SquareWithCircleAndTwinEdges"  # twin edges with a circular hole
     "3D/Volume/CreateBox"          # 3D volume tetrahedralization
     "3D/Surface/CylinderSurfaceMesh"  # single periodic surface, seam handling
     "3D/Surface/HexNutSurfaceMesh"    # planar faces plus a periodic bore
