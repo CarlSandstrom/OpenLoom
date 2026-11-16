@@ -93,7 +93,7 @@ bool TetrahedronDelaunayRefiner::refineTetrahedron(ElementId elementId, const Te
     }
 
     auto conflicting =
-        RegularConflictRegion::find({elementId, ElementId::INVALID}, *orthocenter, meshData, surfaceRefiner_.getConnectivity());
+        RegularConflictRegion::find({elementId, ElementId::INVALID}, *orthocenter, meshData, context_->getConnectivity());
     if (conflicting.empty())
     {
         unrefinable_.insert(elementId);

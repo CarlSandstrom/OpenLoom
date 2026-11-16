@@ -24,7 +24,6 @@ class Topology3D;
 
 namespace Meshing
 {
-class MeshConnectivity;
 class MeshingContext3D;
 } // namespace Meshing
 
@@ -92,9 +91,6 @@ public:
 
     bool hasReachedInsertionCap() const;
 
-    /// Current after every insertion; valid once refine() has run.
-    const MeshConnectivity& getConnectivity() const { return *connectivity_; }
-
     /// The restricted facets, each against the surface it was restricted to.
     RestrictedFaceMap getRestrictedFaces() const;
 
@@ -118,7 +114,6 @@ private:
     SurfaceFacetCriteria criteria_;
 
     /// Rebuilt after every insertion; the tetrahedralization changes under it.
-    std::unique_ptr<MeshConnectivity> connectivity_;
 
     std::unordered_map<FaceKey, RestrictedFacet, FaceKeyHash> facets_;
     std::unordered_map<FaceKey, Badness, FaceKeyHash> badness_;
