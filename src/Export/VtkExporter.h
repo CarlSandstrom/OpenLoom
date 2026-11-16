@@ -57,7 +57,6 @@ public:
     // Overloaded methods for 2D meshes (exported with z=0)
     bool exportMesh(const Meshing::MeshData2D& mesh, const std::string& filePath) const;
     bool writeVtu(const Meshing::MeshData2D& mesh, const std::string& filePath) const { return exportMesh(mesh, filePath); }
-
 };
 
 } // namespace Export

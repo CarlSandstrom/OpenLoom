@@ -25,7 +25,6 @@ public:
 
     std::string getId() const override;
 
-
 private:
     Handle(Geom2d_Curve) curve_;
     std::string id_;

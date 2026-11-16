@@ -1,9 +1,9 @@
 #include "BoundarySplitSynchronizer.h"
 #include "Geometry/2D/Base/IEdge2D.h"
-#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/2D/MeshOperations2D.h"
 #include "Meshing/Core/2D/MeshingContext2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 
 namespace Meshing
 {

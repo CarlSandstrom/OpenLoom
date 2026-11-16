@@ -48,7 +48,7 @@ public:
      * Returns nullopt if the segment is not registered.
      */
     std::optional<std::tuple<std::string, size_t, size_t>>
-        getTwin(const std::string& surfaceId, size_t n1, size_t n2) const;
+    getTwin(const std::string& surfaceId, size_t n1, size_t n2) const;
 
     /**
      * @brief Update registry after a split.

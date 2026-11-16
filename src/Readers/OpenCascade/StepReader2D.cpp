@@ -1,9 +1,9 @@
 #include "StepReader2D.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
 #include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
-#include <BRep_Tool.hxx>
 #include <BRepTools.hxx>
 #include <BRepTools_WireExplorer.hxx>
+#include <BRep_Tool.hxx>
 #include <Geom2d_TrimmedCurve.hxx>
 #include <STEPControl_Reader.hxx>
 #include <TopExp.hxx>
@@ -103,8 +103,8 @@ void StepReader2D::buildTopologyAndGeometry()
 }
 
 void StepReader2D::processWire(const TopoDS_Wire& wire,
-                                const TopoDS_Face& face,
-                                std::vector<std::string>& edgeLoop)
+                               const TopoDS_Face& face,
+                               std::vector<std::string>& edgeLoop)
 {
     BRepTools_WireExplorer wireExplorer(wire, face);
 
@@ -154,7 +154,7 @@ void StepReader2D::processWire(const TopoDS_Wire& wire,
 }
 
 std::string StepReader2D::findOrCreateVertex(const TopoDS_Vertex& vertex,
-                                              const TopoDS_Face& face)
+                                             const TopoDS_Face& face)
 {
     for (const auto& [knownVertex, id] : knownVertices_)
     {

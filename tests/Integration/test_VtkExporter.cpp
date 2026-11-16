@@ -5,13 +5,13 @@
 
 #include "Common/Types.h"
 #include "Export/VtkExporter.h"
-#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
 #include "Meshing/Data/3D/MeshData3D.h"
 #include "Meshing/Data/3D/MeshMutator3D.h"
 #include "Meshing/Data/3D/TetrahedralElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 
 TEST(VtkExporter, WritesBasicVtu)
 {

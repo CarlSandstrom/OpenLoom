@@ -434,8 +434,7 @@ std::unordered_map<std::size_t, int> computeDomainIds(const Meshing::MeshData2D&
                   constexpr double EPS = 1e-6;
                   if (std::abs(a.centroidX - b.centroidX) > EPS)
                       return a.centroidX < b.centroidX;
-                  return a.centroidY < b.centroidY;
-              });
+                  return a.centroidY < b.centroidY; });
 
     std::unordered_map<int, int> remapping;
     for (int i = 0; i < static_cast<int>(sortedDomains.size()); ++i)

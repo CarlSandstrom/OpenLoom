@@ -287,7 +287,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
         }
     }
     EXPECT_TRUE(participatesInATet) << "Inserted vertex is not part of any tetrahedron -- "
-                                        "the coplanar cavity boundary face was left uncovered";
+                                       "the coplanar cavity boundary face was left uncovered";
 }
 
 // ============================================================================

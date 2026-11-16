@@ -1,11 +1,11 @@
 #include "MeshingContext2D.h"
-#include "PeriodicMeshData2D.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Geometry/2D/Base/LinearEdge2D.h"
 #include "MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
+#include "PeriodicMeshData2D.h"
 #include <set>
 
 namespace Meshing

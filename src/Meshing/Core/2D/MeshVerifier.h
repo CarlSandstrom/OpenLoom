@@ -41,7 +41,6 @@ private:
      */
     static bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes,
                                  const std::array<Point2D, 3>& triangle2Nodes);
-
 };
 
 } // namespace Meshing

@@ -78,11 +78,11 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
 
     // Check all pairs of triangles for overlap
 #ifdef OPENLOOM_HAS_OPENMP
-    #pragma omp parallel
+#pragma omp parallel
     {
         std::vector<std::string> localErrors;
 
-        #pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic)
         for (size_t i = 0; i < triangleCoordinates.size(); ++i)
         {
             for (size_t j = i + 1; j < triangleCoordinates.size(); ++j)
@@ -98,7 +98,7 @@ MeshVerifier::VerificationResult MeshVerifier::verify(const MeshData2D& meshData
 
         if (!localErrors.empty())
         {
-            #pragma omp critical
+#pragma omp critical
             {
                 result.isValid = false;
                 result.errors.insert(result.errors.end(), localErrors.begin(), localErrors.end());

@@ -35,5 +35,4 @@ public:
         const std::string& debugExportFilenamePrefix = "constrained_delaunay");
 };
 
-
 } // namespace Meshing

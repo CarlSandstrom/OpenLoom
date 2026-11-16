@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Common/Types.h"
-#include "Meshing/Data/CurveSegmentManager.h"
 #include "Meshing/Core/2D/ElementGeometry2D.h"
 #include "Meshing/Core/2D/MeshQueries2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
+#include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <map>
 #include <memory>

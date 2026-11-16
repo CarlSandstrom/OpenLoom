@@ -1,8 +1,8 @@
 #include "ElementGeometry2D.h"
-#include "PeriodicMeshData2D.h"
 #include "Common/Exceptions/GeometryException.h"
 #include "GeometryUtilities2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
+#include "PeriodicMeshData2D.h"
 
 #include <algorithm>
 #include <cmath>

@@ -47,8 +47,12 @@ TEST(RegularPredicates3DTest, ZeroWeights_MatchesCircumsphere_AcrossManyPoints)
     const Point3D p3(0.0, 0.0, 2.0);
 
     const std::vector<std::pair<Point3D, bool>> queries = {
-        {Point3D(0.5, 0.5, 0.5), true},    {Point3D(0.9, 0.9, 0.9), true},   {Point3D(5.0, 0.0, 0.0), false},
-        {Point3D(-1.0, -1.0, -1.0), false}, {Point3D(1.0, 1.0, 1.0), true}, {Point3D(2.0, 2.0, 2.0), true},
+        {Point3D(0.5, 0.5, 0.5), true},
+        {Point3D(0.9, 0.9, 0.9), true},
+        {Point3D(5.0, 0.0, 0.0), false},
+        {Point3D(-1.0, -1.0, -1.0), false},
+        {Point3D(1.0, 1.0, 1.0), true},
+        {Point3D(2.0, 2.0, 2.0), true},
     };
 
     for (const auto& [queryPoint, inside] : queries)

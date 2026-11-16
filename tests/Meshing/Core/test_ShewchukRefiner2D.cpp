@@ -96,7 +96,7 @@ void addSquare(Geometry2D::GeometryCollection2D& geometry,
 
         topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
         topologyEdges.emplace(edgeId, Topology2D::Edge2D(
-                                   edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
+                                          edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
         edgeLoop.push_back(edgeId);
     }
 }

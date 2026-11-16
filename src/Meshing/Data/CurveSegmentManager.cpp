@@ -67,7 +67,8 @@ std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::str
             result.push_back(segment);
     }
     std::sort(result.begin(), result.end(),
-              [](const CurveSegment& a, const CurveSegment& b) { return a.tStart < b.tStart; });
+              [](const CurveSegment& a, const CurveSegment& b)
+              { return a.tStart < b.tStart; });
     return result;
 }
 

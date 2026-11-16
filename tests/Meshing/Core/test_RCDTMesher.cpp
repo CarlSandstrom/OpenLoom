@@ -581,11 +581,13 @@ TEST(RCDTMesherThinCapBoxTest, HasNoFacetsAcrossTheCap)
 
     auto touches = [&](const std::array<size_t, 3>& triangle, double height)
     {
-        return std::ranges::any_of(triangle, [&](size_t node) { return std::abs(mesh.nodes[node].z() - height) < 1e-9; });
+        return std::ranges::any_of(triangle, [&](size_t node)
+                                   { return std::abs(mesh.nodes[node].z() - height) < 1e-9; });
     };
 
     auto acrossTheCap = std::ranges::count_if(
-        mesh.triangles, [&](auto& triangle) { return touches(triangle, CEILING_HEIGHT) && touches(triangle, TOP_HEIGHT); });
+        mesh.triangles, [&](auto& triangle)
+        { return touches(triangle, CEILING_HEIGHT) && touches(triangle, TOP_HEIGHT); });
 
     EXPECT_GT(mesh.triangles.size(), 0u);
     EXPECT_EQ(acrossTheCap, 0);

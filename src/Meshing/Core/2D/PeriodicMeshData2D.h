@@ -1,10 +1,10 @@
 #pragma once
 
-#include "PeriodicDomain2D.h"
-#include "PeriodicOffsetTable.h"
 #include "Common/Types.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/TriangleElement.h"
+#include "PeriodicDomain2D.h"
+#include "PeriodicOffsetTable.h"
 #include <tuple>
 
 namespace Meshing

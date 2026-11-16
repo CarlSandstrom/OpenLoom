@@ -209,7 +209,8 @@ size_t countLines(const std::filesystem::path& path)
     std::ifstream stream(path);
     size_t count = 0;
     std::string line;
-    while (std::getline(stream, line)) ++count;
+    while (std::getline(stream, line))
+        ++count;
     return count;
 }
 

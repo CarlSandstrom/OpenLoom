@@ -47,7 +47,7 @@ private:
 
     void setCurveSegmentManagerInternal(CurveSegmentManager manager);
     std::pair<size_t, size_t> splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
-                                                         size_t newNodeId, double tMid);
+                                                        size_t newNodeId, double tMid);
 };
 
 } // namespace Meshing

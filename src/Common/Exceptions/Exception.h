@@ -68,10 +68,10 @@ private:
     throw ExceptionType(code, message, std::string(__FILE__) + ":" + std::to_string(__LINE__))
 
 #define OPENLOOM_REQUIRE(condition, ExceptionType, message) \
-    do                                                   \
-    {                                                    \
-        if (!(condition))                                \
-        {                                                \
+    do                                                      \
+    {                                                       \
+        if (!(condition))                                   \
+        {                                                   \
             OPENLOOM_THROW(ExceptionType, message);         \
-        }                                                \
+        }                                                   \
     } while (0)

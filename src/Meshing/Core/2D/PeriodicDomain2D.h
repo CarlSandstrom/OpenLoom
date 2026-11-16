@@ -25,10 +25,10 @@ struct PeriodicOffset
 /// and the period length in each direction.
 struct PeriodicDomainConfig
 {
-    bool   uPeriodic = false;
-    bool   vPeriodic = false;
-    double uPeriod   = 0.0;
-    double vPeriod   = 0.0;
+    bool uPeriodic = false;
+    bool vPeriodic = false;
+    double uPeriod = 0.0;
+    double vPeriod = 0.0;
 
     bool isPeriodic() const { return uPeriodic || vPeriodic; }
 };

@@ -43,7 +43,7 @@ void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
 }
 
 std::pair<size_t, size_t> MeshData2D::splitCurveSegmentInternal(size_t nodeId1, size_t nodeId2,
-                                                                  size_t newNodeId, double tMid)
+                                                                size_t newNodeId, double tMid)
 {
     auto optionalSegmentId = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
     if (!optionalSegmentId)

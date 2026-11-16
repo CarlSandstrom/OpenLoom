@@ -47,7 +47,7 @@ public:
     }
 
     std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point,
-                                                            const Point2D& /*seedUV*/) const override
+                                                           const Point2D& /*seedUV*/) const override
     {
         return projectPointToUnderlyingSurface(point);
     }
@@ -136,7 +136,7 @@ public:
     }
 
     std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point,
-                                                            const Point2D& /*seedUV*/) const override
+                                                           const Point2D& /*seedUV*/) const override
     {
         return projectPointToUnderlyingSurface(point);
     }

@@ -208,7 +208,7 @@ TEST(CurveSegmentManagerTest, BuildFrom_CylinderLikeTopology_SkipsSeamTwin)
     // Point 0 = c_top, point 1 = c_bot.
     const auto discretization = makeDiscretization({{"top_circle", {0, 0}},
                                                     {"bot_circle", {1, 1}},
-                                                    {"seam",       {0, 1}}},
+                                                    {"seam", {0, 1}}},
                                                    {{}, {}});
     const std::map<size_t, size_t> pointIndexToNodeIdMap = {{0, 0}, {1, 1}};
 

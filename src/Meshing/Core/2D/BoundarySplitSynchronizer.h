@@ -45,7 +45,7 @@ public:
 
 private:
     MeshingContext2D* context_;
-    TwinManager*      twinManager_;
+    TwinManager* twinManager_;
 };
 
 } // namespace Meshing
