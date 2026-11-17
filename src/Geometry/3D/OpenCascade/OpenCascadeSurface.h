@@ -25,6 +25,7 @@ public:
 
     Meshing::Vector3D getNormal(double u, double v) const override;
     Meshing::Point3D getPoint(double u, double v) const override;
+    SurfaceDerivatives getFirstDerivatives(double u, double v) const override;
     Common::BoundingBox2D getParameterBounds() const override;
     double getGap(const Meshing::Point3D& point) const override;
     Meshing::Point2D projectPoint(const Meshing::Point3D& point) const override;

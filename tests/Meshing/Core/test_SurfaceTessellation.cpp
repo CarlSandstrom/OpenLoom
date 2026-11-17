@@ -30,6 +30,11 @@ public:
 
     Point3D getPoint(double u, double v) const override { return Point3D(u, v, planeZ_); }
 
+    Geometry3D::SurfaceDerivatives getFirstDerivatives(double u, double v) const override
+    {
+        return {getPoint(u, v), {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}};
+    }
+
     Vector3D getNormal(double /*u*/, double /*v*/) const override { return {0.0, 0.0, 1.0}; }
 
     Common::BoundingBox2D getParameterBounds() const override
@@ -108,6 +113,13 @@ public:
         return Point3D(u, v, amplitude_ * std::exp(-normalizedU * normalizedU));
     }
 
+    Geometry3D::SurfaceDerivatives getFirstDerivatives(double u, double v) const override
+    {
+        auto point = getPoint(u, v);
+        auto derivative = point.z() * (-2.0 * (u - spikeCenter_) / (spikeWidth_ * spikeWidth_));
+        return {point, {1.0, 0.0, derivative}, {0.0, 1.0, 0.0}};
+    }
+
     // Analytic normal of the height field z = f(u): tangents are
     // dS/du = (1, 0, f'(u)) and dS/dv = (0, 1, 0), so their cross product is
     // (-f'(u), 0, 1), normalized.
@@ -174,6 +186,23 @@ TEST(SurfaceTessellationTest, Crosses_StraddlingSegment_ReturnsTrue)
     tessellation.build(surface, 1.0);
 
     EXPECT_TRUE(crosses(tessellation, Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0)));
+}
+
+// On a plane parameterized by (x, y), linear interpolation across the crossed
+// triangle is exact, so the crossing's parameters are its own x and y: the
+// seed findSurfaceCrossing() needs.
+TEST(SurfaceTessellationTest, FindCrossingNearest_ReportsSurfaceParametersOfCrossing)
+{
+    const MockPlanarSurface surface(10.0);
+    SurfaceTessellation tessellation;
+    tessellation.build(surface, 1.0);
+
+    const auto crossing = tessellation.findCrossingNearest(Point3D(5.3, 4.7, -1.0), Point3D(5.3, 4.7, 1.0),
+                                                           Point3D(5.3, 4.7, -1.0));
+
+    ASSERT_TRUE(crossing.has_value());
+    EXPECT_NEAR(crossing->uv.x(), 5.3, 1e-12);
+    EXPECT_NEAR(crossing->uv.y(), 4.7, 1e-12);
 }
 
 TEST(SurfaceTessellationTest, Crosses_BothEndpointsSameSide_ReturnsFalse)

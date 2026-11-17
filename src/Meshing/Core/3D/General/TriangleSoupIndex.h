@@ -35,6 +35,15 @@ class TriangleSoupIndex
 public:
     using Triangle = std::array<Point3D, 3>;
 
+    /// A crossing point, the triangle it lies in (its position in the vector
+    /// given to build()), and its barycentric weights in that triangle.
+    struct Crossing
+    {
+        Point3D point;
+        size_t triangleIndex;
+        std::array<double, 3> barycentricWeights;
+    };
+
     /// Replaces the contents with these triangles and indexes them.
     void build(const std::vector<Triangle>& triangles);
 
@@ -46,7 +55,7 @@ public:
     /// so the exact -- much more expensive -- predicate only runs on
     /// candidates that survive this cheap prefilter). The point itself is computed in
     /// floating point from the triangle's plane. nullopt if none is crossed.
-    std::optional<Point3D> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
+    std::optional<Crossing> findCrossingNearest(const Point3D& a, const Point3D& b, const Point3D& target) const;
 
 private:
     struct BoundedTriangle

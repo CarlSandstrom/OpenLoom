@@ -83,6 +83,17 @@ Meshing::Point3D OpenCascadeSurface::getPoint(double u, double v) const
     return Meshing::Point3D(point.X(), point.Y(), point.Z());
 }
 
+SurfaceDerivatives OpenCascadeSurface::getFirstDerivatives(double u, double v) const
+{
+    gp_Pnt point;
+    gp_Vec derivativeU;
+    gp_Vec derivativeV;
+    getOrCreate(surfaceAdaptor_, face_).D1(u, v, point, derivativeU, derivativeV);
+    return {{point.X(), point.Y(), point.Z()},
+            {derivativeU.X(), derivativeU.Y(), derivativeU.Z()},
+            {derivativeV.X(), derivativeV.Y(), derivativeV.Z()}};
+}
+
 Common::BoundingBox2D OpenCascadeSurface::getParameterBounds() const
 {
     auto& adaptor = getOrCreate(surfaceAdaptor_, face_);

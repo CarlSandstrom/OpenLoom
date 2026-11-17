@@ -244,10 +244,16 @@ sampling relative to local feature size, not on tetrahedron shape.
 When the dual edge crosses more than once, the crossing nearest the face's own
 orthocentre wins: that point lies on the dual line, so the nearest crossing is
 the one belonging to this face. The crossing is refined onto the exact CAD
-surface by bisection **along the dual segment**, so it stays on the dual line;
-projecting it onto the surface instead moved it sideways into a protecting ball.
+surface **along the dual segment**, so it stays on the dual line; projecting it
+onto the surface instead moved it sideways into a protecting ball. The refinement
+solves segment = S(u, v) by Newton's method in (t, u, v), seeded with the
+parameters the tessellation interpolates at its own crossing, within a bracket of
+a few tessellation cells. It used to bisect on the signed distance, and each
+bisection step was a global CAD point projection: on a Bezier surface that was
+95% of the run (SaddleSurfaceMesh 15.4 s → 0.9 s, OPE-212). The two agree to the
+bisection's own resolution (≤ 2.6e-10 on every model).
 It is accepted only within the surface's trimmed patch — the tessellation and
-the bisection both work on the untrimmed surface, and on the bracket two flange
+the Newton solve both work on the untrimmed surface, and on the bracket two flange
 planes extended past their faces intersect. The accepted crossing is the centre
 of the facet's **surface Delaunay ball**, the refinement point.
 

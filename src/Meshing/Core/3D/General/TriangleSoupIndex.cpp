@@ -14,6 +14,7 @@ namespace
 {
 bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax);
 size_t gridResolutionFor(size_t triangleCount);
+std::array<double, 3> barycentricWeightsOf(const Point3D& point, const TriangleSoupIndex::Triangle& vertices);
 } // namespace
 
 void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
@@ -69,15 +70,15 @@ void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
 // A triangle registered in more than one visited cell is tested more than once;
 // the duplicate test is harmless (it finds the same crossing point again, so
 // the nearest one is unaffected).
-std::optional<Point3D> TriangleSoupIndex::findCrossingNearest(const Point3D& a,
-                                                              const Point3D& b,
-                                                              const Point3D& target) const
+std::optional<TriangleSoupIndex::Crossing> TriangleSoupIndex::findCrossingNearest(const Point3D& a,
+                                                                                  const Point3D& b,
+                                                                                  const Point3D& target) const
 {
     Point3D boundsMin = a.cwiseMin(b);
     Point3D boundsMax = a.cwiseMax(b);
     Point3D direction = b - a;
 
-    std::optional<Point3D> nearest;
+    std::optional<Crossing> nearest;
     double nearestSquaredDistance = 0.0;
     for (auto cell : cellsAlongSegment(a, b))
         for (auto triangleIndex : cells_[cell])
@@ -95,7 +96,7 @@ std::optional<Point3D> TriangleSoupIndex::findCrossingNearest(const Point3D& a,
             double squaredDistance = (crossing - target).squaredNorm();
             if (!nearest || squaredDistance < nearestSquaredDistance)
             {
-                nearest = crossing;
+                nearest = Crossing{crossing, triangleIndex, barycentricWeightsOf(crossing, vertices)};
                 nearestSquaredDistance = squaredDistance;
             }
         }
@@ -193,6 +194,20 @@ namespace
 bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax)
 {
     return (aMin.array() <= bMax.array()).all() && (bMin.array() <= aMax.array()).all();
+}
+
+// Weights of point, taken to lie in the triangle's plane, against its three
+// vertices. All weight on the first vertex for a degenerate triangle.
+std::array<double, 3> barycentricWeightsOf(const Point3D& point, const TriangleSoupIndex::Triangle& vertices)
+{
+    Point3D normal = (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0]);
+    double squaredArea = normal.squaredNorm();
+    if (squaredArea == 0.0)
+        return {1.0, 0.0, 0.0};
+
+    double weight1 = normal.dot((point - vertices[0]).cross(vertices[2] - vertices[0])) / squaredArea;
+    double weight2 = normal.dot((vertices[1] - vertices[0]).cross(point - vertices[0])) / squaredArea;
+    return {1.0 - weight1 - weight2, weight1, weight2};
 }
 
 // Number of cells along each axis for a soup of this size, chosen so each cell

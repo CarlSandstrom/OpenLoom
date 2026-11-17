@@ -1,10 +1,9 @@
 #include "Meshing/Core/3D/General/SurfaceProjector.h"
 
-#include "Common/BoundingBox2D.h"
 #include "Geometry/3D/Base/ISurface3D.h"
 
-#include <algorithm>
-#include <array>
+#include <Eigen/LU>
+
 #include <cmath>
 
 namespace Meshing
@@ -16,47 +15,13 @@ namespace SurfaceProjector
 namespace
 {
 
-// Fraction of the surface's diameter within which findSurfaceCrossing() treats
-// both segment endpoints as sitting ON the surface, and answers with the
-// midpoint instead of bisecting.
-//
-// The value has no recorded derivation and has never been measured against a
-// model; treat it as unexplained, not calibrated.
-constexpr double NEAR_TANGENT_RELATIVE_TOLERANCE = 1e-10;
+// findSurfaceCrossing() has converged once the point on the segment and the
+// point on the surface are this fraction of the segment's length apart.
+constexpr double NEWTON_RELATIVE_TOLERANCE = 1e-12;
 
-// Halvings findSurfaceCrossing() performs once it has a sign change to bracket.
-//
-// 30 halvings narrow the bracket to 2^-30, about 1e-9, of the dual edge's
-// length, at 30 CAD projections per crossing, which is why
-// WeightedDualRestriction bisects only within a few tessellation cells of the
-// tessellation's crossing.
-constexpr int BISECTION_ITERATIONS = 30;
-
-/// The longest distance between any two corners of the surface's untrimmed
-/// parameter rectangle — a cheap stand-in for the surface's size, used to turn
-/// a relative tolerance into an absolute one. Falls back to 1.0 for a
-/// degenerate surface whose four corners coincide.
-double computeSurfaceDiameter(const Geometry3D::ISurface3D& surface)
-{
-    auto bounds = surface.getParameterBounds();
-    double uMin = bounds.getUMin();
-    double uMax = bounds.getUMax();
-    double vMin = bounds.getVMin();
-    double vMax = bounds.getVMax();
-
-    std::array<Point3D, 4> corners = {
-        surface.getPoint(uMin, vMin),
-        surface.getPoint(uMax, vMin),
-        surface.getPoint(uMin, vMax),
-        surface.getPoint(uMax, vMax)};
-
-    double maximumDistance = 0.0;
-    for (int i = 0; i < 4; ++i)
-        for (int j = i + 1; j < 4; ++j)
-            maximumDistance = std::max(maximumDistance, (corners[i] - corners[j]).norm());
-
-    return maximumDistance > 0.0 ? maximumDistance : 1.0;
-}
+// Newton converges quadratically from a seed within a tessellation cell of the
+// crossing, so this many iterations without converging means it never will.
+constexpr int NEWTON_MAXIMUM_ITERATIONS = 20;
 
 } // namespace
 
@@ -84,35 +49,40 @@ std::optional<Point3D> projectToSurface(const Point3D& point,
 
 std::optional<Point3D> findSurfaceCrossing(const Point3D& segmentStart,
                                            const Point3D& segmentEnd,
-                                           const Geometry3D::ISurface3D& surface)
+                                           const Geometry3D::ISurface3D& surface,
+                                           const Point2D& seedUV)
 {
-    double distanceAtStart = signedDistance(segmentStart, surface);
-    double distanceAtEnd = signedDistance(segmentEnd, surface);
-
-    double tangentGuard = NEAR_TANGENT_RELATIVE_TOLERANCE * computeSurfaceDiameter(surface);
-
-    // Already within tangent tolerance of the surface across the whole
-    // segment: the midpoint is as good an answer as bisecting further would
-    // give, and there may be no clean sign change to bisect on.
-    if (std::abs(distanceAtStart) < tangentGuard && std::abs(distanceAtEnd) < tangentGuard)
-        return 0.5 * (segmentStart + segmentEnd);
-
-    if (distanceAtStart * distanceAtEnd >= 0.0)
+    Vector3D direction = segmentEnd - segmentStart;
+    double squaredLength = direction.squaredNorm();
+    if (squaredLength <= 0.0)
         return std::nullopt;
 
-    Point3D negativeEnd = distanceAtStart < 0.0 ? segmentStart : segmentEnd;
-    Point3D positiveEnd = distanceAtStart < 0.0 ? segmentEnd : segmentStart;
-
-    for (int iteration = 0; iteration < BISECTION_ITERATIONS; ++iteration)
+    // Solve segmentStart + t * direction = S(u, v) for (t, u, v).
+    double tolerance = NEWTON_RELATIVE_TOLERANCE * std::sqrt(squaredLength);
+    Point2D uv = seedUV;
+    double parameter = (surface.getPoint(uv.x(), uv.y()) - segmentStart).dot(direction) / squaredLength;
+    for (int iteration = 0; iteration < NEWTON_MAXIMUM_ITERATIONS; ++iteration)
     {
-        Point3D midpoint = 0.5 * (negativeEnd + positiveEnd);
-        if (signedDistance(midpoint, surface) < 0.0)
-            negativeEnd = midpoint;
-        else
-            positiveEnd = midpoint;
-    }
+        auto derivatives = surface.getFirstDerivatives(uv.x(), uv.y());
+        Vector3D residual = segmentStart + parameter * direction - derivatives.point;
+        if (residual.norm() <= tolerance)
+        {
+            if (parameter < 0.0 || parameter > 1.0)
+                return std::nullopt;
+            return segmentStart + parameter * direction;
+        }
 
-    return 0.5 * (negativeEnd + positiveEnd);
+        Eigen::Matrix3d jacobian;
+        jacobian << direction, -derivatives.derivativeU, -derivatives.derivativeV;
+        auto decomposition = jacobian.fullPivLu();
+        if (!decomposition.isInvertible())
+            return std::nullopt;
+
+        Eigen::Vector3d step = decomposition.solve(-residual);
+        parameter += step[0];
+        uv += step.tail<2>();
+    }
+    return std::nullopt;
 }
 
 } // namespace SurfaceProjector

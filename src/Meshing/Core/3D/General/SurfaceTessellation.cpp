@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 namespace Meshing
@@ -67,6 +68,13 @@ struct SampleGrid
     size_t index(size_t uColumn, size_t vColumn) const { return uColumn * v.columns + vColumn; }
 };
 
+// The triangles of a tessellation and, for each, the surface parameters at its three vertices.
+struct ParameterizedTriangles
+{
+    std::vector<TriangleSoupIndex::Triangle> triangles;
+    std::vector<std::array<Point2D, 3>> parameters;
+};
+
 struct Periodicity
 {
     bool inU = false;
@@ -80,7 +88,7 @@ size_t samplesPerDirectionFor(double diameter, double targetCellSize);
 Periodicity detectPeriodicity(const Geometry3D::ISurface3D& surface, const Common::BoundingBox2D& bounds,
                               double diameter);
 SampleGrid sampleSurface(const Geometry3D::ISurface3D& surface, const SampledDirection& u, const SampledDirection& v);
-std::vector<TriangleSoupIndex::Triangle> emitTriangles(const SampleGrid& grid);
+ParameterizedTriangles emitTriangles(const SampleGrid& grid);
 
 } // namespace
 
@@ -89,6 +97,7 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double ta
     if (targetCellSize <= 0.0)
     {
         triangles_.build({}); // no tessellation at all, not even a previous one
+        triangleParameters_.clear();
         return;
     }
 
@@ -100,14 +109,22 @@ void SurfaceTessellation::build(const Geometry3D::ISurface3D& surface, double ta
     auto u = sampledDirection(bounds.getUMin(), bounds.getUMax(), periodicity.inU, samplesPerDirection, GRID_JITTER_U);
     auto v = sampledDirection(bounds.getVMin(), bounds.getVMax(), periodicity.inV, samplesPerDirection, GRID_JITTER_V);
 
-    triangles_.build(emitTriangles(sampleSurface(surface, u, v)));
+    auto parameterizedTriangles = emitTriangles(sampleSurface(surface, u, v));
+    triangles_.build(parameterizedTriangles.triangles);
+    triangleParameters_ = std::move(parameterizedTriangles.parameters);
 }
 
-std::optional<Point3D> SurfaceTessellation::findCrossingNearest(const Point3D& segmentStart,
-                                                                const Point3D& segmentEnd,
-                                                                const Point3D& target) const
+std::optional<SurfaceTessellation::Crossing> SurfaceTessellation::findCrossingNearest(const Point3D& segmentStart,
+                                                                                      const Point3D& segmentEnd,
+                                                                                      const Point3D& target) const
 {
-    return triangles_.findCrossingNearest(segmentStart, segmentEnd, target);
+    auto crossing = triangles_.findCrossingNearest(segmentStart, segmentEnd, target);
+    if (!crossing) return std::nullopt;
+
+    auto& parameters = triangleParameters_[crossing->triangleIndex];
+    auto& weights = crossing->barycentricWeights;
+    Point2D uv = weights[0] * parameters[0] + weights[1] * parameters[1] + weights[2] * parameters[2];
+    return Crossing{crossing->point, uv};
 }
 
 namespace
@@ -214,14 +231,15 @@ SampleGrid sampleSurface(const Geometry3D::ISurface3D& surface, const SampledDir
 }
 
 // Two triangles per cell, split along the corner00--corner11 diagonal. The last cell of a periodic
-// direction wraps back onto column 0, leaving no gap at the seam.
+// direction wraps back onto column 0, leaving no gap at the seam; its parameters are unwrapped
+// (column `columns`, one period on from column 0), so interpolating across it stays continuous.
 //
 // A cell is kept if ANY corner is within the trim: requiring all four shrinks the tessellation
 // inward by up to a cell and opens gaps near ordinary edges. Over-including is safe, because
 // WeightedDualRestriction accepts a crossing only within the true trimmed patch.
-std::vector<TriangleSoupIndex::Triangle> emitTriangles(const SampleGrid& grid)
+ParameterizedTriangles emitTriangles(const SampleGrid& grid)
 {
-    std::vector<TriangleSoupIndex::Triangle> triangles;
+    ParameterizedTriangles emitted;
 
     for (size_t uCell = 0; uCell < grid.u.cells; ++uCell)
     {
@@ -239,12 +257,19 @@ std::vector<TriangleSoupIndex::Triangle> emitTriangles(const SampleGrid& grid)
                                        grid.withinTrim[corner01] || grid.withinTrim[corner11];
             if (!anyCornerWithinTrim) continue;
 
-            triangles.push_back({grid.points[corner00], grid.points[corner10], grid.points[corner11]});
-            triangles.push_back({grid.points[corner00], grid.points[corner11], grid.points[corner01]});
+            Point2D parameters00(grid.u.parameterAt(uCell), grid.v.parameterAt(vCell));
+            Point2D parameters10(grid.u.parameterAt(uCell + 1), grid.v.parameterAt(vCell));
+            Point2D parameters01(grid.u.parameterAt(uCell), grid.v.parameterAt(vCell + 1));
+            Point2D parameters11(grid.u.parameterAt(uCell + 1), grid.v.parameterAt(vCell + 1));
+
+            emitted.triangles.push_back({grid.points[corner00], grid.points[corner10], grid.points[corner11]});
+            emitted.parameters.push_back({parameters00, parameters10, parameters11});
+            emitted.triangles.push_back({grid.points[corner00], grid.points[corner11], grid.points[corner01]});
+            emitted.parameters.push_back({parameters00, parameters11, parameters01});
         }
     }
 
-    return triangles;
+    return emitted;
 }
 
 } // namespace

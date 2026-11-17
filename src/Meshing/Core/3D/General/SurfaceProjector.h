@@ -46,19 +46,19 @@ std::optional<Point3D> projectToSurface(const Point3D& point,
 
 /// Finds where @p surface crosses the segment [segmentStart, segmentEnd] — the
 /// restricted Voronoi vertex for a face whose dual Voronoi edge runs between
-/// the two (typically the circumcenters of the two tetrahedra sharing that
-/// face). Uses bisection on signedDistance(), so it works regardless of how
-/// curved the surface is between the endpoints.
+/// the two. Solves segmentStart + t (segmentEnd - segmentStart) = S(u, v) by
+/// Newton's method in (t, u, v) from @p seedUV, so the answer lies on the
+/// segment, and costs a few surface evaluations rather than CAD projections.
 ///
-/// Returns nullopt when the two endpoints are on the same side and so there is
-/// no crossing to bisect on. That is an ordinary outcome, not a caller error:
-/// restriction is decided by an independent tessellation crossing test, so a
-/// face may be restricted while this signed-distance test sees no sign change
-/// in the bracket it is given. WeightedDualRestriction then keeps the
-/// tessellation's own crossing.
+/// Returns nullopt when Newton does not converge, the segment is tangent to
+/// the surface, or the crossing it converges to lies off the segment. That is
+/// an ordinary outcome, not a caller error: restriction is decided by an
+/// independent tessellation crossing test, and WeightedDualRestriction then
+/// keeps the tessellation's own crossing.
 std::optional<Point3D> findSurfaceCrossing(const Point3D& segmentStart,
                                            const Point3D& segmentEnd,
-                                           const Geometry3D::ISurface3D& surface);
+                                           const Geometry3D::ISurface3D& surface,
+                                           const Point2D& seedUV);
 
 } // namespace SurfaceProjector
 

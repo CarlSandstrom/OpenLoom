@@ -29,6 +29,17 @@ struct PrincipalCurvatures
 };
 
 /**
+ * @brief A surface point and its two first partial derivatives at one
+ * parameter point (u, v).
+ */
+struct SurfaceDerivatives
+{
+    Meshing::Point3D point;
+    Meshing::Vector3D derivativeU;
+    Meshing::Vector3D derivativeV;
+};
+
+/**
  * @brief Abstract interface for geometric surfaces
  *
  * Provides methods for querying surface properties needed for meshing
@@ -40,6 +51,7 @@ public:
 
     virtual Meshing::Vector3D getNormal(double u, double v) const = 0;
     virtual Meshing::Point3D getPoint(double u, double v) const = 0;
+    virtual SurfaceDerivatives getFirstDerivatives(double u, double v) const = 0;
     virtual Common::BoundingBox2D getParameterBounds() const = 0;
     virtual double getGap(const Meshing::Point3D& point) const = 0;
     virtual Meshing::Point2D projectPoint(const Meshing::Point3D& point) const = 0;

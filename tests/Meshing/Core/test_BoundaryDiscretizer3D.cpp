@@ -75,6 +75,10 @@ public:
         return {0.0, 0.0, 1.0};
     }
     Point3D getPoint(double u, double v) const override { return Point3D(u, v, 0.0); }
+    Geometry3D::SurfaceDerivatives getFirstDerivatives(double u, double v) const override
+    {
+        return {getPoint(u, v), {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}};
+    }
     Common::BoundingBox2D getParameterBounds() const override
     {
         return Common::BoundingBox2D(0.0, 1.0, 0.0, 1.0);
