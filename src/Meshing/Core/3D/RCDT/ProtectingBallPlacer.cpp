@@ -28,6 +28,11 @@ constexpr double DISTANCE_DIVISOR = 2.1;
 constexpr int MAXIMUM_REPAIR_ROUNDS = 29;
 constexpr std::size_t REEVALUATE_SIZE_ABOVE = 10;
 
+// Beyond CGAL: neighbours along a curve sit this many radii apart, where CGAL
+// spaces them one radius apart. Below 2 they still overlap, and above 1 neither
+// centre lies inside the other's ball.
+constexpr double NEIGHBOUR_SPACING_FACTOR = 1.8;
+
 // A ball reaches at most half way to the nearest surface sharing no corner
 // with it, so the facets of that surface stay clear of the ball.
 constexpr double SURFACE_DISTANCE_DIVISOR = 2.0;
@@ -184,7 +189,8 @@ std::vector<Ball> insertBalls(const Curve& curve, const Ball& startBall, const B
         return {};
     auto smallRadius = std::min(startBall.radius, endBall.radius);
     auto largeRadius = std::max(startBall.radius, endBall.radius);
-    auto estimate = std::floor(2.0 * (span - largeRadius) / (smallRadius + largeRadius) + 0.5);
+    auto estimate = std::ceil(2.0 * (span - NEIGHBOUR_SPACING_FACTOR * largeRadius) /
+                              (NEIGHBOUR_SPACING_FACTOR * (smallRadius + largeRadius)));
     std::size_t ballCount = estimate > 0.0 ? static_cast<std::size_t>(estimate) : 0;
 
     // Place a ball at the midpoint with the local size first, so the size
