@@ -42,6 +42,11 @@ public:
         return {std::cos(u), std::sin(u), 0.0};
     }
 
+    Geometry3D::SurfaceDerivatives getFirstDerivatives(double u, double v) const override
+    {
+        return {getPoint(u, v), {-radius_ * std::sin(u), radius_ * std::cos(u), 0.0}, {0.0, 0.0, 1.0}};
+    }
+
     Common::BoundingBox2D getParameterBounds() const override
     {
         return Common::BoundingBox2D(0.0, 2.0 * M_PI, 0.0, height_);
@@ -164,4 +169,33 @@ TEST_F(SurfaceProjectorTest, ProjectToSurface_FarPoint_ProjectsCorrectly)
     EXPECT_NEAR(result->x(), RADIUS, 1e-10);
     EXPECT_NEAR(result->y(), 0.0, 1e-10);
     EXPECT_NEAR(result->z(), 1.0, 1e-10);
+}
+
+// ============================================================================
+// findSurfaceCrossing
+// ============================================================================
+
+TEST_F(SurfaceProjectorTest, FindSurfaceCrossing_ObliqueSegment_LandsOnSurfaceAndSegment)
+{
+    // An oblique segment through the curved wall, seeded a few cells' worth of
+    // parameter away from the answer, as a coarse tessellation would seed it.
+    const Point3D segmentStart(0.6, 0.3, 0.8);
+    const Point3D segmentEnd(1.4, 0.5, 1.1);
+    const Point2D seedUV(0.5, 0.8);
+
+    const auto crossing = SurfaceProjector::findSurfaceCrossing(segmentStart, segmentEnd, cylinder, seedUV);
+
+    ASSERT_TRUE(crossing.has_value());
+    EXPECT_NEAR(std::hypot(crossing->x(), crossing->y()), RADIUS, 1e-12);
+    const Vector3D direction = segmentEnd - segmentStart;
+    EXPECT_NEAR(direction.cross(*crossing - segmentStart).norm(), 0.0, 1e-12);
+}
+
+TEST_F(SurfaceProjectorTest, FindSurfaceCrossing_CrossingOffSegment_ReturnsNullopt)
+{
+    // The line through the segment crosses the wall at x = 1, past its end.
+    const Point3D segmentStart(0.2, 0.0, 1.0);
+    const Point3D segmentEnd(0.8, 0.0, 1.0);
+
+    EXPECT_FALSE(SurfaceProjector::findSurfaceCrossing(segmentStart, segmentEnd, cylinder, Point2D(0.0, 1.0)));
 }

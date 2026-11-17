@@ -3,7 +3,9 @@
 #include "Common/Types.h"
 #include "Meshing/Core/3D/General/TriangleSoupIndex.h"
 
+#include <array>
 #include <optional>
+#include <vector>
 
 namespace Geometry3D
 {
@@ -47,15 +49,26 @@ public:
     /// checks that an accepted crossing lies within the true trim boundary.
     void build(const Geometry3D::ISurface3D& surface, double targetCellSize);
 
+    /// A crossing of the tessellation and the surface parameters there,
+    /// interpolated linearly across the crossed triangle. Across a periodic
+    /// seam the parameters are unwrapped, so they may lie up to a cell past
+    /// the parameter bounds.
+    struct Crossing
+    {
+        Point3D point;
+        Point2D uv;
+    };
+
     /// Where the segment crosses this tessellation, nearest to target; see
     /// TriangleSoupIndex::findCrossingNearest(). The point lies on the
     /// tessellation, not exactly on the surface.
-    std::optional<Point3D> findCrossingNearest(const Point3D& segmentStart,
-                                               const Point3D& segmentEnd,
-                                               const Point3D& target) const;
+    std::optional<Crossing> findCrossingNearest(const Point3D& segmentStart,
+                                                const Point3D& segmentEnd,
+                                                const Point3D& target) const;
 
 private:
     TriangleSoupIndex triangles_;
+    std::vector<std::array<Point2D, 3>> triangleParameters_; // indexed like the soup's triangles
 };
 
 } // namespace Meshing
