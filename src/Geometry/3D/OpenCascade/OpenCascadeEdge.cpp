@@ -74,7 +74,7 @@ double OpenCascadeEdge::getLength() const
     BRepAdaptor_Curve curve(edge_);
     auto [parameterMin, parameterMax] = getParameterBounds();
 
-    double length = GCPnts_AbscissaPoint::Length(curve, parameterMin, parameterMax);
+    double length = GCPnts_AbscissaPoint::Length(curve, parameterMin, parameterMax, Precision::Confusion());
 
     if (length > Precision::Confusion())
     {
@@ -88,14 +88,14 @@ double OpenCascadeEdge::getLength() const
 double OpenCascadeEdge::getParameterAtArcLengthFraction(double parameterStart, double parameterEnd, double fraction) const
 {
     BRepAdaptor_Curve curve(edge_);
-    double totalLength = GCPnts_AbscissaPoint::Length(curve, parameterStart, parameterEnd);
+    double totalLength = GCPnts_AbscissaPoint::Length(curve, parameterStart, parameterEnd, Precision::Confusion());
 
     if (totalLength <= Precision::Confusion())
     {
         return parameterStart + fraction * (parameterEnd - parameterStart);
     }
 
-    GCPnts_AbscissaPoint solver(curve, fraction * totalLength, parameterStart);
+    GCPnts_AbscissaPoint solver(Precision::Confusion(), curve, fraction * totalLength, parameterStart);
     return solver.Parameter();
 }
 
