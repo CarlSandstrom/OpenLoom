@@ -20,7 +20,8 @@ namespace Meshing
  */
 struct SurfaceMesh3D
 {
-    /// Global node coordinates. Index in vector == node ID.
+    /// Global node coordinates. Index in vector == node ID. Every node is used
+    /// by a triangle or an edge chain.
     std::vector<Point3D> nodes;
 
     /// Surface triangles as node ID triplets. Index in vector == triangle ID.

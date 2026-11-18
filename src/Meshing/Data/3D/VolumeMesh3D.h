@@ -22,7 +22,8 @@ namespace Meshing
  */
 struct VolumeMesh3D
 {
-    /// Global node coordinates. Index in vector == node ID.
+    /// Global node coordinates. Index in vector == node ID. Every node is used
+    /// by a tetrahedron, a boundary triangle or a boundary edge chain.
     std::vector<Point3D> nodes;
 
     /// Tetrahedra as node ID quadruplets. Index in vector == tetrahedron ID.
