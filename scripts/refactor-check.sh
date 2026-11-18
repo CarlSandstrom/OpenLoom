@@ -41,6 +41,7 @@ FAST_EXAMPLES=(
 FULL_EXAMPLES=(
     "3D/Surface/BoxWithHoleSurface"
     "3D/Volume/BoxWithHole"
+    "3D/Volume/ThinCapBoxVolume"  # 1 mm cap, slivers (OPE-12)
     "3D/Surface/SaddleSurfaceMesh"
 )
 

@@ -45,6 +45,7 @@ set(TEST_SOURCES
     Meshing/Core/test_RCDTMesher.cpp
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
+    Meshing/Core/test_SliverExuder.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
     Meshing/Core/test_UnreferencedNodeRemover.cpp
     Meshing/Core/test_MeshSnapshotWriter.cpp
@@ -101,7 +102,7 @@ include(GoogleTest)
 # loop can skip them (ctest -j$(nproc) -LE slow) and run them before a commit.
 set(SLOW_TEST_FILTER
     "RCDTMesherTorusTest.*:RCDTMesherSphereTest.*:RCDTMesherCylinderTest.*"
-    ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*"
+    ":VolumeMesher3DBoxWithHoleTest.*:RCDTMesherVolumeWithHoleInBoundaryTest.*:SizingFieldBuilder3DTest.*:SliverExuderTest.*"
     ":ShewchukRefiner2D.*CurvedConstraintSplitProducesValidMesh"
     ":ShewchukRefiner2D.SquareWithInternalCirclesTerminates")
 string(JOIN "" SLOW_TEST_FILTER ${SLOW_TEST_FILTER})

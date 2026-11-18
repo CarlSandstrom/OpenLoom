@@ -116,13 +116,14 @@ std::vector<Point3D> proposeSmoothedPositions(const Geometry3D::GeometryCollecti
 void SurfaceMeshSmoother::smooth(const Geometry3D::GeometryCollection3D& geometry,
                                  SurfaceMesh3D& mesh,
                                  std::size_t iterations,
-                                 const std::vector<std::array<NodeId, 4>>& tetrahedra)
+                                 const std::vector<std::array<NodeId, 4>>& tetrahedra,
+                                 double sliverAngleDegrees)
 {
     if (mesh.nodes.empty() || iterations == 0)
         return;
 
     auto neighborhood = buildNeighborhood(mesh);
-    TetrahedronInversionGuard inversionGuard(tetrahedra);
+    TetrahedronInversionGuard inversionGuard(tetrahedra, sliverAngleDegrees);
 
     // Each iteration is a proposal the guard then vetoes moves out of: the
     // surface half decides where nodes want to go, the volume half decides

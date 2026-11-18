@@ -44,12 +44,14 @@ class SurfaceMeshSmoother
 {
 public:
     /// Smooths mesh in place, running the given number of Laplacian sweeps.
-    /// tetrahedra index into mesh.nodes and must not be inverted by any sweep;
-    /// empty when the surface bounds no volume mesh.
+    /// tetrahedra index into mesh.nodes and must not be inverted by any sweep,
+    /// nor pushed below sliverAngleDegrees and made worse (0: no sliver
+    /// guard); empty when the surface bounds no volume mesh.
     static void smooth(const Geometry3D::GeometryCollection3D& geometry,
                        SurfaceMesh3D& mesh,
                        std::size_t iterations,
-                       const std::vector<std::array<NodeId, 4>>& tetrahedra);
+                       const std::vector<std::array<NodeId, 4>>& tetrahedra,
+                       double sliverAngleDegrees);
 };
 
 } // namespace Meshing

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common/Types.h"
+#include <array>
 #include <optional>
 
 namespace Meshing
@@ -34,6 +35,11 @@ public:
     /// line carrying the triangle's dual power-diagram edge. Returns nullopt
     /// if the triangle is degenerate.
     std::optional<Point3D> computeOrthocenter(const TriangleElement& element) const;
+
+    /// The smallest of a tetrahedron's six dihedral angles, in degrees: 0
+    /// for a flat one. Slivers have well-shaped faces and a radius-edge
+    /// ratio near the ideal, so this is the measure that finds them.
+    static double computeMinimumDihedralAngle(const std::array<Point3D, 4>& points);
 
 private:
     const MeshData3D& mesh_;

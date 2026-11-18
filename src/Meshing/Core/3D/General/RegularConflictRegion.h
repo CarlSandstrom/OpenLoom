@@ -38,6 +38,17 @@ std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
 /// hidden point is not a vertex of the regular triangulation, so inserting it
 /// breaks the triangulation; a coincident one duplicates a node. CGAL's
 /// insert refuses both.
+/// The tetrahedra that vertex's weight rising to newWeight destroys: every
+/// tetrahedron incident to vertex (raising its weight puts the vertex inside
+/// their orthospheres, flat ones included, which the orthosphere test cannot
+/// decide), grown across shared faces into every tetrahedron whose
+/// orthosphere the reweighted vertex lies inside. newWeight must exceed the
+/// vertex's current weight.
+std::vector<ElementId> findForWeightIncrease(NodeId vertex,
+                                             double newWeight,
+                                             const MeshData3D& meshData,
+                                             const MeshConnectivity& connectivity);
+
 bool isHiddenOrDuplicate(const Point3D& point, const std::vector<ElementId>& region, const MeshData3D& meshData);
 
 } // namespace RegularConflictRegion

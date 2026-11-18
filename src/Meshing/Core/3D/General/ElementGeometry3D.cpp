@@ -9,6 +9,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 namespace Meshing
 {
@@ -56,6 +57,26 @@ std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TetrahedronEl
     if (!offset) offset = solveFlatOrthocenterOffset(nodes);
     if (!offset) return std::nullopt;
     return Point3D(nodes[0]->getCoordinates() + *offset);
+}
+
+double ElementGeometry3D::computeMinimumDihedralAngle(const std::array<Point3D, 4>& points)
+{
+    double minimum = 180.0;
+    for (int i = 0; i < 4; ++i)
+        for (int j = i + 1; j < 4; ++j)
+        {
+            int k = 0;
+            while (k == i || k == j) ++k;
+            int l = 6 - i - j - k;
+            Vector3D edge = points[j] - points[i];
+            Vector3D normal0 = edge.cross(points[k] - points[i]);
+            Vector3D normal1 = edge.cross(points[l] - points[i]);
+            auto denominator = normal0.norm() * normal1.norm();
+            if (!(denominator > 0.0)) return 0.0;
+            auto cosine = std::clamp(normal0.dot(normal1) / denominator, -1.0, 1.0);
+            minimum = std::min(minimum, std::acos(cosine) * 180.0 / std::numbers::pi);
+        }
+    return minimum;
 }
 
 std::optional<Point3D> ElementGeometry3D::computeOrthocenter(const TriangleElement& element) const

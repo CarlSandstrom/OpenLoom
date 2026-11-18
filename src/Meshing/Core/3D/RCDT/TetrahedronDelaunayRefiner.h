@@ -57,6 +57,9 @@ public:
     /// The restricted facets of the level below; valid once refine() has run.
     RestrictedFaceMap getRestrictedFaces() const { return surfaceRefiner_.getRestrictedFaces(); }
 
+    /// The restriction test of the level below.
+    const WeightedDualRestriction& getRestriction() const { return surfaceRefiner_.getRestriction(); }
+
 private:
     MeshingContext3D* context_;
     SurfaceDelaunayRefiner surfaceRefiner_;

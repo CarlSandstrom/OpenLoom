@@ -96,6 +96,9 @@ public:
 
     std::size_t getInsertionCount() const { return insertionCount_; }
 
+    /// The restriction test the refiner classifies faces with.
+    const WeightedDualRestriction& getRestriction() const { return restriction_; }
+
     /// Writes the current restricted facets as a snapshot labelled label. Does
     /// nothing unless MeshSnapshotWriter is enabled; read-only on the mesh.
     void writeSnapshot(const std::string& label) const;
