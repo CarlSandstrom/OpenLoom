@@ -140,6 +140,7 @@ No bad facet and no bad tetrahedron remain, or the iteration cap is hit.
 2. **Ambient removal** (`AmbientTetrahedronClassifier`, `AmbientTetrahedronRemover`) — one flood fill from the bounding supertet, crossing only non-restricted faces, reaching the true exterior and any interior voids at once. Strips everything reached, plus the supertet's own four nodes.
 3. **Extraction** (`RCDTMeshExtractor`) — collect the restricted faces (surface) or the surviving tetrahedra (volume) into `SurfaceMesh3D` / `VolumeMesh3D`. Adjacent CAD surfaces share boundary nodes automatically, same as the historical path, because they are faces of the one shared tetrahedralization.
 4. **Smoothing** (`SurfaceMeshSmoother`, `TetrahedronInversionGuard`) — *new relative to the historical path*. Laplacian smoothing with re-projection onto the owning CAD surface; corner/curve vertices never move. For a volume, every proposed move is checked against inverting any incident tetrahedron — judged with all four of its nodes at their proposed positions at once — before being kept.
+5. **Node compaction** (`UnreferencedNodeRemover`) — extraction and smoothing index the output nodes by mesh node ID, so the output still has a slot for every ID ever used: the removed supertet nodes (zero-filled), and any vertex no restricted face uses. The last step drops every node no triangle, tetrahedron or edge chain references, and renumbers the rest densely in their original order.
 
 ---
 

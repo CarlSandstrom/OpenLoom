@@ -9,6 +9,7 @@
 #include "Meshing/Core/3D/General/MeshingContext3D.h"
 #include "Meshing/Core/3D/General/SizingField3D.h"
 #include "Meshing/Core/3D/General/SurfaceMeshSmoother.h"
+#include "Meshing/Core/3D/General/UnreferencedNodeRemover.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronRemover.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
@@ -116,6 +117,7 @@ void RCDTMesher::meshVolume()
     // extractVolumeMesh() reads.
     volumeMesh_ = std::make_unique<VolumeMesh3D>(
         RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_));
+    UnreferencedNodeRemover::remove(*volumeMesh_);
 }
 
 const SurfaceMesh3D* RCDTMesher::getSurfaceMesh() const
@@ -141,6 +143,9 @@ void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
         RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
     // Meshing step 9: smooth
     smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
+    // Smoothing writes back to the live mesh by node ID, so the output is only
+    // renumbered once it is done.
+    UnreferencedNodeRemover::remove(*surfaceMesh_);
     if (qualitySettings_.smoothingIterations > 0 && MeshSnapshotWriter::isEnabled())
         MeshSnapshotWriter::write("smoothed", SnapshotGridBuilder::fromSurfaceMesh(*surfaceMesh_));
 }

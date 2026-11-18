@@ -45,6 +45,7 @@ set(TEST_SOURCES
     Meshing/Core/test_RCDTMesherBox.cpp
     Meshing/Core/test_VolumeMesher3DBoxWithHole.cpp
     Meshing/Core/test_SurfaceMesh3D.cpp
+    Meshing/Core/test_UnreferencedNodeRemover.cpp
     Meshing/Core/test_MeshSnapshotWriter.cpp
     Meshing/Core/test_CurveSegmentManager.cpp
     Meshing/Core/test_NonIncidentSurfaceDistance.cpp
