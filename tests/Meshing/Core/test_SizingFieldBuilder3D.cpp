@@ -7,12 +7,14 @@
 #include <BRepPrimAPI_MakeCylinder.hxx>
 #include <BRepPrimAPI_MakeWedge.hxx>
 #include <TopoDS_Shape.hxx>
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <gp_Ax2.hxx>
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 #include <memory>
+#include <numbers>
 
 using Meshing::Point3D;
 using Meshing::SizingFieldBuilder3D;
@@ -115,7 +117,8 @@ TEST(SizingFieldBuilder3DTest, ClosedSeamCurveIsNotMistakenForAThinFeature)
     // route between them the long way round makes the seam look like a gap of
     // zero width, which collapses the whole field onto its minimum-size floor.
     // On this cylinder nothing is finer than the curved wall demands, so the
-    // smallest source must be the wall's own curvature answer.
+    // smallest source must be the wall's own curvature answer: the smaller of
+    // the chord-deviation and turning-angle sizes.
     constexpr double RADIUS = 3.0;
     constexpr double TOLERANCE = 0.1;
 
@@ -129,7 +132,31 @@ TEST(SizingFieldBuilder3DTest, ClosedSeamCurveIsNotMistakenForAThinFeature)
     const auto field =
         SizingFieldBuilder3D::build(converter->getGeometryCollection(), converter->getTopology(), settings);
 
-    EXPECT_NEAR(field.getMinimumSourceSize(), std::sqrt(8.0 * TOLERANCE * RADIUS), 1e-6);
+    EXPECT_NEAR(field.getMinimumSourceSize(),
+                std::min(std::sqrt(8.0 * TOLERANCE * RADIUS), settings.maximumTurningAngle * RADIUS), 1e-6);
+}
+
+TEST(SizingFieldBuilder3DTest, TurningAngleBoundsSizeWhereChordDeviationIsLoose)
+{
+    // Chord deviation is an absolute bound, so on a radius large against the
+    // tolerance it allows elements that turn through a large angle. The
+    // turning-angle bound is scale-free and takes over there: on this
+    // cylinder sqrt(8 * 0.1 * 3) = 1.55 lets a segment turn 30 degrees, and
+    // the pi/16 angle bound asks for 3 * pi/16 = 0.59 instead.
+    constexpr double RADIUS = 3.0;
+
+    auto converter = convert(
+        BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0)), RADIUS, 8.0)
+            .Shape());
+
+    SizingFieldSettings3D settings;
+    settings.chordDeviationTolerance = 0.1;
+    settings.maximumTurningAngle = std::numbers::pi / 16.0;
+
+    const auto field =
+        SizingFieldBuilder3D::build(converter->getGeometryCollection(), converter->getTopology(), settings);
+
+    EXPECT_NEAR(field.getMinimumSourceSize(), settings.maximumTurningAngle * RADIUS, 1e-6);
 }
 
 TEST(SizingFieldBuilder3DTest, FieldIsGradientLimitedAcrossTheWholeModel)
