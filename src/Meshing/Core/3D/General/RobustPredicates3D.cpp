@@ -25,6 +25,7 @@ std::optional<int> fastOrientationSign(const Point3D& point0,
                                        const Point3D& point2,
                                        const Point3D& point3);
 int exactOrientationSign(const Point3D& point0, const Point3D& point1, const Point3D& point2, const Point3D& point3);
+int halfOpenPlaneSide(const Point3D& vertex0, const Point3D& vertex1, const Point3D& vertex2, const Point3D& point);
 
 } // namespace
 
@@ -44,10 +45,11 @@ bool RobustPredicates3D::segmentCrossesTriangle(const Point3D& segmentStart,
                                                 const Point3D& vertex1,
                                                 const Point3D& vertex2)
 {
-    // The segment's ends must be strictly on opposite sides of the triangle's
-    // plane. Equal signs also correctly rejects the coplanar case (both 0).
-    int startSide = orientationSign(vertex0, vertex1, vertex2, segmentStart);
-    int endSide = orientationSign(vertex0, vertex1, vertex2, segmentEnd);
+    // The segment's ends must be on opposite sides of the triangle's plane,
+    // an end lying in it counting as on its positive side. Equal sides also
+    // reject the coplanar case.
+    int startSide = halfOpenPlaneSide(vertex0, vertex1, vertex2, segmentStart);
+    int endSide = halfOpenPlaneSide(vertex0, vertex1, vertex2, segmentEnd);
     if (startSide == endSide)
         return false;
 
@@ -111,6 +113,16 @@ int exactOrientationSign(const Point3D& point0, const Point3D& point1, const Poi
     }
 
     return ExactArithmetic3D::expansionSign(ExactArithmetic3D::det3x3(matrix));
+}
+
+// The side of the triangle's plane the point lies on, a point exactly in the plane counting as
+// on the positive side. A dual edge can end at an orthocenter that lies on a planar face to
+// within rounding -- the exact one may be closer than one ulp -- and every face around it then
+// has a dual edge ending there. Assigning the end one side decides all of them consistently, so
+// exactly the faces whose other end lies opposite are crossed (OPE-214).
+int halfOpenPlaneSide(const Point3D& vertex0, const Point3D& vertex1, const Point3D& vertex2, const Point3D& point)
+{
+    return RobustPredicates3D::orientationSign(vertex0, vertex1, vertex2, point) < 0 ? -1 : 1;
 }
 
 } // namespace
