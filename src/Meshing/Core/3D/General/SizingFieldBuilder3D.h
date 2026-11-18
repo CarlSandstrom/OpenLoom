@@ -3,6 +3,7 @@
 #include "Meshing/Core/3D/General/SizingField3D.h"
 
 #include <cstddef>
+#include <numbers>
 
 namespace Geometry3D
 {
@@ -26,6 +27,14 @@ struct SizingFieldSettings3D
     /// should agree -- the sizing field exists so that refinement's size
     /// target and the geometry's own demands are one number rather than two.
     double chordDeviationTolerance = 0.1;
+
+    /// Maximum angle, in radians, the geometry may turn across one element.
+    /// Chord deviation alone is an absolute bound and goes blind on large
+    /// radii relative to the tolerance; the angle bound is scale-free, so the
+    /// two are independent and the smaller wins (Gmsh's elements per full
+    /// turn: 2*pi / maximumTurningAngle). The default matches the pi/8 the
+    /// examples discretize their curves with.
+    double maximumTurningAngle = std::numbers::pi / 8.0;
 
     /// Maximum fractional change in element size per unit length. Smaller
     /// grades more smoothly and costs more elements; 0.2-0.5 is the usual
@@ -56,10 +65,11 @@ struct SizingFieldSettings3D
  *
  * Combines the two independent things that force elements to be small:
  *
- *  - **Curvature**, inverted through the chord-deviation tolerance. A chord
- *    of length h across a curve of radius r = 1/kappa stands off it by about
- *    h^2 * kappa / 8, so holding that to `tolerance` means
- *    h = sqrt(8 * tolerance / kappa). Curves use IEdge3D::getCurvature();
+ *  - **Curvature**, inverted through the chord-deviation tolerance and the
+ *    turning angle. A chord of length h across a curve of radius
+ *    r = 1/kappa stands off it by about h^2 * kappa / 8, so holding that to
+ *    `tolerance` means h = sqrt(8 * tolerance / kappa); turning by at most
+ *    `angle` means h = angle / kappa. The smaller of the two is taken. Curves use IEdge3D::getCurvature();
  *    surfaces use the larger principal curvature magnitude from
  *    ISurface3D::getPrincipalCurvatures().
  *  - **Local feature size**, from LocalFeatureSize3D -- how close unrelated

@@ -23,7 +23,7 @@ struct GeometrySamples
     std::vector<double> curvatureSizes;
 };
 
-double sizeFromCurvature(double curvature, double tolerance);
+double sizeFromCurvature(double curvature, const SizingFieldSettings3D& settings);
 double stationParameter(double minimum, double maximum, std::size_t station, std::size_t stationCount);
 double boundingBoxDiagonal(const std::vector<FeatureSample>& samples);
 void appendCurveSamples(const Geometry3D::GeometryCollection3D& geometry,
@@ -56,12 +56,14 @@ SizingField3D SizingFieldBuilder3D::build(const Geometry3D::GeometryCollection3D
 namespace
 {
 
-// Infinite where the geometry is straight or flat, which means "no size limit", not "zero".
-double sizeFromCurvature(double curvature, double tolerance)
+// The smaller of the chord-deviation size and the turning-angle size. Infinite
+// where the geometry is straight or flat, which means "no size limit", not "zero".
+double sizeFromCurvature(double curvature, const SizingFieldSettings3D& settings)
 {
     if (!(curvature > 0.0) || !std::isfinite(curvature)) return std::numeric_limits<double>::infinity();
 
-    return std::sqrt(8.0 * tolerance / curvature);
+    return std::min(std::sqrt(8.0 * settings.chordDeviationTolerance / curvature),
+                    settings.maximumTurningAngle / curvature);
 }
 
 double stationParameter(double minimum, double maximum, std::size_t station, std::size_t stationCount)
@@ -114,7 +116,7 @@ void appendCurveSamples(const Geometry3D::GeometryCollection3D& geometry,
 
             result.samples.push_back({position, edgeId, arcLength, true});
             result.curvatureSizes.push_back(
-                sizeFromCurvature(edge->getCurvature(t), settings.chordDeviationTolerance));
+                sizeFromCurvature(edge->getCurvature(t), settings));
         }
     }
 }
@@ -149,7 +151,7 @@ void appendSurfaceSamples(const Geometry3D::GeometryCollection3D& geometry,
                 double curvature = curvatures.has_value() ? std::max(std::abs(curvatures->minimum), std::abs(curvatures->maximum)) : 0.0;
 
                 result.samples.push_back({surface->getPoint(u, v), surfaceId, 0.0, false});
-                result.curvatureSizes.push_back(sizeFromCurvature(curvature, settings.chordDeviationTolerance));
+                result.curvatureSizes.push_back(sizeFromCurvature(curvature, settings));
             }
         }
     }
