@@ -20,9 +20,13 @@ public:
     /// point with equal power distance |x - p|^2 - w to all four weighted
     /// vertices. In a regular triangulation this, not the circumcenter, is the
     /// element's vertex of the dual power diagram. Equals the circumcenter
-    /// when every weight is 0. A tetrahedron flat to rounding gets the
-    /// equal-power point in its plane; nullopt only when three of its vertices
-    /// are collinear.
+    /// when every weight is 0. Computed in floating point when a rounding
+    /// error bound certifies the result, and with exact determinants
+    /// otherwise, so even a sliver's orthocenter is accurate and on the
+    /// correct side of any surface its vertices lie on (OPE-214). An exactly
+    /// flat
+    /// tetrahedron gets the equal-power point in its plane; nullopt only when
+    /// three of its vertices are collinear.
     std::optional<Point3D> computeOrthocenter(const TetrahedronElement& element) const;
 
     /// The weighted circumcenter of a triangle: the point in its plane with

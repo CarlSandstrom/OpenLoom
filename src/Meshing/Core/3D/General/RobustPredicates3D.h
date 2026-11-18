@@ -43,9 +43,12 @@ public:
     /// triangle (vertex0,vertex1,vertex2), exactly, built entirely from
     /// orientationSign(): the segment's ends must be on opposite sides of the
     /// triangle's plane, and the orientation of the segment against each of
-    /// the triangle's 3 edges must agree in sign. A segment that only touches
-    /// the triangle's plane, an edge, or a vertex (any of those orientation
-    /// tests landing exactly on 0) is not a crossing: returns false.
+    /// the triangle's 3 edges must agree in sign. The plane test is half-open:
+    /// an end lying exactly in the plane counts as on its positive side, so a
+    /// segment ending there crosses only when its other end is on the
+    /// negative side. A segment lying in the plane, or passing through an
+    /// edge or a vertex (an edge orientation test landing exactly on 0), is
+    /// not a crossing: returns false.
     ///
     /// Reducing "does this segment cross surface S" to "does it cross any
     /// triangle in a fixed tessellation of S" (SurfaceTessellation) turns a

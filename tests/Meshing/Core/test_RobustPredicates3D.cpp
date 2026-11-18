@@ -100,6 +100,24 @@ TEST(RobustPredicates3DTest, SegmentCrossesTriangle_CoplanarSegment_ReturnsFalse
     EXPECT_FALSE(RobustPredicates3D::segmentCrossesTriangle(p, q, a, b, c));
 }
 
+// An end exactly in the plane counts as on its positive side -- for this
+// counter-clockwise triangle seen from +z, the side below it. OPE-214: every
+// face around an orthocenter lying on a planar face has a dual edge ending
+// there; counting all of them as crossings restricted all four faces of a flat
+// sliver, while one side per end restricts exactly two.
+TEST(RobustPredicates3DTest, SegmentCrossesTriangle_EndInPlane_CountsAsOnThePositiveSide)
+{
+    const Point3D a(0.0, 0.0, 0.0);
+    const Point3D b(1.0, 0.0, 0.0);
+    const Point3D c(0.0, 1.0, 0.0);
+    const Point3D endInPlane(0.2, 0.2, 0.0);
+
+    EXPECT_EQ(RobustPredicates3D::orientationSign(a, b, c, Point3D(0.2, 0.2, -1.0)), 1);
+    EXPECT_FALSE(RobustPredicates3D::segmentCrossesTriangle(endInPlane, Point3D(0.2, 0.2, -1.0), a, b, c));
+    EXPECT_TRUE(RobustPredicates3D::segmentCrossesTriangle(endInPlane, Point3D(0.2, 0.2, 1.0), a, b, c));
+    EXPECT_TRUE(RobustPredicates3D::segmentCrossesTriangle(Point3D(0.2, 0.2, 1.0), endInPlane, a, b, c));
+}
+
 TEST(RobustPredicates3DTest, SegmentCrossesTriangle_TouchesVertex_ReturnsFalse)
 {
     // The plane crossing point coincides exactly with vertex a -- an edge
