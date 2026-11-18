@@ -62,6 +62,10 @@ public:
     /// component alone determines the sign of the whole sum.
     static int expansionSign(const Expansion& expansion);
 
+    /// The expansion rounded to one double: its components summed from the
+    /// smallest, which is within a few ulps of the exact value.
+    static double estimate(const Expansion& expansion);
+
     static Expansion det2x2(const Expansion& a, const Expansion& b, const Expansion& c, const Expansion& d);
     static Expansion det3x3(const Expansion m[3][3]);
 

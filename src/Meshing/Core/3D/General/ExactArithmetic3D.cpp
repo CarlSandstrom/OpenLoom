@@ -99,6 +99,14 @@ int ExactArithmetic3D::expansionSign(const Expansion& expansion)
     return expansion.back() > 0.0 ? 1 : -1;
 }
 
+double ExactArithmetic3D::estimate(const Expansion& expansion)
+{
+    double sum = 0.0;
+    for (double component : expansion)
+        sum += component;
+    return sum;
+}
+
 ExactArithmetic3D::Expansion ExactArithmetic3D::det2x2(const Expansion& a, const Expansion& b, const Expansion& c,
                                                        const Expansion& d)
 {
