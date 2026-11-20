@@ -167,3 +167,51 @@ TEST_F(ElementGeometry2DTest, ComputeMinAngleForEquilateral)
 
     EXPECT_NEAR(minAngle, M_PI / 3.0, TOLERANCE);
 }
+
+TEST_F(ElementGeometry2DTest, ComputeTriangleAnglesForCollinearTriangleAreFinite)
+{
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(0.1, 0.0);
+    NodeId n2 = addNode(0.3, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry2D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
+
+    auto angles = geometry.computeTriangleAngles(*element);
+
+    EXPECT_NEAR(angles[0], 0.0, TOLERANCE);
+    EXPECT_NEAR(angles[1], M_PI, TOLERANCE);
+    EXPECT_NEAR(angles[2], 0.0, TOLERANCE);
+}
+
+TEST_F(ElementGeometry2DTest, ComputeCircumcircleForTinyTriangle)
+{
+    // A well-shaped triangle a micrometre across, as in a model drawn in metres.
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1e-6, 0.0);
+    NodeId n2 = addNode(0.0, 1e-6);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry2D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
+
+    auto circle = geometry.computeCircumcircle(*element);
+
+    ASSERT_TRUE(circle.has_value());
+    EXPECT_NEAR(circle->center.x(), 0.5e-6, 1e-15);
+    EXPECT_NEAR(circle->center.y(), 0.5e-6, 1e-15);
+}
+
+TEST_F(ElementGeometry2DTest, ComputeCircumcircleForNearlyCollinearTriangleReturnsNothing)
+{
+    NodeId n0 = addNode(0.0, 0.0);
+    NodeId n1 = addNode(1000.0, 1e-12);
+    NodeId n2 = addNode(2000.0, 0.0);
+    addTriangle(n0, n1, n2);
+
+    ElementGeometry2D geometry(meshData_);
+    const auto* element = dynamic_cast<const TriangleElement*>(meshData_.getElement(ElementId{0}));
+
+    EXPECT_FALSE(geometry.computeCircumcircle(*element).has_value());
+}

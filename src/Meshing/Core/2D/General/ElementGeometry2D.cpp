@@ -13,9 +13,12 @@ namespace Meshing
 
 namespace
 {
+constexpr double COLLINEAR_ASPECT_RATIO = 1e-10;
+
 std::optional<Circle2D> computeCircumcircleFromPoints(const Point2D& point0, const Point2D& point1,
                                                       const Point2D& point2);
 Point2D computeCentroidFromPoints(const Point2D& point0, const Point2D& point1, const Point2D& point2);
+double angleAt(const Point2D& vertex, const Point2D& next, const Point2D& previous);
 } // namespace
 
 ElementGeometry2D::ElementGeometry2D(const MeshData2D& mesh) :
@@ -51,17 +54,7 @@ double ElementGeometry2D::computeArea(const TriangleElement& element) const
 std::array<double, 3> ElementGeometry2D::computeTriangleAngles(const TriangleElement& element) const
 {
     auto [point0, point1, point2] = getElementNodeCoordinates(element);
-
-    // Law of cosines; lengthN is the side opposite pointN.
-    double length0 = GeometryUtilities2D::computeEdgeLength(point1, point2);
-    double length1 = GeometryUtilities2D::computeEdgeLength(point0, point2);
-    double length2 = GeometryUtilities2D::computeEdgeLength(point0, point1);
-
-    double angle0 = std::acos((length1 * length1 + length2 * length2 - length0 * length0) / (2.0 * length1 * length2));
-    double angle1 = std::acos((length0 * length0 + length2 * length2 - length1 * length1) / (2.0 * length0 * length2));
-    double angle2 = std::acos((length0 * length0 + length1 * length1 - length2 * length2) / (2.0 * length0 * length1));
-
-    return {angle0, angle1, angle2};
+    return {angleAt(point0, point1, point2), angleAt(point1, point2, point0), angleAt(point2, point0, point1)};
 }
 
 double ElementGeometry2D::computeMinAngle(const TriangleElement& element) const
@@ -129,12 +122,16 @@ std::optional<Circle2D> computeCircumcircleFromPoints(const Point2D& point0, con
     double offset2X = point2.x() - point0.x();
     double offset2Y = point2.y() - point0.y();
 
-    double denominator = 2.0 * (offset1X * offset2Y - offset1Y * offset2X);
-
-    if (std::abs(denominator) < 1e-10) return std::nullopt;
-
     double offset1SquaredLength = offset1X * offset1X + offset1Y * offset1Y;
     double offset2SquaredLength = offset2X * offset2X + offset2Y * offset2Y;
+    double longestSquaredLength =
+        std::max({offset1SquaredLength, offset2SquaredLength, (point2 - point1).squaredNorm()});
+
+    // Nearly collinear vertices have no meaningful circumcircle. Twice the area
+    // over the longest edge squared is the triangle's height-to-length ratio,
+    // so the test does not depend on the model's scale.
+    double denominator = 2.0 * (offset1X * offset2Y - offset1Y * offset2X);
+    if (std::abs(denominator) <= 2.0 * COLLINEAR_ASPECT_RATIO * longestSquaredLength) return std::nullopt;
 
     double centerOffsetX = (offset2Y * offset1SquaredLength - offset1Y * offset2SquaredLength) / denominator;
     double centerOffsetY = (offset1X * offset2SquaredLength - offset2X * offset1SquaredLength) / denominator;
@@ -149,6 +146,18 @@ std::optional<Circle2D> computeCircumcircleFromPoints(const Point2D& point0, con
 Point2D computeCentroidFromPoints(const Point2D& point0, const Point2D& point1, const Point2D& point2)
 {
     return Point2D((point0.x() + point1.x() + point2.x()) / 3.0, (point0.y() + point1.y() + point2.y()) / 3.0);
+}
+
+// The interior angle at vertex, in [0, pi]. atan2 of the cross and dot products
+// stays accurate for small and near-straight angles, where acos of the law of
+// cosines loses precision and can leave its domain (NaN); a zero-length edge
+// gives 0.
+double angleAt(const Point2D& vertex, const Point2D& next, const Point2D& previous)
+{
+    Point2D toNext = next - vertex;
+    Point2D toPrevious = previous - vertex;
+    double cross = toNext.x() * toPrevious.y() - toNext.y() * toPrevious.x();
+    return std::atan2(std::abs(cross), toNext.dot(toPrevious));
 }
 
 } // namespace
