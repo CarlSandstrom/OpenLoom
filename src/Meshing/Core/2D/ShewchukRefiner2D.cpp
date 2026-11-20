@@ -181,6 +181,21 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangl
 
     Point2D circumcenter = optionalCircumcenter.value();
 
+    // Per Ruppert: a circumcenter that would encroach a visible subsegment is
+    // rejected, and the subsegment is split instead. This comes before the
+    // domain test: a circumcenter outside the domain encroaches the boundary
+    // subsegment between it and the triangle, and splitting that is how the
+    // triangle gets refined.
+    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
+
+    if (!encroachedByCircumcenter.empty())
+    {
+        spdlog::debug("ShewchukRefiner2D: Circumcenter would encroach {} segments, splitting them first",
+                      encroachedByCircumcenter.size());
+
+        return handleEncroachedSegment(encroachedByCircumcenter[0]);
+    }
+
     if (!context_->getOperations().getQueries().isPointInsideDomain(circumcenter))
     {
         spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) is outside domain or in hole, skipping",
@@ -191,18 +206,6 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangl
     // A circumcenter can land on a circle center where a node already sits,
     // and Bowyer-Watson cannot insert a duplicate point.
     if (coincidesWithExistingNode(context_->getMeshData(), circumcenter)) return false;
-
-    // Per Ruppert: a circumcenter that would encroach a visible subsegment is
-    // rejected, and the subsegment is split instead.
-    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
-
-    if (!encroachedByCircumcenter.empty())
-    {
-        spdlog::debug("ShewchukRefiner2D: Circumcenter would encroach {} segments, splitting them first",
-                      encroachedByCircumcenter.size());
-
-        return handleEncroachedSegment(encroachedByCircumcenter[0]);
-    }
 
     spdlog::debug("ShewchukRefiner2D: Inserting circumcenter at ({:.2f}, {:.2f})",
                   circumcenter.x(), circumcenter.y());
