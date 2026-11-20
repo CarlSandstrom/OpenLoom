@@ -50,6 +50,7 @@ public:
 
 private:
     std::vector<ElementId> splitTrianglesAtEdge(NodeId edgeNode1, NodeId edgeNode2, NodeId midNodeId);
+    std::optional<NodeId> extendMeshAcrossChord(const CurveSegment& segment, const Point2D& midPoint, double midParameter);
     void lawsonFlip(const std::vector<ElementId>& newTriangleIds);
 
     MeshData2D& meshData_;

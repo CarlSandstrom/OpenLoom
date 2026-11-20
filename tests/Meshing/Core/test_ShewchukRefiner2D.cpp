@@ -370,3 +370,43 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
             << ": left=" << leftY[i] << " right=" << rightY[i];
     }
 }
+
+// Regression test (OPE-229): on a boundary curve that bulges outward, the
+// midpoint of a segment lies beyond its chord, where the exterior triangles have
+// been removed. Bowyer-Watson finds nothing in conflict with it there, so the
+// split used to fail -- and before OPE-224 that failure aborted the process.
+TEST(ShewchukRefiner2D, OutwardBulgingBoundary_SegmentSplitExtendsMeshAcrossChord)
+{
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+
+    const size_t numberOfSegments = 3;
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "disc", 0.0, 0.0, 1.0, numberOfSegments);
+
+    std::vector<std::string> outerEdgeLoop;
+    for (size_t i = 0; i < numberOfSegments; ++i)
+        outerEdgeLoop.push_back("disc_e" + std::to_string(i));
+
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topologyCorners, topologyEdges, outerEdgeLoop, std::vector<std::vector<std::string>>{});
+    MeshingContext2D context(std::move(geometry), std::move(topology));
+
+    BoundaryDiscretizer2D discretizer(context);
+    ConstrainedDelaunay2D::triangulate(context, discretizer.discretize());
+
+    std::vector<CurveSegment> segments;
+    for (auto& [segmentId, segment] : context.getMeshData().getCurveSegmentManager().getAllSegments())
+        segments.push_back(segment);
+    ASSERT_FALSE(segments.empty());
+
+    for (auto& segment : segments)
+    {
+        auto edge = context.getGeometry().getEdge(segment.edgeId);
+        auto newNodeId = context.getOperations().splitConstrainedSegment(segment, *edge);
+        ASSERT_TRUE(newNodeId.has_value()) << "segment (" << segment.nodeId1.value() << ", " << segment.nodeId2.value() << ")";
+    }
+
+    auto verification = MeshVerifier2D::verify(context.getMeshData());
+    EXPECT_TRUE(verification.isValid);
+}
