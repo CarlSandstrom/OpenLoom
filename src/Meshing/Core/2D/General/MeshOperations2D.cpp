@@ -359,6 +359,7 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     {
         // Bowyer-Watson rebuilds the local triangulation from a star-shaped cavity, which
         // handles a midpoint off the chord on the mesh's side of it.
+        bool chordOnMeshBoundary = queries_.findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2).size() == 1;
         auto insertedNodeId = insertVertexBowyerWatson(midPoint);
         if (!insertedNodeId) return std::nullopt;
 
@@ -367,6 +368,12 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
         enforceEdge(newNodeId, segment.nodeId2);
 
         mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
+
+        // A curve bulging into the mesh from its boundary: the fan closes the cavity
+        // with the triangle (chord, midpoint), which lies between the chord and the
+        // curve -- outside the domain now that the curve is the boundary.
+        if (chordOnMeshBoundary)
+            removeTriangleOnChord(segment.nodeId1, segment.nodeId2, newNodeId);
         return newNodeId;
     }
 
@@ -427,6 +434,15 @@ std::optional<NodeId> MeshOperations2D::extendMeshAcrossChord(const CurveSegment
     mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
     lawsonFlip({newTriangleId});
     return newNodeId;
+}
+
+void MeshOperations2D::removeTriangleOnChord(NodeId chordNode1, NodeId chordNode2, NodeId apexNodeId)
+{
+    for (ElementId triangleId : queries_.findTrianglesAdjacentToEdge(chordNode1, chordNode2))
+    {
+        auto triangle = dynamic_cast<const TriangleElement*>(meshData_.getElement(triangleId));
+        if (triangle->hasNode(apexNodeId)) mutator_->removeElement(triangleId);
+    }
 }
 
 std::vector<ElementId> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<ElementId>& interiorTriangles)
