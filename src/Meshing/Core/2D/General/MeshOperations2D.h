@@ -27,8 +27,10 @@ public:
     explicit MeshOperations2D(MeshData2D& meshData);
     MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* periodicData);
 
-    NodeId insertVertexBowyerWatson(const Point2D& point,
-                                    const std::vector<std::string>& edgeIds = {});
+    /// Returns nullopt, with the mesh untouched, when constrained edges leave the point
+    /// no conflicting triangle.
+    std::optional<NodeId> insertVertexBowyerWatson(const Point2D& point,
+                                                   const std::vector<std::string>& edgeIds = {});
 
     bool removeTrianglesContainingNode(NodeId nodeId);
 

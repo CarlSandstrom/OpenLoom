@@ -1,5 +1,4 @@
 #include "Meshing/Core/2D/General/MeshOperations2D.h"
-#include "Common/Exceptions/MeshException.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Meshing/Core/2D/General/ElementGeometry2D.h"
 #include "Meshing/Core/2D/General/GeometryUtilities2D.h"
@@ -79,18 +78,16 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* per
 {
 }
 
-NodeId MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
-                                                  const std::vector<std::string>& edgeIds)
+std::optional<NodeId> MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
+                                                                 const std::vector<std::string>& edgeIds)
 {
     std::vector<ElementId> conflicting = queries_.findConflictingTriangles(point);
 
     if (conflicting.empty())
     {
-        SPDLOG_DEBUG("MeshOperations2D: No conflicting triangles found for point ({}, {}) — blocked by constraints",
-                     point.x(), point.y());
-        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                            "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
+        spdlog::debug("MeshOperations2D: No conflicting triangles found for point ({}, {}) — blocked by constraints",
+                      point.x(), point.y());
+        return std::nullopt;
     }
 
     std::vector<std::array<NodeId, 2>> boundary = queries_.findCavityBoundary(conflicting);
@@ -353,7 +350,10 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     {
         // Bowyer-Watson rebuilds the local triangulation from a star-shaped cavity, which
         // handles a midpoint off the chord.
-        NodeId newNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
+        auto insertedNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
+        if (!insertedNodeId) return std::nullopt;
+
+        NodeId newNodeId = *insertedNodeId;
         enforceEdge(segment.nodeId1, newNodeId);
         enforceEdge(newNodeId, segment.nodeId2);
 

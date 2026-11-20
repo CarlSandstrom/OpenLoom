@@ -1,4 +1,5 @@
 #include "Meshing/Core/2D/Delaunay2D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "Meshing/Core/2D/General/GeometryUtilities2D.h"
 #include "Meshing/Core/2D/General/MeshOperations2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
@@ -30,12 +31,18 @@ std::map<size_t, NodeId> Delaunay2D::triangulate(const std::vector<Point2D>& poi
     std::map<size_t, NodeId> pointIndexToNodeIdMap;
     for (size_t index = 0; index < points.size(); ++index)
     {
-        bool hasGeometryIds = index < geometryIds.size() && !geometryIds[index].empty();
         auto& point = points[index];
-        if (hasGeometryIds)
-            pointIndexToNodeIdMap[index] = meshOperations.insertVertexBowyerWatson(point, geometryIds[index]);
-        else
-            pointIndexToNodeIdMap[index] = meshOperations.insertVertexBowyerWatson(point);
+        auto nodeId = index < geometryIds.size() ? meshOperations.insertVertexBowyerWatson(point, geometryIds[index]) : meshOperations.insertVertexBowyerWatson(point);
+
+        // Nothing is constrained yet, so every point conflicts with some triangle.
+        if (!nodeId)
+        {
+            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                                OpenLoom::MeshException::ErrorCode::GENERATION_FAILED,
+                                "Delaunay2D: point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) +
+                                    ") conflicts with no triangle");
+        }
+        pointIndexToNodeIdMap[index] = *nodeId;
     }
 
     meshOperations.removeTrianglesContainingNode(superNodeId0);
