@@ -35,4 +35,9 @@ const VolumeMesh3D* VolumeMesher3D::getMesh() const
     return implementation_->getVolumeMesh();
 }
 
+const BoundaryDefectReport3D* VolumeMesher3D::getBoundaryDefects() const
+{
+    return implementation_->getBoundaryDefects();
+}
+
 } // namespace Meshing

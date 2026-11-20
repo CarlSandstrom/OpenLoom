@@ -2,6 +2,7 @@
 
 namespace Meshing
 {
+struct BoundaryDefectReport3D;
 struct SurfaceMesh3D;
 
 /**
@@ -19,6 +20,11 @@ public:
 
     /// The mesh built by meshSurface(); nullptr until it has run.
     virtual const SurfaceMesh3D* getSurfaceMesh() const = 0;
+
+    /// The boundary defects of the last run's mesh, empty for a clean one;
+    /// nullptr until a run has audited its boundary. Node IDs refer to the
+    /// mesh that run produced.
+    virtual const BoundaryDefectReport3D* getBoundaryDefects() const = 0;
 };
 
 } // namespace Meshing

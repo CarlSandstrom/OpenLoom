@@ -69,7 +69,7 @@ Steps 5 and 6 alternate until neither finds anything bad.
 
 ## 7. Remove the ambient tetrahedra
 
-For a volume, a closed-boundary check runs first. It throws if any surface edge is missing a face, because the flood fill would otherwise leak through the hole. Then one flood fill runs from the supertetrahedron and crosses only non-restricted faces. It reaches the exterior and any inner voids. Everything it reaches is removed.
+First the boundary is audited. Every edge whose triangles don't match the CAD topology is reported to the caller through `getBoundaryDefects()`, for a surface and a volume alike. For a volume, the audit throws if any surface edge is missing a face, because the flood fill would otherwise leak through the hole. Then one flood fill runs from the supertetrahedron and crosses only non-restricted faces. It reaches the exterior and any inner voids. Everything it reaches is removed.
 
 ## 8. Extract
 

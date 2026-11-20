@@ -149,7 +149,7 @@ A radius-edge bound cannot remove slivers: a sliver has well-shaped faces and a 
 
 ## Phase 3 — Extract and finish
 
-1. **Closed-boundary check** (`RestrictedFaceAudit`, volume only) — *new relative to the historical path*. Reads a per-edge coverage invariant off the CAD topology (one incident face per bounded surface on a curve edge; exactly two, same-surface, on any other edge). `meshVolume()` throws if any edge is short a face, rather than letting the next step silently flood-fill through the hole.
+1. **Boundary audit** (`RestrictedFaceAudit`, `BoundaryDefectReporter`, both paths) — *new relative to the historical path*. Reads a per-edge coverage invariant off the CAD topology (one incident face per bounded surface on a curve edge; exactly two, same-surface, on any other edge). Every edge that breaks it is handed to the caller as a `BoundaryDefectReport3D` (`getBoundaryDefects()`), and a non-empty report logs a warning. `meshVolume()` additionally throws if any edge is short a face, rather than letting the next step silently flood-fill through the hole; excess and surface-mismatched faces still separate inside from outside, so they are reported, not refused.
 2. **Ambient removal** (`AmbientTetrahedronClassifier`, `AmbientTetrahedronRemover`) — one flood fill from the bounding supertet, crossing only non-restricted faces, reaching the true exterior and any interior voids at once. Strips everything reached, plus the supertet's own four nodes.
 3. **Extraction** (`RCDTMeshExtractor`) — collect the restricted faces (surface) or the surviving tetrahedra (volume) into `SurfaceMesh3D` / `VolumeMesh3D`. Adjacent CAD surfaces share boundary nodes automatically, same as the historical path, because they are faces of the one shared tetrahedralization.
 4. **Smoothing** (`SurfaceMeshSmoother`, `TetrahedronInversionGuard`) — *new relative to the historical path*. Laplacian smoothing with re-projection onto the owning CAD surface; corner/curve vertices never move. For a volume, every proposed move is checked against inverting any incident tetrahedron, or pushing one below the sliver bound and making it worse — judged with all four of its nodes at their proposed positions at once — before being kept. Without the sliver half, smoothing undid exudation (`BoxWithHole`: 1.9° → 0.015°).
@@ -176,7 +176,7 @@ A radius-edge bound cannot remove slivers: a sliver has well-shaped faces and a 
 | Curve segments | Split on encroachment, growing throughout refinement | Fixed once at seeding; never split again |
 | A facet straddling a crease | Refused (the vertex-surface gate declines it) | Refined (the "same patch" criterion) |
 | When refinement can't fix a bad element | Refused, with a size floor and proximity guard, then marked permanently unrefinable | Refused (hidden / coincident / non-conflicting only); left bad, no separate "unrefinable" bookkeeping |
-| Closed-boundary check before the volume flood fill | None | `RestrictedFaceAudit` throws on any gap first |
+| Closed-boundary check before the volume flood fill | None | `RestrictedFaceAudit` throws on any gap first; both paths report every defect through `getBoundaryDefects()` |
 | Post-refinement repair | `RestrictedFaceAudit`'s removal passes (same-curve chord faces, over-acceptance flaps) | None — "the restricted facets are the surface" |
 
 ---

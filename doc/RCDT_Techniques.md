@@ -364,9 +364,12 @@ edge has exactly two faces" rule:
 
 The flat count test states a closed-2-manifold requirement the target models do
 not all satisfy: in a conformal multi-material model, grain boundaries meet along
-triple lines where three patches share one edge. `meshVolume()` counts the edges
-missing a face and throws if there are any — the ambient flood fill below would
-otherwise walk through a hole into the solid. Read-only: nothing is removed.
+triple lines where three patches share one edge. Both paths hand every edge
+that breaks the invariant to the caller (`BoundaryDefectReporter`,
+`getBoundaryDefects()`). `meshVolume()` also throws if any edge is missing a
+face — the ambient flood fill below would otherwise walk through a hole into
+the solid. Excess and surface-mismatched faces don't open such a path, so they
+are reported but not refused. Read-only: nothing is removed.
 
 ### Ambient classification and removal
 `Core/3D/RCDT/AmbientTetrahedronClassifier`, `Core/3D/RCDT/AmbientTetrahedronRemover`

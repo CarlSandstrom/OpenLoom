@@ -25,7 +25,7 @@ void renumber(const std::vector<NodeId>& renumbering, std::map<std::string, std:
 
 } // namespace
 
-void UnreferencedNodeRemover::remove(SurfaceMesh3D& surfaceMesh)
+std::vector<NodeId> UnreferencedNodeRemover::remove(SurfaceMesh3D& surfaceMesh)
 {
     std::vector<bool> referenced(surfaceMesh.nodes.size(), false);
     markReferenced(surfaceMesh.triangles, referenced);
@@ -35,9 +35,10 @@ void UnreferencedNodeRemover::remove(SurfaceMesh3D& surfaceMesh)
     compactNodes(renumbering, surfaceMesh.nodes);
     renumber(renumbering, surfaceMesh.triangles);
     renumber(renumbering, surfaceMesh.edgeNodeIds);
+    return renumbering;
 }
 
-void UnreferencedNodeRemover::remove(VolumeMesh3D& volumeMesh)
+std::vector<NodeId> UnreferencedNodeRemover::remove(VolumeMesh3D& volumeMesh)
 {
     std::vector<bool> referenced(volumeMesh.nodes.size(), false);
     markReferenced(volumeMesh.tetrahedra, referenced);
@@ -49,6 +50,7 @@ void UnreferencedNodeRemover::remove(VolumeMesh3D& volumeMesh)
     renumber(renumbering, volumeMesh.tetrahedra);
     renumber(renumbering, volumeMesh.boundaryTriangles);
     renumber(renumbering, volumeMesh.boundaryEdgeNodeIds);
+    return renumbering;
 }
 
 namespace

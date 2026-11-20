@@ -35,4 +35,9 @@ const SurfaceMesh3D* SurfaceMesher3D::getMesh() const
     return implementation_->getSurfaceMesh();
 }
 
+const BoundaryDefectReport3D* SurfaceMesher3D::getBoundaryDefects() const
+{
+    return implementation_->getBoundaryDefects();
+}
+
 } // namespace Meshing

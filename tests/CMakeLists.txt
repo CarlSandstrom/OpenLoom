@@ -54,6 +54,7 @@ set(TEST_SOURCES
     Meshing/Core/test_SurfaceProjector.cpp
     Meshing/Core/test_SurfaceTessellation.cpp
     Meshing/Core/test_RestrictedFaceAudit.cpp
+    Meshing/Core/test_BoundaryDefectReporter.cpp
     Meshing/Core/test_TwinManager2D.cpp
 
     # Topology tests

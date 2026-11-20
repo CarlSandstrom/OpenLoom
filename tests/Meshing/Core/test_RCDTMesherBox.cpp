@@ -1,6 +1,9 @@
 #include "Common/Exceptions/MeshException.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/RCDT/RCDTMesher.h"
+#include "Meshing/Core/3D/Surface/SurfaceMesher3D.h"
+#include "Meshing/Core/3D/Volume/VolumeMesher3D.h"
+#include "Meshing/Data/3D/BoundaryDefectReport3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "SurfaceMeshTopology.h"
@@ -40,6 +43,7 @@ using namespace Meshing;
 //   5. Each face is triangulated as one disk
 //   6. No degenerate (zero-area) triangles
 //   7. The mesh is a closed 2-manifold (OPE-208)
+//   8. A clean boundary reports no defects (OPE-15)
 // ============================================================================
 
 class RCDTMesherBoxTest : public ::testing::Test
@@ -63,6 +67,7 @@ protected:
 
         mesher.meshSurface();
         mesh_ = *mesher.getSurfaceMesh();
+        boundaryDefects_ = *mesher.getBoundaryDefects();
     }
 
     static void TearDownTestSuite()
@@ -73,11 +78,13 @@ protected:
     static TopoDS_Shape shape_;
     static std::unique_ptr<Readers::TopoDS_ShapeConverter> converter_;
     static SurfaceMesh3D mesh_;
+    static BoundaryDefectReport3D boundaryDefects_;
 };
 
 TopoDS_Shape RCDTMesherBoxTest::shape_;
 std::unique_ptr<Readers::TopoDS_ShapeConverter> RCDTMesherBoxTest::converter_;
 SurfaceMesh3D RCDTMesherBoxTest::mesh_;
+BoundaryDefectReport3D RCDTMesherBoxTest::boundaryDefects_;
 
 // ============================================================================
 // 1. Completes: mesh() must not throw and must produce output
@@ -211,6 +218,15 @@ TEST_F(RCDTMesherBoxTest, IsAClosedTwoManifold)
 }
 
 // ============================================================================
+// 8. A clean boundary reports no defects
+// ============================================================================
+
+TEST_F(RCDTMesherBoxTest, ReportsNoBoundaryDefects)
+{
+    EXPECT_TRUE(boundaryDefects_.defects.empty());
+}
+
+// ============================================================================
 // RCDTMesherBoxVolumeTest
 //
 // End-to-end test: mesh a unit box's interior using RCDTMesher::meshVolume().
@@ -243,6 +259,7 @@ protected:
 
         mesher.meshVolume();
         mesh_ = *mesher.getVolumeMesh();
+        boundaryDefects_ = *mesher.getBoundaryDefects();
     }
 
     static void TearDownTestSuite()
@@ -253,11 +270,13 @@ protected:
     static TopoDS_Shape shape_;
     static std::unique_ptr<Readers::TopoDS_ShapeConverter> converter_;
     static VolumeMesh3D mesh_;
+    static BoundaryDefectReport3D boundaryDefects_;
 };
 
 TopoDS_Shape RCDTMesherBoxVolumeTest::shape_;
 std::unique_ptr<Readers::TopoDS_ShapeConverter> RCDTMesherBoxVolumeTest::converter_;
 VolumeMesh3D RCDTMesherBoxVolumeTest::mesh_;
+BoundaryDefectReport3D RCDTMesherBoxVolumeTest::boundaryDefects_;
 
 TEST_F(RCDTMesherBoxVolumeTest, Completes)
 {
@@ -265,6 +284,11 @@ TEST_F(RCDTMesherBoxVolumeTest, Completes)
     EXPECT_FALSE(mesh_.tetrahedra.empty());
     EXPECT_FALSE(mesh_.boundaryTriangles.empty());
     EXPECT_FALSE(mesh_.boundaryFaceTriangleIds.empty());
+}
+
+TEST_F(RCDTMesherBoxVolumeTest, ReportsNoBoundaryDefects)
+{
+    EXPECT_TRUE(boundaryDefects_.defects.empty());
 }
 
 TEST_F(RCDTMesherBoxVolumeTest, TetrahedraHaveDistinctValidNodeIds)
@@ -335,6 +359,87 @@ TEST(RCDTMesherVolumeWithHoleInBoundaryTest, Throws)
                       qualitySettings);
 
     EXPECT_THROW(mesher.meshVolume(), OpenLoom::MeshException);
+
+    // The refusal keeps its report, so the caller can see where the holes are.
+    // No mesh was produced, so no defect carries node IDs.
+    EXPECT_EQ(mesher.getVolumeMesh(), nullptr);
+    auto boundaryDefects = mesher.getBoundaryDefects();
+    ASSERT_NE(boundaryDefects, nullptr);
+    EXPECT_TRUE(std::any_of(boundaryDefects->defects.begin(), boundaryDefects->defects.end(),
+                            [](const BoundaryDefect3D& defect)
+                            { return defect.kind == BoundaryDefectKind3D::MissingFace; }));
+    for (auto& defect : boundaryDefects->defects)
+        EXPECT_FALSE(defect.nodeIds.has_value());
+}
+
+// ============================================================================
+// RCDTMesherSurfaceWithHoleInBoundaryTest
+//
+// meshSurface() does not refuse a boundary with holes, but it must not pass it
+// off as clean either: the same unrefined boundary comes back with its missing
+// faces reported against the mesh the caller holds.
+// ============================================================================
+
+TEST(RCDTMesherSurfaceWithHoleInBoundaryTest, ReportsMissingFaces)
+{
+    const TopoDS_Shape box = BRepPrimAPI_MakeBox(10.0, 10.0, 10.0).Shape();
+    const gp_Ax2 axis(gp_Pnt(5.0, 5.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
+    const TopoDS_Shape cylinder = BRepPrimAPI_MakeCylinder(axis, 2.0, 10.0).Shape();
+    const Readers::TopoDS_ShapeConverter converter(BRepAlgoAPI_Cut(box, cylinder).Shape());
+
+    SurfaceMesh3DQualitySettings qualitySettings;
+    qualitySettings.maxRefinementIterations = 0;
+    RCDTMesher mesher(converter.getGeometryCollection(),
+                      converter.getTopology(),
+                      Geometry3D::DiscretizationSettings3D(3, 2),
+                      qualitySettings);
+
+    mesher.meshSurface();
+
+    auto& mesh = *mesher.getSurfaceMesh();
+    auto boundaryDefects = mesher.getBoundaryDefects();
+    ASSERT_NE(boundaryDefects, nullptr);
+    EXPECT_TRUE(std::any_of(boundaryDefects->defects.begin(), boundaryDefects->defects.end(),
+                            [](const BoundaryDefect3D& defect)
+                            { return defect.kind == BoundaryDefectKind3D::MissingFace; }));
+    for (auto& defect : boundaryDefects->defects)
+    {
+        ASSERT_TRUE(defect.nodeIds.has_value());
+        for (size_t end = 0; end < 2; ++end)
+        {
+            auto nodeId = (*defect.nodeIds)[end];
+            ASSERT_LT(nodeId.value(), mesh.nodes.size());
+            EXPECT_EQ(defect.endpoints[end], mesh.nodes[nodeId.value()]);
+        }
+    }
+}
+
+// ============================================================================
+// SurfaceMesher3D / VolumeMesher3D forward the report
+// ============================================================================
+
+TEST(SurfaceMesher3DBoundaryDefectsTest, NullBeforeMeshingAndReportedAfter)
+{
+    const Readers::TopoDS_ShapeConverter converter(BRepPrimAPI_MakeBox(1.0, 1.0, 1.0).Shape());
+    SurfaceMesher3D mesher(converter.getGeometryCollection(), converter.getTopology(),
+                           Geometry3D::DiscretizationSettings3D(2, 0));
+
+    EXPECT_EQ(mesher.getBoundaryDefects(), nullptr);
+    mesher.mesh();
+    ASSERT_NE(mesher.getBoundaryDefects(), nullptr);
+    EXPECT_TRUE(mesher.getBoundaryDefects()->defects.empty());
+}
+
+TEST(VolumeMesher3DBoundaryDefectsTest, NullBeforeMeshingAndReportedAfter)
+{
+    const Readers::TopoDS_ShapeConverter converter(BRepPrimAPI_MakeBox(1.0, 1.0, 1.0).Shape());
+    VolumeMesher3D mesher(converter.getGeometryCollection(), converter.getTopology(),
+                          Geometry3D::DiscretizationSettings3D(2, 0));
+
+    EXPECT_EQ(mesher.getBoundaryDefects(), nullptr);
+    mesher.mesh();
+    ASSERT_NE(mesher.getBoundaryDefects(), nullptr);
+    EXPECT_TRUE(mesher.getBoundaryDefects()->defects.empty());
 }
 
 // ============================================================================

@@ -96,7 +96,8 @@ CGAL Mesh_3's design (OPE-186); `doc/RCDT_Techniques.md` explains each piece.
 - **SurfaceDelaunayRefiner**: Facet refinement (CGAL's `Refine_facets_3`): restricted facets that fail `SurfaceFacetCriteria` are refined worst first at their surface Delaunay ball centre
 - **TetrahedronDelaunayRefiner**: Tetrahedron refinement for volumes (CGAL's `Refine_cells_3`), the level below the facet refiner: inside tetrahedra over the radius-edge bound are refined at their orthocentre, or the facet they encroach is refined instead
 - **WeightedDualRestriction**: A face is restricted iff its weighted dual edge crosses a surface, found on `SurfaceTessellation` / `TriangleSoupIndex` and refined onto the CAD surface with `SurfaceProjector`
-- **RestrictedFaceAudit**: Counts the edges whose restricted faces don't match the CAD topology; `meshVolume()` refuses a boundary with holes
+- **RestrictedFaceAudit**: Finds the edges whose restricted faces don't match the CAD topology; `meshVolume()` refuses a boundary with holes
+- **BoundaryDefectReporter**: Turns the audit's findings into the `BoundaryDefectReport3D` callers read through `getBoundaryDefects()`, in the output mesh's node numbering
 - **AmbientTetrahedronClassifier / Remover**: Flood fill from the bounding tetrahedron across non-restricted faces; used to label inside tetrahedra and to strip the outside
 - **RCDTMeshExtractor**, **SurfaceMeshSmoother**, **TetrahedronInversionGuard**: Output assembly and Laplacian smoothing that never inverts a tetrahedron
 - **CurveSegmentBuilder**: Records the protected point chains along each CAD curve in `CurveSegmentManager`
