@@ -40,6 +40,18 @@ TEST(UnreferencedNodeRemoverTest, SurfaceMeshKeepsReferencedNodesInOrderAndRenum
     EXPECT_EQ(mesh.faceTriangleIds.at("face_0"), (std::vector<size_t>{0}));
 }
 
+TEST(UnreferencedNodeRemoverTest, ReturnsTheRenumberingFromOldToNewNodeIds)
+{
+    SurfaceMesh3D mesh;
+    mesh.nodes = numberedNodes(6);
+    mesh.triangles = {{NodeId{1}, NodeId{3}, NodeId{4}}};
+
+    auto renumbering = UnreferencedNodeRemover::remove(mesh);
+
+    EXPECT_EQ(renumbering, (std::vector<NodeId>{NodeId::INVALID, NodeId{0}, NodeId::INVALID, NodeId{1}, NodeId{2},
+                                                NodeId::INVALID}));
+}
+
 TEST(UnreferencedNodeRemoverTest, VolumeMeshKeepsInteriorNodesOnlyATetrahedronUses)
 {
     VolumeMesh3D mesh;

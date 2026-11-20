@@ -2,6 +2,7 @@
 
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
+#include "Meshing/Data/3D/BoundaryDefectReport3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
 
@@ -37,6 +38,7 @@ class IVolumeMesher3D;
  *   VolumeMesher3D mesher(geometry, topology, discretizationSettings, qualitySettings);
  *   mesher.mesh();
  *   const VolumeMesh3D& result = *mesher.getMesh();
+ *   bool clean = mesher.getBoundaryDefects()->defects.empty();
  * @endcode
  */
 class VolumeMesher3D
@@ -66,6 +68,10 @@ public:
 
     /// The mesh built by mesh(); nullptr until it has run.
     const VolumeMesh3D* getMesh() const;
+
+    /// The boundary defects of the mesh built by mesh(), empty for a clean
+    /// one; nullptr until mesh() has audited its boundary.
+    const BoundaryDefectReport3D* getBoundaryDefects() const;
 
 private:
     std::unique_ptr<IVolumeMesher3D> implementation_;

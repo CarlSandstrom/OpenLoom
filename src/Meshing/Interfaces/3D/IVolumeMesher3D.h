@@ -2,6 +2,7 @@
 
 namespace Meshing
 {
+struct BoundaryDefectReport3D;
 struct VolumeMesh3D;
 
 /**
@@ -19,6 +20,12 @@ public:
 
     /// The mesh built by meshVolume(); nullptr until it has run.
     virtual const VolumeMesh3D* getVolumeMesh() const = 0;
+
+    /// The boundary defects of the last run's mesh, empty for a clean one;
+    /// nullptr until a run has audited its boundary. Still set when
+    /// meshVolume() refused a boundary with holes, with no node IDs then, as
+    /// no mesh exists.
+    virtual const BoundaryDefectReport3D* getBoundaryDefects() const = 0;
 };
 
 } // namespace Meshing

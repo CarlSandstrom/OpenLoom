@@ -11,12 +11,12 @@
 #include "Meshing/Core/3D/General/SurfaceMeshSmoother.h"
 #include "Meshing/Core/3D/General/UnreferencedNodeRemover.h"
 #include "Meshing/Core/3D/RCDT/AmbientTetrahedronRemover.h"
+#include "Meshing/Core/3D/RCDT/BoundaryDefectReporter.h"
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
 #include "Meshing/Core/3D/RCDT/ProtectingBallPlacer.h"
-#include "Meshing/Core/3D/RCDT/SliverExuder.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
-#include "Meshing/Core/3D/RCDT/RestrictedFaceAudit.h"
+#include "Meshing/Core/3D/RCDT/SliverExuder.h"
 #include "Meshing/Core/3D/RCDT/SnapshotGridBuilder.h"
 #include "Meshing/Core/3D/RCDT/SurfaceDelaunayRefiner.h"
 #include "Meshing/Core/3D/RCDT/TetrahedronDelaunayRefiner.h"
@@ -27,7 +27,6 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include "spdlog/spdlog.h"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <memory>
@@ -62,10 +61,7 @@ RestrictedFaceMap refineVolume(MeshingContext3D& context,
                                const Topology3D::Topology3D& topology,
                                const SurfaceMesh3DQualitySettings& qualitySettings,
                                double minimumEdgeLength);
-void requireClosedBoundary(size_t missingFaceEdges);
-size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
-                             const Topology3D::Topology3D& topology,
-                             const MeshData3D& meshData);
+void requireClosedBoundary(const BoundaryDefectReport3D& report);
 } // namespace
 
 RCDTMesher::RCDTMesher(const Geometry3D::GeometryCollection3D& geometry,
@@ -94,32 +90,48 @@ void RCDTMesher::meshSurface()
 {
     surfaceMesh_.reset();
     volumeMesh_.reset();
+    boundaryDefects_.reset();
 
     MeshSnapshotWriter::restartSequence();
     MeshingContext3D context(*geometry_, *topology_);
     double minimumEdgeLength = buildInitialTriangulation(context);
     auto restrictedFaces = refineSurface(context, *topology_, qualitySettings_, minimumEdgeLength);
-    buildSurfaceMesh(context, restrictedFaces, false);
+    auto defects = BoundaryDefectReporter::audit(restrictedFaces, *topology_, context.getMeshData());
+    auto renumbering = buildSurfaceMesh(context, restrictedFaces, false);
+
+    boundaryDefects_ = std::make_unique<BoundaryDefectReport3D>(
+        BoundaryDefectReporter::toReport(defects, context.getMeshData(), renumbering));
+    BoundaryDefectReporter::logSummary(*boundaryDefects_);
 }
 
 void RCDTMesher::meshVolume()
 {
     surfaceMesh_.reset();
     volumeMesh_.reset();
+    boundaryDefects_.reset();
 
     MeshSnapshotWriter::restartSequence();
     MeshingContext3D context(*geometry_, *topology_);
     double minimumEdgeLength = buildInitialTriangulation(context);
     auto restrictedFaces = refineVolume(context, *topology_, qualitySettings_, minimumEdgeLength);
-    // Meshing step 7, first part: the closed-boundary check
-    requireClosedBoundary(countMissingFaceEdges(restrictedFaces, *topology_, context.getMeshData()));
+
+    // Meshing step 7, first part: the closed-boundary check. The report is kept
+    // even when it refuses, so a caller can see where the holes are.
+    auto defects = BoundaryDefectReporter::audit(restrictedFaces, *topology_, context.getMeshData());
+    boundaryDefects_ = std::make_unique<BoundaryDefectReport3D>(
+        BoundaryDefectReporter::toReport(defects, context.getMeshData()));
+    BoundaryDefectReporter::logSummary(*boundaryDefects_);
+    requireClosedBoundary(*boundaryDefects_);
+
     buildSurfaceMesh(context, restrictedFaces, true);
 
     // Smoothing has already synced its positions back into the live mesh that
     // extractVolumeMesh() reads.
     volumeMesh_ = std::make_unique<VolumeMesh3D>(
         RCDTMeshExtractor::extractVolumeMesh(context.getMeshData(), restrictedFaces, *topology_));
-    UnreferencedNodeRemover::remove(*volumeMesh_);
+    auto renumbering = UnreferencedNodeRemover::remove(*volumeMesh_);
+    boundaryDefects_ = std::make_unique<BoundaryDefectReport3D>(
+        BoundaryDefectReporter::toReport(defects, context.getMeshData(), renumbering));
 }
 
 const SurfaceMesh3D* RCDTMesher::getSurfaceMesh() const
@@ -132,9 +144,14 @@ const VolumeMesh3D* RCDTMesher::getVolumeMesh() const
     return volumeMesh_.get();
 }
 
-void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
-                                  const RestrictedFaceMap& restrictedFaces,
-                                  bool meshingVolume)
+const BoundaryDefectReport3D* RCDTMesher::getBoundaryDefects() const
+{
+    return boundaryDefects_.get();
+}
+
+std::vector<NodeId> RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
+                                                 const RestrictedFaceMap& restrictedFaces,
+                                                 bool meshingVolume)
 {
     // Meshing step 7: remove the ambient tetrahedra (for a volume, meshVolume() has
     // already checked that the boundary is closed).
@@ -148,9 +165,10 @@ void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
                       qualitySettings_.sliverDihedralAngleDegrees, meshingVolume);
     // Smoothing writes back to the live mesh by node ID, so the output is only
     // renumbered once it is done.
-    UnreferencedNodeRemover::remove(*surfaceMesh_);
+    auto renumbering = UnreferencedNodeRemover::remove(*surfaceMesh_);
     if (qualitySettings_.smoothingIterations > 0 && MeshSnapshotWriter::isEnabled())
         MeshSnapshotWriter::write("smoothed", SnapshotGridBuilder::fromSurfaceMesh(*surfaceMesh_));
+    return renumbering;
 }
 
 double RCDTMesher::buildInitialTriangulation(MeshingContext3D& context) const
@@ -274,31 +292,24 @@ RestrictedFaceMap refineVolume(MeshingContext3D& context,
     return restrictedFaces;
 }
 
-// A hole in the restricted boundary lets AmbientTetrahedronRemover's flood fill
-// walk into the solid and delete its tetrahedra (OPE-185). A surface mesh with a
-// hole still reports its own defects; a gutted volume mesh does not.
-void requireClosedBoundary(size_t missingFaceEdges)
+// Only a hole is refused: it lets AmbientTetrahedronRemover's flood fill walk
+// into the solid and delete its tetrahedra (OPE-185). An excess or
+// surface-mismatched face still separates inside from outside, so those are
+// reported to the caller but do not stop the volume mesh.
+void requireClosedBoundary(const BoundaryDefectReport3D& report)
 {
+    auto missingFaceEdges = BoundaryDefectReporter::count(report, BoundaryDefectKind3D::MissingFace);
     if (missingFaceEdges == 0) return;
 
     OPENLOOM_THROW_MESH(GENERATION_FAILED,
                         "RCDTMesher::meshVolume: the restricted boundary still has holes (" +
-                            std::to_string(missingFaceEdges) +
-                            " edges missing a face), so the solid's interior cannot be separated "
-                            "from the ambient tetrahedra");
-}
-
-// Edges missing a face, judged against the coverage the CAD topology calls for
-// (RestrictedFaceAudit) rather than "every edge has two faces".
-size_t countMissingFaceEdges(const RestrictedFaceMap& restrictedFaces,
-                             const Topology3D::Topology3D& topology,
-                             const MeshData3D& meshData)
-{
-    auto defects = RestrictedFaceAudit::findNonManifoldEdges(
-        restrictedFaces, RestrictedFaceAudit::buildEdgeToAdjacentSurfaces(topology), meshData);
-    return static_cast<size_t>(std::count_if(defects.begin(), defects.end(),
-                                             [](const NonManifoldRestrictedEdge& defect)
-                                             { return defect.defect == RestrictedEdgeDefect::MissingFace; }));
+                            std::to_string(missingFaceEdges) + " edges missing a face, " +
+                            std::to_string(BoundaryDefectReporter::count(report, BoundaryDefectKind3D::ExcessFace)) +
+                            " with an excess face, " +
+                            std::to_string(
+                                BoundaryDefectReporter::count(report, BoundaryDefectKind3D::SurfaceMismatch)) +
+                            " surface mismatch), so the solid's interior cannot be separated "
+                            "from the ambient tetrahedra; see getBoundaryDefects()");
 }
 
 } // namespace

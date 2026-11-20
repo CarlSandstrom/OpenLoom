@@ -3,6 +3,7 @@
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/SizingFieldBuilder3D.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceTypes.h"
+#include "Meshing/Data/3D/BoundaryDefectReport3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3D.h"
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Meshing/Data/3D/VolumeMesh3D.h"
@@ -11,6 +12,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 
 namespace Geometry3D
 {
@@ -60,6 +62,9 @@ public:
 
     const SurfaceMesh3D* getSurfaceMesh() const override;
     const VolumeMesh3D* getVolumeMesh() const override;
+    /// After meshVolume(), node IDs refer to the volume mesh, not to
+    /// getSurfaceMesh()'s numbering.
+    const BoundaryDefectReport3D* getBoundaryDefects() const override;
 
 private:
     const Geometry3D::GeometryCollection3D* geometry_;
@@ -69,6 +74,7 @@ private:
     std::optional<SizingFieldSettings3D> sizingFieldSettings_;
     std::unique_ptr<SurfaceMesh3D> surfaceMesh_;
     std::unique_ptr<VolumeMesh3D> volumeMesh_;
+    std::unique_ptr<BoundaryDefectReport3D> boundaryDefects_;
 
     /// Discretizes the boundary, resolves the size floor (qualitySettings_'s
     /// if set, otherwise MinimumEdgeLengthEstimator's), places the protecting
@@ -78,8 +84,11 @@ private:
 
     /// Removes the ambient tetrahedra, then extracts and smooths the surface
     /// mesh into surfaceMesh_, writing a "smoothed" snapshot when smoothing ran.
-    /// meshingVolume keeps smoothing from inverting tetrahedra.
-    void buildSurfaceMesh(MeshingContext3D& context, const RestrictedFaceMap& restrictedFaces, bool meshingVolume);
+    /// meshingVolume keeps smoothing from inverting tetrahedra. Returns the
+    /// surface mesh's node renumbering (see UnreferencedNodeRemover).
+    std::vector<NodeId> buildSurfaceMesh(MeshingContext3D& context,
+                                         const RestrictedFaceMap& restrictedFaces,
+                                         bool meshingVolume);
 };
 
 } // namespace Meshing

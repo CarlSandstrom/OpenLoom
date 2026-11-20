@@ -1,5 +1,9 @@
 #pragma once
 
+#include "Common/Types.h"
+
+#include <vector>
+
 namespace Meshing
 {
 
@@ -16,12 +20,16 @@ struct VolumeMesh3D;
  * cell uses. A node counts as referenced if a cell or an edge node chain names
  * it. Surviving nodes keep their relative order, and every node ID in the mesh
  * is rewritten to the new numbering.
+ *
+ * Both overloads return that numbering, indexed by old node ID, so a caller
+ * holding IDs of the working mesh can translate them. A dropped node maps to
+ * NodeId::INVALID.
  */
 class UnreferencedNodeRemover
 {
 public:
-    static void remove(SurfaceMesh3D& surfaceMesh);
-    static void remove(VolumeMesh3D& volumeMesh);
+    static std::vector<NodeId> remove(SurfaceMesh3D& surfaceMesh);
+    static std::vector<NodeId> remove(VolumeMesh3D& volumeMesh);
 };
 
 } // namespace Meshing
