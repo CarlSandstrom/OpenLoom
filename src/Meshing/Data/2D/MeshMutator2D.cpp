@@ -15,13 +15,6 @@ NodeId MeshMutator2D::addNode(const Point2D& coordinates)
     return meshData2D_.addNodeInternal(std::make_unique<Node2D>(coordinates));
 }
 
-NodeId MeshMutator2D::addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds)
-{
-    auto id = addNode(coordinates);
-    meshData2D_.setNodeGeometryIdsInternal(id, geometryIds);
-    return id;
-}
-
 ElementId MeshMutator2D::addElement(std::unique_ptr<IElement> element)
 {
     return meshData2D_.addElementInternal(std::move(element));

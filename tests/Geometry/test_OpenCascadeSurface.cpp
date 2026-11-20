@@ -102,8 +102,10 @@ TEST(OpenCascadeSurfaceCurvatureTest, ReversedFaceNegatesCurvatureAlongWithItsNo
 
     const auto forwardNormal = forward.getNormal(1.0, 0.5);
     const auto reversedNormal = reversed.getNormal(1.0, 0.5);
+    ASSERT_TRUE(forwardNormal.has_value());
+    ASSERT_TRUE(reversedNormal.has_value());
     for (std::size_t axis = 0; axis < 3; ++axis)
     {
-        EXPECT_NEAR(reversedNormal[axis], -forwardNormal[axis], TOLERANCE);
+        EXPECT_NEAR((*reversedNormal)[axis], -(*forwardNormal)[axis], TOLERANCE);
     }
 }

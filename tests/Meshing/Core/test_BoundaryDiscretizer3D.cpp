@@ -70,9 +70,9 @@ public:
     explicit MockPlanarSurface(const std::string& id) :
         id_(id) {}
 
-    Vector3D getNormal(double /*u*/, double /*v*/) const override
+    std::optional<Vector3D> getNormal(double /*u*/, double /*v*/) const override
     {
-        return {0.0, 0.0, 1.0};
+        return Vector3D(0.0, 0.0, 1.0);
     }
     Point3D getPoint(double u, double v) const override { return Point3D(u, v, 0.0); }
     Geometry3D::SurfaceDerivatives getFirstDerivatives(double u, double v) const override
@@ -83,11 +83,7 @@ public:
     {
         return Common::BoundingBox2D(0.0, 1.0, 0.0, 1.0);
     }
-    double getGap(const Point3D& point) const override { return std::abs(point.z()); }
-    Point2D projectPoint(const Point3D& point) const override
-    {
-        return Point2D(point.x(), point.y());
-    }
+    std::optional<double> getGap(const Point3D& point) const override { return std::abs(point.z()); }
 
     std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
     {

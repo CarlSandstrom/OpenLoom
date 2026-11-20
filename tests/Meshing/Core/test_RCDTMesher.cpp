@@ -180,9 +180,10 @@ TEST_F(RCDTMesherCylinderTest, AllNodesOnCylinderSurface)
         {
             for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
-                const double gap = surface->getGap(mesh_.nodes[nodeId.value()]);
-                EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
-                    << "Node " << nodeId.value() << " has gap " << gap
+                const auto gap = surface->getGap(mesh_.nodes[nodeId.value()]);
+                ASSERT_TRUE(gap.has_value()) << "Node " << nodeId.value() << " does not project onto surface " << faceId;
+                EXPECT_LE(*gap, NODE_ON_SURFACE_TOLERANCE)
+                    << "Node " << nodeId.value() << " has gap " << *gap
                     << " > " << NODE_ON_SURFACE_TOLERANCE
                     << " from surface " << faceId;
             }
@@ -355,9 +356,10 @@ TEST_F(RCDTMesherSphereTest, AllNodesOnSphereSurface)
         {
             for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
-                const double gap = surface->getGap(mesh_.nodes[nodeId.value()]);
-                EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
-                    << "Node " << nodeId.value() << " has gap " << gap
+                const auto gap = surface->getGap(mesh_.nodes[nodeId.value()]);
+                ASSERT_TRUE(gap.has_value()) << "Node " << nodeId.value() << " does not project onto surface " << faceId;
+                EXPECT_LE(*gap, NODE_ON_SURFACE_TOLERANCE)
+                    << "Node " << nodeId.value() << " has gap " << *gap
                     << " > " << NODE_ON_SURFACE_TOLERANCE
                     << " from surface " << faceId;
             }
@@ -512,9 +514,10 @@ TEST_F(RCDTMesherTorusTest, AllNodesOnTorusSurface)
         {
             for (const NodeId nodeId : mesh_.triangles[triangleIndex])
             {
-                const double gap = surface->getGap(mesh_.nodes[nodeId.value()]);
-                EXPECT_LE(gap, NODE_ON_SURFACE_TOLERANCE)
-                    << "Node " << nodeId.value() << " has gap " << gap
+                const auto gap = surface->getGap(mesh_.nodes[nodeId.value()]);
+                ASSERT_TRUE(gap.has_value()) << "Node " << nodeId.value() << " does not project onto surface " << faceId;
+                EXPECT_LE(*gap, NODE_ON_SURFACE_TOLERANCE)
+                    << "Node " << nodeId.value() << " has gap " << *gap
                     << " > " << NODE_ON_SURFACE_TOLERANCE
                     << " from surface " << faceId;
             }

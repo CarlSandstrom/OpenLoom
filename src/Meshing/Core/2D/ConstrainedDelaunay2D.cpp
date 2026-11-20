@@ -34,13 +34,9 @@ std::map<size_t, NodeId> ConstrainedDelaunay2D::triangulate(
     size_t exportCounter = 0;
 
     std::vector<Point2D> allPoints = discretization.points;
-    std::vector<std::vector<std::string>> allGeometryIds = discretization.geometryIds;
-
     allPoints.insert(allPoints.end(), additionalPoints.begin(), additionalPoints.end());
-    allGeometryIds.insert(allGeometryIds.end(), additionalPoints.size(), std::vector<std::string>{});
 
-    std::map<size_t, NodeId> pointIndexToNodeIdMap =
-        Delaunay2D::triangulate(allPoints, meshData2D, allGeometryIds);
+    std::map<size_t, NodeId> pointIndexToNodeIdMap = Delaunay2D::triangulate(allPoints, meshData2D);
 
     auto curveSegmentManager = meshOperations.getQueries().extractConstrainedEdges(
         context.getTopology(),

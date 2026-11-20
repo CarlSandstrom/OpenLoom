@@ -23,12 +23,11 @@ public:
     // Defined in the .cpp, where the cached OpenCASCADE types are complete.
     ~OpenCascadeSurface() override;
 
-    Meshing::Vector3D getNormal(double u, double v) const override;
+    std::optional<Meshing::Vector3D> getNormal(double u, double v) const override;
     Meshing::Point3D getPoint(double u, double v) const override;
     SurfaceDerivatives getFirstDerivatives(double u, double v) const override;
     Common::BoundingBox2D getParameterBounds() const override;
-    double getGap(const Meshing::Point3D& point) const override;
-    Meshing::Point2D projectPoint(const Meshing::Point3D& point) const override;
+    std::optional<double> getGap(const Meshing::Point3D& point) const override;
     std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
         const Meshing::Point3D& point) const override;
     std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
@@ -36,7 +35,6 @@ public:
         const Meshing::Point2D& seedUV) const override;
     std::string getId() const override;
     std::optional<PrincipalCurvatures> getPrincipalCurvatures(double u, double v) const override;
-    bool isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const override;
     bool isUVWithinTrimmedBoundary(double u, double v) const override;
 
 private:

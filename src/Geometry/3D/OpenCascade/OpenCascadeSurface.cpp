@@ -1,10 +1,7 @@
 #include "OpenCascadeSurface.h"
 #include <BRepAdaptor_Surface.hxx>
-#include <BRepBndLib.hxx>
-#include <BRepClass_FaceClassifier.hxx>
 #include <BRepTopAdaptor_FClass2d.hxx>
 #include <BRep_Tool.hxx>
-#include <Bnd_Box.hxx>
 #include <GeomAPI_ProjectPointOnSurf.hxx>
 #include <GeomLProp_SLProps.hxx>
 #include <Precision.hxx>
@@ -17,7 +14,6 @@
 #include <gp_Pnt.hxx>
 #include <gp_Pnt2d.hxx>
 #include <gp_Vec.hxx>
-#include <limits>
 #include <sstream>
 #include <utility>
 
@@ -40,18 +36,14 @@ OpenCascadeSurface::OpenCascadeSurface(const TopoDS_Face& face) :
 // std::unique_ptr's destructor requires.
 OpenCascadeSurface::~OpenCascadeSurface() = default;
 
-Meshing::Vector3D OpenCascadeSurface::getNormal(double u, double v) const
+std::optional<Meshing::Vector3D> OpenCascadeSurface::getNormal(double u, double v) const
 {
     GeomLProp_SLProps properties(BRep_Tool::Surface(face_), u, v, 1, Precision::Confusion());
+    if (!properties.IsNormalDefined()) return std::nullopt;
 
-    if (properties.IsNormalDefined())
-    {
-        gp_Vec normal = properties.Normal();
-        if (face_.Orientation() == TopAbs_REVERSED) normal.Reverse();
-        return {normal.X(), normal.Y(), normal.Z()};
-    }
-
-    return {0.0, 0.0, 1.0};
+    gp_Vec normal = properties.Normal();
+    if (face_.Orientation() == TopAbs_REVERSED) normal.Reverse();
+    return Meshing::Vector3D(normal.X(), normal.Y(), normal.Z());
 }
 
 std::optional<PrincipalCurvatures> OpenCascadeSurface::getPrincipalCurvatures(double u,
@@ -101,29 +93,11 @@ Common::BoundingBox2D OpenCascadeSurface::getParameterBounds() const
                                  adaptor.FirstVParameter(), adaptor.LastVParameter());
 }
 
-double OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
+std::optional<double> OpenCascadeSurface::getGap(const Meshing::Point3D& point) const
 {
     GeomAPI_ProjectPointOnSurf projector(toOpenCascadePoint(point), BRep_Tool::Surface(face_));
-
-    if (projector.NbPoints() > 0) return projector.LowerDistance();
-    return std::numeric_limits<double>::max();
-}
-
-Meshing::Point2D OpenCascadeSurface::projectPoint(const Meshing::Point3D& point) const
-{
-    GeomAPI_ProjectPointOnSurf projector(toOpenCascadePoint(point), BRep_Tool::Surface(face_));
-
-    if (projector.NbPoints() > 0)
-    {
-        double u;
-        double v;
-        projector.LowerDistanceParameters(u, v);
-        return Meshing::Point2D(u, v);
-    }
-
-    auto bounds = getParameterBounds();
-    return Meshing::Point2D((bounds.getUMin() + bounds.getUMax()) / 2.0,
-                            (bounds.getVMin() + bounds.getVMax()) / 2.0);
+    if (projector.NbPoints() == 0) return std::nullopt;
+    return projector.LowerDistance();
 }
 
 std::optional<Meshing::Point2D> OpenCascadeSurface::projectPointToUnderlyingSurface(
@@ -155,31 +129,6 @@ std::string OpenCascadeSurface::getId() const
     std::ostringstream stream;
     stream << "OpenCascadeSurface_" << std::hex << std::hash<TopoDS_Shape>{}(face_);
     return stream.str();
-}
-
-bool OpenCascadeSurface::isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const
-{
-    // Precision::Confusion() (1e-7) alone is too tight here: node coordinates
-    // reaching this point have gone through the RCDT pipeline's own
-    // arithmetic (circumcenter computation, bisection), which accumulates
-    // floating-point drift well past a geometric-kernel-level tolerance for
-    // a point that is genuinely meant to sit on this face. Scale the
-    // tolerance to the face's own size so a point that's merely numerically
-    // fuzzy still classifies correctly, while a point genuinely past the
-    // trim boundary (the actual crease case this method exists for) is
-    // still rejected.
-    Bnd_Box box;
-    BRepBndLib::Add(face_, box);
-    double diameter = box.IsVoid() ? 0.0 : std::sqrt(box.SquareExtent());
-    if (diameter <= 0.0)
-        diameter = 1.0;
-
-    constexpr double RELATIVE_TOLERANCE = 1e-4;
-    auto tolerance = std::max(Precision::Confusion(), RELATIVE_TOLERANCE * diameter);
-
-    BRepClass_FaceClassifier classifier(face_, toOpenCascadePoint(point), tolerance);
-    auto state = classifier.State();
-    return state == TopAbs_IN || state == TopAbs_ON;
 }
 
 bool OpenCascadeSurface::isUVWithinTrimmedBoundary(double u, double v) const

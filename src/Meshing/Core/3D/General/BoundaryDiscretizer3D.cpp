@@ -193,12 +193,10 @@ void addSurfaceSamples(DiscretizationResult3D& result,
             for (size_t j = 1; j < surfaceSamples; ++j)
             {
                 double v = vMin + (vMax - vMin) * static_cast<double>(j) / static_cast<double>(surfaceSamples);
-                Point3D point = surface->getPoint(u, v);
-
                 // The untrimmed parameter grid can land inside a hole in the face (OPE-169).
-                if (!surface->isPointWithinTrimmedBoundary(point)) continue;
+                if (!surface->isUVWithinTrimmedBoundary(u, v)) continue;
 
-                surfacePointIndices.push_back(appendPoint(result, point, {}, {surfaceId}));
+                surfacePointIndices.push_back(appendPoint(result, surface->getPoint(u, v), {}, {surfaceId}));
             }
         }
 

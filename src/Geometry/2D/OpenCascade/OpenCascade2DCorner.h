@@ -13,8 +13,7 @@ namespace Geometry2D
 class OpenCascade2DCorner : public ICorner2D
 {
 public:
-    explicit OpenCascade2DCorner(const gp_Pnt2d& point,
-                                 const std::string& id = "");
+    OpenCascade2DCorner(const gp_Pnt2d& point, const std::string& id);
 
     Meshing::Point2D getPoint() const override;
     std::string getId() const override;

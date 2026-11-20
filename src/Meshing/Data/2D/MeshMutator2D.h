@@ -6,9 +6,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 
 #include <memory>
-#include <string>
 #include <utility>
-#include <vector>
 
 namespace Meshing
 {
@@ -19,14 +17,13 @@ public:
     explicit MeshMutator2D(MeshData2D& meshData2D);
 
     NodeId addNode(const Point2D& coordinates);
-    NodeId addBoundaryNode(const Point2D& coordinates, const std::vector<std::string>& geometryIds);
 
     ElementId addElement(std::unique_ptr<IElement> element);
     void removeElement(ElementId id);
 
     void setCurveSegmentManager(CurveSegmentManager curveSegmentManager);
     std::pair<SegmentId, SegmentId> splitCurveSegment(NodeId nodeId1, NodeId nodeId2,
-                                                  NodeId newNodeId, double tMid);
+                                                      NodeId newNodeId, double tMid);
 
 private:
     MeshData2D& meshData2D_;

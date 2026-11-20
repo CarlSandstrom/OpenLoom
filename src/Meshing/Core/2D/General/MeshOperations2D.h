@@ -6,7 +6,6 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <memory>
 #include <optional>
-#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -29,8 +28,7 @@ public:
 
     /// Returns nullopt, with the mesh untouched, when constrained edges leave the point
     /// no conflicting triangle.
-    std::optional<NodeId> insertVertexBowyerWatson(const Point2D& point,
-                                                   const std::vector<std::string>& edgeIds = {});
+    std::optional<NodeId> insertVertexBowyerWatson(const Point2D& point);
 
     bool removeTrianglesContainingNode(NodeId nodeId);
 

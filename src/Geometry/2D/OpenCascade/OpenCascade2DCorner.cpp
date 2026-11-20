@@ -1,6 +1,4 @@
 #include "OpenCascade2DCorner.h"
-#include <cstdint>
-#include <sstream>
 
 namespace Geometry2D
 {
@@ -10,13 +8,6 @@ OpenCascade2DCorner::OpenCascade2DCorner(const gp_Pnt2d& point,
     point_(point),
     id_(id)
 {
-    if (id_.empty())
-    {
-        std::ostringstream oss;
-        oss << "OpenCascade2DCorner_" << std::hex
-            << reinterpret_cast<uintptr_t>(&point_);
-        id_ = oss.str();
-    }
 }
 
 Meshing::Point2D OpenCascade2DCorner::getPoint() const

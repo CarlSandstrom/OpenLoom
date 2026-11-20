@@ -12,8 +12,7 @@ namespace Geometry2D
 class OpenCascade2DEdge : public IEdge2D
 {
 public:
-    explicit OpenCascade2DEdge(const Handle(Geom2d_Curve) & curve,
-                               const std::string& id = "");
+    OpenCascade2DEdge(const Handle(Geom2d_Curve) & curve, const std::string& id);
 
     Meshing::Point2D getPoint(double parameter) const override;
     Meshing::Point2D getStartPoint() const override;

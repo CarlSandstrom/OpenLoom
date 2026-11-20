@@ -145,12 +145,6 @@ bool ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
                   segment.nodeId1.value(), segment.nodeId2.value());
 
     auto edge = context_->getGeometry().getEdge(segment.edgeId);
-    if (edge == nullptr)
-    {
-        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", segment.edgeId);
-        return false;
-    }
-
     auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge);
 
     if (!newNodeId.has_value())

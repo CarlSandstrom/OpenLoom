@@ -49,12 +49,14 @@ class ISurface3D
 public:
     virtual ~ISurface3D() = default;
 
-    virtual Meshing::Vector3D getNormal(double u, double v) const = 0;
+    /// Unit normal at (u, v); nullopt where it is not defined (a parametric
+    /// pole, a cone apex, a degenerate patch).
+    virtual std::optional<Meshing::Vector3D> getNormal(double u, double v) const = 0;
     virtual Meshing::Point3D getPoint(double u, double v) const = 0;
     virtual SurfaceDerivatives getFirstDerivatives(double u, double v) const = 0;
     virtual Common::BoundingBox2D getParameterBounds() const = 0;
-    virtual double getGap(const Meshing::Point3D& point) const = 0;
-    virtual Meshing::Point2D projectPoint(const Meshing::Point3D& point) const = 0;
+    /// Distance from point to the surface; nullopt when it cannot be projected.
+    virtual std::optional<double> getGap(const Meshing::Point3D& point) const = 0;
     virtual std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
         const Meshing::Point3D& point) const = 0;
     virtual std::optional<Meshing::Point2D> projectPointToUnderlyingSurface(
@@ -82,30 +84,18 @@ public:
     virtual std::optional<PrincipalCurvatures> getPrincipalCurvatures(double u, double v) const;
 
     /**
-     * @brief Whether a 3D point lies within this surface's trimmed boundary
+     * @brief Whether UV parameter point (u, v) lies within this surface's
+     * trimmed boundary.
      *
      * The underlying math surface (used by getPoint/getNormal/
      * projectPointToUnderlyingSurface) is generally unbounded or periodic;
      * the trimmed boundary is the actual finite patch the surface occupies
-     * on the model. A point can lie exactly on the untrimmed surface (zero
-     * gap) while sitting well outside its trimmed patch -- e.g. past the
-     * edge where it meets a neighboring surface.
+     * on the model. A point can lie exactly on the untrimmed surface while
+     * sitting well outside its trimmed patch -- e.g. past the edge where it
+     * meets a neighboring surface, or inside a hole.
      *
      * Default is true: surfaces with no independent trim concept (e.g.
      * simple analytic surfaces used in tests) are trimmed nowhere.
-     */
-    virtual bool isPointWithinTrimmedBoundary(const Meshing::Point3D& point) const;
-
-    /**
-     * @brief Whether UV parameter point (u, v) lies within this surface's
-     * trimmed boundary.
-     *
-     * Equivalent to isPointWithinTrimmedBoundary(getPoint(u, v)) but avoids
-     * re-projecting the 3D point back to UV when the caller already has
-     * the UV coordinates. Implementations that can classify in UV space
-     * directly (e.g. OCC's 2D face classifier) should override this.
-     *
-     * Default falls back to isPointWithinTrimmedBoundary(getPoint(u, v)).
      */
     virtual bool isUVWithinTrimmedBoundary(double u, double v) const;
 };

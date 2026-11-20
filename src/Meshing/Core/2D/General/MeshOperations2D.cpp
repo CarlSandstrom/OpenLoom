@@ -78,8 +78,7 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* per
 {
 }
 
-std::optional<NodeId> MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
-                                                                 const std::vector<std::string>& edgeIds)
+std::optional<NodeId> MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
 {
     std::vector<ElementId> conflicting = queries_.findConflictingTriangles(point);
 
@@ -108,7 +107,7 @@ std::optional<NodeId> MeshOperations2D::insertVertexBowyerWatson(const Point2D& 
         mutator_->removeElement(conflictingElementId);
     }
 
-    NodeId newVertex = edgeIds.empty() ? mutator_->addNode(point) : mutator_->addBoundaryNode(point, edgeIds);
+    NodeId newVertex = mutator_->addNode(point);
     Point2D newPoint = meshData_.getNode(newVertex)->getCoordinates();
 
     for (const auto& edge : boundary)
@@ -350,7 +349,7 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     {
         // Bowyer-Watson rebuilds the local triangulation from a star-shaped cavity, which
         // handles a midpoint off the chord.
-        auto insertedNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
+        auto insertedNodeId = insertVertexBowyerWatson(midPoint);
         if (!insertedNodeId) return std::nullopt;
 
         NodeId newNodeId = *insertedNodeId;
@@ -365,7 +364,7 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     // cavity boundary always contains the old constraint edge, and the triangle it would
     // form with the segment's end nodes is collinear and gets skipped, leaving a mesh hole.
     // Splitting the two adjacent triangles at the midpoint always forms valid triangles.
-    NodeId newNodeId = existingNodeId ? *existingNodeId : mutator_->addBoundaryNode(midPoint, {segment.edgeId});
+    NodeId newNodeId = existingNodeId ? *existingNodeId : mutator_->addNode(midPoint);
 
     // The sub-segments must be constrained before the Lawson flip, or it flips them away.
     mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);

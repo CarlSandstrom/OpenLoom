@@ -1,4 +1,7 @@
 #include "Meshing/Data/2D/MeshData2D.h"
+#include "Common/Exceptions/GeometryException.h"
+
+#include <string>
 
 namespace Meshing
 {
@@ -32,11 +35,6 @@ void MeshData2D::removeElementInternal(ElementId id)
     elements_.erase(id);
 }
 
-void MeshData2D::setNodeGeometryIdsInternal(NodeId nodeId, std::vector<std::string> geometryIds)
-{
-    nodeGeometryIds_[nodeId] = std::move(geometryIds);
-}
-
 void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
 {
     curveSegmentManager_ = std::move(manager);
@@ -46,7 +44,8 @@ std::pair<SegmentId, SegmentId> MeshData2D::splitCurveSegmentInternal(NodeId nod
                                                                       NodeId newNodeId, double tMid)
 {
     auto optionalSegmentId = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
-    if (!optionalSegmentId) return {SegmentId{0}, SegmentId{0}};
+    if (!optionalSegmentId)
+        OPENLOOM_THROW_ENTITY_NOT_FOUND("CurveSegment", std::to_string(nodeId1.value()) + "-" + std::to_string(nodeId2.value()));
     return curveSegmentManager_.splitAt(*optionalSegmentId, newNodeId, tMid);
 }
 

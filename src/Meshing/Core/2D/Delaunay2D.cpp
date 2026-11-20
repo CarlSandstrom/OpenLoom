@@ -10,9 +10,7 @@
 namespace Meshing
 {
 
-std::map<size_t, NodeId> Delaunay2D::triangulate(const std::vector<Point2D>& points,
-                                                 MeshData2D& meshData,
-                                                 const std::vector<std::vector<std::string>>& geometryIds)
+std::map<size_t, NodeId> Delaunay2D::triangulate(const std::vector<Point2D>& points, MeshData2D& meshData)
 {
     MeshMutator2D meshMutator(meshData);
     MeshOperations2D meshOperations(meshData);
@@ -32,7 +30,7 @@ std::map<size_t, NodeId> Delaunay2D::triangulate(const std::vector<Point2D>& poi
     for (size_t index = 0; index < points.size(); ++index)
     {
         auto& point = points[index];
-        auto nodeId = index < geometryIds.size() ? meshOperations.insertVertexBowyerWatson(point, geometryIds[index]) : meshOperations.insertVertexBowyerWatson(point);
+        auto nodeId = meshOperations.insertVertexBowyerWatson(point);
 
         // Nothing is constrained yet, so every point conflicts with some triangle.
         if (!nodeId)

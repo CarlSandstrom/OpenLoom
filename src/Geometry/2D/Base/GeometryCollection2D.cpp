@@ -1,4 +1,5 @@
 #include "Geometry/2D/Base/GeometryCollection2D.h"
+#include "Common/Exceptions/GeometryException.h"
 
 #include <utility>
 
@@ -22,13 +23,15 @@ void GeometryCollection2D::addEdge(std::unique_ptr<IEdge2D> edge)
 const ICorner2D* GeometryCollection2D::getCorner(const std::string& id) const
 {
     auto entry = corners_.find(id);
-    return entry != corners_.end() ? entry->second.get() : nullptr;
+    if (entry == corners_.end()) OPENLOOM_THROW_ENTITY_NOT_FOUND("Corner", id);
+    return entry->second.get();
 }
 
 const IEdge2D* GeometryCollection2D::getEdge(const std::string& id) const
 {
     auto entry = edges_.find(id);
-    return entry != edges_.end() ? entry->second.get() : nullptr;
+    if (entry == edges_.end()) OPENLOOM_THROW_ENTITY_NOT_FOUND("Edge", id);
+    return entry->second.get();
 }
 
 std::vector<std::string> GeometryCollection2D::getAllCornerIds() const
