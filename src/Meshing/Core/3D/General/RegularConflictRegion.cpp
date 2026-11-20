@@ -15,7 +15,7 @@ namespace Meshing::RegularConflictRegion
 
 namespace
 {
-bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
+bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, double weight, const MeshData3D& meshData);
 } // namespace
 
 std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
@@ -35,7 +35,7 @@ std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
         auto elementId = pending.front();
         pending.pop_front();
         auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
-        if (!tetrahedron || !conflicts(*tetrahedron, point, meshData))
+        if (!tetrahedron || !conflicts(*tetrahedron, point, 0.0, meshData))
             continue;
         region.push_back(elementId);
         for (const auto& faceNodes : tetrahedron->getFaces())
@@ -44,6 +44,38 @@ std::vector<ElementId> find(const std::array<ElementId, 2>& seeds,
             for (auto neighbour : {first, second})
                 if (neighbour != ElementId::INVALID && visited.insert(neighbour).second)
                     pending.push_back(neighbour);
+        }
+    }
+    return region;
+}
+
+std::vector<ElementId> findForWeightIncrease(NodeId vertex,
+                                             double newWeight,
+                                             const MeshData3D& meshData,
+                                             const MeshConnectivity& connectivity)
+{
+    auto& point = meshData.getNode(vertex)->getCoordinates();
+    auto& star = connectivity.getNodeElements(vertex);
+    std::vector<ElementId> region(star.begin(), star.end());
+    std::unordered_set<ElementId> visited(star.begin(), star.end());
+    std::deque<ElementId> pending(star.begin(), star.end());
+
+    while (!pending.empty())
+    {
+        auto elementId = pending.front();
+        pending.pop_front();
+        auto tetrahedron = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId));
+        for (const auto& faceNodes : tetrahedron->getFaces())
+        {
+            const auto& [first, second] = connectivity.getFaceElements(FaceKey(faceNodes));
+            for (auto neighbour : {first, second})
+            {
+                if (neighbour == ElementId::INVALID || !visited.insert(neighbour).second) continue;
+                auto candidate = dynamic_cast<const TetrahedronElement*>(meshData.getElement(neighbour));
+                if (!candidate || !conflicts(*candidate, point, newWeight, meshData)) continue;
+                region.push_back(neighbour);
+                pending.push_back(neighbour);
+            }
         }
     }
     return region;
@@ -67,7 +99,7 @@ bool isHiddenOrDuplicate(const Point3D& point, const std::vector<ElementId>& reg
 namespace
 {
 
-bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData)
+bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, double weight, const MeshData3D& meshData)
 {
     auto& nodeIds = tetrahedron.getNodeIds();
     auto node0 = meshData.getNode(nodeIds[0]);
@@ -77,7 +109,7 @@ bool conflicts(const TetrahedronElement& tetrahedron, const Point3D& point, cons
     return RegularPredicates3D::insidePointOrthosphere(
         node0->getCoordinates(), node0->getWeight(), node1->getCoordinates(), node1->getWeight(),
         node2->getCoordinates(), node2->getWeight(), node3->getCoordinates(), node3->getWeight(),
-        point, 0.0);
+        point, weight);
 }
 
 } // namespace

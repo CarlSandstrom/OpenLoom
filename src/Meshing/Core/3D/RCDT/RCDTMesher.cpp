@@ -14,6 +14,7 @@
 #include "Meshing/Core/3D/RCDT/CurveSegmentBuilder.h"
 #include "Meshing/Core/3D/RCDT/MinimumEdgeLengthEstimator.h"
 #include "Meshing/Core/3D/RCDT/ProtectingBallPlacer.h"
+#include "Meshing/Core/3D/RCDT/SliverExuder.h"
 #include "Meshing/Core/3D/RCDT/RCDTMeshExtractor.h"
 #include "Meshing/Core/3D/RCDT/RestrictedFaceAudit.h"
 #include "Meshing/Core/3D/RCDT/SnapshotGridBuilder.h"
@@ -51,6 +52,7 @@ void smoothSurfaceMesh(MeshingContext3D& context,
                        const Geometry3D::GeometryCollection3D& geometry,
                        SurfaceMesh3D& surfaceMesh,
                        size_t iterations,
+                       double sliverAngleDegrees,
                        bool meshingVolume);
 RestrictedFaceMap refineSurface(MeshingContext3D& context,
                                 const Topology3D::Topology3D& topology,
@@ -142,7 +144,8 @@ void RCDTMesher::buildSurfaceMesh(MeshingContext3D& context,
     surfaceMesh_ = std::make_unique<SurfaceMesh3D>(
         RCDTMeshExtractor::extractSurfaceMesh(context.getMeshData(), restrictedFaces, *topology_));
     // Meshing step 9: smooth
-    smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations, meshingVolume);
+    smoothSurfaceMesh(context, *geometry_, *surfaceMesh_, qualitySettings_.smoothingIterations,
+                      qualitySettings_.sliverDihedralAngleDegrees, meshingVolume);
     // Smoothing writes back to the live mesh by node ID, so the output is only
     // renumbered once it is done.
     UnreferencedNodeRemover::remove(*surfaceMesh_);
@@ -232,6 +235,7 @@ void smoothSurfaceMesh(MeshingContext3D& context,
                        const Geometry3D::GeometryCollection3D& geometry,
                        SurfaceMesh3D& surfaceMesh,
                        size_t iterations,
+                       double sliverAngleDegrees,
                        bool meshingVolume)
 {
     if (iterations == 0) return;
@@ -240,7 +244,7 @@ void smoothSurfaceMesh(MeshingContext3D& context,
     // In volume mode smoothing must not turn the solid's tetrahedra inside out.
     std::vector<std::array<NodeId, 4>> tetrahedra;
     if (meshingVolume) tetrahedra = RCDTMeshExtractor::extractTetrahedra(context.getMeshData());
-    SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra);
+    SurfaceMeshSmoother::smooth(geometry, surfaceMesh, iterations, tetrahedra, sliverAngleDegrees);
     synchronizeNodePositions(context, surfaceMesh);
 }
 
@@ -265,7 +269,9 @@ RestrictedFaceMap refineVolume(MeshingContext3D& context,
     // surface facets (step 5) and bad interior tetrahedra (step 6)
     TetrahedronDelaunayRefiner refiner(context, topology, qualitySettings, minimumEdgeLength);
     refiner.refine();
-    return refiner.getRestrictedFaces();
+    auto restrictedFaces = refiner.getRestrictedFaces();
+    SliverExuder(context, refiner.getRestriction(), restrictedFaces, qualitySettings.sliverDihedralAngleDegrees).exude();
+    return restrictedFaces;
 }
 
 // A hole in the restricted boundary lets AmbientTetrahedronRemover's flood fill

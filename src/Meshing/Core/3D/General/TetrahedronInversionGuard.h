@@ -11,13 +11,15 @@ namespace Meshing
 {
 
 /**
- * @brief Keeps a set of tetrahedra from being turned inside out by a sweep
- * that moves the nodes they share.
+ * @brief Keeps a set of tetrahedra from being turned inside out, or into
+ * slivers, by a sweep that moves the nodes they share.
  *
  * A smoothing sweep proposes every move at once, so two moves that are each
  * harmless alone can still invert a tetrahedron they share. Each tetrahedron
  * is therefore judged with all of its nodes at their proposed positions, and
- * one that would invert has all of its nodes put back.
+ * one that would invert has all of its nodes put back. So does one whose
+ * smallest dihedral angle would fall below the sliver bound and below what it
+ * was: smoothing the surface must not undo SliverExuder.
  *
  * Holds the node-to-tetrahedra index the check needs, so a caller running
  * several sweeps builds it once. The tetrahedra themselves are referenced,
@@ -28,10 +30,12 @@ class TetrahedronInversionGuard
 public:
     /// tetrahedra index into the node vectors passed to revertInvertingMoves()
     /// and must outlive this guard. An empty set makes every call a no-op.
-    explicit TetrahedronInversionGuard(const std::vector<std::array<NodeId, 4>>& tetrahedra);
+    /// sliverAngleDegrees 0 guards against inversion only.
+    TetrahedronInversionGuard(const std::vector<std::array<NodeId, 4>>& tetrahedra, double sliverAngleDegrees);
 
     /// Puts every node of every tetrahedron the proposed positions would
-    /// invert back to its position in current, until no tetrahedron inverts.
+    /// invert, or make a worse sliver, back to its position in current, until
+    /// no tetrahedron does.
     ///
     /// A node that is put back never moves again in this call, so this
     /// terminates, and a tetrahedron whose nodes are all back has exactly the
@@ -40,6 +44,7 @@ public:
 
 private:
     const std::vector<std::array<NodeId, 4>>& tetrahedra_;
+    double sliverAngleDegrees_;
     std::unordered_map<NodeId, std::vector<std::size_t>> tetrahedraByNode_;
 };
 

@@ -134,12 +134,25 @@ No bad facet and no bad tetrahedron remain, or the iteration cap is hit.
 
 ---
 
+### Sliver exudation *(volume meshing only)*
+`SliverExuder` — CGAL's `exude_mesh_3` (`Slivers_exuder`), OPE-12.
+
+A radius-edge bound cannot remove slivers: a sliver has well-shaped faces and a near-ideal radius-edge ratio, so refinement leaves it alone. After refinement, every tetrahedron inside the domain whose smallest dihedral angle is below `sliverDihedralAngleDegrees` (default 15°) is a sliver, visited worst first.
+
+**Steps:** for each vertex of a sliver, try raising its weight in 16 steps up to 0.15 × the squared distance to its nearest neighbour (CGAL's `sq_delta`). Raising a weight only grows the vertex's star, so it is a weighted re-insertion: remove the conflict region (`RegularConflictRegion::findForWeightIncrease`), fan the vertex onto its boundary (`MeshOperations3D::raiseVertexWeight`). Keep the weight that makes the worst tetrahedron around the vertex best, if that beats what it replaces.
+
+**Refusals:** corner and curve vertices are never pumped (their weights are protecting balls); a weight that would hide another vertex is refused; and a change is undone unless every face it touches keeps its restriction, to the same surface. Positions never move, so the restricted surface is exactly what refinement produced.
+
+**Not done:** CGAL's `perturb_mesh_3`, which moves sliver vertices. It needs vertex removal from the regular triangulation, which the mesher does not have. Measured after OPE-12, the worst tetrahedron is 4.9° on `BoxWithHole` and 6.8° on `ThinCapBoxVolume` (from 0.015° and 0.0°), so the 15° bound is not yet met.
+
+---
+
 ## Phase 3 — Extract and finish
 
 1. **Closed-boundary check** (`RestrictedFaceAudit`, volume only) — *new relative to the historical path*. Reads a per-edge coverage invariant off the CAD topology (one incident face per bounded surface on a curve edge; exactly two, same-surface, on any other edge). `meshVolume()` throws if any edge is short a face, rather than letting the next step silently flood-fill through the hole.
 2. **Ambient removal** (`AmbientTetrahedronClassifier`, `AmbientTetrahedronRemover`) — one flood fill from the bounding supertet, crossing only non-restricted faces, reaching the true exterior and any interior voids at once. Strips everything reached, plus the supertet's own four nodes.
 3. **Extraction** (`RCDTMeshExtractor`) — collect the restricted faces (surface) or the surviving tetrahedra (volume) into `SurfaceMesh3D` / `VolumeMesh3D`. Adjacent CAD surfaces share boundary nodes automatically, same as the historical path, because they are faces of the one shared tetrahedralization.
-4. **Smoothing** (`SurfaceMeshSmoother`, `TetrahedronInversionGuard`) — *new relative to the historical path*. Laplacian smoothing with re-projection onto the owning CAD surface; corner/curve vertices never move. For a volume, every proposed move is checked against inverting any incident tetrahedron — judged with all four of its nodes at their proposed positions at once — before being kept.
+4. **Smoothing** (`SurfaceMeshSmoother`, `TetrahedronInversionGuard`) — *new relative to the historical path*. Laplacian smoothing with re-projection onto the owning CAD surface; corner/curve vertices never move. For a volume, every proposed move is checked against inverting any incident tetrahedron, or pushing one below the sliver bound and making it worse — judged with all four of its nodes at their proposed positions at once — before being kept. Without the sliver half, smoothing undid exudation (`BoxWithHole`: 1.9° → 0.015°).
 5. **Node compaction** (`UnreferencedNodeRemover`) — extraction and smoothing index the output nodes by mesh node ID, so the output still has a slot for every ID ever used: the removed supertet nodes (zero-filled), and any vertex no restricted face uses. The last step drops every node no triangle, tetrahedron or edge chain references, and renumbers the rest densely in their original order.
 
 ---

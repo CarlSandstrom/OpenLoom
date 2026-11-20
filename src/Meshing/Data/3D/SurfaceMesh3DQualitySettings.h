@@ -41,6 +41,12 @@ struct SurfaceMesh3DQualitySettings
     /// path (meshSurface()) never looks at this.
     double tetrahedronCircumradiusToShortestEdgeRatio = 2.5;
 
+    /// Tetrahedra whose smallest dihedral angle is below this, in degrees,
+    /// are slivers, which RCDTMesher::meshVolume() exudes after refinement
+    /// (SliverExuder). A radius-edge bound cannot remove them. Set to 0 to
+    /// disable.
+    double sliverDihedralAngleDegrees = 15.0;
+
     /// Maximum number of refinement iterations before the RCDT refiner gives
     /// up. The default is a safety cap for ordinary meshes. Geometries
     /// with acute dihedral angles at feature corners (< 60°) drive a

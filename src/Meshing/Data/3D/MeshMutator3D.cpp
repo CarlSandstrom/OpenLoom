@@ -59,6 +59,17 @@ void MeshMutator3D::moveNode(NodeId id, const Point3D& newCoordinates)
     node->setCoordinates(newCoordinates);
 }
 
+void MeshMutator3D::setNodeWeight(NodeId id, double weight)
+{
+    auto node = meshData3D_.getNodeMutable(id);
+    if (!node)
+    {
+        throw OpenLoom::MeshEntityNotFoundException("Node", id.value(), std::string(__FILE__) + ":" + std::to_string(__LINE__));
+    }
+
+    node->setWeight(weight);
+}
+
 void MeshMutator3D::removeNode(NodeId id)
 {
     if (!meshData3D_.getNode(id))

@@ -155,6 +155,23 @@ NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
     return nodeId;
 }
 
+std::vector<std::array<NodeId, 4>> MeshOperations3D::raiseVertexWeight(NodeId vertexNodeId,
+                                                                      double newWeight,
+                                                                      const std::vector<ElementId>& cavity)
+{
+    auto boundary = queries_.findCavityBoundary(cavity);
+    std::vector<std::array<NodeId, 4>> removed;
+    for (auto elementId : cavity)
+    {
+        auto& nodeIds = dynamic_cast<const TetrahedronElement*>(meshData_.getElement(elementId))->getNodeIds();
+        removed.push_back({nodeIds[0], nodeIds[1], nodeIds[2], nodeIds[3]});
+        mutator_.removeElement(elementId);
+    }
+    mutator_.setNodeWeight(vertexNodeId, newWeight);
+    retriangulate(vertexNodeId, boundary);
+    return removed;
+}
+
 std::vector<ElementId> MeshOperations3D::growCavityThroughCoplanarFaces(
     const Point3D& point, std::vector<ElementId> conflicting) const
 {

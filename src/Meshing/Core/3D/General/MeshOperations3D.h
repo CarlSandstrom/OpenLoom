@@ -70,6 +70,22 @@ public:
                                     double weight = 0.0);
 
     /**
+     * @brief Raise an existing vertex's weight and retriangulate around it
+     *
+     * Removes cavity (RegularConflictRegion::findForWeightIncrease() for the
+     * same vertex and weight), sets the weight, and fans the vertex onto the
+     * cavity boundary. The caller makes sure no other vertex is hidden (each
+     * vertex of the cavity lies on its boundary) and no boundary face is
+     * coplanar with the vertex.
+     *
+     * @return The tetrahedra removed, as node arrays, so the caller can
+     * restore them
+     */
+    std::vector<std::array<NodeId, 4>> raiseVertexWeight(NodeId vertexNodeId,
+                                                         double newWeight,
+                                                         const std::vector<ElementId>& cavity);
+
+    /**
      * @brief Get the mesh mutator for primitive operations
      */
     MeshMutator3D& getMutator() { return mutator_; }

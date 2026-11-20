@@ -29,6 +29,7 @@ public:
                            const std::vector<std::string>& geometryIds,
                            double weight = 0.0);
     void moveNode(NodeId id, const Point3D& newCoordinates);
+    void setNodeWeight(NodeId id, double weight);
     void removeNode(NodeId id);
 
     ElementId addElement(std::unique_ptr<IElement> element);

@@ -1,5 +1,7 @@
 #include "Meshing/Core/3D/General/TetrahedronInversionGuard.h"
 
+#include "Meshing/Core/3D/General/ElementGeometry3D.h"
+
 namespace Meshing
 {
 
@@ -24,10 +26,28 @@ bool inverts(const std::array<NodeId, 4>& tetrahedron,
     return (before > 0.0 && after <= 0.0) || (before < 0.0 && after >= 0.0);
 }
 
+double minimumDihedralAngle(const std::array<NodeId, 4>& tetrahedron, const std::vector<Point3D>& nodes)
+{
+    return ElementGeometry3D::computeMinimumDihedralAngle({nodes[tetrahedron[0].value()], nodes[tetrahedron[1].value()],
+                                                           nodes[tetrahedron[2].value()], nodes[tetrahedron[3].value()]});
+}
+
+bool worsensSliver(const std::array<NodeId, 4>& tetrahedron,
+                   const std::vector<Point3D>& current,
+                   const std::vector<Point3D>& proposed,
+                   double sliverAngleDegrees)
+{
+    if (!(sliverAngleDegrees > 0.0)) return false;
+    auto after = minimumDihedralAngle(tetrahedron, proposed);
+    return after < sliverAngleDegrees && after < minimumDihedralAngle(tetrahedron, current);
+}
+
 } // namespace
 
-TetrahedronInversionGuard::TetrahedronInversionGuard(const std::vector<std::array<NodeId, 4>>& tetrahedra) :
-    tetrahedra_(tetrahedra)
+TetrahedronInversionGuard::TetrahedronInversionGuard(const std::vector<std::array<NodeId, 4>>& tetrahedra,
+                                                     double sliverAngleDegrees) :
+    tetrahedra_(tetrahedra),
+    sliverAngleDegrees_(sliverAngleDegrees)
 {
     for (size_t tetrahedronIndex = 0; tetrahedronIndex < tetrahedra_.size(); ++tetrahedronIndex)
         for (auto nodeId : tetrahedra_[tetrahedronIndex])
@@ -56,7 +76,8 @@ void TetrahedronInversionGuard::revertInvertingMoves(const std::vector<Point3D>&
             for (auto tetrahedronIndex : tetrahedraByNode_.at(nodeId))
             {
                 auto& tetrahedron = tetrahedra_[tetrahedronIndex];
-                if (!inverts(tetrahedron, current, proposed))
+                if (!inverts(tetrahedron, current, proposed) &&
+                    !worsensSliver(tetrahedron, current, proposed, sliverAngleDegrees_))
                     continue;
 
                 for (auto cornerNodeId : tetrahedron)
