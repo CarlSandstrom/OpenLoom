@@ -148,7 +148,8 @@ struct NonManifoldEdgeCounts
 // This sees holes and excess faces only. It is blind to the third defect
 // kind, an edge carrying the expected NUMBER of faces but on the wrong
 // surfaces, so it under-reports -- RestrictedFaceAudit, which classifies
-// all three, is the authority for any number quoted from this model.
+// all three and is printed as the boundary defect count, is the authority for
+// any number quoted from this model.
 NonManifoldEdgeCounts countNonManifoldEdges(const Meshing::SurfaceMesh3D& surfaceMesh)
 {
     std::map<Meshing::EdgeKey, int> edgeMultiplicity;
@@ -225,12 +226,12 @@ int main()
 
     exporter.writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh.vtu");
     Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "SaddleSurfaceMesh");
-    std::cout << "Exported refined mesh to SaddleSurfaceMesh.vtu\n";
+    std::cout << "Exported refined mesh to SaddleSurfaceMesh.vtu and SaddleSurfaceMesh.{nodes,cells}.tsv\n";
 
     auto nonManifoldEdges = countNonManifoldEdges(surfaceMesh);
     std::cout << "Non-manifold edges: " << nonManifoldEdges.holeEdgeCount << " holes, "
-              << nonManifoldEdges.excessEdgeCount
-              << " excess (surface mismatches not visible here -- see the runPipeline log)\n";
+              << nonManifoldEdges.excessEdgeCount << " excess\n";
+    std::cout << "Boundary defects against the CAD topology: " << mesher.getBoundaryDefects()->defects.size() << "\n";
 
     return 0;
 }
