@@ -30,6 +30,7 @@ set(TEST_SOURCES
     Meshing/Core/test_MeshVerifier2D.cpp
     Meshing/Core/test_ElementGeometry3D.cpp
     Meshing/Core/test_RobustPredicates3D.cpp
+    Meshing/Core/test_TriangleSoupIndex.cpp
     Meshing/Core/test_RegularPredicates3D.cpp
     Meshing/Core/test_MeshOperations3D.cpp
     Meshing/Core/test_ShewchukQualityController2D.cpp
