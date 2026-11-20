@@ -1,4 +1,5 @@
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
+#include "Common/Exceptions/GeometryException.h"
 #include "Common/Exceptions/MeshException.h"
 #include "Meshing/Connectivity/EdgeKey.h"
 #include "Meshing/Core/3D/General/RobustPredicates3D.h"
@@ -44,6 +45,7 @@ CavityBoundaryPartition partitionCavityBoundary(const Point3D& point,
                                                 const std::vector<ElementId>& conflicting,
                                                 const MeshData3D& meshData,
                                                 const MeshQueries3D& queries);
+const Point3D& nodeCoordinates(const MeshData3D& meshData, NodeId nodeId);
 bool isCoplanarWithFace(const Point3D& vertex, const std::array<NodeId, 3>& face, const MeshData3D& meshData);
 int eulerCharacteristic(const std::vector<std::array<NodeId, 3>>& boundary);
 
@@ -156,8 +158,8 @@ NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 }
 
 std::vector<std::array<NodeId, 4>> MeshOperations3D::raiseVertexWeight(NodeId vertexNodeId,
-                                                                      double newWeight,
-                                                                      const std::vector<ElementId>& cavity)
+                                                                       double newWeight,
+                                                                       const std::vector<ElementId>& cavity)
 {
     auto boundary = queries_.findCavityBoundary(cavity);
     std::vector<std::array<NodeId, 4>> removed;
@@ -225,29 +227,21 @@ std::vector<ElementId> MeshOperations3D::growCavityThroughCoplanarFaces(
 
 void MeshOperations3D::addOrientedTetrahedron(const std::array<NodeId, 3>& face, NodeId apexNodeId)
 {
-    auto node0 = meshData_.getNode(face[0]);
-    auto node1 = meshData_.getNode(face[1]);
-    auto node2 = meshData_.getNode(face[2]);
-    auto apexNode = meshData_.getNode(apexNodeId);
-    if (!node0 || !node1 || !node2 || !apexNode)
-        return;
+    int orientation = RobustPredicates3D::orientationSign(nodeCoordinates(meshData_, face[0]),
+                                                          nodeCoordinates(meshData_, face[1]),
+                                                          nodeCoordinates(meshData_, face[2]),
+                                                          nodeCoordinates(meshData_, apexNodeId));
+    if (orientation == 0)
+    {
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "addOrientedTetrahedron: apex " + std::to_string(apexNodeId.value()) +
+                                " is coplanar with its face; the tetrahedron would have zero volume");
+    }
 
-    auto point0 = node0->getCoordinates();
-    auto point1 = node1->getCoordinates();
-    auto point2 = node2->getCoordinates();
-    auto apexPoint = apexNode->getCoordinates();
-
-    Point3D faceNormal = (point1 - point0).cross(point2 - point0);
-    double signedVolume = faceNormal.dot(apexPoint - point0);
-
-    // signedVolume is the signed volume of (point0, point1, point2, apexPoint) in that vertex
-    // order (by the scalar triple product's cyclic invariance, faceNormal
-    // . (apexPoint - point0) == (point1 - point0) . ((point2 - point0) x (apexPoint - point0))). Store the node
-    // IDs in that same (face..., apex) order so a >= 0 signedVolume here
-    // really does mean a positive-orientation TetrahedronElement under the
-    // usual (face..., apex) sign convention -- storing the apex first
-    // instead (an odd permutation) would silently negate it.
-    auto nodeIds = signedVolume >= 0.0 ? std::array<NodeId, 4>{face[0], face[1], face[2], apexNodeId} : std::array<NodeId, 4>{face[0], face[2], face[1], apexNodeId};
+    // orientationSign is negative when (point1 - point0) x (point2 - point0) points
+    // towards the apex, which is the (face..., apex) order the mesh stores.
+    auto nodeIds = orientation < 0 ? std::array<NodeId, 4>{face[0], face[1], face[2], apexNodeId} : std::array<NodeId, 4>{face[0], face[2], face[1], apexNodeId};
 
     mutator_.addElement(std::make_unique<TetrahedronElement>(nodeIds));
 }
@@ -288,19 +282,22 @@ void MeshOperations3D::splitCoplanarBoundaryFace(NodeId vertexNodeId,
 namespace
 {
 
+const Point3D& nodeCoordinates(const MeshData3D& meshData, NodeId nodeId)
+{
+    auto node = meshData.getNode(nodeId);
+    if (!node) OPENLOOM_THROW_ENTITY_NOT_FOUND("Node", std::to_string(nodeId.value()));
+    return node->getCoordinates();
+}
+
 // Whether vertex lies exactly in the plane through the face's three nodes -- i.e.
 // whether the tetrahedron (vertex, face...) would have zero volume. Exact, not
-// tolerance-based (see RobustPredicates3D). A face with a missing node counts
-// as not coplanar.
+// tolerance-based (see RobustPredicates3D).
 bool isCoplanarWithFace(const Point3D& vertex, const std::array<NodeId, 3>& face, const MeshData3D& meshData)
 {
-    auto node0 = meshData.getNode(face[0]);
-    auto node1 = meshData.getNode(face[1]);
-    auto node2 = meshData.getNode(face[2]);
-    if (!node0 || !node1 || !node2)
-        return false;
-    return RobustPredicates3D::orientationSign(node0->getCoordinates(), node1->getCoordinates(),
-                                               node2->getCoordinates(), vertex) == 0;
+    return RobustPredicates3D::orientationSign(nodeCoordinates(meshData, face[0]),
+                                               nodeCoordinates(meshData, face[1]),
+                                               nodeCoordinates(meshData, face[2]),
+                                               vertex) == 0;
 }
 
 // Euler characteristic of the closed surface formed by a set of boundary
@@ -355,22 +352,23 @@ CavityBoundaryPartition partitionCavityBoundary(const Point3D& point,
             touching.begin(), touching.end(), [&](ElementId tetrahedronId)
             { return !conflictingSet.contains(tetrahedronId); });
 
+        // Every point is inserted strictly inside the bounding tetrahedron, so a
+        // cavity boundary face always has a tetrahedron on its far side. Without one,
+        // the only cover would be a zero-volume tetrahedron.
         if (conflictingSide == touching.end() || neighbor == touching.end())
         {
-            // No usable neighbor to split against -- a genuine domain
-            // boundary (nothing on the other side) or some other unusual
-            // configuration. Fall back to a plain fan rather than fail the
-            // insertion.
-            partition.normalFaces.push_back(face);
-            continue;
+            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                                OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
+                                "partitionCavityBoundary: coplanar cavity boundary face has no tetrahedron on its far side");
         }
 
         auto apex0 = queries.findOppositeVertex(*conflictingSide, face[0], face[1], face[2]);
         auto apex1 = queries.findOppositeVertex(*neighbor, face[0], face[1], face[2]);
         if (!apex0 || !apex1)
         {
-            partition.normalFaces.push_back(face);
-            continue;
+            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                                OpenLoom::MeshException::ErrorCode::INVALID_TOPOLOGY,
+                                "partitionCavityBoundary: a tetrahedron on a coplanar face does not contain that face");
         }
 
         partition.splits.push_back({face, *apex0, *neighbor, *apex1});
