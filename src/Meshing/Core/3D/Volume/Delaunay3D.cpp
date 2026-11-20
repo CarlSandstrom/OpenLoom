@@ -1,4 +1,5 @@
 #include "Meshing/Core/3D/Volume/Delaunay3D.h"
+#include "Common/Exceptions/MeshException.h"
 #include "Meshing/Core/3D/General/MeshOperations3D.h"
 #include "spdlog/spdlog.h"
 
@@ -25,21 +26,21 @@ Delaunay3DResult Delaunay3D::triangulate(MeshOperations3D& operations,
 
     for (size_t i = 0; i < points.size(); ++i)
     {
-        bool hasGeometryIds = i < geometryIds.size() && !geometryIds[i].empty();
         auto weightEntry = pointWeights.find(i);
         auto weight = weightEntry != pointWeights.end() ? weightEntry->second : 0.0;
+        auto nodeId = operations.insertVertexBowyerWatson(points[i], i < geometryIds.size() ? geometryIds[i] : std::vector<std::string>{}, weight);
 
-        NodeId nodeId;
-        if (hasGeometryIds)
+        // Every point lies inside the bounding tetrahedron, so it fails only when
+        // a heavier vertex hides it -- and every seed point (a protecting ball or
+        // a boundary sample) must become a vertex.
+        if (!nodeId)
         {
-            nodeId = operations.insertVertexBowyerWatson(points[i], geometryIds[i], weight);
+            OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                                OpenLoom::MeshException::ErrorCode::GENERATION_FAILED,
+                                "Delaunay3D::triangulate: point " + std::to_string(i) + " (weight " +
+                                    std::to_string(weight) + ") is hidden by another vertex");
         }
-        else
-        {
-            nodeId = operations.insertVertexBowyerWatson(points[i], {}, weight);
-        }
-
-        result.pointIndexToNodeIdMap[i] = nodeId;
+        result.pointIndexToNodeIdMap[i] = *nodeId;
 
         if ((i + 1) % 100 == 0)
         {

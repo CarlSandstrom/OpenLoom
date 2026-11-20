@@ -111,11 +111,13 @@ std::array<NodeId, 4> MeshOperations3D::createBoundingTetrahedron(const std::vec
     return nodeIds;
 }
 
-NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
-                                                  const std::vector<std::string>& geometryIds,
-                                                  double weight)
+std::optional<NodeId> MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
+                                                                 const std::vector<std::string>& geometryIds,
+                                                                 double weight)
 {
-    return insertVertexBowyerWatson(point, queries_.findConflictingTetrahedra(point, weight), geometryIds, weight);
+    auto conflicting = queries_.findConflictingTetrahedra(point, weight);
+    if (conflicting.empty()) return std::nullopt;
+    return insertVertexBowyerWatson(point, std::move(conflicting), geometryIds, weight);
 }
 
 NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
@@ -125,11 +127,10 @@ NodeId MeshOperations3D::insertVertexBowyerWatson(const Point3D& point,
 {
     if (conflicting.empty())
     {
-        NodeId nodeId = mutator_.addNode(point, weight);
-        spdlog::warn("MeshOperations3D::insertVertexBowyerWatson: No conflicting tetrahedra found (node {}, "
-                     "point ({}, {}, {}), weight {})",
-                     nodeId.value(), point.x(), point.y(), point.z(), weight);
-        return nodeId;
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "insertVertexBowyerWatson: empty conflict region for point (" + std::to_string(point.x()) +
+                                ", " + std::to_string(point.y()) + ", " + std::to_string(point.z()) + ")");
     }
 
     conflicting = growCavityThroughCoplanarFaces(point, std::move(conflicting));
