@@ -142,23 +142,23 @@ bool ShewchukRefiner2D::refineStep()
 bool ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
 {
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
-                  segment.nodeId1.value(), segment.nodeId2.value());
+                  segment.startNodeId.value(), segment.endNodeId.value());
 
     auto edge = context_->getGeometry().getEdge(segment.edgeId);
     auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge);
 
     if (!newNodeId.has_value())
     {
-        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.nodeId1.value(), segment.nodeId2.value());
+        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.startNodeId.value(), segment.endNodeId.value());
         return false;
     }
 
     spdlog::debug("ShewchukRefiner2D: Successfully split segment ({}, {}) at node {}",
-                  segment.nodeId1.value(), segment.nodeId2.value(), newNodeId->value());
+                  segment.startNodeId.value(), segment.endNodeId.value(), newNodeId->value());
 
     if (onBoundarySplit_)
     {
-        onBoundarySplit_(segment.nodeId1, segment.nodeId2, newNodeId.value());
+        onBoundarySplit_(segment.startNodeId, segment.endNodeId, newNodeId.value());
     }
     return true;
 }

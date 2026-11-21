@@ -23,7 +23,7 @@ public:
 
     void setCurveSegmentManager(CurveSegmentManager curveSegmentManager);
     std::pair<SegmentId, SegmentId> splitCurveSegment(NodeId nodeId1, NodeId nodeId2,
-                                                      NodeId newNodeId, double tMid);
+                                                      NodeId newNodeId, double midParameter);
 
 private:
     MeshData2D& meshData2D_;

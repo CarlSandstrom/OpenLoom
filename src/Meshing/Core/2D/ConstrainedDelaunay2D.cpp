@@ -84,14 +84,14 @@ size_t enforceConstrainedEdges(const MeshData2D& meshData, MeshOperations2D& mes
 {
     auto& segments = meshData.getCurveSegmentManager().getAllSegments();
     for (const auto& [segmentId, segment] : segments)
-        meshOperations.enforceEdge(segment.nodeId1, segment.nodeId2);
+        meshOperations.enforceEdge(segment.startNodeId, segment.endNodeId);
 
     return std::count_if(segments.begin(), segments.end(),
                          [&meshOperations](const auto& entry)
                          {
                              auto& segment = entry.second;
                              return meshOperations.getQueries()
-                                 .findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2)
+                                 .findTrianglesAdjacentToEdge(segment.startNodeId, segment.endNodeId)
                                  .empty();
                          });
 }

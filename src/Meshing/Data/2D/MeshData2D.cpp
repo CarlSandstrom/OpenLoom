@@ -41,12 +41,12 @@ void MeshData2D::setCurveSegmentManagerInternal(CurveSegmentManager manager)
 }
 
 std::pair<SegmentId, SegmentId> MeshData2D::splitCurveSegmentInternal(NodeId nodeId1, NodeId nodeId2,
-                                                                      NodeId newNodeId, double tMid)
+                                                                      NodeId newNodeId, double midParameter)
 {
     auto optionalSegmentId = curveSegmentManager_.findSegmentId(nodeId1, nodeId2);
     if (!optionalSegmentId)
         OPENLOOM_THROW_ENTITY_NOT_FOUND("CurveSegment", std::to_string(nodeId1.value()) + "-" + std::to_string(nodeId2.value()));
-    return curveSegmentManager_.splitAt(*optionalSegmentId, newNodeId, tMid);
+    return curveSegmentManager_.splitAt(*optionalSegmentId, newNodeId, midParameter);
 }
 
 } // namespace Meshing

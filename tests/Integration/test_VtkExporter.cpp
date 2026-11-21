@@ -93,7 +93,7 @@ protected:
         curveSegments.addSegment({n3, n0});
 
         // Interior constraint dividing the two domains
-        curveSegments.addSegment({.nodeId1 = n1, .nodeId2 = n2, .role = Meshing::ConstraintRole::Interior});
+        curveSegments.addSegment({.startNodeId = n1, .endNodeId = n2, .role = Meshing::ConstraintRole::Interior});
         mutator_->setCurveSegmentManager(std::move(curveSegments));
     }
 };

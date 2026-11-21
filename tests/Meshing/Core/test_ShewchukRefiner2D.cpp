@@ -405,7 +405,7 @@ TEST(ShewchukRefiner2D, OutwardBulgingBoundary_SegmentSplitExtendsMeshAcrossChor
     {
         auto edge = context.getGeometry().getEdge(segment.edgeId);
         auto newNodeId = context.getOperations().splitConstrainedSegment(segment, *edge);
-        ASSERT_TRUE(newNodeId.has_value()) << "segment (" << segment.nodeId1.value() << ", " << segment.nodeId2.value() << ")";
+        ASSERT_TRUE(newNodeId.has_value()) << "segment (" << segment.startNodeId.value() << ", " << segment.endNodeId.value() << ")";
     }
 
     auto verification = MeshVerifier2D::verify(context.getMeshData());

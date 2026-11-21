@@ -10,7 +10,7 @@ SegmentId CurveSegmentManager::addSegment(const CurveSegment& segment)
     return addSegmentInternal(segment);
 }
 
-std::pair<SegmentId, SegmentId> CurveSegmentManager::splitAt(SegmentId segmentId, NodeId newNodeId, double tMid)
+std::pair<SegmentId, SegmentId> CurveSegmentManager::splitAt(SegmentId segmentId, NodeId newNodeId, double midParameter)
 {
     auto it = segments_.find(segmentId);
     if (it == segments_.end())
@@ -23,8 +23,8 @@ std::pair<SegmentId, SegmentId> CurveSegmentManager::splitAt(SegmentId segmentId
     CurveSegment original = it->second;
     removeSegmentInternal(segmentId);
 
-    CurveSegment segment1{original.nodeId1, newNodeId, original.edgeId, original.tStart, tMid, original.role};
-    CurveSegment segment2{newNodeId, original.nodeId2, original.edgeId, tMid, original.tEnd, original.role};
+    CurveSegment segment1{original.startNodeId, newNodeId, original.edgeId, original.startParameter, midParameter, original.role};
+    CurveSegment segment2{newNodeId, original.endNodeId, original.edgeId, midParameter, original.endParameter, original.role};
 
     SegmentId id1 = addSegmentInternal(segment1);
     SegmentId id2 = addSegmentInternal(segment2);
@@ -68,7 +68,7 @@ std::vector<CurveSegment> CurveSegmentManager::getSegmentsForEdge(const std::str
     }
     std::sort(result.begin(), result.end(),
               [](const CurveSegment& a, const CurveSegment& b)
-              { return a.tStart < b.tStart; });
+              { return a.startParameter < b.startParameter; });
     return result;
 }
 
@@ -80,9 +80,9 @@ std::vector<NodeId> CurveSegmentManager::getOrderedNodeIdsForEdge(const std::str
 
     std::vector<NodeId> nodeIds;
     nodeIds.reserve(segments.size() + 1);
-    nodeIds.push_back(segments.front().nodeId1);
+    nodeIds.push_back(segments.front().startNodeId);
     for (const auto& segment : segments)
-        nodeIds.push_back(segment.nodeId2);
+        nodeIds.push_back(segment.endNodeId);
     return nodeIds;
 }
 
@@ -100,9 +100,9 @@ SegmentId CurveSegmentManager::addSegmentInternal(const CurveSegment& segment)
 {
     SegmentId id{nextId_++};
     segments_[id] = segment;
-    auto key = (segment.nodeId1 < segment.nodeId2) ?
-                   std::make_pair(segment.nodeId1, segment.nodeId2) :
-                   std::make_pair(segment.nodeId2, segment.nodeId1);
+    auto key = (segment.startNodeId < segment.endNodeId) ?
+                   std::make_pair(segment.startNodeId, segment.endNodeId) :
+                   std::make_pair(segment.endNodeId, segment.startNodeId);
     endpointToSegmentId_[key] = id;
     return id;
 }
@@ -114,9 +114,9 @@ void CurveSegmentManager::removeSegmentInternal(SegmentId segmentId)
         return;
 
     const auto& segment = it->second;
-    auto key = (segment.nodeId1 < segment.nodeId2) ?
-                   std::make_pair(segment.nodeId1, segment.nodeId2) :
-                   std::make_pair(segment.nodeId2, segment.nodeId1);
+    auto key = (segment.startNodeId < segment.endNodeId) ?
+                   std::make_pair(segment.startNodeId, segment.endNodeId) :
+                   std::make_pair(segment.endNodeId, segment.startNodeId);
     endpointToSegmentId_.erase(key);
     segments_.erase(it);
 }

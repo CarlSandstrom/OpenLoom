@@ -329,16 +329,16 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     const CurveSegment& segment,
     const Geometry2D::IEdge2D& parentEdge)
 {
-    auto node1 = meshData_.getNode(segment.nodeId1);
-    auto node2 = meshData_.getNode(segment.nodeId2);
+    auto node1 = meshData_.getNode(segment.startNodeId);
+    auto node2 = meshData_.getNode(segment.endNodeId);
 
     if (node1 == nullptr || node2 == nullptr)
     {
-        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.nodeId1.value(), segment.nodeId2.value());
+        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.startNodeId.value(), segment.endNodeId.value());
         return std::nullopt;
     }
 
-    double midParameter = (segment.tStart + segment.tEnd) * 0.5;
+    double midParameter = (segment.startParameter + segment.endParameter) * 0.5;
     Point2D midPoint = parentEdge.getPoint(midParameter);
 
     // A node can already sit at the midpoint, e.g. a seam twin whose UV midpoint
@@ -352,28 +352,28 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     bool midOnChord = isOnChord(node1->getCoordinates(), node2->getCoordinates(), midPoint);
 
     if (!existingNodeId && !midOnChord &&
-        liesBeyondChord(meshData_, queries_, segment.nodeId1, segment.nodeId2, midPoint))
+        liesBeyondChord(meshData_, queries_, segment.startNodeId, segment.endNodeId, midPoint))
         return extendMeshAcrossChord(segment, midPoint, midParameter);
 
     if (!existingNodeId && !midOnChord)
     {
         // Bowyer-Watson rebuilds the local triangulation from a star-shaped cavity, which
         // handles a midpoint off the chord on the mesh's side of it.
-        bool chordOnMeshBoundary = queries_.findTrianglesAdjacentToEdge(segment.nodeId1, segment.nodeId2).size() == 1;
+        bool chordOnMeshBoundary = queries_.findTrianglesAdjacentToEdge(segment.startNodeId, segment.endNodeId).size() == 1;
         auto insertedNodeId = insertVertexBowyerWatson(midPoint);
         if (!insertedNodeId) return std::nullopt;
 
         NodeId newNodeId = *insertedNodeId;
-        enforceEdge(segment.nodeId1, newNodeId);
-        enforceEdge(newNodeId, segment.nodeId2);
+        enforceEdge(segment.startNodeId, newNodeId);
+        enforceEdge(newNodeId, segment.endNodeId);
 
-        mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
+        mutator_->splitCurveSegment(segment.startNodeId, segment.endNodeId, newNodeId, midParameter);
 
         // A curve bulging into the mesh from its boundary: the fan closes the cavity
         // with the triangle (chord, midpoint), which lies between the chord and the
         // curve -- outside the domain now that the curve is the boundary.
         if (chordOnMeshBoundary)
-            removeTriangleOnChord(segment.nodeId1, segment.nodeId2, newNodeId);
+            removeTriangleOnChord(segment.startNodeId, segment.endNodeId, newNodeId);
         return newNodeId;
     }
 
@@ -384,11 +384,11 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     NodeId newNodeId = existingNodeId ? *existingNodeId : mutator_->addNode(midPoint);
 
     // The sub-segments must be constrained before the Lawson flip, or it flips them away.
-    mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
+    mutator_->splitCurveSegment(segment.startNodeId, segment.endNodeId, newNodeId, midParameter);
 
     if (midOnChord)
     {
-        auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+        auto newTriangleIds = splitTrianglesAtEdge(segment.startNodeId, segment.endNodeId, newNodeId);
         if (!newTriangleIds.empty())
             lawsonFlip(newTriangleIds);
     }
@@ -397,8 +397,8 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
         // An existing node coincides with the arc midpoint but lies off the chord, where
         // splitTrianglesAtEdge would produce clockwise sub-triangles. enforceEdge rebuilds
         // the local triangulation by ear clipping instead.
-        enforceEdge(segment.nodeId1, newNodeId);
-        enforceEdge(newNodeId, segment.nodeId2);
+        enforceEdge(segment.startNodeId, newNodeId);
+        enforceEdge(newNodeId, segment.endNodeId);
     }
 
     return newNodeId;
@@ -414,24 +414,24 @@ std::optional<NodeId> MeshOperations2D::extendMeshAcrossChord(const CurveSegment
                                                               const Point2D& midPoint,
                                                               double midParameter)
 {
-    auto& point1 = meshData_.getNode(segment.nodeId1)->getCoordinates();
-    auto& point2 = meshData_.getNode(segment.nodeId2)->getCoordinates();
+    auto& point1 = meshData_.getNode(segment.startNodeId)->getCoordinates();
+    auto& point2 = meshData_.getNode(segment.endNodeId)->getCoordinates();
 
     // Another boundary curve reaching between this chord and its curve leaves no
     // room for the triangle.
     if (crossesConstrainedSegment(meshData_, point1, midPoint) || crossesConstrainedSegment(meshData_, midPoint, point2))
     {
         spdlog::debug("extendMeshAcrossChord: segment ({}, {}) is crowded by another boundary",
-                      segment.nodeId1.value(), segment.nodeId2.value());
+                      segment.startNodeId.value(), segment.endNodeId.value());
         return std::nullopt;
     }
 
     NodeId newNodeId = mutator_->addNode(midPoint);
-    auto nodeIds = GeometryUtilities2D::computeOrientation(point1, point2, midPoint) > 0.0 ? std::array<NodeId, 3>{segment.nodeId1, segment.nodeId2, newNodeId} : std::array<NodeId, 3>{segment.nodeId2, segment.nodeId1, newNodeId};
+    auto nodeIds = GeometryUtilities2D::computeOrientation(point1, point2, midPoint) > 0.0 ? std::array<NodeId, 3>{segment.startNodeId, segment.endNodeId, newNodeId} : std::array<NodeId, 3>{segment.endNodeId, segment.startNodeId, newNodeId};
     ElementId newTriangleId = mutator_->addElement(std::make_unique<TriangleElement>(nodeIds));
 
     // The sub-segments must be constrained before the Lawson flip, or it flips them away.
-    mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
+    mutator_->splitCurveSegment(segment.startNodeId, segment.endNodeId, newNodeId, midParameter);
     lawsonFlip({newTriangleId});
     return newNodeId;
 }
@@ -648,7 +648,7 @@ EdgeKeySet collectConstrainedEdgeKeys(const MeshData2D& meshData)
     EdgeKeySet constrainedEdgeKeys;
     for (const auto& [id, segment] : meshData.getCurveSegmentManager().getAllSegments())
     {
-        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(segment.nodeId1, segment.nodeId2));
+        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(segment.startNodeId, segment.endNodeId));
     }
     return constrainedEdgeKeys;
 }
@@ -784,8 +784,8 @@ bool crossesConstrainedSegment(const MeshData2D& meshData, const Point2D& start,
 {
     for (const auto& [segmentId, segment] : meshData.getCurveSegmentManager().getAllSegments())
     {
-        auto& segmentStart = meshData.getNode(segment.nodeId1)->getCoordinates();
-        auto& segmentEnd = meshData.getNode(segment.nodeId2)->getCoordinates();
+        auto& segmentStart = meshData.getNode(segment.startNodeId)->getCoordinates();
+        auto& segmentEnd = meshData.getNode(segment.endNodeId)->getCoordinates();
         if (GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(start, end, segmentStart, segmentEnd))
             return true;
     }

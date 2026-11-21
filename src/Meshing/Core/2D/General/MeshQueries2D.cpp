@@ -206,7 +206,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
             manager.addSegment(segment);
 
             spdlog::debug("Edge {}: Node IDs ({}, {}), t=[{},{}], role: {}",
-                          edgeId, segment.nodeId1.value(), segment.nodeId2.value(), segment.tStart, segment.tEnd,
+                          edgeId, segment.startNodeId.value(), segment.endNodeId.value(), segment.startParameter, segment.endParameter,
                           describeConstraintRole(role));
             continue;
         }
@@ -218,7 +218,7 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
             manager.addSegment(segment);
 
             spdlog::debug("Edge {} segment {}: Node IDs ({}, {}), t=[{},{}], role: {}",
-                          edgeId, segmentIndex, segment.nodeId1.value(), segment.nodeId2.value(), segment.tStart, segment.tEnd,
+                          edgeId, segmentIndex, segment.startNodeId.value(), segment.endNodeId.value(), segment.startParameter, segment.endParameter,
                           describeConstraintRole(role));
         }
     }
@@ -236,7 +236,7 @@ std::vector<CurveSegment> MeshQueries2D::findEncroachedSegments() const
     {
         for (const auto& [nodeId, node] : meshData_.getNodes())
         {
-            if (nodeId == segment.nodeId1 || nodeId == segment.nodeId2) continue;
+            if (nodeId == segment.startNodeId || nodeId == segment.endNodeId) continue;
 
             auto& point = node->getCoordinates();
 
@@ -272,8 +272,8 @@ std::vector<CurveSegment> MeshQueries2D::findSegmentsEncroachedByPoint(
 
 bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const CurveSegment& segment) const
 {
-    auto& segmentStart = meshData_.getNode(segment.nodeId1)->getCoordinates();
-    auto& segmentEnd = meshData_.getNode(segment.nodeId2)->getCoordinates();
+    auto& segmentStart = meshData_.getNode(segment.startNodeId)->getCoordinates();
+    auto& segmentEnd = meshData_.getNode(segment.endNodeId)->getCoordinates();
     Point2D midpoint = (segmentStart + segmentEnd) * 0.5;
 
     // Check if the line from point to midpoint properly crosses any other
@@ -281,11 +281,11 @@ bool MeshQueries2D::isPointVisibleFromSegment(const Point2D& point, const CurveS
     // not just touch at endpoints.
     for (const auto& [otherId, other] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        if (other.nodeId1 == segment.nodeId1 && other.nodeId2 == segment.nodeId2) continue;
-        if (other.nodeId1 == segment.nodeId2 && other.nodeId2 == segment.nodeId1) continue;
+        if (other.startNodeId == segment.startNodeId && other.endNodeId == segment.endNodeId) continue;
+        if (other.startNodeId == segment.endNodeId && other.endNodeId == segment.startNodeId) continue;
 
-        auto& otherStart = meshData_.getNode(other.nodeId1)->getCoordinates();
-        auto& otherEnd = meshData_.getNode(other.nodeId2)->getCoordinates();
+        auto& otherStart = meshData_.getNode(other.startNodeId)->getCoordinates();
+        auto& otherEnd = meshData_.getNode(other.endNodeId)->getCoordinates();
 
         // Segments sharing an endpoint with the query segment or touching at the
         // point itself should not block visibility.
@@ -340,8 +340,8 @@ bool MeshQueries2D::isPointInsideDomain(const Point2D& point) const
     {
         if (segment.role != ConstraintRole::Boundary) continue;
 
-        auto startNode = meshData_.getNode(segment.nodeId1);
-        auto endNode = meshData_.getNode(segment.nodeId2);
+        auto startNode = meshData_.getNode(segment.startNodeId);
+        auto endNode = meshData_.getNode(segment.endNodeId);
         if (!startNode || !endNode) continue;
 
         auto& start = startNode->getCoordinates();
@@ -419,8 +419,8 @@ bool MeshQueries2D::isBoundaryConstraintEdge(const std::array<NodeId, 2>& edge) 
     {
         if (segment.role != ConstraintRole::Boundary) continue;
 
-        if ((segment.nodeId1 == edge[0] && segment.nodeId2 == edge[1]) ||
-            (segment.nodeId1 == edge[1] && segment.nodeId2 == edge[0]))
+        if ((segment.startNodeId == edge[0] && segment.endNodeId == edge[1]) ||
+            (segment.startNodeId == edge[1] && segment.endNodeId == edge[0]))
         {
             return true;
         }
@@ -460,15 +460,15 @@ bool isVisibleFromTriangleInterior(const MeshData2D& meshData,
     for (const auto& [segmentId, segment] : meshData.getCurveSegmentManager().getAllSegments())
     {
         // Skip segments that share a node with this triangle
-        if (segment.nodeId1 == nodeIds[0] || segment.nodeId1 == nodeIds[1] ||
-            segment.nodeId1 == nodeIds[2] || segment.nodeId2 == nodeIds[0] ||
-            segment.nodeId2 == nodeIds[1] || segment.nodeId2 == nodeIds[2])
+        if (segment.startNodeId == nodeIds[0] || segment.startNodeId == nodeIds[1] ||
+            segment.startNodeId == nodeIds[2] || segment.endNodeId == nodeIds[0] ||
+            segment.endNodeId == nodeIds[1] || segment.endNodeId == nodeIds[2])
         {
             continue;
         }
 
-        auto& segmentStart = meshData.getNode(segment.nodeId1)->getCoordinates();
-        auto& segmentEnd = meshData.getNode(segment.nodeId2)->getCoordinates();
+        auto& segmentStart = meshData.getNode(segment.startNodeId)->getCoordinates();
+        auto& segmentEnd = meshData.getNode(segment.endNodeId)->getCoordinates();
 
         // If the insertion point lies on this constraint segment, the line from
         // point to centroid starts on the segment — that is not a proper crossing
@@ -563,9 +563,9 @@ CurveSegment createSegment(const SegmentEndpointLookup& endpointLookup,
 {
     NodeId startNodeId = endpointLookup.pointIndexToNodeIdMap.at(startPointIndex);
     NodeId endNodeId = endpointLookup.pointIndexToNodeIdMap.at(endPointIndex);
-    double tStart = findParameterOnEdge(endpointLookup, startPointIndex, edgeId);
-    double tEnd = findParameterOnEdge(endpointLookup, endPointIndex, edgeId);
-    return CurveSegment{startNodeId, endNodeId, edgeId, tStart, tEnd, role};
+    double startParameter = findParameterOnEdge(endpointLookup, startPointIndex, edgeId);
+    double endParameter = findParameterOnEdge(endpointLookup, endPointIndex, edgeId);
+    return CurveSegment{startNodeId, endNodeId, edgeId, startParameter, endParameter, role};
 }
 
 // The point's parameter on the given edge, or 0 when the point carries none for it.

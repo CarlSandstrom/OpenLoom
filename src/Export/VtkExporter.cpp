@@ -192,7 +192,7 @@ VtkGrid gridFromMeshData(const MeshData& mesh, std::vector<Meshing::ElementId>& 
     for (const auto& [segmentId, segment] : mesh.getCurveSegmentManager().getAllSegments())
     {
         grid.cells.push_back(
-            {VtkCellType::Line, {indexByNodeId.at(segment.nodeId1), indexByNodeId.at(segment.nodeId2)}});
+            {VtkCellType::Line, {indexByNodeId.at(segment.startNodeId), indexByNodeId.at(segment.endNodeId)}});
     }
     return grid;
 }
@@ -236,7 +236,7 @@ std::unordered_map<Meshing::ElementId, int> computeDomainIds(const Meshing::Mesh
 
     for (const auto& [segmentId, segment] : curveSegmentManager.getAllSegments())
     {
-        auto key = makeEdgeKey(segment.nodeId1, segment.nodeId2);
+        auto key = makeEdgeKey(segment.startNodeId, segment.endNodeId);
         allConstraintEdges.insert(key);
         if (segment.role == Meshing::ConstraintRole::Boundary)
             boundaryEdges.insert(key);
@@ -264,8 +264,8 @@ std::unordered_map<Meshing::ElementId, int> computeDomainIds(const Meshing::Mesh
             if (segment.role != Meshing::ConstraintRole::Boundary)
                 continue;
 
-            const auto& p1 = mesh.getNode(segment.nodeId1)->getCoordinates();
-            const auto& p2 = mesh.getNode(segment.nodeId2)->getCoordinates();
+            const auto& p1 = mesh.getNode(segment.startNodeId)->getCoordinates();
+            const auto& p2 = mesh.getNode(segment.endNodeId)->getCoordinates();
 
             if ((p1.y() > point.y()) == (p2.y() > point.y()))
                 continue;

@@ -31,9 +31,9 @@ void MeshMutator2D::setCurveSegmentManager(CurveSegmentManager curveSegmentManag
 }
 
 std::pair<SegmentId, SegmentId> MeshMutator2D::splitCurveSegment(NodeId nodeId1, NodeId nodeId2,
-                                                                 NodeId newNodeId, double tMid)
+                                                                 NodeId newNodeId, double midParameter)
 {
-    return meshData2D_.splitCurveSegmentInternal(nodeId1, nodeId2, newNodeId, tMid);
+    return meshData2D_.splitCurveSegmentInternal(nodeId1, nodeId2, newNodeId, midParameter);
 }
 
 } // namespace Meshing
