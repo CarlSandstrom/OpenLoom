@@ -101,10 +101,17 @@ std::optional<TriangleSoupIndex::Crossing> TriangleSoupIndex::findCrossingNeares
             auto& vertices = triangle.vertices;
             if (!RobustPredicates3D::segmentCrossesTriangle(a, b, vertices[0], vertices[1], vertices[2]))
                 continue;
+            // The ends' signed distances to the triangle's plane (scaled by the normal's
+            // length). The predicate put them on opposite sides, so their difference adds
+            // magnitudes instead of cancelling; rounding can still push the ratio an ulp
+            // outside [0, 1], and both are exactly 0 only when both ends lie within
+            // rounding of the plane.
             Point3D normal = (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0]);
-            double denominator = normal.dot(direction);
-            double parameter = denominator == 0.0 ? 0.0 : normal.dot(vertices[0] - a) / denominator;
-            Point3D crossing = a + std::clamp(parameter, 0.0, 1.0) * direction;
+            double distanceA = normal.dot(a - vertices[0]);
+            double distanceB = normal.dot(b - vertices[0]);
+            double difference = distanceA - distanceB;
+            double parameter = difference == 0.0 ? 0.0 : std::clamp(distanceA / difference, 0.0, 1.0);
+            Point3D crossing = a + parameter * direction;
             double squaredDistance = (crossing - target).squaredNorm();
             if (!nearest || squaredDistance < nearestSquaredDistance)
             {
