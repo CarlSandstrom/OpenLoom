@@ -21,7 +21,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 # Build everything
 cmake --build build -j$(nproc)
 
-# Run tests -- inner loop, 255 of 291 cases in ~10s
+# Run tests -- inner loop, 257 of 293 cases in ~10s
 ctest --test-dir build/tests -j$(nproc) -LE slow --output-on-failure
 
 # Run everything, including the full-model meshing tests (~60s)
