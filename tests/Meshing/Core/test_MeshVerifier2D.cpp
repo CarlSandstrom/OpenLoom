@@ -4,6 +4,7 @@
 #include "Meshing/Core/2D/General/MeshVerifier2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/2D/MeshMutator2D.h"
+#include "Meshing/Data/3D/TetrahedronElement.h"
 #include "Meshing/Data/Base/TriangleElement.h"
 
 #include <array>
@@ -84,4 +85,40 @@ TEST_F(MeshVerifier2DTest, OverlapIsFoundPastNonOverlappingTrianglesInXOrder)
 
     EXPECT_FALSE(result.isValid);
     EXPECT_EQ(result.errors.size(), 1u);
+}
+
+TEST_F(MeshVerifier2DTest, ClockwiseTriangleIsReported)
+{
+    addTriangle(Point2D(0.0, 0.0), Point2D(0.0, 1.0), Point2D(1.0, 0.0));
+
+    auto result = MeshVerifier2D::verify(meshData_);
+
+    EXPECT_FALSE(result.isValid);
+    ASSERT_EQ(result.errors.size(), 1u);
+    EXPECT_NE(result.errors[0].find("clockwise"), std::string::npos) << result.errors[0];
+}
+
+TEST_F(MeshVerifier2DTest, DegenerateTriangleIsReported)
+{
+    addTriangle(Point2D(0.0, 0.0), Point2D(1.0, 0.0), Point2D(2.0, 0.0));
+
+    auto result = MeshVerifier2D::verify(meshData_);
+
+    EXPECT_FALSE(result.isValid);
+    ASSERT_FALSE(result.errors.empty());
+    EXPECT_NE(result.errors[0].find("degenerate"), std::string::npos) << result.errors[0];
+}
+
+TEST_F(MeshVerifier2DTest, NonTriangleElementIsSkippedWithAWarning)
+{
+    addTriangle(Point2D(0.0, 0.0), Point2D(1.0, 0.0), Point2D(0.0, 1.0));
+    std::array<NodeId, 4> nodeIds = {mutator_->addNode(Point2D(5.0, 5.0)), mutator_->addNode(Point2D(6.0, 5.0)),
+                                     mutator_->addNode(Point2D(5.0, 6.0)), mutator_->addNode(Point2D(6.0, 6.0))};
+    mutator_->addElement(std::make_unique<TetrahedronElement>(nodeIds));
+
+    auto result = MeshVerifier2D::verify(meshData_);
+
+    EXPECT_TRUE(result.isValid);
+    ASSERT_EQ(result.warnings.size(), 1u);
+    EXPECT_NE(result.warnings[0].find("not a triangle"), std::string::npos) << result.warnings[0];
 }

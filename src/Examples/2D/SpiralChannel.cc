@@ -1,4 +1,5 @@
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -138,6 +139,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.exportMesh(context.getMeshData(), "SpiralChannel.vtu");
+    Export::TsvExporter::writeMesh(context.getMeshData(), "SpiralChannel");
 
     return 0;
 }

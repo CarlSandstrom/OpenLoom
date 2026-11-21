@@ -21,7 +21,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 # Build everything
 cmake --build build -j$(nproc)
 
-# Run tests -- inner loop, 251 of 287 cases in ~10s
+# Run tests -- inner loop, 255 of 291 cases in ~10s
 ctest --test-dir build/tests -j$(nproc) -LE slow --output-on-failure
 
 # Run everything, including the full-model meshing tests (~60s)
@@ -36,7 +36,7 @@ ctest --test-dir build/tests -R "TestClass.TestName" --output-on-failure
 # and diffs every .tsv against tests/golden/. Any difference means the change
 # is not a refactor.
 ./scripts/refactor-check.sh              # fast tier, ~9s
-TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
+TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~90s
 ./scripts/refactor-check.sh --accept     # re-bless after an intended change
 
 # Assert the Key Modules table in this file still matches the code.

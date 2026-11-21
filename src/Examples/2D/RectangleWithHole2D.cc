@@ -1,4 +1,5 @@
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -96,9 +97,12 @@ int main()
     BoundaryDiscretizer2D discretizer(context);
     auto discretization = discretizer.discretize();
 
-    // Generate constrained mesh with 15 samples per edge
     spdlog::info("Generating constrained Delaunay triangulation...");
     ConstrainedDelaunay2D::triangulate(context, discretization);
+
+    Export::VtkExporter exporter;
+    exporter.exportMesh(context.getMeshData(), "RectangleWithHole2D.vtu");
+    Export::TsvExporter::writeMesh(context.getMeshData(), "RectangleWithHole2D");
 
     return 0;
 }

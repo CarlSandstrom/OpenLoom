@@ -232,3 +232,25 @@ TEST(ConstrainedDelaunay2D, TriangulatesTriangle)
     const auto& [id, element] = *meshData.getElements().begin();
     EXPECT_EQ(element->getNodeCount(), 3u);
 }
+
+// Fixed-count mode runs only when no angle limit is set (angle mode takes
+// priority); no example uses it, so it is pinned here.
+TEST(BoundaryDiscretizer2D, FixedCountMode_SplitsEachEdgeIntoEqualSegments)
+{
+    auto context = makeSquareContext();
+    BoundaryDiscretizer2D discretizer(context, Geometry2D::DiscretizationSettings2D(4, std::nullopt));
+
+    auto discretization = discretizer.discretize();
+
+    for (auto& [edgeId, pointIndices] : discretization.edgeIdToPointIndicesMap)
+    {
+        ASSERT_EQ(pointIndices.size(), 5u) << edgeId;
+        for (size_t i = 1; i < pointIndices.size(); ++i)
+        {
+            double segmentLength =
+                (discretization.points[pointIndices[i]] - discretization.points[pointIndices[i - 1]]).norm();
+            EXPECT_NEAR(segmentLength, 0.25, 1e-12) << edgeId << " segment " << i;
+        }
+    }
+    EXPECT_EQ(discretization.points.size(), 16u);
+}

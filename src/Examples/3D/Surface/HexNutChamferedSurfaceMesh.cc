@@ -19,6 +19,7 @@
  */
 
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -128,6 +129,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeEdgeMesh(*discretizationResult, "HexNutChamferedEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "HexNutChamferedEdges");
     std::cout << "Exported edge mesh to HexNutChamferedEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
@@ -142,6 +144,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "HexNutChamfered.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "HexNutChamfered");
     std::cout << "Exported refined mesh to HexNutChamfered.vtu (color by SurfaceID)\n";
 
     return 0;

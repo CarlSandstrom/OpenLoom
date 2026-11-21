@@ -39,6 +39,7 @@
 
 #include "Common/Logging.h"
 #include "Common/Types.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -156,6 +157,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeEdgeMesh(*discretizationResult, "SharpCreaseBracketEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "SharpCreaseBracketEdges");
     std::cout << "Exported edge mesh to SharpCreaseBracketEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
@@ -170,6 +172,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "SharpCreaseBracketRefined.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "SharpCreaseBracketRefined");
     std::cout << "Exported refined mesh to SharpCreaseBracketRefined.vtu (color by SurfaceID)\n";
 
     return 0;

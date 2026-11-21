@@ -1,5 +1,6 @@
 #include "Common/Logging.h"
 #include "Common/Types.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
@@ -141,6 +142,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.exportMesh(context.getMeshData(), OUTPUT_FILE_NAME);
+    Export::TsvExporter::writeMesh(context.getMeshData(), "NearCoincidentConstraintEdges");
 
     return 0;
 }
