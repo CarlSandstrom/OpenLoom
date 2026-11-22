@@ -66,10 +66,9 @@ std::optional<RestrictedFacet> WeightedDualRestriction::restrict(const FaceKey& 
     auto tetrahedron2 = dynamic_cast<const TetrahedronElement*>(meshData.getElement(elementId2));
     if (!tetrahedron1 || !tetrahedron2) return std::nullopt;
 
-    ElementGeometry3D elementGeometry(meshData);
-    auto dualStart = elementGeometry.computeOrthocenter(*tetrahedron1);
-    auto dualEnd = elementGeometry.computeOrthocenter(*tetrahedron2);
-    auto faceCenter = elementGeometry.computeOrthocenter(TriangleElement(face.nodeIds));
+    auto dualStart = tetrahedronOrthocenters_.orthocenterOf(elementId1, *tetrahedron1, meshData);
+    auto dualEnd = tetrahedronOrthocenters_.orthocenterOf(elementId2, *tetrahedron2, meshData);
+    auto faceCenter = ElementGeometry3D(meshData).computeOrthocenter(TriangleElement(face.nodeIds));
     if (!dualStart || !dualEnd || !faceCenter) return std::nullopt;
 
     // Each surface's crossing nearest the face, tried nearest first. The first
