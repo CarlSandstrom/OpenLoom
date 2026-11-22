@@ -111,13 +111,8 @@ void ShewchukRefiner2D::refine()
 
 bool ShewchukRefiner2D::refineStep()
 {
-    auto encroachedSegments = context_->getOperations().getQueries().findEncroachedSegments();
-
-    if (!encroachedSegments.empty())
-    {
-        spdlog::debug("ShewchukRefiner2D: Found {} encroached segments", encroachedSegments.size());
-        return handleEncroachedSegment(encroachedSegments[0]);
-    }
+    if (auto encroached = context_->getOperations().getQueries().findFirstEncroachedSegment())
+        return handleEncroachedSegment(*encroached);
 
     ElementQuality2D quality(context_->getMeshData());
     auto worstTriangles = quality.getTrianglesSortedByQuality();

@@ -6,6 +6,7 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <array>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -56,7 +57,9 @@ public:
         const std::vector<std::vector<double>>& tParameters,
         const std::vector<std::vector<std::string>>& geometryIds) const;
 
-    std::vector<CurveSegment> findEncroachedSegments() const;
+    /// The first curve segment, in the segment manager's order, whose diametral
+    /// circle holds a node visible from it; nullopt when none is encroached.
+    std::optional<CurveSegment> findFirstEncroachedSegment() const;
 
     std::vector<CurveSegment> findSegmentsEncroachedByPoint(const Point2D& point) const;
 

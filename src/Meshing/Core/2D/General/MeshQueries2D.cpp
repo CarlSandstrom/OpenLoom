@@ -2,6 +2,7 @@
 #include "Meshing/Core/2D/General/ConstraintChecker2D.h"
 #include "Meshing/Core/2D/General/ElementGeometry2D.h"
 #include "Meshing/Core/2D/General/GeometryUtilities2D.h"
+#include "Meshing/Core/2D/General/NodeGrid2D.h"
 #include "Meshing/Core/2D/Periodic/PeriodicMeshData2D.h"
 #include "Meshing/Data/2D/Node2D.h"
 #include "Meshing/Data/Base/TriangleElement.h"
@@ -226,31 +227,47 @@ CurveSegmentManager MeshQueries2D::extractConstrainedEdges(
     return manager;
 }
 
-std::vector<CurveSegment> MeshQueries2D::findEncroachedSegments() const
+// Only nodes in the cells under a segment's diametral circle can lie inside it
+// (the circle test is strict), so the grid gives the same answer as testing
+// every node. A periodic mesh tests against each node's nearest periodic copy,
+// which the grid does not model, so it tests every node.
+std::optional<CurveSegment> MeshQueries2D::findFirstEncroachedSegment() const
 {
-    std::vector<CurveSegment> encroached;
-
     ConstraintChecker2D constraintChecker(meshData_, periodicData_);
+    std::optional<NodeGrid2D> nodeGrid;
+    if (!periodicData_) nodeGrid.emplace(meshData_);
 
+    std::vector<NodeId> candidates;
     for (const auto& [segmentId, segment] : meshData_.getCurveSegmentManager().getAllSegments())
     {
-        for (const auto& [nodeId, node] : meshData_.getNodes())
+        candidates.clear();
+        if (nodeGrid)
+        {
+            auto circle = GeometryUtilities2D::createDiametralCircle(meshData_.getNode(segment.startNodeId)->getCoordinates(),
+                                                                     meshData_.getNode(segment.endNodeId)->getCoordinates());
+            Point2D reach = Point2D::Constant(circle.radius);
+            nodeGrid->collectNodesNear(circle.center - reach, circle.center + reach, candidates);
+        }
+        else
+        {
+            for (const auto& [nodeId, node] : meshData_.getNodes())
+                candidates.push_back(nodeId);
+        }
+
+        for (auto nodeId : candidates)
         {
             if (nodeId == segment.startNodeId || nodeId == segment.endNodeId) continue;
 
-            auto& point = node->getCoordinates();
+            auto& point = meshData_.getNode(nodeId)->getCoordinates();
 
             // Per Ruppert: only count encroachment if the vertex is visible
             // from the subsegment interior (visibility obstructed by other segments)
             if (constraintChecker.isSegmentEncroached(segment, point) && isPointVisibleFromSegment(point, segment))
-            {
-                encroached.push_back(segment);
-                break;
-            }
+                return segment;
         }
     }
 
-    return encroached;
+    return std::nullopt;
 }
 
 std::vector<CurveSegment> MeshQueries2D::findSegmentsEncroachedByPoint(
