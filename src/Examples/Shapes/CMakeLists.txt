@@ -6,6 +6,7 @@ find_package(Eigen3 REQUIRED)
 
 add_library(ExampleShapes STATIC
     ExampleShapes2D.cpp
+    ExampleShapes3D.cpp
 )
 
 target_link_libraries(ExampleShapes PUBLIC
@@ -16,6 +17,11 @@ target_link_libraries(ExampleShapes PUBLIC
     TKernel
     TKMath
     TKG2d
+    TKG3d
+    TKBRep
+    TKTopAlgo
+    TKPrim
+    TKBO
 )
 
 target_include_directories(ExampleShapes PUBLIC

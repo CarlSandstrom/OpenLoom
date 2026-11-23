@@ -29,6 +29,7 @@ foreach(example_source ${EXAMPLE_SOURCES_3D_SURFACE})
 
     # Link with all the project modules
     target_link_libraries(${example_target} PRIVATE
+        ExampleShapes
         Geometry
         Topology
         Readers
