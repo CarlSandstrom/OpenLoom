@@ -1,12 +1,9 @@
+#include "ExampleShapes2D.h"
 #include "Common/Logging.h"
 #include "Meshing/Core/2D/Periodic/TwinManager2D.h"
 #include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
-#include "Geometry/2D/Base/Corner2D.h"
 #include "Geometry/2D/Base/GeometryCollection2D.h"
-#include "Geometry/2D/Base/LinearEdge2D.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DCorner.h"
-#include "Geometry/2D/OpenCascade/OpenCascade2DEdge.h"
 #include "Meshing/Core/2D/General/BoundaryDiscretizer2D.h"
 #include "Meshing/Core/2D/Periodic/BoundarySplitSynchronizer2D.h"
 #include "Meshing/Core/2D/ConstrainedDelaunay2D.h"
@@ -18,12 +15,6 @@
 #include "Topology2D/Topology2D.h"
 #include "spdlog/spdlog.h"
 
-#include <Geom2d_Circle.hxx>
-#include <Geom2d_TrimmedCurve.hxx>
-#include <gp_Ax2d.hxx>
-#include <gp_Circ2d.hxx>
-#include <gp_Dir2d.hxx>
-#include <gp_Pnt2d.hxx>
 
 #include <algorithm>
 #include <cmath>
@@ -33,84 +24,6 @@
 #include <vector>
 
 using namespace Meshing;
-
-static void addSquare(Geometry2D::GeometryCollection2D& geometry,
-                      std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
-                      std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
-                      std::vector<std::string>& edgeLoop,
-                      const std::string& prefix,
-                      double size,
-                      Point2D origin = Point2D(0.0, 0.0))
-{
-    std::vector<Point2D> corners = {
-        origin,
-        Point2D(origin.x() + size, origin.y()),
-        Point2D(origin.x() + size, origin.y() + size),
-        Point2D(origin.x(), origin.y() + size)};
-
-    for (size_t i = 0; i < 4; ++i)
-    {
-        std::string cornerId       = prefix + "_c" + std::to_string(i);
-        std::string edgeId         = prefix + "_e" + std::to_string(i);
-        std::string previousEdgeId = prefix + "_e" + std::to_string((i + 3) % 4);
-
-        geometry.addCorner(std::make_unique<Geometry2D::Corner2D>(cornerId, corners[i]));
-        geometry.addEdge(std::make_unique<Geometry2D::LinearEdge2D>(
-            edgeId, corners[i], corners[(i + 1) % 4]));
-
-        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
-        topologyEdges.emplace(edgeId,
-            Topology2D::Edge2D(edgeId, cornerId, prefix + "_c" + std::to_string((i + 1) % 4)));
-        edgeLoop.push_back(edgeId);
-    }
-}
-
-static void addCircularHole(Geometry2D::GeometryCollection2D& geometry,
-                             std::unordered_map<std::string, Topology2D::Corner2D>& topologyCorners,
-                             std::unordered_map<std::string, Topology2D::Edge2D>& topologyEdges,
-                             std::vector<std::string>& edgeLoop,
-                             const std::string& prefix,
-                             double centerX,
-                             double centerY,
-                             double radius,
-                             size_t numberOfSegments = 12)
-{
-    gp_Pnt2d center(centerX, centerY);
-    gp_Ax2d  axis(center, gp_Dir2d(1.0, 0.0));
-    gp_Circ2d circle(axis, radius);
-
-    for (size_t i = 0; i < numberOfSegments; ++i)
-    {
-        double angle = 2.0 * M_PI * i / numberOfSegments;
-        double x     = centerX + radius * std::cos(angle);
-        double y     = centerY + radius * std::sin(angle);
-
-        std::string cornerId       = prefix + "_c" + std::to_string(i);
-        std::string edgeId         = prefix + "_e" + std::to_string(i);
-        std::string previousEdgeId = prefix + "_e" + std::to_string((i + numberOfSegments - 1) % numberOfSegments);
-
-        geometry.addCorner(
-            std::make_unique<Geometry2D::OpenCascade2DCorner>(gp_Pnt2d(x, y), cornerId));
-        topologyCorners.emplace(cornerId, Topology2D::Corner2D(cornerId, {edgeId, previousEdgeId}));
-        edgeLoop.push_back(edgeId);
-    }
-
-    for (size_t i = 0; i < numberOfSegments; ++i)
-    {
-        double startAngle = 2.0 * M_PI * i / numberOfSegments;
-        double endAngle   = 2.0 * M_PI * (i + 1) / numberOfSegments;
-
-        Handle(Geom2d_Circle)      circleGeometry = new Geom2d_Circle(circle);
-        Handle(Geom2d_TrimmedCurve) arc = new Geom2d_TrimmedCurve(circleGeometry, startAngle, endAngle);
-
-        std::string edgeId        = prefix + "_e" + std::to_string(i);
-        std::string startCornerId = prefix + "_c" + std::to_string(i);
-        std::string endCornerId   = prefix + "_c" + std::to_string((i + 1) % numberOfSegments);
-
-        geometry.addEdge(std::make_unique<Geometry2D::OpenCascade2DEdge>(arc, edgeId));
-        topologyEdges.emplace(edgeId, Topology2D::Edge2D(edgeId, startCornerId, endCornerId));
-    }
-}
 
 int main()
 {
@@ -143,12 +56,10 @@ int main()
     //   e1: c1(10,0) → c2(10,10)  right   (bottom-to-top)
     //   e2: c2(10,10)→ c3(0,10)   top     (right-to-left)
     //   e3: c3(0,10) → c0(0,0)    left    (top-to-bottom)
-    std::vector<std::string> outerLoop;
-    addSquare(*geometry, topologyCorners, topologyEdges, outerLoop, "sq", 10.0);
+    auto outerLoop = ExampleShapes2D::addSquare(*geometry, topologyCorners, topologyEdges, "sq", 10.0);
 
     // Circular hole — 12 arc segments, center at (5, 8), radius 1.5
-    std::vector<std::string> holeLoop;
-    addCircularHole(*geometry, topologyCorners, topologyEdges, holeLoop, "circ", 7.0, 8.3, 1.5, 12);
+    auto holeLoop = ExampleShapes2D::addCircle(*geometry, topologyCorners, topologyEdges, "circ", Point2D(7.0, 8.3), 1.5, 12);
 
     auto topology = std::make_unique<Topology2D::Topology2D>(
         topologyCorners, topologyEdges, outerLoop,
