@@ -87,8 +87,9 @@ private:
     /**
      * @brief Handle an encroached segment by splitting it
      * @param segment The encroached segment to split
+     * @return true if the segment was split
      */
-    void handleEncroachedSegment(const CurveSegment& segment);
+    bool handleEncroachedSegment(const CurveSegment& segment);
 
     /**
      * @brief Handle a poor quality triangle by inserting its circumcenter

@@ -25,16 +25,18 @@ constexpr int NEWTON_MAXIMUM_ITERATIONS = 20;
 
 } // namespace
 
-double signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surface)
+std::optional<double> signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surface)
 {
     auto uv = surface.projectPointToUnderlyingSurface(point);
     if (!uv)
-        return 0.0;
+        return std::nullopt;
+
+    auto normal = surface.getNormal(uv->x(), uv->y());
+    if (!normal)
+        return std::nullopt;
 
     Point3D surfacePoint = surface.getPoint(uv->x(), uv->y());
-    Vector3D normal = surface.getNormal(uv->x(), uv->y());
-
-    return (point - surfacePoint).dot(normal);
+    return (point - surfacePoint).dot(*normal);
 }
 
 std::optional<Point3D> projectToSurface(const Point3D& point,

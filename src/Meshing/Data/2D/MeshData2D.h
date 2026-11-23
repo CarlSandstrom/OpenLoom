@@ -6,10 +6,8 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 
 #include <memory>
-#include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 namespace Meshing
 {
@@ -34,7 +32,6 @@ public:
 private:
     std::unordered_map<NodeId, std::unique_ptr<Node2D>> nodes_;
     std::unordered_map<ElementId, std::unique_ptr<IElement>> elements_;
-    std::unordered_map<NodeId, std::vector<std::string>> nodeGeometryIds_;
     CurveSegmentManager curveSegmentManager_;
     size_t nextNodeId_ = 0;
     size_t nextElementId_ = 0;
@@ -43,11 +40,9 @@ private:
     ElementId addElementInternal(std::unique_ptr<IElement> element);
     void removeElementInternal(ElementId id);
 
-    void setNodeGeometryIdsInternal(NodeId nodeId, std::vector<std::string> geometryIds);
-
     void setCurveSegmentManagerInternal(CurveSegmentManager manager);
     std::pair<SegmentId, SegmentId> splitCurveSegmentInternal(NodeId nodeId1, NodeId nodeId2,
-                                                          NodeId newNodeId, double tMid);
+                                                              NodeId newNodeId, double midParameter);
 };
 
 } // namespace Meshing

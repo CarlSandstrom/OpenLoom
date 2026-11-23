@@ -177,13 +177,14 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonAddsNode)
 
     // Insert point at centroid
     Point3D centroid(1.0, 0.625, 0.5);
-    NodeId newNodeId = operations.insertVertexBowyerWatson(centroid);
+    auto newNodeId = operations.insertVertexBowyerWatson(centroid);
+    ASSERT_TRUE(newNodeId.has_value());
 
     // Should have one more node
     EXPECT_EQ(meshData_.getNodeCount(), initialNodes + 1);
 
     // Verify the new node exists and has correct coordinates
-    const auto* newNode = meshData_.getNode(newNodeId);
+    const auto* newNode = meshData_.getNode(*newNodeId);
     ASSERT_NE(newNode, nullptr);
     EXPECT_NEAR(newNode->getCoordinates().x(), 1.0, TOLERANCE);
     EXPECT_NEAR(newNode->getCoordinates().y(), 0.625, TOLERANCE);
@@ -210,7 +211,7 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonCreatesNewTetrahedra)
     EXPECT_EQ(meshData_.getElementCount(), 4);
 }
 
-TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMesh)
+TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMeshInsertsNothing)
 {
     // Create initial tetrahedron
     NodeId n0 = addNode(0.0, 0.0, 0.0);
@@ -222,13 +223,12 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonOutsideExistingMesh)
 
     MeshOperations3D operations(meshData_, *mutator_);
 
-    // Insert point far outside - should just add node
+    // No tetrahedron conflicts with a point far outside the triangulation
     Point3D farPoint(100.0, 100.0, 100.0);
-    NodeId newNodeId = operations.insertVertexBowyerWatson(farPoint);
 
-    // Node should be added
-    const auto* newNode = meshData_.getNode(newNodeId);
-    ASSERT_NE(newNode, nullptr);
+    EXPECT_FALSE(operations.insertVertexBowyerWatson(farPoint).has_value());
+    EXPECT_EQ(meshData_.getNodeCount(), 4);
+    EXPECT_EQ(meshData_.getElementCount(), 1);
 }
 
 TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplanarFace)
@@ -270,8 +270,9 @@ TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonExtendsCavityThroughCoplana
     const double midAngle = std::numbers::pi / 3.0;
     const Point3D midpoint(RADIUS * std::cos(midAngle), RADIUS * std::sin(midAngle), HEIGHT);
 
-    NodeId midNodeId{0};
-    EXPECT_NO_THROW(midNodeId = operations.insertVertexBowyerWatson(midpoint));
+    auto insertedNodeId = operations.insertVertexBowyerWatson(midpoint);
+    ASSERT_TRUE(insertedNodeId.has_value());
+    NodeId midNodeId = *insertedNodeId;
 
     bool participatesInATet = false;
     for (const auto& [tetId, element] : meshData_.getElements())
@@ -314,19 +315,15 @@ TEST_F(MeshOperations3DTest, FindCavityBoundaryEmptyList)
     EXPECT_TRUE(boundary.empty());
 }
 
-TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonEmptyMesh)
+TEST_F(MeshOperations3DTest, InsertVertexBowyerWatsonEmptyMeshInsertsNothing)
 {
     MeshOperations3D operations(meshData_, *mutator_);
 
-    // Insert into empty mesh - should just add node
+    // An empty mesh has no tetrahedron to conflict with
     Point3D point(1.0, 1.0, 1.0);
-    NodeId nodeId = operations.insertVertexBowyerWatson(point);
 
-    EXPECT_EQ(meshData_.getNodeCount(), 1);
-
-    const auto* node = meshData_.getNode(nodeId);
-    ASSERT_NE(node, nullptr);
-    EXPECT_NEAR(node->getCoordinates().x(), 1.0, TOLERANCE);
+    EXPECT_FALSE(operations.insertVertexBowyerWatson(point).has_value());
+    EXPECT_EQ(meshData_.getNodeCount(), 0);
 }
 
 // ============================================================================

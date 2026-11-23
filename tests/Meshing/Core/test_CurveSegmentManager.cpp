@@ -243,10 +243,10 @@ TEST(CurveSegmentManagerTest, BuildFrom_ParameterBoundsMatchEdge)
 
     ASSERT_EQ(manager.size(), 1u);
     const auto& segment = manager.getAllSegments().begin()->second;
-    EXPECT_DOUBLE_EQ(segment.tStart, 0.5);
-    EXPECT_DOUBLE_EQ(segment.tEnd, 2.0);
-    EXPECT_EQ(segment.nodeId1, NodeId{10});
-    EXPECT_EQ(segment.nodeId2, NodeId{11});
+    EXPECT_DOUBLE_EQ(segment.startParameter, 0.5);
+    EXPECT_DOUBLE_EQ(segment.endParameter, 2.0);
+    EXPECT_EQ(segment.startNodeId, NodeId{10});
+    EXPECT_EQ(segment.endNodeId, NodeId{11});
 }
 
 // ============================================================================
@@ -277,20 +277,20 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
     const auto segments = manager.getSegmentsForEdge("edge_b");
     ASSERT_EQ(segments.size(), 3u);
 
-    EXPECT_EQ(segments[0].nodeId1, NodeId{10});
-    EXPECT_EQ(segments[0].nodeId2, NodeId{11});
-    EXPECT_DOUBLE_EQ(segments[0].tStart, 0.0);
-    EXPECT_DOUBLE_EQ(segments[0].tEnd, M_PI / 3.0);
+    EXPECT_EQ(segments[0].startNodeId, NodeId{10});
+    EXPECT_EQ(segments[0].endNodeId, NodeId{11});
+    EXPECT_DOUBLE_EQ(segments[0].startParameter, 0.0);
+    EXPECT_DOUBLE_EQ(segments[0].endParameter, M_PI / 3.0);
 
-    EXPECT_EQ(segments[1].nodeId1, NodeId{11});
-    EXPECT_EQ(segments[1].nodeId2, NodeId{12});
-    EXPECT_DOUBLE_EQ(segments[1].tStart, M_PI / 3.0);
-    EXPECT_DOUBLE_EQ(segments[1].tEnd, 2.0 * M_PI / 3.0);
+    EXPECT_EQ(segments[1].startNodeId, NodeId{11});
+    EXPECT_EQ(segments[1].endNodeId, NodeId{12});
+    EXPECT_DOUBLE_EQ(segments[1].startParameter, M_PI / 3.0);
+    EXPECT_DOUBLE_EQ(segments[1].endParameter, 2.0 * M_PI / 3.0);
 
-    EXPECT_EQ(segments[2].nodeId1, NodeId{12});
-    EXPECT_EQ(segments[2].nodeId2, NodeId{13});
-    EXPECT_DOUBLE_EQ(segments[2].tStart, 2.0 * M_PI / 3.0);
-    EXPECT_DOUBLE_EQ(segments[2].tEnd, M_PI);
+    EXPECT_EQ(segments[2].startNodeId, NodeId{12});
+    EXPECT_EQ(segments[2].endNodeId, NodeId{13});
+    EXPECT_DOUBLE_EQ(segments[2].startParameter, 2.0 * M_PI / 3.0);
+    EXPECT_DOUBLE_EQ(segments[2].endParameter, M_PI);
 }
 
 // ============================================================================
@@ -300,26 +300,26 @@ TEST(CurveSegmentManagerTest, BuildFrom_EdgeWithIntermediateNodes_CreatesSubSegm
 TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
 {
     CurveSegment segment;
-    segment.nodeId1 = NodeId{0};
-    segment.nodeId2 = NodeId{1};
+    segment.startNodeId = NodeId{0};
+    segment.endNodeId = NodeId{1};
     segment.edgeId = "arc";
-    segment.tStart = 0.0;
-    segment.tEnd = M_PI;
+    segment.startParameter = 0.0;
+    segment.endParameter = M_PI;
 
     CurveSegmentManager manager;
     const SegmentId segmentId = manager.addSegment(segment);
 
     // Arc-length midpoint of [0, π] on a uniform circle is π/2
-    const double tMid = M_PI / 2.0;
-    const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/NodeId{2}, tMid);
+    const double midParameter = M_PI / 2.0;
+    const auto [child1Id, child2Id] = manager.splitAt(segmentId, /*newNodeId=*/NodeId{2}, midParameter);
 
     const auto& child1 = manager.getSegment(child1Id);
     const auto& child2 = manager.getSegment(child2Id);
 
-    EXPECT_DOUBLE_EQ(child1.tStart, 0.0);
-    EXPECT_DOUBLE_EQ(child1.tEnd, tMid);
-    EXPECT_DOUBLE_EQ(child2.tStart, tMid);
-    EXPECT_DOUBLE_EQ(child2.tEnd, M_PI);
+    EXPECT_DOUBLE_EQ(child1.startParameter, 0.0);
+    EXPECT_DOUBLE_EQ(child1.endParameter, midParameter);
+    EXPECT_DOUBLE_EQ(child2.startParameter, midParameter);
+    EXPECT_DOUBLE_EQ(child2.endParameter, M_PI);
 
     // Original segment must be gone
     EXPECT_EQ(manager.size(), 2u);
@@ -332,18 +332,18 @@ TEST(CurveSegmentManagerTest, SplitAt_ChildSegmentsSpanOriginalRange)
 TEST(CurveSegmentManagerTest, GetOrderedNodeIdsForEdge_AfterSplits_ReturnsChainInCurveOrder)
 {
     CurveSegment segment;
-    segment.nodeId1 = NodeId{0};
-    segment.nodeId2 = NodeId{1};
+    segment.startNodeId = NodeId{0};
+    segment.endNodeId = NodeId{1};
     segment.edgeId = "arc";
-    segment.tStart = 0.0;
-    segment.tEnd = 1.0;
+    segment.startParameter = 0.0;
+    segment.endParameter = 1.0;
 
     CurveSegment otherEdgeSegment;
-    otherEdgeSegment.nodeId1 = NodeId{1};
-    otherEdgeSegment.nodeId2 = NodeId{5};
+    otherEdgeSegment.startNodeId = NodeId{1};
+    otherEdgeSegment.endNodeId = NodeId{5};
     otherEdgeSegment.edgeId = "other";
-    otherEdgeSegment.tStart = 0.0;
-    otherEdgeSegment.tEnd = 1.0;
+    otherEdgeSegment.startParameter = 0.0;
+    otherEdgeSegment.endParameter = 1.0;
 
     CurveSegmentManager manager;
     const SegmentId segmentId = manager.addSegment(segment);
@@ -393,7 +393,7 @@ TEST(CurveSegmentManagerTest, SeamHandling_SeamTwinNotRegistered_SplitProducesNo
     const auto& child2 = manager.getSegment(child2Id);
 
     // Children share the new node and each retain one original endpoint
-    EXPECT_EQ(child1.nodeId2, NodeId{2});
-    EXPECT_EQ(child2.nodeId1, NodeId{2});
-    EXPECT_NE(child1.nodeId1, child2.nodeId2);
+    EXPECT_EQ(child1.endNodeId, NodeId{2});
+    EXPECT_EQ(child2.startNodeId, NodeId{2});
+    EXPECT_NE(child1.startNodeId, child2.endNodeId);
 }

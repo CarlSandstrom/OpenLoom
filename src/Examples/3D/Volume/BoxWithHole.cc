@@ -5,6 +5,8 @@
  * Exports:
  *   - BoxWithHole_mesh.vtu : tetrahedral volume mesh (color by SurfaceID on
  *     boundary triangles; tetrahedra carry SurfaceID = -1)
+ *   - BoxWithHole_mesh.nodes.tsv, BoxWithHole_mesh.cells.tsv : the same mesh as
+ *     tab-separated tables
  */
 
 #include "Common/Logging.h"
@@ -71,7 +73,7 @@ int main()
     Export::VtkExporter exporter;
     exporter.writeVolumeMesh(volumeMesh, "BoxWithHole_mesh.vtu");
     Export::TsvExporter::writeVolumeMesh(volumeMesh, "BoxWithHole_mesh");
-    std::cout << "Exported volume mesh to BoxWithHole_mesh.vtu\n";
+    std::cout << "Exported volume mesh to BoxWithHole_mesh.vtu and BoxWithHole_mesh.{nodes,cells}.tsv\n";
 
     return 0;
 }

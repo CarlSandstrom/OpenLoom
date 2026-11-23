@@ -37,9 +37,9 @@ public:
         return Point3D(radius_ * std::cos(u), radius_ * std::sin(u), v);
     }
 
-    Vector3D getNormal(double u, double /*v*/) const override
+    std::optional<Vector3D> getNormal(double u, double /*v*/) const override
     {
-        return {std::cos(u), std::sin(u), 0.0};
+        return Vector3D(std::cos(u), std::sin(u), 0.0);
     }
 
     Geometry3D::SurfaceDerivatives getFirstDerivatives(double u, double v) const override
@@ -52,15 +52,10 @@ public:
         return Common::BoundingBox2D(0.0, 2.0 * M_PI, 0.0, height_);
     }
 
-    double getGap(const Point3D& point) const override
+    std::optional<double> getGap(const Point3D& point) const override
     {
         const double radialDistance = std::sqrt(point.x() * point.x() + point.y() * point.y());
         return std::abs(radialDistance - radius_);
-    }
-
-    Point2D projectPoint(const Point3D& point) const override
-    {
-        return Point2D(std::atan2(point.y(), point.x()), point.z());
     }
 
     std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
@@ -107,21 +102,21 @@ TEST_F(SurfaceProjectorTest, SignedDistancePositiveOutside)
 {
     // Point at r = 1.5, well outside the cylinder
     const Point3D point(1.5, 0.0, 1.0);
-    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), 0.5, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder).value(), 0.5, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceNegativeInside)
 {
     // Point at r = 0.5, inside the cylinder
     const Point3D point(0.5, 0.0, 1.0);
-    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), -0.5, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder).value(), -0.5, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceZeroOnSurface)
 {
     // Point on the cylinder surface
     const Point3D point(RADIUS, 0.0, 1.0);
-    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder), 0.0, 1e-10);
+    EXPECT_NEAR(SurfaceProjector::signedDistance(point, cylinder).value(), 0.0, 1e-10);
 }
 
 TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
@@ -135,8 +130,8 @@ TEST_F(SurfaceProjectorTest, SignedDistanceConsistentNearSeam)
     const Point3D insideNearSeam(
         0.5 * std::cos(angleNearSeam), 0.5 * std::sin(angleNearSeam), 1.0);
 
-    EXPECT_GT(SurfaceProjector::signedDistance(outsideNearSeam, cylinder), 0.0);
-    EXPECT_LT(SurfaceProjector::signedDistance(insideNearSeam, cylinder), 0.0);
+    EXPECT_GT(SurfaceProjector::signedDistance(outsideNearSeam, cylinder).value(), 0.0);
+    EXPECT_LT(SurfaceProjector::signedDistance(insideNearSeam, cylinder).value(), 0.0);
 }
 
 // ============================================================================

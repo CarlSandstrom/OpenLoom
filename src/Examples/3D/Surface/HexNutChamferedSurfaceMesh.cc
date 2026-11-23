@@ -18,7 +18,9 @@
  * takes several hundred Steiner point insertions in a Debug build.
  */
 
+#include "ExampleShapes3D.h"
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -26,23 +28,14 @@
 #include "Meshing/Data/3D/SurfaceMesh3DQualitySettings.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 
-#include <BRepAlgoAPI_Cut.hxx>
-#include <BRepBuilderAPI_MakeFace.hxx>
-#include <BRepBuilderAPI_MakePolygon.hxx>
 #include <BRepFilletAPI_MakeChamfer.hxx>
-#include <BRepPrimAPI_MakeCylinder.hxx>
-#include <BRepPrimAPI_MakePrism.hxx>
 #include <BRep_Tool.hxx>
 #include <Geom_Curve.hxx>
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
 #include <TopoDS_Edge.hxx>
-#include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
-#include <gp_Ax2.hxx>
-#include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
-#include <gp_Vec.hxx>
 
 #include <cmath>
 #include <iostream>
@@ -52,34 +45,12 @@
 namespace
 {
 
-// M8 hex nut geometry (metric standard, all dimensions in mm)
-constexpr double ACROSS_FLATS = 13.0; // flat-to-flat width
-constexpr double HEIGHT = 6.5;        // nut height
-constexpr double BORE_RADIUS = 4.0;   // M8 bore (8 mm diameter)
-constexpr double CHAMFER_SIZE = 0.5;  // bore chamfer leg length
+constexpr double CHAMFER_SIZE = 0.5; // bore chamfer leg length
 
+// The plain M8 hex nut with both bore openings chamfered.
 TopoDS_Shape buildChamferedHexNut()
 {
-    // The circumscribed radius (vertex-to-center) for a regular hexagon with
-    // flat-to-flat distance ACROSS_FLATS: r = (ACROSS_FLATS / 2) / cos(30°) = ACROSS_FLATS / sqrt(3).
-    double circumscribedRadius = ACROSS_FLATS / std::sqrt(3.0);
-
-    BRepBuilderAPI_MakePolygon hexPolygon;
-    for (int cornerIndex = 0; cornerIndex < 6; ++cornerIndex)
-    {
-        double angle = (2.0 * cornerIndex + 1.0) * std::numbers::pi / 6.0;
-        hexPolygon.Add(gp_Pnt(circumscribedRadius * std::cos(angle),
-                              circumscribedRadius * std::sin(angle),
-                              0.0));
-    }
-    hexPolygon.Close();
-
-    TopoDS_Face hexFace = BRepBuilderAPI_MakeFace(hexPolygon.Wire()).Face();
-    TopoDS_Shape hexPrism = BRepPrimAPI_MakePrism(hexFace, gp_Vec(0.0, 0.0, HEIGHT)).Shape();
-
-    gp_Ax2 boreAxis(gp_Pnt(0.0, 0.0, 0.0), gp_Dir(0.0, 0.0, 1.0));
-    TopoDS_Shape bore = BRepPrimAPI_MakeCylinder(boreAxis, BORE_RADIUS, HEIGHT).Shape();
-    TopoDS_Shape nutBody = BRepAlgoAPI_Cut(hexPrism, bore).Shape();
+    TopoDS_Shape nutBody = ExampleShapes3D::buildHexNut();
 
     // Chamfer both bore openings so the chamfer's outer circle lands exactly at
     // z = 0 / z = HEIGHT: the bore edge at each opening is the circle where
@@ -96,10 +67,10 @@ TopoDS_Shape buildChamferedHexNut()
 
         gp_Pnt point0 = curve->Value(firstParameter);
         gp_Pnt point1 = curve->Value(lastParameter);
-        bool onBoreCircle = std::abs(std::hypot(point0.X(), point0.Y()) - BORE_RADIUS) < 1e-6 &&
-                            std::abs(std::hypot(point1.X(), point1.Y()) - BORE_RADIUS) < 1e-6;
+        bool onBoreCircle = std::abs(std::hypot(point0.X(), point0.Y()) - ExampleShapes3D::HEX_NUT_BORE_RADIUS) < 1e-6 &&
+                            std::abs(std::hypot(point1.X(), point1.Y()) - ExampleShapes3D::HEX_NUT_BORE_RADIUS) < 1e-6;
         bool sharedFlatFace = std::abs(point0.Z() - point1.Z()) < 1e-6 &&
-                              (std::abs(point0.Z()) < 1e-6 || std::abs(point0.Z() - HEIGHT) < 1e-6);
+                              (std::abs(point0.Z()) < 1e-6 || std::abs(point0.Z() - ExampleShapes3D::HEX_NUT_HEIGHT) < 1e-6);
         if (onBoreCircle && sharedFlatFace)
             chamferMaker.Add(CHAMFER_SIZE, edge);
     }
@@ -128,6 +99,7 @@ int main()
 
     Export::VtkExporter exporter;
     exporter.writeEdgeMesh(*discretizationResult, "HexNutChamferedEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "HexNutChamferedEdges");
     std::cout << "Exported edge mesh to HexNutChamferedEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(),
@@ -142,6 +114,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "HexNutChamfered.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "HexNutChamfered");
     std::cout << "Exported refined mesh to HexNutChamfered.vtu (color by SurfaceID)\n";
 
     return 0;

@@ -1,0 +1,17 @@
+kind	id	nodes	geometry_id	role
+triangle	15	6,5,3	-	-
+triangle	20	7,6,3	-	-
+triangle	21	7,4,5	-	-
+triangle	26	8,7,5	-	-
+triangle	30	9,6,7	-	-
+triangle	31	9,7,8	-	-
+triangle	34	10,5,6	-	-
+triangle	35	10,8,5	-	-
+segment	0	7,3	inner_e2	boundary
+segment	1	4,7	inner_e1	boundary
+segment	2	6,10	outer_e3	boundary
+segment	3	9,6	outer_e2	boundary
+segment	4	8,9	outer_e1	boundary
+segment	5	3,5	inner_e3	boundary
+segment	6	5,4	inner_e0	boundary
+segment	7	10,8	outer_e0	boundary

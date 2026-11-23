@@ -22,7 +22,7 @@ namespace Meshing
  *
  * Without the grid, each query would scan every triangle. Each triangle is
  * instead registered in every cell its bounding box overlaps, and a query
- * visits only the cells the segment's own bounding box overlaps. For the short
+ * visits only the cells the segment passes through. For the short
  * segments that dominate RCDT refinement (dual Voronoi edges) that is a small
  * fraction of the cells, so the cost drops from the whole soup to the handful
  * of triangles near the segment.
@@ -76,20 +76,23 @@ private:
     CellCoordinates cellContaining(const Point3D& point) const;
 
     /// The cells segment (a, b) passes through, in order, after clipping it to
-    /// the grid (a 3D grid walk). Empty when the segment misses the grid.
+    /// the grid (a 3D grid walk), correct up to tolerance_. Empty when the
+    /// segment misses the grid.
     std::vector<size_t> cellsAlongSegment(const Point3D& a, const Point3D& b) const;
     size_t cellIndex(const CellCoordinates& cell) const;
 
     std::vector<BoundedTriangle> triangles_;
 
     // The grid: resolution_ cells along each axis, cell (x, y, z)
-    // spanning gridMin_ + cellSize_ * (x, y, z) and one cellSize_ further.
-    // Each cell holds the indices into triangles_ of the triangles whose
-    // bounding box overlaps it, so a triangle spanning a cell boundary appears
-    // in more than one cell. Empty until build() runs, and stays empty for an
-    // empty soup.
+    // spanning gridMin_ + cellSize_ * (x, y, z) and one cellSize_ further;
+    // gridMin_ and gridMax_ bound the soup. Each cell holds the indices into
+    // triangles_ of the triangles whose bounding box, grown by tolerance_,
+    // overlaps it, so a triangle near a cell boundary appears in more than one
+    // cell. Empty until build() runs, and stays empty for an empty soup.
     Point3D gridMin_ = Point3D::Zero();
+    Point3D gridMax_ = Point3D::Zero();
     Point3D cellSize_ = Point3D::Ones();
+    double tolerance_ = 0.0;
     size_t resolution_ = 0;
     std::vector<std::vector<size_t>> cells_; // indexed by cellIndex()
 };

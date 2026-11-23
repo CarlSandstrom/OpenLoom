@@ -13,13 +13,9 @@ MeshConnectivity::MeshConnectivity(const MeshData3D& geometry) :
 
 const std::vector<ElementId>& MeshConnectivity::getNodeElements(NodeId nodeId) const
 {
+    static const std::vector<ElementId> NO_ELEMENTS;
     auto it = nodeToElements_.find(nodeId);
-    if (it != nodeToElements_.end())
-    {
-        return it->second;
-    }
-
-    return {};
+    return it != nodeToElements_.end() ? it->second : NO_ELEMENTS;
 }
 
 const std::pair<ElementId, ElementId>& MeshConnectivity::getFaceElements(const FaceKey& face) const

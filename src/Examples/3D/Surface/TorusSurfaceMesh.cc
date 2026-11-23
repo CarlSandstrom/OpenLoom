@@ -17,6 +17,7 @@
  */
 
 #include "Common/Logging.h"
+#include "Export/TsvExporter.h"
 #include "Export/VtkExporter.h"
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
@@ -55,6 +56,7 @@ int main()
     Export::VtkExporter exporter;
 
     exporter.writeEdgeMesh(*discretizationResult, "TorusSurfaceMeshEdges.vtu");
+    Export::TsvExporter::writeDiscretization(*discretizationResult, "TorusSurfaceMeshEdges");
     std::cout << "Exported edge mesh to TorusSurfaceMeshEdges.vtu (color by EdgeID)\n";
 
     Meshing::SurfaceMesher3D mesher(converter.getGeometryCollection(), converter.getTopology(), settings, quality);
@@ -64,6 +66,7 @@ int main()
               << surfaceMesh.triangles.size() << " triangles\n";
 
     exporter.writeSurfaceMesh(surfaceMesh, "TorusSurfaceMesh3D.vtu");
+    Export::TsvExporter::writeSurfaceMesh(surfaceMesh, "TorusSurfaceMesh3D");
     std::cout << "Exported surface mesh to TorusSurfaceMesh3D.vtu (color by SurfaceID)\n";
 
     return 0;

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 #include <vector>
 
 namespace Meshing
@@ -25,7 +26,7 @@ struct GeometrySamples
 
 double sizeFromCurvature(double curvature, const SizingFieldSettings3D& settings);
 double stationParameter(double minimum, double maximum, std::size_t station, std::size_t stationCount);
-double boundingBoxDiagonal(const std::vector<FeatureSample>& samples);
+std::pair<Point3D, Point3D> boundingBox(const std::vector<FeatureSample>& samples);
 void appendCurveSamples(const Geometry3D::GeometryCollection3D& geometry,
                         const Topology3D::Topology3D& topology,
                         const SizingFieldSettings3D& settings,
@@ -58,9 +59,12 @@ namespace
 
 // The smaller of the chord-deviation size and the turning-angle size. Infinite
 // where the geometry is straight or flat, which means "no size limit", not "zero".
+// Infinite curvature (a cusp) asks for the finest size there is; buildSources()
+// raises it to the floor.
 double sizeFromCurvature(double curvature, const SizingFieldSettings3D& settings)
 {
-    if (!(curvature > 0.0) || !std::isfinite(curvature)) return std::numeric_limits<double>::infinity();
+    if (std::isinf(curvature) && curvature > 0.0) return 0.0;
+    if (!(curvature > 0.0)) return std::numeric_limits<double>::infinity();
 
     return std::min(std::sqrt(8.0 * settings.chordDeviationTolerance / curvature),
                     settings.maximumTurningAngle / curvature);
@@ -71,9 +75,10 @@ double stationParameter(double minimum, double maximum, std::size_t station, std
     return minimum + (maximum - minimum) * static_cast<double>(station) / static_cast<double>(stationCount);
 }
 
-double boundingBoxDiagonal(const std::vector<FeatureSample>& samples)
+// The samples' axis-aligned bounds; both corners at the origin when there are none.
+std::pair<Point3D, Point3D> boundingBox(const std::vector<FeatureSample>& samples)
 {
-    if (samples.empty()) return 0.0;
+    if (samples.empty()) return {Point3D::Zero(), Point3D::Zero()};
 
     Point3D minimum = samples.front().position;
     Point3D maximum = samples.front().position;
@@ -84,7 +89,7 @@ double boundingBoxDiagonal(const std::vector<FeatureSample>& samples)
         maximum = maximum.cwiseMax(sample.position);
     }
 
-    return (maximum - minimum).norm();
+    return {minimum, maximum};
 }
 
 void appendCurveSamples(const Geometry3D::GeometryCollection3D& geometry,
@@ -162,7 +167,8 @@ std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
                                        const SizingFieldSettings3D& settings)
 {
     auto& samples = geometrySamples.samples;
-    double diagonal = boundingBoxDiagonal(samples);
+    auto [minimum, maximum] = boundingBox(samples);
+    double diagonal = (maximum - minimum).norm();
     double sizeFloor = settings.minimumSizeFraction * diagonal;
 
     std::vector<SizingSource> sources;
@@ -179,9 +185,10 @@ std::vector<SizingSource> buildSources(const GeometrySamples& geometrySamples,
         sources.push_back({samples[i].position, std::max(size, sizeFloor)});
     }
 
-    // The geometry imposes no size limit anywhere: one coarse source at model scale says so and
-    // keeps every consumer on the same path. A source too large is safe; too small is not.
-    if (sources.empty()) sources.push_back({Point3D::Zero(), diagonal > 0.0 ? diagonal : 1.0});
+    // The geometry imposes no size limit anywhere: one coarse source at model scale, on the
+    // model, says so and keeps every consumer on the same path. A source too large is safe;
+    // too small is not.
+    if (sources.empty()) sources.push_back({(minimum + maximum) / 2.0, diagonal > 0.0 ? diagonal : 1.0});
 
     return sources;
 }

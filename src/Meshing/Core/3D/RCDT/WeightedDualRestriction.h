@@ -2,6 +2,7 @@
 
 #include "Common/Types.h"
 #include "Meshing/Connectivity/FaceKey.h"
+#include "Meshing/Core/3D/General/OrthocenterCache.h"
 #include "Meshing/Core/3D/General/SurfaceTessellation.h"
 
 #include <optional>
@@ -76,6 +77,10 @@ private:
     const Geometry3D::GeometryCollection3D* geometry_;
     double cellSize_;
     std::unordered_map<std::string, SurfaceTessellation> surfaceTessellations_;
+
+    // The dual segments' ends, reused while a tetrahedron is unchanged: faces are
+    // reclassified far more often than tetrahedra change (OPE-248).
+    mutable OrthocenterCache tetrahedronOrthocenters_;
 };
 
 } // namespace Meshing

@@ -12,6 +12,12 @@ namespace Meshing
 
 namespace
 {
+
+// The tolerance relative to the soup's scale (its extent, or its distance from
+// the origin when that is larger): far above the rounding a cell walk
+// accumulates, far below any cell size.
+constexpr double TOLERANCE_FRACTION = 1e-9;
+
 bool boundsOverlap(const Point3D& aMin, const Point3D& aMax, const Point3D& bMin, const Point3D& bMax);
 size_t gridResolutionFor(size_t triangleCount);
 std::array<double, 3> barycentricWeightsOf(const Point3D& point, const TriangleSoupIndex::Triangle& vertices);
@@ -37,28 +43,34 @@ void TriangleSoupIndex::build(const std::vector<Triangle>& triangles)
         gridMax = gridMax.cwiseMax(boundsMax);
     }
 
-    // Expand slightly so that triangles exactly on the boundary fall inside a
-    // cell rather than rounding to an out-of-range index.
-    constexpr double GRID_EPSILON = 1e-10;
-    gridMin -= Point3D::Constant(GRID_EPSILON);
-    gridMax += Point3D::Constant(GRID_EPSILON);
-
     resolution_ = gridResolutionFor(triangles_.size());
+    auto resolution = static_cast<double>(resolution_);
     gridMin_ = gridMin;
+    gridMax_ = gridMax;
 
+    // Cells are at most resolution_ times longer along one axis than along
+    // another. Without the floor, a planar face whose coordinates differ only
+    // by rounding would get cells narrower than that rounding, and no
+    // floating-point walk could tell them apart.
     Point3D range = gridMax - gridMin;
-    // Floor each component at a small positive value to avoid division by zero
-    // for a soup that is flat in one coordinate direction.
-    constexpr double MINIMUM_RANGE = 1e-12;
-    cellSize_ = (range / static_cast<double>(resolution_)).cwiseMax(MINIMUM_RANGE);
+    double largestRange = range.maxCoeff();
+    double minimumCellSize = largestRange > 0.0 ? largestRange / (resolution * resolution) : 1.0;
+    cellSize_ = (range / resolution).cwiseMax(minimumCellSize);
 
+    double scale = std::max({largestRange, gridMin.cwiseAbs().maxCoeff(), gridMax.cwiseAbs().maxCoeff()});
+    tolerance_ = TOLERANCE_FRACTION * (scale > 0.0 ? scale : 1.0);
+
+    // Each triangle is registered with its bounding box grown by the tolerance,
+    // so a walk that strays from the segment by less than that -- at a cell
+    // corner, along a cell boundary, at an end -- still meets every triangle
+    // the segment touches.
     cells_.resize(resolution_ * resolution_ * resolution_);
-
+    Point3D margin = Point3D::Constant(tolerance_);
     for (size_t triangleIndex = 0; triangleIndex < triangles_.size(); ++triangleIndex)
     {
         auto& triangle = triangles_[triangleIndex];
-        auto minimumCell = cellContaining(triangle.boundsMin);
-        auto maximumCell = cellContaining(triangle.boundsMax);
+        auto minimumCell = cellContaining(triangle.boundsMin - margin);
+        auto maximumCell = cellContaining(triangle.boundsMax + margin);
 
         for (size_t x = minimumCell.x; x <= maximumCell.x; ++x)
             for (size_t y = minimumCell.y; y <= maximumCell.y; ++y)
@@ -89,10 +101,17 @@ std::optional<TriangleSoupIndex::Crossing> TriangleSoupIndex::findCrossingNeares
             auto& vertices = triangle.vertices;
             if (!RobustPredicates3D::segmentCrossesTriangle(a, b, vertices[0], vertices[1], vertices[2]))
                 continue;
+            // The ends' signed distances to the triangle's plane (scaled by the normal's
+            // length). The predicate put them on opposite sides, so their difference adds
+            // magnitudes instead of cancelling; rounding can still push the ratio an ulp
+            // outside [0, 1], and both are exactly 0 only when both ends lie within
+            // rounding of the plane.
             Point3D normal = (vertices[1] - vertices[0]).cross(vertices[2] - vertices[0]);
-            double denominator = normal.dot(direction);
-            double parameter = denominator == 0.0 ? 0.0 : normal.dot(vertices[0] - a) / denominator;
-            Point3D crossing = a + std::clamp(parameter, 0.0, 1.0) * direction;
+            double distanceA = normal.dot(a - vertices[0]);
+            double distanceB = normal.dot(b - vertices[0]);
+            double difference = distanceA - distanceB;
+            double parameter = difference == 0.0 ? 0.0 : std::clamp(distanceA / difference, 0.0, 1.0);
+            Point3D crossing = a + parameter * direction;
             double squaredDistance = (crossing - target).squaredNorm();
             if (!nearest || squaredDistance < nearestSquaredDistance)
             {
@@ -103,26 +122,31 @@ std::optional<TriangleSoupIndex::Crossing> TriangleSoupIndex::findCrossingNeares
     return nearest;
 }
 
+// Within the tolerance, the walk is the exact traversal of a segment lying
+// within the tolerance of (a, b): build() registered every triangle that far
+// out, so the cells visited cannot miss one the segment touches.
 std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const Point3D& b) const
 {
     if (cells_.empty())
         return {};
 
-    // Clip the segment's parameter range to the grid box (slab method).
+    // Clip the segment's parameter range to the soup's bounds grown by the
+    // tolerance (slab method).
+    Point3D clipMin = gridMin_ - Point3D::Constant(tolerance_);
+    Point3D clipMax = gridMax_ + Point3D::Constant(tolerance_);
     Point3D direction = b - a;
-    Point3D gridMax = gridMin_ + cellSize_ * static_cast<double>(resolution_);
     double entry = 0.0;
     double exit = 1.0;
     for (int axis = 0; axis < 3; ++axis)
     {
         if (direction[axis] == 0.0)
         {
-            if (a[axis] < gridMin_[axis] || a[axis] > gridMax[axis])
+            if (a[axis] < clipMin[axis] || a[axis] > clipMax[axis])
                 return {};
             continue;
         }
-        double near = (gridMin_[axis] - a[axis]) / direction[axis];
-        double far = (gridMax[axis] - a[axis]) / direction[axis];
+        double near = (clipMin[axis] - a[axis]) / direction[axis];
+        double far = (clipMax[axis] - a[axis]) / direction[axis];
         if (near > far)
             std::swap(near, far);
         entry = std::max(entry, near);
@@ -132,8 +156,7 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
     }
 
     // Walk the cells the clipped segment passes through (Amanatides-Woo).
-    Point3D start = a + entry * direction;
-    auto startCell = cellContaining(start);
+    auto startCell = cellContaining(a + entry * direction);
     std::array<long long, 3> cell = {static_cast<long long>(startCell.x), static_cast<long long>(startCell.y),
                                      static_cast<long long>(startCell.z)};
     std::array<long long, 3> step{};
@@ -153,6 +176,9 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
         boundarySpacing[axis] = cellSize_[axis] / std::abs(direction[axis]);
     }
 
+    // Only the segment's parameter ends the walk. Leaving the grid along one
+    // axis before the end is rounding (the segment was clipped to it), so the
+    // walk stays in the last cell along that axis and carries on along the others.
     auto resolution = static_cast<long long>(resolution_);
     std::vector<size_t> visited;
     while (true)
@@ -161,9 +187,12 @@ std::vector<size_t> TriangleSoupIndex::cellsAlongSegment(const Point3D& a, const
         auto axis = static_cast<int>(std::min_element(nextBoundary.begin(), nextBoundary.end()) - nextBoundary.begin());
         if (nextBoundary[axis] > exit)
             break;
+        if (cell[axis] + step[axis] < 0 || cell[axis] + step[axis] >= resolution)
+        {
+            nextBoundary[axis] = std::numeric_limits<double>::infinity();
+            continue;
+        }
         cell[axis] += step[axis];
-        if (cell[axis] < 0 || cell[axis] >= resolution)
-            break;
         nextBoundary[axis] += boundarySpacing[axis];
     }
     return visited;
@@ -213,7 +242,7 @@ std::array<double, 3> barycentricWeightsOf(const Point3D& point, const TriangleS
 // Number of cells along each axis for a soup of this size, chosen so each cell
 // holds roughly 1-4 triangles on average. The soup typically lies on a 2D
 // surface, not filling a 3D volume, so many cells stay empty -- that's fine; a
-// query only visits cells overlapping its own bounding box, not all cells.
+// query only visits the cells along its own segment, not all cells.
 size_t gridResolutionFor(size_t triangleCount)
 {
     constexpr size_t MINIMUM_GRID_RESOLUTION = 4;

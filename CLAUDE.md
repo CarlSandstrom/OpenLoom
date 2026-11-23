@@ -21,10 +21,10 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 # Build everything
 cmake --build build -j$(nproc)
 
-# Run tests -- inner loop, 342 of 376 cases in ~3s
+# Run tests -- inner loop, 262 of 298 cases in ~10s
 ctest --test-dir build/tests -j$(nproc) -LE slow --output-on-failure
 
-# Run everything, including the full-model meshing tests (~85s)
+# Run everything, including the full-model meshing tests (~60s)
 ctest --test-dir build/tests -j$(nproc) --output-on-failure
 
 # Run specific test
@@ -36,7 +36,7 @@ ctest --test-dir build/tests -R "TestClass.TestName" --output-on-failure
 # and diffs every .tsv against tests/golden/. Any difference means the change
 # is not a refactor.
 ./scripts/refactor-check.sh              # fast tier, ~9s
-TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~75s
+TIER=full ./scripts/refactor-check.sh    # adds the slow models, ~90s
 ./scripts/refactor-check.sh --accept     # re-bless after an intended change
 
 # Assert the Key Modules table in this file still matches the code.
@@ -85,9 +85,9 @@ Class names and module paths in this table are written in backticks, and `./scri
 | `Topology/` | live | 3D topological relationships (`Corner3D`, `Edge3D`, `Surface3D`, `Topology3D`) |
 | `Topology2D/` | live | 2D topological relationships |
 | `Meshing/Core/2D/` | live | 2D Delaunay and refinement: `Delaunay2D`, `ConstrainedDelaunay2D`, `ShewchukRefiner2D` with its `ShewchukQualityController2D` |
-| `Meshing/Core/2D/General/` | live | Shared 2D layer: `MeshingContext2D`, `MeshOperations2D`, `MeshQueries2D`, `BoundaryDiscretizer2D`, `ConstraintChecker2D`, `MeshVerifier2D`, and the geometry and quality utilities `GeometryUtilities2D`, `ElementGeometry2D`, `ElementQuality2D` |
+| `Meshing/Core/2D/General/` | live | Shared 2D layer: `MeshingContext2D`, `MeshOperations2D`, `MeshQueries2D`, `BoundaryDiscretizer2D`, `ConstraintChecker2D`, `MeshVerifier2D`, `NodeGrid2D` (nodes binned for box queries, behind the encroachment search), and the geometry and quality utilities `GeometryUtilities2D`, `ElementGeometry2D`, `ElementQuality2D` |
 | `Meshing/Core/2D/Periodic/` | live | Periodic 2D meshing, kept for future periodic mesh generation: `TwinManager2D`, `BoundarySplitSynchronizer2D`, `PeriodicMeshData2D`, `PeriodicOffsetTable2D`, `PeriodicDomain2D` |
-| `Meshing/Core/3D/General/` | live | Shared 3D infrastructure: `MeshingContext3D`, `MeshOperations3D`, geometry and quality utilities, and the surface-side pieces any 3D mesher can reuse: `SurfaceTessellation` (one CAD surface's trimmed patch sampled onto a jittered UV grid) over `TriangleSoupIndex` (the uniform grid answering the exact segment-crossing query), `SurfaceProjector` (point-against-surface queries), `RegularConflictRegion` (the conflict region of a point in the weighted triangulation), `SurfaceMeshSmoother` with its `TetrahedronInversionGuard`, and `UnreferencedNodeRemover` (drops the output nodes nothing references and renumbers the rest) |
+| `Meshing/Core/3D/General/` | live | Shared 3D infrastructure: `MeshingContext3D`, `MeshOperations3D`, geometry and quality utilities, `OrientationDeterminant3D` (the adaptive fast/exact orientation determinant both `RobustPredicates3D` and `RegularPredicates3D` build on), `OrthocenterCache` (tetrahedron orthocenters reused while their vertices are unchanged; restriction asks for the same ones many times), and the surface-side pieces any 3D mesher can reuse: `SurfaceTessellation` (one CAD surface's trimmed patch sampled onto a jittered UV grid) over `TriangleSoupIndex` (the uniform grid answering the exact segment-crossing query), `SurfaceProjector` (point-against-surface queries), `RegularConflictRegion` (the conflict region of a point in the weighted triangulation), `SurfaceMeshSmoother` with its `TetrahedronInversionGuard`, and `UnreferencedNodeRemover` (drops the output nodes nothing references and renumbers the rest) |
 | `Meshing/Core/3D/RCDT/` | live | Ambient-space RCDT mesher, CGAL Mesh_3's design (OPE-186). `RCDTMesher` implements both `ISurfaceMesher3D` and `IVolumeMesher3D` on one pipeline: `ProtectingBallPlacer` places the protecting balls on corners and curves (CGAL's `Protect_edges_sizing_field`), the weighted ambient tetrahedralization is seeded with them, then `SurfaceDelaunayRefiner` refines restricted facets (CGAL's `Refine_facets_3`) and, for a volume, `TetrahedronDelaunayRefiner` refines the tetrahedra inside (CGAL's `Refine_cells_3`) as the level below it, and `SliverExuder` then raises vertex weights to flip slivers out (CGAL's `Slivers_exuder`), undoing any change that alters restriction. `WeightedDualRestriction` decides restriction: a face is restricted iff its weighted dual edge crosses a surface, found on the tessellation of each CAD surface that `Meshing/Core/3D/General/` provides. `SurfaceFacetCriteria` holds CGAL's facet criteria, waived next to protecting balls (`ProtectionExemption`); both levels insert through the shared regular conflict region in `Meshing/Core/3D/General/`. After refinement, `AmbientTetrahedronRemover` strips the ambient tetrahedra, `RCDTMeshExtractor` extracts and the shared smoother in `Meshing/Core/3D/General/` smooths. `RestrictedFaceAudit` checks each edge's faces against the CAD topology; `BoundaryDefectReporter` hands what it finds to the caller as a `BoundaryDefectReport3D` (`getBoundaryDefects()`), and `meshVolume()` refuses an edge missing a face. There is no RCDT-specific context — state lives in `RCDTMesher`, which owns a `MeshingContext3D`. |
 | `Meshing/Core/3D/Surface/` | live | Top-level surface entry point `SurfaceMesher3D`: a thin wrapper around an `ISurfaceMesher3D` (today always `RCDTMesher`), mirroring `VolumeMesher3D`. The per-face UV-space pipeline that used to live here was deleted in OPE-192. |
 | `Meshing/Core/3D/Volume/` | live | Initial unconstrained Delaunay tetrahedralization: `Delaunay3D`. Top-level entry point `VolumeMesher3D` |

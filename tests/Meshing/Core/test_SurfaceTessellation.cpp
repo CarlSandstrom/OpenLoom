@@ -35,16 +35,14 @@ public:
         return {getPoint(u, v), {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}};
     }
 
-    Vector3D getNormal(double /*u*/, double /*v*/) const override { return {0.0, 0.0, 1.0}; }
+    std::optional<Vector3D> getNormal(double /*u*/, double /*v*/) const override { return Vector3D(0.0, 0.0, 1.0); }
 
     Common::BoundingBox2D getParameterBounds() const override
     {
         return Common::BoundingBox2D(0.0, size_, 0.0, size_);
     }
 
-    double getGap(const Point3D& point) const override { return std::abs(point.z() - planeZ_); }
-
-    Point2D projectPoint(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+    std::optional<double> getGap(const Point3D& point) const override { return std::abs(point.z() - planeZ_); }
 
     std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
     {
@@ -76,9 +74,9 @@ public:
     {
     }
 
-    bool isPointWithinTrimmedBoundary(const Point3D& point) const override
+    bool isUVWithinTrimmedBoundary(double u, double v) const override
     {
-        return (point - holeCenter_).norm() >= holeRadius_;
+        return (getPoint(u, v) - holeCenter_).norm() >= holeRadius_;
     }
 
 private:
@@ -123,14 +121,14 @@ public:
     // Analytic normal of the height field z = f(u): tangents are
     // dS/du = (1, 0, f'(u)) and dS/dv = (0, 1, 0), so their cross product is
     // (-f'(u), 0, 1), normalized.
-    Vector3D getNormal(double u, double /*v*/) const override
+    std::optional<Vector3D> getNormal(double u, double /*v*/) const override
     {
         const double offset = u - spikeCenter_;
         const double normalizedU = offset / spikeWidth_;
         const double height = amplitude_ * std::exp(-normalizedU * normalizedU);
         const double derivative = height * (-2.0 * offset / (spikeWidth_ * spikeWidth_));
         const Point3D normal = Point3D(-derivative, 0.0, 1.0).normalized();
-        return {normal.x(), normal.y(), normal.z()};
+        return Vector3D(normal.x(), normal.y(), normal.z());
     }
 
     Common::BoundingBox2D getParameterBounds() const override
@@ -138,9 +136,7 @@ public:
         return Common::BoundingBox2D(-halfRange_, halfRange_, 0.0, 1.0);
     }
 
-    double getGap(const Point3D& /*point*/) const override { return 0.0; }
-
-    Point2D projectPoint(const Point3D& point) const override { return Point2D(point.x(), point.y()); }
+    std::optional<double> getGap(const Point3D& /*point*/) const override { return 0.0; }
 
     std::optional<Point2D> projectPointToUnderlyingSurface(const Point3D& point) const override
     {

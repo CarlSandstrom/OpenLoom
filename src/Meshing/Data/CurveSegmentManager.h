@@ -15,11 +15,11 @@ namespace Meshing
 
 struct CurveSegment
 {
-    NodeId nodeId1{0};
-    NodeId nodeId2{0};
+    NodeId startNodeId{0};
+    NodeId endNodeId{0};
     std::string edgeId;
-    double tStart = 0.0;
-    double tEnd = 0.0;
+    double startParameter = 0.0;
+    double endParameter = 0.0;
     ConstraintRole role = ConstraintRole::Boundary;
 };
 
@@ -28,10 +28,10 @@ class CurveSegmentManager
 public:
     SegmentId addSegment(const CurveSegment& segment);
 
-    /// Splits the segment identified by segmentId at tMid, inserting newNodeId between
+    /// Splits the segment identified by segmentId at midParameter, inserting newNodeId between
     /// the original endpoints. Removes the original segment and adds two sub-segments.
     /// Returns the IDs of the two new segments (segment1Id, segment2Id).
-    std::pair<SegmentId, SegmentId> splitAt(SegmentId segmentId, NodeId newNodeId, double tMid);
+    std::pair<SegmentId, SegmentId> splitAt(SegmentId segmentId, NodeId newNodeId, double midParameter);
 
     const CurveSegment& getSegment(SegmentId segmentId) const;
 
@@ -39,7 +39,7 @@ public:
 
     const std::unordered_map<SegmentId, CurveSegment>& getAllSegments() const;
 
-    /// Returns all segments for a given edge ID, sorted by tStart (ascending).
+    /// Returns all segments for a given edge ID, sorted by startParameter (ascending).
     std::vector<CurveSegment> getSegmentsForEdge(const std::string& edgeId) const;
 
     /// Returns the node chain along a given edge ID in curve order, both

@@ -6,7 +6,6 @@
 #include "Meshing/Data/CurveSegmentManager.h"
 #include <memory>
 #include <optional>
-#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -27,8 +26,9 @@ public:
     explicit MeshOperations2D(MeshData2D& meshData);
     MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* periodicData);
 
-    NodeId insertVertexBowyerWatson(const Point2D& point,
-                                    const std::vector<std::string>& edgeIds = {});
+    /// Returns nullopt, with the mesh untouched, when constrained edges leave the point
+    /// no conflicting triangle.
+    std::optional<NodeId> insertVertexBowyerWatson(const Point2D& point);
 
     bool removeTrianglesContainingNode(NodeId nodeId);
 
@@ -50,6 +50,8 @@ public:
 
 private:
     std::vector<ElementId> splitTrianglesAtEdge(NodeId edgeNode1, NodeId edgeNode2, NodeId midNodeId);
+    std::optional<NodeId> extendMeshAcrossChord(const CurveSegment& segment, const Point2D& midPoint, double midParameter);
+    void removeTriangleOnChord(NodeId chordNode1, NodeId chordNode2, NodeId apexNodeId);
     void lawsonFlip(const std::vector<ElementId>& newTriangleIds);
 
     MeshData2D& meshData_;

@@ -4,6 +4,7 @@
 #include "Meshing/Data/2D/MeshData2D.h"
 #include "Meshing/Data/Base/TriangleElement.h"
 #include "spdlog/spdlog.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
@@ -25,9 +26,24 @@ struct TriangleCoordinates
     std::vector<std::array<Point2D, 3>> vertices;
 };
 
+// One triangle's axis-aligned bounding box, keyed by its index into TriangleCoordinates.
+struct SweepEntry
+{
+    size_t index;
+    double minimumX;
+    double maximumX;
+    double minimumY;
+    double maximumY;
+};
+
 TriangleCoordinates collectTriangleCoordinates(const MeshData2D& meshData, MeshVerifier2D::VerificationResult& result);
 void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result);
 void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result);
+std::vector<SweepEntry> buildBoundingBoxSweep(const TriangleCoordinates& triangles);
+void appendOverlapsFrom(size_t position,
+                        const std::vector<SweepEntry>& sweep,
+                        const TriangleCoordinates& triangles,
+                        std::vector<std::string>& errors);
 std::string describeOverlap(ElementId elementId1, ElementId elementId2);
 bool trianglesOverlap(const std::array<Point2D, 3>& triangle1Nodes, const std::array<Point2D, 3>& triangle2Nodes);
 
@@ -109,10 +125,12 @@ void checkOrientation(const TriangleCoordinates& triangles, MeshVerifier2D::Veri
     }
 }
 
+// Sweep-and-prune: two triangles can only overlap if their closed bounding boxes intersect, so
+// only pairs whose x-extents meet in the sorted sweep, and whose y-extents also meet, reach the
+// exact test. This finds the same pairs as comparing every pair, at a fraction of the cost.
 void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::VerificationResult& result)
 {
-    auto& vertices = triangles.vertices;
-    auto& elementIds = triangles.elementIds;
+    auto sweep = buildBoundingBoxSweep(triangles);
 
 #ifdef OPENLOOM_HAS_OPENMP
 #pragma omp parallel
@@ -120,15 +138,9 @@ void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::Verific
         std::vector<std::string> localErrors;
 
 #pragma omp for schedule(dynamic)
-        for (size_t i = 0; i < vertices.size(); ++i)
+        for (size_t position = 0; position < sweep.size(); ++position)
         {
-            for (size_t j = i + 1; j < vertices.size(); ++j)
-            {
-                if (trianglesOverlap(vertices[i], vertices[j]))
-                {
-                    localErrors.push_back(describeOverlap(elementIds[i], elementIds[j]));
-                }
-            }
+            appendOverlapsFrom(position, sweep, triangles, localErrors);
         }
 
         if (!localErrors.empty())
@@ -141,17 +153,55 @@ void checkOverlaps(const TriangleCoordinates& triangles, MeshVerifier2D::Verific
         }
     }
 #else
-    for (size_t i = 0; i < vertices.size(); ++i)
+    std::vector<std::string> errors;
+    for (size_t position = 0; position < sweep.size(); ++position)
     {
-        for (size_t j = i + 1; j < vertices.size(); ++j)
-        {
-            if (!trianglesOverlap(vertices[i], vertices[j])) continue;
+        appendOverlapsFrom(position, sweep, triangles, errors);
+    }
 
-            result.isValid = false;
-            result.errors.push_back(describeOverlap(elementIds[i], elementIds[j]));
-        }
+    if (!errors.empty())
+    {
+        result.isValid = false;
+        result.errors.insert(result.errors.end(), errors.begin(), errors.end());
     }
 #endif
+}
+
+std::vector<SweepEntry> buildBoundingBoxSweep(const TriangleCoordinates& triangles)
+{
+    std::vector<SweepEntry> sweep;
+    sweep.reserve(triangles.vertices.size());
+    for (size_t index = 0; index < triangles.vertices.size(); ++index)
+    {
+        auto& vertices = triangles.vertices[index];
+        auto [minimumX, maximumX] = std::minmax({vertices[0].x(), vertices[1].x(), vertices[2].x()});
+        auto [minimumY, maximumY] = std::minmax({vertices[0].y(), vertices[1].y(), vertices[2].y()});
+        sweep.push_back({index, minimumX, maximumX, minimumY, maximumY});
+    }
+
+    std::sort(sweep.begin(), sweep.end(),
+              [](const SweepEntry& entry1, const SweepEntry& entry2)
+              { return entry1.minimumX < entry2.minimumX; });
+    return sweep;
+}
+
+// Tests the triangle at sweep position against every later triangle whose x-extent starts
+// before this one's ends.
+void appendOverlapsFrom(size_t position,
+                        const std::vector<SweepEntry>& sweep,
+                        const TriangleCoordinates& triangles,
+                        std::vector<std::string>& errors)
+{
+    auto& entry1 = sweep[position];
+    for (size_t laterPosition = position + 1; laterPosition < sweep.size(); ++laterPosition)
+    {
+        auto& entry2 = sweep[laterPosition];
+        if (entry2.minimumX > entry1.maximumX) break;
+        if (entry2.minimumY > entry1.maximumY || entry1.minimumY > entry2.maximumY) continue;
+        if (!trianglesOverlap(triangles.vertices[entry1.index], triangles.vertices[entry2.index])) continue;
+
+        errors.push_back(describeOverlap(triangles.elementIds[entry1.index], triangles.elementIds[entry2.index]));
+    }
 }
 
 std::string describeOverlap(ElementId elementId1, ElementId elementId2)

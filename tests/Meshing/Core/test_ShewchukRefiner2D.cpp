@@ -16,6 +16,7 @@
 #include "Meshing/Core/2D/ShewchukRefiner2D.h"
 #include "Meshing/Data/2D/MeshQualitySettings2D.h"
 #include "Meshing/Data/2D/MeshData2D.h"
+#include "Meshing/Data/Base/TriangleElement.h"
 #include "Topology2D/Topology2D.h"
 
 #include <Geom2d_Circle.hxx>
@@ -369,4 +370,93 @@ TEST(ShewchukRefiner2D, TwinEdgesHaveMatchingDiscretization)
             << "y-mismatch at index " << i
             << ": left=" << leftY[i] << " right=" << rightY[i];
     }
+}
+
+// Regression test (OPE-229): on a boundary curve that bulges outward, the
+// midpoint of a segment lies beyond its chord, where the exterior triangles have
+// been removed. Bowyer-Watson finds nothing in conflict with it there, so the
+// split used to fail -- and before OPE-224 that failure aborted the process.
+TEST(ShewchukRefiner2D, OutwardBulgingBoundary_SegmentSplitExtendsMeshAcrossChord)
+{
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+
+    const size_t numberOfSegments = 3;
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "disc", 0.0, 0.0, 1.0, numberOfSegments);
+
+    std::vector<std::string> outerEdgeLoop;
+    for (size_t i = 0; i < numberOfSegments; ++i)
+        outerEdgeLoop.push_back("disc_e" + std::to_string(i));
+
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topologyCorners, topologyEdges, outerEdgeLoop, std::vector<std::vector<std::string>>{});
+    MeshingContext2D context(std::move(geometry), std::move(topology));
+
+    BoundaryDiscretizer2D discretizer(context);
+    ConstrainedDelaunay2D::triangulate(context, discretizer.discretize());
+
+    std::vector<CurveSegment> segments;
+    for (auto& [segmentId, segment] : context.getMeshData().getCurveSegmentManager().getAllSegments())
+        segments.push_back(segment);
+    ASSERT_FALSE(segments.empty());
+
+    for (auto& segment : segments)
+    {
+        auto edge = context.getGeometry().getEdge(segment.edgeId);
+        auto newNodeId = context.getOperations().splitConstrainedSegment(segment, *edge);
+        ASSERT_TRUE(newNodeId.has_value()) << "segment (" << segment.startNodeId.value() << ", " << segment.endNodeId.value() << ")";
+    }
+
+    auto verification = MeshVerifier2D::verify(context.getMeshData());
+    EXPECT_TRUE(verification.isValid);
+}
+
+// Regression test (OPE-239): a hole's arcs bulge into the domain, so a segment's
+// midpoint lies on the mesh side of its chord. Bowyer-Watson's fan used to close
+// the cavity with the triangle (chord, midpoint) between the chord and the arc,
+// inside the hole, where the refiner saw it as a poor triangle it could not refine.
+TEST(ShewchukRefiner2D, InwardBulgingBoundary_SegmentSplitLeavesNoTriangleInHole)
+{
+    auto geometry = std::make_unique<Geometry2D::GeometryCollection2D>();
+    std::unordered_map<std::string, Topology2D::Corner2D> topologyCorners;
+    std::unordered_map<std::string, Topology2D::Edge2D> topologyEdges;
+
+    std::vector<std::string> outerEdgeLoop;
+    addSquare(*geometry, topologyCorners, topologyEdges, outerEdgeLoop, "outer", 10.0);
+
+    const size_t numberOfSegments = 3;
+    addCircularEdge(*geometry, topologyCorners, topologyEdges, "hole", 5.0, 5.0, 2.0, numberOfSegments);
+    std::vector<std::string> holeLoop;
+    for (size_t i = 0; i < numberOfSegments; ++i)
+        holeLoop.push_back("hole_e" + std::to_string(i));
+
+    auto topology = std::make_unique<Topology2D::Topology2D>(
+        topologyCorners, topologyEdges, outerEdgeLoop, std::vector<std::vector<std::string>>{holeLoop});
+    MeshingContext2D context(std::move(geometry), std::move(topology));
+
+    BoundaryDiscretizer2D discretizer(context);
+    ConstrainedDelaunay2D::triangulate(context, discretizer.discretize());
+
+    std::vector<CurveSegment> holeSegments;
+    for (auto& [segmentId, segment] : context.getMeshData().getCurveSegmentManager().getAllSegments())
+        if (segment.edgeId.rfind("hole", 0) == 0) holeSegments.push_back(segment);
+    ASSERT_FALSE(holeSegments.empty());
+
+    for (auto& segment : holeSegments)
+    {
+        auto edge = context.getGeometry().getEdge(segment.edgeId);
+        ASSERT_TRUE(context.getOperations().splitConstrainedSegment(segment, *edge).has_value());
+    }
+
+    auto& meshData = context.getMeshData();
+    for (auto& [elementId, element] : meshData.getElements())
+    {
+        auto& nodeIds = dynamic_cast<const TriangleElement&>(*element).getNodeIdArray();
+        Point2D centroid = (meshData.getNode(nodeIds[0])->getCoordinates() + meshData.getNode(nodeIds[1])->getCoordinates() +
+                            meshData.getNode(nodeIds[2])->getCoordinates()) /
+                           3.0;
+        EXPECT_GT((centroid - Point2D(5.0, 5.0)).norm(), 2.0) << "triangle " << elementId.value() << " lies in the hole";
+    }
+    EXPECT_TRUE(MeshVerifier2D::verify(meshData).isValid);
 }

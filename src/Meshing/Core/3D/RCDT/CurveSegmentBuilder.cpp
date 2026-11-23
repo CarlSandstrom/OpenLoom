@@ -81,11 +81,11 @@ CurveSegmentManager CurveSegmentBuilder::build(const Topology3D::Topology3D& top
                 continue;
 
             CurveSegment segment;
-            segment.nodeId1 = node0->second;
-            segment.nodeId2 = node1->second;
+            segment.startNodeId = node0->second;
+            segment.endNodeId = node1->second;
             segment.edgeId = edgeId;
-            segment.tStart = parameters[index];
-            segment.tEnd = parameters[index + 1];
+            segment.startParameter = parameters[index];
+            segment.endParameter = parameters[index + 1];
             manager.addSegment(segment);
         }
     }

@@ -32,10 +32,9 @@ namespace SurfaceProjector
 
 /// Distance from @p point to @p surface along the surface normal at its
 /// projection: positive on the side the normal points to, negative on the
-/// other. Returns 0.0 when the point does not project onto the surface at all,
-/// which reads as "on it" -- callers that need to tell the two apart should
-/// use projectToSurface().
-double signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surface);
+/// other. nullopt when the point does not project onto the surface, or the
+/// normal is not defined where it does.
+std::optional<double> signedDistance(const Point3D& point, const Geometry3D::ISurface3D& surface);
 
 /// The point of @p surface nearest @p point, at any distance. Nullopt when the
 /// projection fails. There is deliberately no maximum-gap guard: the

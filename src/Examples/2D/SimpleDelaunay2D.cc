@@ -23,7 +23,7 @@ int main()
 {
     Common::initializeLogging();
 
-    spdlog::info("Simple Delaunay2D Example - Rectangle Corners");
+    spdlog::info("Simple Delaunay2D Example - Points on a Circle");
 
     // Define the nodes on a circle
     std::vector<Point2D> points;
@@ -33,7 +33,7 @@ int main()
         points.emplace_back(std::cos(angle), std::sin(angle));
     }
 
-    spdlog::info("Created {} points forming a rectangle", points.size());
+    spdlog::info("Created {} points on the unit circle", points.size());
     for (std::size_t pointIndex = 0; pointIndex < points.size(); ++pointIndex)
     {
         spdlog::info("  Point {}: ({:.2f}, {:.2f})", pointIndex, points[pointIndex].x(), points[pointIndex].y());
@@ -51,7 +51,7 @@ int main()
     Export::TsvExporter::writeMesh(meshData2D, "simple_delaunay_2d");
 
     spdlog::info("");
-    spdlog::info("Mesh exported to simple_delaunay_2d.vtu");
+    spdlog::info("Mesh exported to simple_delaunay_2d.vtu and simple_delaunay_2d.{nodes,cells}.tsv");
     spdlog::info("Open in ParaView to visualize:");
     spdlog::info("  paraview simple_delaunay_2d.vtu");
 

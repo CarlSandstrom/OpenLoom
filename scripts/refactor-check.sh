@@ -25,7 +25,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXAMPLES_DIR="$ROOT/build/src/Examples"
 GOLDEN_DIR="$ROOT/tests/golden"
 
-# Fast tier: one model per meshing pathway, ~9 s total.
+# Fast tier: the quick models, one or more per meshing pathway, ~9 s total.
 FAST_EXAMPLES=(
     "2D/SimpleDelaunay2D"          # 2D Delaunay core
     "2D/SquareWithCircularHole"    # 2D constraints and holes
@@ -35,6 +35,11 @@ FAST_EXAMPLES=(
     "3D/Surface/CylinderSurfaceMesh"  # single periodic surface, seam handling
     "3D/Surface/HexNutSurfaceMesh"    # planar faces plus a periodic bore
     "3D/Surface/ThinCapBoxSurface"    # curve 1 mm below a non-incident face (OPE-204)
+    "2D/RectangleWithHole2D"       # straight hole, no refinement
+    "2D/RectangleWithCrack"        # crack constraint plus an additional point
+    "2D/StarPolygon"               # sharp reflex corners
+    "2D/SpiralChannel"             # long curved channel
+    "2D/NearCoincidentConstraintEdges"  # constraint edges almost touching
 )
 
 # Full tier adds the slow models, including the crease-protection benchmark.
@@ -43,6 +48,12 @@ FULL_EXAMPLES=(
     "3D/Volume/BoxWithHole"
     "3D/Volume/ThinCapBoxVolume"  # 1 mm cap, slivers (OPE-12)
     "3D/Surface/SaddleSurfaceMesh"
+    "2D/SquareWithInternalCircles"     # internal curved constraints
+    "2D/ThinSliverDomain"              # very thin domain
+    "2D/NestedConcentricRings"         # nested curved holes and islands
+    "3D/Surface/TorusSurfaceMesh"      # doubly periodic surface
+    "3D/Surface/SharpCreaseBracket"    # sharp creases
+    "3D/Surface/HexNutChamferedSurfaceMesh"  # chamfers, small faces
 )
 
 accept=false

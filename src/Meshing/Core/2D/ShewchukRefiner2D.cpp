@@ -29,7 +29,6 @@ bool isTooSmallToRefine(const ElementGeometry2D& geometry,
                         const TriangleElement& triangle,
                         ElementId triangleId);
 bool coincidesWithExistingNode(const MeshData2D& meshData, const Point2D& point);
-bool tryInsertCircumcenter(MeshOperations2D& operations, const Point2D& circumcenter);
 
 } // namespace
 
@@ -96,7 +95,7 @@ void ShewchukRefiner2D::refine()
         }
 
         ++iterationCount;
-        exportAndVerifyMesh(context_->getMeshData(), "ShewchukRefiner2D_" + exportPrefix_, exportCounter_);
+        exportAndVerifyMesh(context_->getMeshData(), exportPrefix_ + "ShewchukRefiner2D", exportCounter_);
     }
 
     spdlog::info("ShewchukRefiner2D: Refinement complete after {} iterations", iterationCount);
@@ -112,14 +111,8 @@ void ShewchukRefiner2D::refine()
 
 bool ShewchukRefiner2D::refineStep()
 {
-    auto encroachedSegments = context_->getOperations().getQueries().findEncroachedSegments();
-
-    if (!encroachedSegments.empty())
-    {
-        spdlog::debug("ShewchukRefiner2D: Found {} encroached segments", encroachedSegments.size());
-        handleEncroachedSegment(encroachedSegments[0]);
-        return true;
-    }
+    if (auto encroached = context_->getOperations().getQueries().findFirstEncroachedSegment())
+        return handleEncroachedSegment(*encroached);
 
     ElementQuality2D quality(context_->getMeshData());
     auto worstTriangles = quality.getTrianglesSortedByQuality();
@@ -141,33 +134,28 @@ bool ShewchukRefiner2D::refineStep()
     return false;
 }
 
-void ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
+bool ShewchukRefiner2D::handleEncroachedSegment(const CurveSegment& segment)
 {
     spdlog::debug("ShewchukRefiner2D: Splitting encroached segment ({}, {})",
-                  segment.nodeId1.value(), segment.nodeId2.value());
+                  segment.startNodeId.value(), segment.endNodeId.value());
 
     auto edge = context_->getGeometry().getEdge(segment.edgeId);
-    if (edge == nullptr)
-    {
-        spdlog::error("ShewchukRefiner2D: Cannot find edge geometry for ID '{}'", segment.edgeId);
-        return;
-    }
-
     auto newNodeId = context_->getOperations().splitConstrainedSegment(segment, *edge);
 
     if (!newNodeId.has_value())
     {
-        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.nodeId1.value(), segment.nodeId2.value());
-        return;
+        spdlog::error("ShewchukRefiner2D: Failed to split segment ({}, {})", segment.startNodeId.value(), segment.endNodeId.value());
+        return false;
     }
 
     spdlog::debug("ShewchukRefiner2D: Successfully split segment ({}, {}) at node {}",
-                  segment.nodeId1.value(), segment.nodeId2.value(), newNodeId->value());
+                  segment.startNodeId.value(), segment.endNodeId.value(), newNodeId->value());
 
     if (onBoundarySplit_)
     {
-        onBoundarySplit_(segment.nodeId1, segment.nodeId2, newNodeId.value());
+        onBoundarySplit_(segment.startNodeId, segment.endNodeId, newNodeId.value());
     }
+    return true;
 }
 
 bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangle, ElementId triangleId)
@@ -188,6 +176,21 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangl
 
     Point2D circumcenter = optionalCircumcenter.value();
 
+    // Per Ruppert: a circumcenter that would encroach a visible subsegment is
+    // rejected, and the subsegment is split instead. This comes before the
+    // domain test: a circumcenter outside the domain encroaches the boundary
+    // subsegment between it and the triangle, and splitting that is how the
+    // triangle gets refined.
+    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
+
+    if (!encroachedByCircumcenter.empty())
+    {
+        spdlog::debug("ShewchukRefiner2D: Circumcenter would encroach {} segments, splitting them first",
+                      encroachedByCircumcenter.size());
+
+        return handleEncroachedSegment(encroachedByCircumcenter[0]);
+    }
+
     if (!context_->getOperations().getQueries().isPointInsideDomain(circumcenter))
     {
         spdlog::debug("ShewchukRefiner2D: Circumcenter at ({:.2f}, {:.2f}) is outside domain or in hole, skipping",
@@ -199,23 +202,15 @@ bool ShewchukRefiner2D::handlePoorQualityTriangle(const TriangleElement& triangl
     // and Bowyer-Watson cannot insert a duplicate point.
     if (coincidesWithExistingNode(context_->getMeshData(), circumcenter)) return false;
 
-    // Per Ruppert: a circumcenter that would encroach a visible subsegment is
-    // rejected, and the subsegment is split instead.
-    auto encroachedByCircumcenter = context_->getOperations().getQueries().findSegmentsEncroachedByPoint(circumcenter);
-
-    if (!encroachedByCircumcenter.empty())
-    {
-        spdlog::debug("ShewchukRefiner2D: Circumcenter would encroach {} segments, splitting them first",
-                      encroachedByCircumcenter.size());
-
-        handleEncroachedSegment(encroachedByCircumcenter[0]);
-        return true;
-    }
-
     spdlog::debug("ShewchukRefiner2D: Inserting circumcenter at ({:.2f}, {:.2f})",
                   circumcenter.x(), circumcenter.y());
 
-    if (!tryInsertCircumcenter(context_->getOperations(), circumcenter)) return false;
+    if (!context_->getOperations().insertVertexBowyerWatson(circumcenter))
+    {
+        spdlog::debug("ShewchukRefiner2D: Constrained edges block circumcenter at ({:.2f}, {:.2f})",
+                      circumcenter.x(), circumcenter.y());
+        return false;
+    }
 
     // A triangle that survives the insertion had its circumcenter on the other
     // side of a constrained edge; refining it again would loop forever.
@@ -263,23 +258,6 @@ bool coincidesWithExistingNode(const MeshData2D& meshData, const Point2D& point)
         }
     }
     return false;
-}
-
-// Insertion throws, before touching the mesh, when constrained edges leave the
-// point with no conflicting triangles.
-bool tryInsertCircumcenter(MeshOperations2D& operations, const Point2D& circumcenter)
-{
-    try
-    {
-        operations.insertVertexBowyerWatson(circumcenter);
-        return true;
-    }
-    catch (const std::exception& exception)
-    {
-        spdlog::debug("ShewchukRefiner2D: Failed to insert circumcenter at ({:.2f}, {:.2f}): {}",
-                      circumcenter.x(), circumcenter.y(), exception.what());
-        return false;
-    }
 }
 
 } // namespace

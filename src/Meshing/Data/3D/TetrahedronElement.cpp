@@ -1,6 +1,8 @@
 #include "Meshing/Data/3D/TetrahedronElement.h"
+#include "Common/Exceptions/MeshException.h"
 
 #include <algorithm>
+#include <string>
 
 namespace Meshing
 {
@@ -35,7 +37,10 @@ std::array<NodeId, 3> TetrahedronElement::getFace(size_t faceIndex) const
     case 3:
         return {nodeIds_[0], nodeIds_[2], nodeIds_[1]}; // Face opposite to node 3
     default:
-        return {nodeIds_[0], nodeIds_[1], nodeIds_[2]}; // Default to first face
+        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
+                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
+                            "TetrahedronElement::getFace: face index " + std::to_string(faceIndex) +
+                                " is out of range 0-3");
     }
 }
 

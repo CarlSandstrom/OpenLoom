@@ -238,7 +238,7 @@ void TsvExporter::writeMesh(const Meshing::MeshData2D& mesh, const std::string& 
     for (Meshing::SegmentId segmentId : sortedKeys(segments))
     {
         const auto& segment = segments.at(segmentId);
-        const std::array<Meshing::NodeId, 2> segmentNodes = {segment.nodeId1, segment.nodeId2};
+        const std::array<Meshing::NodeId, 2> segmentNodes = {segment.startNodeId, segment.endNodeId};
         const std::string edgeId = segment.edgeId.empty() ? NOT_APPLICABLE : segment.edgeId;
         writeCellRow(cells, "segment", std::to_string(segmentId.value()), joinNodeIds(segmentNodes), edgeId,
                      formatRole(segment.role));

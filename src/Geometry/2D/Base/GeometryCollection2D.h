@@ -25,7 +25,7 @@ public:
     void addCorner(std::unique_ptr<ICorner2D> corner);
     void addEdge(std::unique_ptr<IEdge2D> edge);
 
-    // Access entities
+    // Access entities; an unknown id throws
     const ICorner2D* getCorner(const std::string& id) const;
     const IEdge2D* getEdge(const std::string& id) const;
 

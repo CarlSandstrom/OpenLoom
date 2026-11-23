@@ -1,5 +1,4 @@
 #include "Meshing/Core/2D/General/MeshOperations2D.h"
-#include "Common/Exceptions/MeshException.h"
 #include "Geometry/2D/Base/IEdge2D.h"
 #include "Meshing/Core/2D/General/ElementGeometry2D.h"
 #include "Meshing/Core/2D/General/GeometryUtilities2D.h"
@@ -63,6 +62,12 @@ std::optional<EdgeFlip> findDelaunayFlip(const MeshData2D& meshData,
                                          const std::vector<ElementId>& adjacent);
 std::optional<NodeId> findCoincidentNode(const MeshData2D& meshData, const Point2D& point);
 bool isOnChord(const Point2D& chordStart, const Point2D& chordEnd, const Point2D& point);
+bool liesBeyondChord(const MeshData2D& meshData,
+                     const MeshQueries2D& queries,
+                     NodeId chordNode1,
+                     NodeId chordNode2,
+                     const Point2D& point);
+bool crossesConstrainedSegment(const MeshData2D& meshData, const Point2D& start, const Point2D& end);
 
 } // namespace
 
@@ -79,18 +84,15 @@ MeshOperations2D::MeshOperations2D(MeshData2D& meshData, PeriodicMeshData2D* per
 {
 }
 
-NodeId MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
-                                                  const std::vector<std::string>& edgeIds)
+std::optional<NodeId> MeshOperations2D::insertVertexBowyerWatson(const Point2D& point)
 {
     std::vector<ElementId> conflicting = queries_.findConflictingTriangles(point);
 
     if (conflicting.empty())
     {
-        SPDLOG_DEBUG("MeshOperations2D: No conflicting triangles found for point ({}, {}) — blocked by constraints",
-                     point.x(), point.y());
-        OPENLOOM_THROW_CODE(OpenLoom::MeshException,
-                            OpenLoom::MeshException::ErrorCode::INVALID_OPERATION,
-                            "No conflicting triangles found for point (" + std::to_string(point.x()) + ", " + std::to_string(point.y()) + ")");
+        spdlog::debug("MeshOperations2D: No conflicting triangles found for point ({}, {}) — blocked by constraints",
+                      point.x(), point.y());
+        return std::nullopt;
     }
 
     std::vector<std::array<NodeId, 2>> boundary = queries_.findCavityBoundary(conflicting);
@@ -111,7 +113,7 @@ NodeId MeshOperations2D::insertVertexBowyerWatson(const Point2D& point,
         mutator_->removeElement(conflictingElementId);
     }
 
-    NodeId newVertex = edgeIds.empty() ? mutator_->addNode(point) : mutator_->addBoundaryNode(point, edgeIds);
+    NodeId newVertex = mutator_->addNode(point);
     Point2D newPoint = meshData_.getNode(newVertex)->getCoordinates();
 
     for (const auto& edge : boundary)
@@ -327,16 +329,16 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     const CurveSegment& segment,
     const Geometry2D::IEdge2D& parentEdge)
 {
-    auto node1 = meshData_.getNode(segment.nodeId1);
-    auto node2 = meshData_.getNode(segment.nodeId2);
+    auto node1 = meshData_.getNode(segment.startNodeId);
+    auto node2 = meshData_.getNode(segment.endNodeId);
 
     if (node1 == nullptr || node2 == nullptr)
     {
-        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.nodeId1.value(), segment.nodeId2.value());
+        spdlog::error("splitConstrainedSegment: Invalid node IDs {} or {}", segment.startNodeId.value(), segment.endNodeId.value());
         return std::nullopt;
     }
 
-    double midParameter = (segment.tStart + segment.tEnd) * 0.5;
+    double midParameter = (segment.startParameter + segment.endParameter) * 0.5;
     Point2D midPoint = parentEdge.getPoint(midParameter);
 
     // A node can already sit at the midpoint, e.g. a seam twin whose UV midpoint
@@ -349,15 +351,29 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     // two adjacent triangles.
     bool midOnChord = isOnChord(node1->getCoordinates(), node2->getCoordinates(), midPoint);
 
+    if (!existingNodeId && !midOnChord &&
+        liesBeyondChord(meshData_, queries_, segment.startNodeId, segment.endNodeId, midPoint))
+        return extendMeshAcrossChord(segment, midPoint, midParameter);
+
     if (!existingNodeId && !midOnChord)
     {
         // Bowyer-Watson rebuilds the local triangulation from a star-shaped cavity, which
-        // handles a midpoint off the chord.
-        NodeId newNodeId = insertVertexBowyerWatson(midPoint, {segment.edgeId});
-        enforceEdge(segment.nodeId1, newNodeId);
-        enforceEdge(newNodeId, segment.nodeId2);
+        // handles a midpoint off the chord on the mesh's side of it.
+        bool chordOnMeshBoundary = queries_.findTrianglesAdjacentToEdge(segment.startNodeId, segment.endNodeId).size() == 1;
+        auto insertedNodeId = insertVertexBowyerWatson(midPoint);
+        if (!insertedNodeId) return std::nullopt;
 
-        mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
+        NodeId newNodeId = *insertedNodeId;
+        enforceEdge(segment.startNodeId, newNodeId);
+        enforceEdge(newNodeId, segment.endNodeId);
+
+        mutator_->splitCurveSegment(segment.startNodeId, segment.endNodeId, newNodeId, midParameter);
+
+        // A curve bulging into the mesh from its boundary: the fan closes the cavity
+        // with the triangle (chord, midpoint), which lies between the chord and the
+        // curve -- outside the domain now that the curve is the boundary.
+        if (chordOnMeshBoundary)
+            removeTriangleOnChord(segment.startNodeId, segment.endNodeId, newNodeId);
         return newNodeId;
     }
 
@@ -365,14 +381,14 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
     // cavity boundary always contains the old constraint edge, and the triangle it would
     // form with the segment's end nodes is collinear and gets skipped, leaving a mesh hole.
     // Splitting the two adjacent triangles at the midpoint always forms valid triangles.
-    NodeId newNodeId = existingNodeId ? *existingNodeId : mutator_->addBoundaryNode(midPoint, {segment.edgeId});
+    NodeId newNodeId = existingNodeId ? *existingNodeId : mutator_->addNode(midPoint);
 
     // The sub-segments must be constrained before the Lawson flip, or it flips them away.
-    mutator_->splitCurveSegment(segment.nodeId1, segment.nodeId2, newNodeId, midParameter);
+    mutator_->splitCurveSegment(segment.startNodeId, segment.endNodeId, newNodeId, midParameter);
 
     if (midOnChord)
     {
-        auto newTriangleIds = splitTrianglesAtEdge(segment.nodeId1, segment.nodeId2, newNodeId);
+        auto newTriangleIds = splitTrianglesAtEdge(segment.startNodeId, segment.endNodeId, newNodeId);
         if (!newTriangleIds.empty())
             lawsonFlip(newTriangleIds);
     }
@@ -381,11 +397,52 @@ std::optional<NodeId> MeshOperations2D::splitConstrainedSegment(
         // An existing node coincides with the arc midpoint but lies off the chord, where
         // splitTrianglesAtEdge would produce clockwise sub-triangles. enforceEdge rebuilds
         // the local triangulation by ear clipping instead.
-        enforceEdge(segment.nodeId1, newNodeId);
-        enforceEdge(newNodeId, segment.nodeId2);
+        enforceEdge(segment.startNodeId, newNodeId);
+        enforceEdge(newNodeId, segment.endNodeId);
     }
 
     return newNodeId;
+}
+
+// A boundary curve bulging outward puts its midpoint beyond the chord, where the
+// exterior triangles have been removed: nothing there conflicts with it, so
+// Bowyer-Watson cannot insert it. The region between the chord and the curve
+// belongs to the domain, so the mesh grows into it by the one triangle
+// (chord, midpoint); the chord then stops being a constraint and the Lawson flip
+// replaces it if it is no longer Delaunay.
+std::optional<NodeId> MeshOperations2D::extendMeshAcrossChord(const CurveSegment& segment,
+                                                              const Point2D& midPoint,
+                                                              double midParameter)
+{
+    auto& point1 = meshData_.getNode(segment.startNodeId)->getCoordinates();
+    auto& point2 = meshData_.getNode(segment.endNodeId)->getCoordinates();
+
+    // Another boundary curve reaching between this chord and its curve leaves no
+    // room for the triangle.
+    if (crossesConstrainedSegment(meshData_, point1, midPoint) || crossesConstrainedSegment(meshData_, midPoint, point2))
+    {
+        spdlog::debug("extendMeshAcrossChord: segment ({}, {}) is crowded by another boundary",
+                      segment.startNodeId.value(), segment.endNodeId.value());
+        return std::nullopt;
+    }
+
+    NodeId newNodeId = mutator_->addNode(midPoint);
+    auto nodeIds = GeometryUtilities2D::computeOrientation(point1, point2, midPoint) > 0.0 ? std::array<NodeId, 3>{segment.startNodeId, segment.endNodeId, newNodeId} : std::array<NodeId, 3>{segment.endNodeId, segment.startNodeId, newNodeId};
+    ElementId newTriangleId = mutator_->addElement(std::make_unique<TriangleElement>(nodeIds));
+
+    // The sub-segments must be constrained before the Lawson flip, or it flips them away.
+    mutator_->splitCurveSegment(segment.startNodeId, segment.endNodeId, newNodeId, midParameter);
+    lawsonFlip({newTriangleId});
+    return newNodeId;
+}
+
+void MeshOperations2D::removeTriangleOnChord(NodeId chordNode1, NodeId chordNode2, NodeId apexNodeId)
+{
+    for (ElementId triangleId : queries_.findTrianglesAdjacentToEdge(chordNode1, chordNode2))
+    {
+        auto triangle = dynamic_cast<const TriangleElement*>(meshData_.getElement(triangleId));
+        if (triangle->hasNode(apexNodeId)) mutator_->removeElement(triangleId);
+    }
 }
 
 std::vector<ElementId> MeshOperations2D::removeExteriorTriangles(const std::unordered_set<ElementId>& interiorTriangles)
@@ -591,7 +648,7 @@ EdgeKeySet collectConstrainedEdgeKeys(const MeshData2D& meshData)
     EdgeKeySet constrainedEdgeKeys;
     for (const auto& [id, segment] : meshData.getCurveSegmentManager().getAllSegments())
     {
-        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(segment.nodeId1, segment.nodeId2));
+        constrainedEdgeKeys.insert(MeshQueries2D::makeEdgeKey(segment.startNodeId, segment.endNodeId));
     }
     return constrainedEdgeKeys;
 }
@@ -700,6 +757,39 @@ bool isOnChord(const Point2D& chordStart, const Point2D& chordEnd, const Point2D
         return (point - projected).squaredNorm() < MAX_CHORD_DEVIATION_SQUARED;
     }
     return true;
+}
+
+// True when the chord has a triangle on one side only and the point lies on the
+// other: the point is outside the mesh, across a boundary chord.
+bool liesBeyondChord(const MeshData2D& meshData,
+                     const MeshQueries2D& queries,
+                     NodeId chordNode1,
+                     NodeId chordNode2,
+                     const Point2D& point)
+{
+    auto adjacent = queries.findTrianglesAdjacentToEdge(chordNode1, chordNode2);
+    if (adjacent.size() != 1) return false;
+
+    auto triangle = dynamic_cast<const TriangleElement*>(meshData.getElement(adjacent[0]));
+    auto& chordPoint1 = meshData.getNode(chordNode1)->getCoordinates();
+    auto& chordPoint2 = meshData.getNode(chordNode2)->getCoordinates();
+    auto& apex = meshData.getNode(triangle->getOppositeNode(chordNode1, chordNode2))->getCoordinates();
+
+    double apexSide = GeometryUtilities2D::computeOrientation(chordPoint1, chordPoint2, apex);
+    double pointSide = GeometryUtilities2D::computeOrientation(chordPoint1, chordPoint2, point);
+    return apexSide * pointSide < 0.0;
+}
+
+bool crossesConstrainedSegment(const MeshData2D& meshData, const Point2D& start, const Point2D& end)
+{
+    for (const auto& [segmentId, segment] : meshData.getCurveSegmentManager().getAllSegments())
+    {
+        auto& segmentStart = meshData.getNode(segment.startNodeId)->getCoordinates();
+        auto& segmentEnd = meshData.getNode(segment.endNodeId)->getCoordinates();
+        if (GeometryUtilities2D::segmentsIntersectExcludingSharedEndpoints(start, end, segmentStart, segmentEnd))
+            return true;
+    }
+    return false;
 }
 
 } // namespace

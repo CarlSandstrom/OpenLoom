@@ -13,3 +13,4 @@ build_dbg/
 !tests/golden/**/*.vtu
 python/RCDT2D/.venv/
 __pycache__/
+*.lock

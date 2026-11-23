@@ -37,14 +37,10 @@ void addEdges(DiscretizationResult2D& result,
 std::vector<size_t> addEdgeInteriorPoints(DiscretizationResult2D& result,
                                           const std::string& edgeId,
                                           const Geometry2D::IEdge2D& edge,
-                                          const Point2D& startCornerPoint,
-                                          const Point2D& endCornerPoint,
                                           const EdgeSpacing& spacing);
 std::vector<size_t> addPointsByAngle(DiscretizationResult2D& result,
                                      const std::string& edgeId,
                                      const Geometry2D::IEdge2D& edge,
-                                     const Point2D& startCornerPoint,
-                                     const Point2D& endCornerPoint,
                                      double maxAngle);
 std::vector<size_t> addPointsByCount(DiscretizationResult2D& result,
                                      const std::string& edgeId,
@@ -125,13 +121,8 @@ void addEdges(DiscretizationResult2D& result,
         result.tParameters[endCornerIndex].push_back(tMax);
         result.geometryIds[endCornerIndex].push_back(edgeId);
 
-        // Copies: appending interior points may reallocate result.points.
-        Point2D startCornerPoint = result.points[startCornerIndex];
-        Point2D endCornerPoint = result.points[endCornerIndex];
-
         std::vector<size_t> edgePointIndices{startCornerIndex};
-        auto interiorIndices =
-            addEdgeInteriorPoints(result, edgeId, *edgeGeometry, startCornerPoint, endCornerPoint, spacing);
+        auto interiorIndices = addEdgeInteriorPoints(result, edgeId, *edgeGeometry, spacing);
         edgePointIndices.insert(edgePointIndices.end(), interiorIndices.begin(), interiorIndices.end());
         edgePointIndices.push_back(endCornerIndex);
         result.edgeIdToPointIndicesMap[edgeId] = std::move(edgePointIndices);
@@ -142,12 +133,10 @@ void addEdges(DiscretizationResult2D& result,
 std::vector<size_t> addEdgeInteriorPoints(DiscretizationResult2D& result,
                                           const std::string& edgeId,
                                           const Geometry2D::IEdge2D& edge,
-                                          const Point2D& startCornerPoint,
-                                          const Point2D& endCornerPoint,
                                           const EdgeSpacing& spacing)
 {
     if (spacing.maxAngle.has_value())
-        return addPointsByAngle(result, edgeId, edge, startCornerPoint, endCornerPoint, spacing.maxAngle.value());
+        return addPointsByAngle(result, edgeId, edge, spacing.maxAngle.value());
 
     if (spacing.numberOfSegments.has_value() && spacing.numberOfSegments.value() > 1)
         return addPointsByCount(result, edgeId, edge, spacing.numberOfSegments.value());
@@ -155,37 +144,38 @@ std::vector<size_t> addEdgeInteriorPoints(DiscretizationResult2D& result,
     return {};
 }
 
-// Walk the edge in uniform parameter steps and emit a point once the tangent has turned
-// by maxAngle since the last emitted point.
+// Walk the edge in uniform parameter steps and emit a point once the tangent's
+// accumulated turn reaches maxAngle, as BoundaryDiscretizer3D does. Accumulating
+// step by step counts every turn on an S-shaped curve, where the angle between
+// the last emitted tangent and the current one can stay small.
 std::vector<size_t> addPointsByAngle(DiscretizationResult2D& result,
                                      const std::string& edgeId,
                                      const Geometry2D::IEdge2D& edge,
-                                     const Point2D& startCornerPoint,
-                                     const Point2D& endCornerPoint,
                                      double maxAngle)
 {
     auto [tMin, tMax] = edge.getParameterBounds();
     auto previousTangent = computeEdgeTangentAtParameter(edge, tMin);
+    double accumulatedAngle = 0.0;
 
     std::vector<size_t> pointIndices;
     for (size_t step = 1; step <= NUMBER_OF_STEPS; ++step)
     {
         double t = parameterAtStep(tMin, tMax, step);
         auto nextTangent = computeEdgeTangentAtParameter(edge, t);
+        accumulatedAngle += angleBetweenTangents(previousTangent, nextTangent);
+        previousTangent = nextTangent;
 
-        if (angleBetweenTangents(previousTangent, nextTangent) >= maxAngle)
+        // The end vertex is already a point of this edge; emitting there would
+        // duplicate it (OPE-207).
+        bool atEndVertex = t >= tMax;
+
+        if (accumulatedAngle >= maxAngle && !atEndVertex)
         {
-            Point2D point = edge.getPoint(t);
-
-            previousTangent = nextTangent;
-
-            // A point on either corner would duplicate it.
-            if ((point - startCornerPoint).norm() < 1e-6 || (point - endCornerPoint).norm() < 1e-6) continue;
-
-            pointIndices.push_back(appendPoint(result, point, {t}, {edgeId}));
+            pointIndices.push_back(appendPoint(result, edge.getPoint(t), {t}, {edgeId}));
+            accumulatedAngle = 0.0;
         }
 
-        if (t >= tMax - EPSILON) break;
+        if (atEndVertex) break;
     }
     return pointIndices;
 }
@@ -206,12 +196,10 @@ std::vector<size_t> addPointsByCount(DiscretizationResult2D& result,
     return pointIndices;
 }
 
-// The unsigned difference of the tangents' polar angles, folded into [0, pi].
 double angleBetweenTangents(const Vector2D& first, const Vector2D& second)
 {
-    double angle = std::fabs(std::atan2(second.y(), second.x()) - std::atan2(first.y(), first.x()));
-    if (angle > PI) angle = 2 * PI - angle;
-    return angle;
+    double dot = std::clamp(first.dot(second), -1.0, 1.0);
+    return std::acos(dot);
 }
 
 // A central difference over EPSILON, clamped to the edge's parameter range.

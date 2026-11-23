@@ -9,7 +9,7 @@ namespace Meshing
 {
 
 BoundarySplitSynchronizer2D::BoundarySplitSynchronizer2D(MeshingContext2D& context,
-                                                     TwinManager2D& twinManager) :
+                                                         TwinManager2D& twinManager) :
     context_(&context),
     twinManager_(&twinManager)
 {
@@ -31,9 +31,6 @@ void BoundarySplitSynchronizer2D::operator()(NodeId node0, NodeId node1, NodeId 
     auto twinSegment = manager.getSegment(*optionalSegmentId);
 
     auto twinEdge = context_->getGeometry().getEdge(twinSegment.edgeId);
-    if (!twinEdge)
-        return;
-
     auto twinMidpointNode =
         context_->getOperations().splitConstrainedSegment(twinSegment, *twinEdge);
     if (!twinMidpointNode)
