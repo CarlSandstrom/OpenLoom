@@ -206,6 +206,20 @@ Placement:
   Beyond CGAL, a neighbour hidden inside a larger ball shrinks the larger one
   to their distance — possible next to a large corner ball once the size
   function varies fast.
+- **Minimum size** (CGAL's `minimal_size`): 1e-3 of the bounding-box
+  diagonal, the same floor the surface cap uses. No corner or curve ball is
+  placed smaller, and a ball that repair would shrink below it gets exactly
+  that size and is never shrunk by a non-neighbour again. Two curves that
+  touch away from a corner -- legal within a STEP file's tolerance -- would
+  otherwise shrink each other's balls without bound: on `Flanged_Housing.step`
+  the ball count tripled each round and repair never settled (OPE-249). Balls
+  at the minimum size may overlap non-neighbours; giving them all exactly the
+  same size keeps any one from hiding another.
+- **Corners off their curves**: within a STEP file's tolerance a CAD vertex
+  may sit off the end of a curve it bounds (0.174 on `Flanged_Housing.step`).
+  Spacing is decided along the curve, so the corner ball takes part with its
+  radius less that offset: a neighbour at arc `a` is at most `a + offset` from
+  the corner, so the two still overlap (OPE-250).
 
 The protection is fixed after seeding: refinement never splits a curve, and
 the points it inserts can never enter a ball (they would be hidden and are

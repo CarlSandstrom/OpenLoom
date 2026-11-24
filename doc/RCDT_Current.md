@@ -68,6 +68,7 @@ A `CurveSegment [a, b]` is a straight mesh edge whose endpoints are consecutive 
 **R1.2 — Place protecting balls** (`ProtectingBallPlacer`) — *new relative to the historical path*
 - Size every corner and curve ball from the discretization's existing point spacing (the size function), capped at half the distance from its centre to the nearest surface sharing no corner with it (`NonIncidentSurfaceDistance`), so a ball never reaches a surface its curve has nothing to do with.
 - Repair overlaps iteratively (`refine_balls`): shrink any pair of non-neighbour balls that intersect, to at most their distance / 2.1; repopulate gaps between neighbours; repeat to a fixed point, at most 29 rounds.
+- Minimum size (CGAL's `minimal_size`), 1e-3 of the bounding-box diagonal: no ball is placed smaller. A ball that repair would shrink below it gets exactly that size, is never shrunk by a non-neighbour again, and may keep overlapping. Without it, two curves touching away from a corner shrink each other's balls without bound (OPE-249).
 - Produces a weight (squared radius) per protected point, meeting the three conditions in "Protecting ball" above.
 
 **R1.3 — Build weighted Delaunay tetrahedralization** (`Delaunay3D`, Bowyer-Watson, regular)

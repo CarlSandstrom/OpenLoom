@@ -41,6 +41,11 @@ namespace Meshing
  *    neighbours on a curve are both shrunk to at most their distance / 2.1,
  *    and neighbours that no longer overlap along the curve are repopulated
  *    between; repeated until nothing changes, at most 29 rounds.
+ *  - Minimum size (CGAL's minimal_size, OPE-249): no ball is placed smaller
+ *    than 1e-3 of the bounding-box diagonal, and a ball repair would shrink
+ *    below it gets exactly that size and is not shrunk by a non-neighbour
+ *    again, so curves touching away from a corner cannot shrink each other
+ *    without bound. Balls at the minimum size may overlap non-neighbours.
  *
  * The size function is the spacing of the existing boundary discretization
  * along each curve. No ball is wider than half the distance from its centre

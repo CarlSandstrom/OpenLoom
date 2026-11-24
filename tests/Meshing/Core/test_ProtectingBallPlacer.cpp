@@ -5,6 +5,7 @@
 #include "Geometry/3D/Base/DiscretizationSettings3D.h"
 #include "Meshing/Core/3D/General/BoundaryDiscretizer3D.h"
 #include "Meshing/Data/3D/DiscretizationResult3D.h"
+#include "Readers/OpenCascade/StepReader3D.h"
 #include "Readers/OpenCascade/TopoDS_ShapeConverter.h"
 #include "Topology/SeamCollection.h"
 #include "Topology/Topology3D.h"
@@ -18,6 +19,7 @@
 #include <algorithm>
 #include <limits>
 #include <numbers>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -69,11 +71,15 @@ std::set<std::pair<size_t, size_t>> neighbours(const DiscretizationResult3D& dis
     return pairs;
 }
 
-void expectCgalProtectionConditions(const Protection& protection)
+/// With minimumSize set, two non-neighbours may intersect when both radii are
+/// at most minimumSize: repair stops shrinking there (CGAL's minimal_size).
+void expectCgalProtectionConditions(const Protection& protection, const std::optional<double>& minimumSize = std::nullopt)
 {
     const auto& points = protection.discretization.points;
     const auto adjacent = neighbours(protection.discretization);
     ASSERT_FALSE(protection.weights.empty());
+    auto atMinimumSize = [&](double weight)
+    { return minimumSize && std::sqrt(weight) <= *minimumSize * (1.0 + 1e-9); };
 
     for (const auto& [i, wi] : protection.weights)
         for (const auto& [j, wj] : protection.weights)
@@ -83,7 +89,7 @@ void expectCgalProtectionConditions(const Protection& protection)
             const double distance = (points[i] - points[j]).norm();
             EXPECT_GE(distance * distance, wj - wi) << "point " << i << " is hidden by the ball of " << j;
             EXPECT_GE(distance * distance, wi - wj) << "point " << j << " is hidden by the ball of " << i;
-            if (!adjacent.count({i, j}))
+            if (!adjacent.count({i, j}) && !(atMinimumSize(wi) && atMinimumSize(wj)))
                 EXPECT_GE(distance, std::sqrt(wi) + std::sqrt(wj))
                     << "balls of " << i << " and " << j << " intersect but are not neighbours";
         }
@@ -208,4 +214,33 @@ TEST(ProtectingBallPlacerTest, BallsStayClearOfNonIncidentSurfaces)
 
     EXPECT_GT(ceilingBallCount, 0);
     expectCgalProtectionConditions(protection);
+}
+
+// On Flanged_Housing.step, edge_14 runs within 2.8e-5 of edge_113 with no
+// corner shared -- within the file's own tolerance of 0.26 they touch. Repair
+// shrank the balls there without bound, tripling their count each round, and
+// never settled (OPE-249). It must stop at the minimum size instead.
+TEST(ProtectingBallPlacerTouchingCurvesTest, SettlesAtMinimumSize)
+{
+    constexpr double MINIMUM_SIZE_FRACTION = 1e-3; // ProtectingBallPlacer's MINIMUM_CAP_FRACTION
+
+    const Readers::StepReader3D reader(std::string(OPENLOOM_SOURCE_DIR) + "/src/Examples/3D/STEP/Flanged_Housing.step");
+    const Readers::TopoDS_ShapeConverter converter(reader.getShape());
+    auto discretization =
+        BoundaryDiscretizer3D::discretize(converter.getGeometryCollection(), converter.getTopology(),
+                                          Geometry3D::DiscretizationSettings3D(std::nullopt, std::numbers::pi / 8.0, 2));
+
+    Point3D minimum = discretization->points.front();
+    Point3D maximum = discretization->points.front();
+    for (const auto& point : discretization->points)
+    {
+        minimum = minimum.cwiseMin(point);
+        maximum = maximum.cwiseMax(point);
+    }
+    const double minimumSize = MINIMUM_SIZE_FRACTION * (maximum - minimum).norm();
+
+    Protection protection{std::move(*discretization), {}};
+    protection.weights =
+        ProtectingBallPlacer::place(protection.discretization, converter.getTopology(), converter.getGeometryCollection());
+    expectCgalProtectionConditions(protection, minimumSize);
 }

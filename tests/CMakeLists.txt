@@ -94,6 +94,8 @@ target_link_libraries(runTests PRIVATE
     Common
 )
 
+target_compile_definitions(runTests PRIVATE OPENLOOM_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+
 # Include directories for accessing headers
 target_include_directories(runTests PRIVATE 
     ${CMAKE_SOURCE_DIR}/src
@@ -118,6 +120,15 @@ gtest_discover_tests(runTests
     PROPERTIES LABELS slow
     DISCOVERY_TIMEOUT 60)
 
+# Places protecting balls on a real STEP part: ~150 s in Debug. The timeout
+# is 3x that, so the unbounded repair it guards against (OPE-249) fails fast.
+set(TOUCHING_CURVES_TEST_FILTER "ProtectingBallPlacerTouchingCurvesTest.*")
+
 gtest_discover_tests(runTests
-    TEST_FILTER "-${SLOW_TEST_FILTER}"
+    TEST_FILTER "${TOUCHING_CURVES_TEST_FILTER}"
+    PROPERTIES LABELS slow TIMEOUT 450
+    DISCOVERY_TIMEOUT 60)
+
+gtest_discover_tests(runTests
+    TEST_FILTER "-${SLOW_TEST_FILTER}:${TOUCHING_CURVES_TEST_FILTER}"
     DISCOVERY_TIMEOUT 60)
