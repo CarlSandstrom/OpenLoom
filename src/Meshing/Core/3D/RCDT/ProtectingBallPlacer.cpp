@@ -44,6 +44,11 @@ constexpr double SURFACE_DISTANCE_DIVISOR = 2.0;
 // stops there, for two curves touching away from a corner (OPE-249).
 constexpr double MINIMUM_CAP_FRACTION = 1e-3;
 
+// A corner nearer a curve's end than this fraction of the curve's length is on
+// it: evaluating a closed curve at its end lands ~1e-15 off its corner, and
+// counting that as an offset flips the rounded ball count on symmetric models.
+constexpr double OFF_CURVE_CORNER_FRACTION = 1e-9;
+
 // Relative slack within which a ball's radius counts as sitting at its cap.
 constexpr double AT_CAP_TOLERANCE = 1e-9;
 
@@ -222,11 +227,19 @@ std::vector<Ball> insertBalls(const Curve& curve, const Ball& startBall, const B
     return balls;
 }
 
-/// The ball at each end of a curve: its corner's.
-Ball cornerBall(const std::string& cornerId, double arc, const std::map<std::string, Ball>& corners)
+/// The ball at the end of a curve at arc (0 or its length): its corner's, with
+/// the radius it reaches along the curve. Within a STEP file's tolerance a
+/// corner may sit off the curve's end -- 0.174 on Flanged_Housing.step -- and
+/// the ball then covers the curve only out to its radius less that offset.
+/// Spacing against that radius keeps the corner overlapping its neighbour,
+/// whose distance from the corner is at most its arc plus the offset (OPE-250).
+Ball cornerBall(const Curve& curve, const std::string& cornerId, double arc, const std::map<std::string, Ball>& corners)
 {
     Ball ball = corners.at(cornerId);
     ball.arc = arc;
+    auto offset = (pointAt(curve, arc) - ball.point).norm();
+    if (offset > OFF_CURVE_CORNER_FRACTION * curve.length)
+        ball.radius = std::max(ball.radius - offset, 0.0);
     return ball;
 }
 
@@ -236,9 +249,9 @@ std::vector<Ball> withCorners(const Curve& curve,
                               const std::string& endCorner,
                               const std::map<std::string, Ball>& corners)
 {
-    std::vector<Ball> all{cornerBall(startCorner, 0.0, corners)};
+    std::vector<Ball> all{cornerBall(curve, startCorner, 0.0, corners)};
     all.insert(all.end(), curve.balls.begin(), curve.balls.end());
-    all.push_back(cornerBall(endCorner, curve.length, corners));
+    all.push_back(cornerBall(curve, endCorner, curve.length, corners));
     return all;
 }
 
@@ -662,9 +675,10 @@ std::unordered_map<std::size_t, double> ProtectingBallPlacer::place(Discretizati
     auto corners = placeCorners(curves, ends, discretization, cap);
     for (std::size_t curveIndex = 0; curveIndex < curves.size(); ++curveIndex)
     {
+        auto& curve = curves[curveIndex];
         auto closedLoop = ends[curveIndex].startCorner == ends[curveIndex].endCorner;
-        curves[curveIndex].balls = insertBalls(curves[curveIndex], cornerBall(ends[curveIndex].startCorner, 0.0, corners),
-                                               cornerBall(ends[curveIndex].endCorner, curves[curveIndex].length, corners), closedLoop);
+        curve.balls = insertBalls(curve, cornerBall(curve, ends[curveIndex].startCorner, 0.0, corners),
+                                  cornerBall(curve, ends[curveIndex].endCorner, curve.length, corners), closedLoop);
     }
     auto rounds = repairBalls(curves, ends, corners, minimumSize);
 

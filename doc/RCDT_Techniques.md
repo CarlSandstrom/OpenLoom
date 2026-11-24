@@ -215,6 +215,11 @@ Placement:
   the ball count tripled each round and repair never settled (OPE-249). Balls
   at the minimum size may overlap non-neighbours; giving them all exactly the
   same size keeps any one from hiding another.
+- **Corners off their curves**: within a STEP file's tolerance a CAD vertex
+  may sit off the end of a curve it bounds (0.174 on `Flanged_Housing.step`).
+  Spacing is decided along the curve, so the corner ball takes part with its
+  radius less that offset: a neighbour at arc `a` is at most `a + offset` from
+  the corner, so the two still overlap (OPE-250).
 
 The protection is fixed after seeding: refinement never splits a curve, and
 the points it inserts can never enter a ball (they would be hidden and are
