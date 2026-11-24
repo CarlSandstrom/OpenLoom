@@ -39,7 +39,9 @@ constexpr double SURFACE_DISTANCE_DIVISOR = 2.0;
 
 // Floor on that cap, as a fraction of the model's bounding-box diagonal: a
 // curve lying on a surface it shares no corner with (an invalid B-rep) would
-// otherwise ask for balls of no size, and repair would never settle.
+// otherwise ask for balls of no size, and repair would never settle. It is
+// also CGAL's minimal_size: no ball is placed smaller, and repair's shrink
+// stops there, for two curves touching away from a corner (OPE-249).
 constexpr double MINIMUM_CAP_FRACTION = 1e-3;
 
 // Relative slack within which a ball's radius counts as sitting at its cap.
@@ -52,6 +54,7 @@ struct Ball
     Point3D point;
     double radius;
     std::string cornerId; // empty for a ball inside the curve
+    bool atMinimumSize = false;
 };
 
 /// The cap on a ball's radius from the surfaces sharing no corner with it.
@@ -98,13 +101,15 @@ Point3D pointAt(const Curve& curve, double arc)
     return curve.edge->getPoint(parameterAt(curve, arc));
 }
 
-/// The discretization's spacing at an arc position, capped by the surfaces near it.
+/// The discretization's spacing at an arc position, capped by the surfaces near
+/// it, and never below the minimum size.
 double sizeAt(const Curve& curve, double arc)
 {
     auto& breaks = curve.sizeBreaks;
     auto upper = std::upper_bound(breaks.begin(), breaks.end(), arc);
     auto segment = std::clamp<std::size_t>(upper - breaks.begin(), 1, breaks.size() - 1);
-    return std::min(breaks[segment] - breaks[segment - 1], capAt(curve.cap, pointAt(curve, arc), curve.cornerIds));
+    auto size = std::min(breaks[segment] - breaks[segment - 1], capAt(curve.cap, pointAt(curve, arc), curve.cornerIds));
+    return std::max(size, curve.cap.floor);
 }
 
 /// The existing discretization's points along the curve, as arc positions
@@ -164,9 +169,9 @@ std::vector<Ball> spacedBalls(const Curve& curve,
     {
         auto arc = forward ? startBall.arc + distance : endBall.arc - distance;
         auto point = pointAt(curve, arc);
-        auto radius = std::min({normalizedStep,
-                                smallRadius + distance / span * (largeRadius - smallRadius),
-                                capAt(curve.cap, point, curve.cornerIds)});
+        auto radius = std::max(std::min({normalizedStep, smallRadius + distance / span * (largeRadius - smallRadius),
+                                         capAt(curve.cap, point, curve.cornerIds)}),
+                               curve.cap.floor);
         balls.push_back({arc, point, radius, {}});
         if (radiusIncrement > 0.0)
         {
@@ -316,14 +321,22 @@ std::set<std::pair<std::string, std::string>> neighbourKeys(const std::vector<Cu
 }
 
 /// One shrink pass over every intersecting pair, all against the radii as they
-/// stood at the start. Returns whether any ball shrank.
+/// stood at the start. Returns whether any radius changed.
+///
+/// CGAL's minimal_size: a ball a non-neighbour would shrink below minimumSize
+/// gets exactly minimumSize instead -- raised, if it was smaller -- and is
+/// never shrunk again. Without it, two curves that touch away from a corner
+/// shrink each other's balls without bound and repair never settles
+/// (OPE-249). The radius is exact, not merely floored, so that balls at it
+/// all weigh the same and none hides another.
 bool shrinkIntersectingBalls(const std::vector<BallEntry>& balls,
-                             const std::set<std::pair<std::string, std::string>>& neighbours)
+                             const std::set<std::pair<std::string, std::string>>& neighbours,
+                             double minimumSize)
 {
     std::vector<double> newRadius;
+    std::vector<double> nonNeighbourTarget(balls.size(), std::numeric_limits<double>::infinity());
     for (auto& entry : balls)
         newRadius.push_back(entry.second->radius);
-    bool shrunk = false;
     for (std::size_t i = 0; i < balls.size(); ++i)
         for (std::size_t j = i + 1; j < balls.size(); ++j)
         {
@@ -342,30 +355,43 @@ bool shrinkIntersectingBalls(const std::vector<BallEntry>& balls,
                 // keeps the two overlapping.
                 auto larger = ball0.radius >= ball1.radius ? i : j;
                 if (distance < std::max(ball0.radius, ball1.radius))
-                {
                     newRadius[larger] = std::min(newRadius[larger], distance);
-                    shrunk = true;
-                }
                 continue;
             }
-            newRadius[i] = std::min(newRadius[i], distance / DISTANCE_DIVISOR);
-            newRadius[j] = std::min(newRadius[j], distance / DISTANCE_DIVISOR);
-            shrunk = true;
+            nonNeighbourTarget[i] = std::min(nonNeighbourTarget[i], distance / DISTANCE_DIVISOR);
+            nonNeighbourTarget[j] = std::min(nonNeighbourTarget[j], distance / DISTANCE_DIVISOR);
         }
+
+    bool changed = false;
     for (std::size_t i = 0; i < balls.size(); ++i)
-        balls[i].second->radius = newRadius[i];
-    return shrunk;
+    {
+        auto& ball = *balls[i].second;
+        auto radius = newRadius[i];
+        if (!ball.atMinimumSize && nonNeighbourTarget[i] < minimumSize)
+        {
+            radius = minimumSize;
+            ball.atMinimumSize = true;
+        }
+        else if (!ball.atMinimumSize)
+            radius = std::min(radius, nonNeighbourTarget[i]);
+        changed = changed || radius != ball.radius;
+        ball.radius = radius;
+    }
+    return changed;
 }
 
 /// CGAL's refine_balls: shrink intersecting non-neighbours, repopulate gaps,
 /// repeat. Returns the number of rounds that changed something.
-int repairBalls(std::vector<Curve>& curves, const std::vector<CurveEnds>& ends, std::map<std::string, Ball>& corners)
+int repairBalls(std::vector<Curve>& curves,
+                const std::vector<CurveEnds>& ends,
+                std::map<std::string, Ball>& corners,
+                double minimumSize)
 {
     for (int round = 0; round < MAXIMUM_REPAIR_ROUNDS; ++round)
     {
         auto balls = collectBalls(curves, corners);
         auto neighbours = neighbourKeys(curves, ends);
-        bool shrunk = shrinkIntersectingBalls(balls, neighbours);
+        bool shrunk = shrinkIntersectingBalls(balls, neighbours, minimumSize);
 
         bool repopulated = false;
         for (std::size_t curveIndex = 0; curveIndex < curves.size(); ++curveIndex)
@@ -477,7 +503,7 @@ std::map<std::string, Ball> placeCorners(const std::vector<Curve>& curves,
             if (otherId != cornerId)
                 nearest = std::min(nearest, (discretization.points[otherIndex] - point).norm());
         auto floor = tangentCornerFloor(cornerId, curves, ends, cornerSize);
-        auto radius = std::min({std::max(cornerSize, floor), nearest / 3.0, capAt(cap, point, {cornerId})});
+        auto radius = std::max(std::min({std::max(cornerSize, floor), nearest / 3.0, capAt(cap, point, {cornerId})}), cap.floor);
         corners[cornerId] = Ball{0.0, point, radius, cornerId};
     }
     return corners;
@@ -508,6 +534,18 @@ std::size_t countBallsAtCap(const std::vector<Curve>& curves, const std::map<std
     for (auto& curve : curves)
         for (auto& ball : curve.balls)
             count += atCap(ball, curve.cornerIds) ? 1 : 0;
+    return count;
+}
+
+/// How many balls, corners included, repair stopped at their minimum size.
+std::size_t countBallsAtMinimumSize(const std::vector<Curve>& curves, const std::map<std::string, Ball>& corners)
+{
+    std::size_t count = 0;
+    for (auto& [cornerId, ball] : corners)
+        count += ball.atMinimumSize ? 1 : 0;
+    for (auto& curve : curves)
+        count += std::ranges::count_if(curve.balls, [](const Ball& ball)
+                                       { return ball.atMinimumSize; });
     return count;
 }
 
@@ -603,7 +641,8 @@ std::unordered_map<std::size_t, double> ProtectingBallPlacer::place(Discretizati
                                                                     const Geometry3D::GeometryCollection3D& geometry)
 {
     NonIncidentSurfaceDistance surfaceDistance(geometry, topology);
-    SurfaceCap cap{&surfaceDistance, MINIMUM_CAP_FRACTION * boundingBoxDiagonal(discretization.points)};
+    auto minimumSize = MINIMUM_CAP_FRACTION * boundingBoxDiagonal(discretization.points);
+    SurfaceCap cap{&surfaceDistance, minimumSize};
 
     std::vector<Curve> curves;
     std::vector<CurveEnds> ends;
@@ -627,14 +666,15 @@ std::unordered_map<std::size_t, double> ProtectingBallPlacer::place(Discretizati
         curves[curveIndex].balls = insertBalls(curves[curveIndex], cornerBall(ends[curveIndex].startCorner, 0.0, corners),
                                                cornerBall(ends[curveIndex].endCorner, curves[curveIndex].length, corners), closedLoop);
     }
-    auto rounds = repairBalls(curves, ends, corners);
+    auto rounds = repairBalls(curves, ends, corners, minimumSize);
 
     std::size_t curvePoints = 0;
     for (auto& curve : curves)
         curvePoints += curve.balls.size();
     spdlog::info("ProtectingBallPlacer: {} corners, {} curve points on {} curves after {} repair rounds, "
-                 "{} balls at their surface cap",
-                 corners.size(), curvePoints, curves.size(), rounds, countBallsAtCap(curves, corners, cap));
+                 "{} balls at their surface cap, {} at their minimum size",
+                 corners.size(), curvePoints, curves.size(), rounds, countBallsAtCap(curves, corners, cap),
+                 countBallsAtMinimumSize(curves, corners));
     return rebuild(discretization, curves, ends, corners, topology);
 }
 
