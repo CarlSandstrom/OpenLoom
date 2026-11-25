@@ -1,6 +1,7 @@
 #include "Meshing/Core/3D/General/MeshQueries3D.h"
 #include "Meshing/Connectivity/FaceKey.h"
 #include "Meshing/Core/3D/General/RegularPredicates3D.h"
+#include "Meshing/Core/3D/General/RobustPredicates3D.h"
 #include "Meshing/Data/3D/Node3D.h"
 #include <algorithm>
 #include <array>
@@ -8,6 +9,14 @@
 
 namespace Meshing
 {
+
+namespace
+{
+
+std::vector<ElementId> connectedToPoint(const std::vector<ElementId>& conflicting, const Point3D& point, const MeshData3D& meshData);
+bool containsPoint(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData);
+
+} // namespace
 
 MeshQueries3D::MeshQueries3D(const MeshData3D& meshData) :
     meshData_(meshData)
@@ -49,7 +58,7 @@ std::vector<ElementId> MeshQueries3D::findConflictingTetrahedra(const Point3D& p
         }
     }
 
-    return conflicting;
+    return connectedToPoint(conflicting, point, meshData_);
 }
 
 std::vector<std::array<NodeId, 3>>
@@ -118,5 +127,72 @@ std::optional<NodeId> MeshQueries3D::findOppositeVertex(ElementId tetId, NodeId 
     }
     return std::nullopt;
 }
+
+namespace
+{
+
+/// The conflicting tetrahedra reachable through shared faces from one that
+/// contains point, in their original order. In a regular triangulation the
+/// conflict region is connected, so this drops nothing; but a tetrahedron
+/// whose orthosphere passes exactly through point counts as conflicting, and
+/// equal weights on cocircular points make such ties common far from point.
+/// Left in, a stray piece pinches the cavity along an edge and fanning it
+/// from point stacks tetrahedra on one face (OPE-251).
+std::vector<ElementId> connectedToPoint(const std::vector<ElementId>& conflicting, const Point3D& point, const MeshData3D& meshData)
+{
+    std::map<FaceKey, std::vector<size_t>> tetrahedraOfFace;
+    std::vector<size_t> pending;
+    std::vector<bool> reached(conflicting.size(), false);
+    for (size_t index = 0; index < conflicting.size(); ++index)
+    {
+        auto& tetrahedron = dynamic_cast<const TetrahedronElement&>(*meshData.getElement(conflicting[index]));
+        for (auto& face : tetrahedron.getFaces())
+            tetrahedraOfFace[FaceKey(face[0], face[1], face[2])].push_back(index);
+        if (!containsPoint(tetrahedron, point, meshData)) continue;
+        reached[index] = true;
+        pending.push_back(index);
+    }
+
+    while (!pending.empty())
+    {
+        auto index = pending.back();
+        pending.pop_back();
+        auto& tetrahedron = dynamic_cast<const TetrahedronElement&>(*meshData.getElement(conflicting[index]));
+        for (auto& face : tetrahedron.getFaces())
+            for (auto neighbour : tetrahedraOfFace.at(FaceKey(face[0], face[1], face[2])))
+            {
+                if (reached[neighbour]) continue;
+                reached[neighbour] = true;
+                pending.push_back(neighbour);
+            }
+    }
+
+    std::vector<ElementId> connected;
+    for (size_t index = 0; index < conflicting.size(); ++index)
+        if (reached[index]) connected.push_back(conflicting[index]);
+    return connected;
+}
+
+/// Whether point lies inside tetrahedron or on its boundary, exactly.
+bool containsPoint(const TetrahedronElement& tetrahedron, const Point3D& point, const MeshData3D& meshData)
+{
+    auto& nodeIds = tetrahedron.getNodeIds();
+    std::array<Point3D, 4> corners;
+    for (size_t i = 0; i < 4; ++i)
+        corners[i] = meshData.getNode(nodeIds[i])->getCoordinates();
+    auto orientation = RobustPredicates3D::orientationSign(corners[0], corners[1], corners[2], corners[3]);
+    if (orientation == 0) return false;
+
+    for (size_t i = 0; i < 4; ++i)
+    {
+        auto replaced = corners;
+        replaced[i] = point;
+        auto sign = RobustPredicates3D::orientationSign(replaced[0], replaced[1], replaced[2], replaced[3]);
+        if (sign == -orientation) return false;
+    }
+    return true;
+}
+
+} // namespace
 
 } // namespace Meshing
