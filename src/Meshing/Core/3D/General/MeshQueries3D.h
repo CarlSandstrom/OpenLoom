@@ -28,7 +28,11 @@ public:
 
     /**
      * @brief Find tetrahedra whose orthogonal sphere contains the (possibly
-     * weighted) point
+     * weighted) point, connected through shared faces to one that contains
+     * the point -- the point's conflict region. Empty for a point outside
+     * every tetrahedron. Exact ties count as conflicts, so a tie far from
+     * the point could otherwise join the cavity as a separate piece
+     * (OPE-251).
      *
      * Uses RegularPredicates3D's weighted in-sphere ("orthosphere") test,
      * incorporating each candidate tetrahedron's own vertices' weights (see

@@ -108,6 +108,27 @@ TEST_F(MeshOperations3DTest, FindConflictingTetrahedraMultipleTets)
     EXPECT_GE(conflicting.size(), 1);
 }
 
+// A tetrahedron can conflict with a point without being connected to the
+// tetrahedra around it: B's vertices lie on a sphere of radius 4 about the
+// origin, so its circumsphere contains the origin, yet B shares nothing with
+// A, which contains it. On Flanged_Housing.step exact ties made such stray
+// pieces, and the pinched cavity they formed broke the triangulation
+// (OPE-251). They are not part of the point's conflict region.
+TEST_F(MeshOperations3DTest, FindConflictingTetrahedraIgnoresConflictsNotConnectedToThePoint)
+{
+    auto containing = addTetrahedron(addNode(1.0, 1.0, 1.0), addNode(1.0, -1.0, -1.0), addNode(-1.0, 1.0, -1.0),
+                                     addNode(-1.0, -1.0, 1.0));
+    const double diagonal = 4.0 / std::sqrt(3.0);
+    addTetrahedron(addNode(4.0, 0.0, 0.0), addNode(0.0, 4.0, 0.0), addNode(0.0, 0.0, 4.0),
+                   addNode(diagonal, diagonal, diagonal));
+
+    MeshOperations3D operations(meshData_, *mutator_);
+    auto conflicting = operations.getQueries().findConflictingTetrahedra(Point3D(0.0, 0.0, 0.0));
+
+    ASSERT_EQ(conflicting.size(), 1);
+    EXPECT_EQ(conflicting.front(), containing);
+}
+
 // ============================================================================
 // Find Cavity Boundary Tests
 // ============================================================================
